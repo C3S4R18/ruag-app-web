@@ -53,23 +53,21 @@ export default function AdminTable() {
   const supabase = createClient()
   const [fichas, setFichas] = useState<any[]>([])
   const [selectedFicha, setSelectedFicha] = useState<any>(null)
-  
-  // SELECCIÓN MULTIPLE
   const [selectedIds, setSelectedIds] = useState<string[]>([])
 
   // ESTADOS DE IMPRESIÓN
   const [showDocSelector, setShowDocSelector] = useState(false)
   const [selectedDocsToPrint, setSelectedDocsToPrint] = useState<string[]>([])
+  
+  // PDF Blob y File para vista previa
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null) 
   const [pdfFile, setPdfFile] = useState<File | null>(null) 
-  const [preparingDoc, setPreparingDoc] = useState(false)
-  
-  // ESTADO DE IMPRESIÓN RÁPIDA (IMAGEN INDIVIDUAL DEL DRAWER)
-  const [printImage, setPrintImage] = useState<string | null>(null)
 
+  const [preparingDoc, setPreparingDoc] = useState(false)
+  const [printImage, setPrintImage] = useState<string | null>(null) // Recuperado para el Drawer
   const printRef = useRef<HTMLDivElement>(null)
 
-  // FILTROS Y PAGINACIÓN
+  // FILTROS
   const [searchTerm, setSearchTerm] = useState('')
   const [filterObra, setFilterObra] = useState('Todas')
   const [filterEstado, setFilterEstado] = useState('Todos')
@@ -83,11 +81,7 @@ export default function AdminTable() {
 
   const fetchFichas = async () => {
     if(fichas.length === 0) setLoading(true)
-    const { data } = await supabase
-      .from('fichas')
-      .select(`*, profiles(role)`) 
-      .order('updated_at', { ascending: false })
-    
+    const { data } = await supabase.from('fichas').select(`*, profiles(role)`).order('updated_at', { ascending: false })
     if (data) setFichas(data)
     setLoading(false)
   }
@@ -95,37 +89,25 @@ export default function AdminTable() {
   const playSound = () => {
     const audio = new Audio('/notification.mp3')
     const playPromise = audio.play()
-    if (playPromise !== undefined) {
-      playPromise.then(() => setAudioEnabled(true)).catch((error) => console.warn("Audio bloqueado", error))
-    }
+    if (playPromise !== undefined) playPromise.catch((e) => console.warn(e))
   }
 
-  // --- CORRECCIÓN BOTÓN SONIDO: Se actualiza el estado directamente ---
-  const enableAudio = () => {
-      setAudioEnabled(true) 
+  const enableAudio = () => { 
+      setAudioEnabled(true) // Desaparece el botón
       playSound()
-      toast.success("🔊 Audio activado para notificaciones")
+      toast.success("🔊 Audio activado") 
   }
 
   useEffect(() => {
     fetchFichas()
-    const channel = supabase.channel('realtime-fichas')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'fichas' }, (payload: any) => {
+    const channel = supabase.channel('realtime-fichas').on('postgres_changes', { event: '*', schema: 'public', table: 'fichas' }, (payload: any) => {
           if (payload.eventType === 'INSERT') {
              setFichas((prev) => [payload.new, ...prev])
-             if(payload.new.estado === 'completado') {
-                 toast.success(`🔔 Nuevo Ingreso: ${payload.new.nombres}`)
-                 playSound()
-             }
-          } 
-          else if (payload.eventType === 'UPDATE') {
+             if(payload.new.estado === 'completado') { toast.success(`🔔 Nuevo Ingreso: ${payload.new.nombres}`); playSound() }
+          } else if (payload.eventType === 'UPDATE') {
              setFichas((prev) => prev.map(f => f.id === payload.new.id ? payload.new : f))
-             if (payload.new.estado === 'completado') {
-                 toast.success(`✅ FICHA COMPLETADA: ${payload.new.nombres} ${payload.new.apellido_paterno}`)
-                 playSound()
-             }
-          }
-          else if (payload.eventType === 'DELETE') {
+             if (payload.new.estado === 'completado') { toast.success(`✅ Completado: ${payload.new.nombres}`); playSound() }
+          } else if (payload.eventType === 'DELETE') {
              setFichas((prev) => prev.filter(f => f.id !== payload.old.id))
              setSelectedIds(prev => prev.filter(id => id !== payload.old.id))
           }
@@ -133,7 +115,6 @@ export default function AdminTable() {
     return () => { supabase.removeChannel(channel) }
   }, [])
 
-  // --- LOGICA DE SELECCION ---
   const handleSelectAll = (filteredData: any[]) => {
       if (selectedIds.length === filteredData.length && filteredData.length > 0) setSelectedIds([]) 
       else setSelectedIds(filteredData.map(f => f.id)) 
@@ -145,7 +126,7 @@ export default function AdminTable() {
   }
 
   const handleBulkDelete = async () => {
-      if (!confirm(`⚠️ ¿Eliminar ${selectedIds.length} fichas seleccionadas?`)) return
+      if (!confirm(`⚠️ ¿Eliminar ${selectedIds.length} fichas?`)) return
       setDeleting(true)
       try {
           const { error } = await supabase.from('fichas').delete().in('id', selectedIds)
@@ -155,15 +136,9 @@ export default function AdminTable() {
       } catch (error: any) { toast.error("Error: " + error.message) } finally { setDeleting(false) }
   }
 
-  const handleDeleteLocal = () => {
-      fetchFichas() 
-      setSelectedFicha(null) 
-  }
-
   const handleDownloadPDF = async (ficha: any) => {
     try {
-        setDownloadingPdf(true)
-        toast.info("Generando PDF...")
+        setDownloadingPdf(true); toast.info("Generando PDF...")
         const blob = await pdf(<FichaDocument ficha={ficha} />).toBlob()
         const url = URL.createObjectURL(blob)
         const link = document.createElement('a'); link.href = url; link.download = `Ficha_${ficha.dni}.pdf`
@@ -172,53 +147,39 @@ export default function AdminTable() {
     } catch (error: any) { toast.error("Error PDF: " + error.message) } finally { setDownloadingPdf(false) }
   }
 
-  // --- NUEVA LÓGICA DE IMPRESIÓN ---
+  const handleDeleteLocal = () => {
+      fetchFichas() 
+      setSelectedFicha(null) 
+  }
+
+  // --- SELECCIÓN DE DOCUMENTOS ---
   const handleOpenDocSelector = () => {
-      if (selectedIds.length === 0) return
-      if (selectedIds.length > 1) {
-          toast.warning("Por favor selecciona solo 1 trabajador para imprimir.")
-          return
-      }
-      setSelectedDocsToPrint([])
+      if (selectedIds.length !== 1) { toast.warning("Selecciona solo 1 trabajador para imprimir."); return }
+      setSelectedDocsToPrint([]) 
       setShowDocSelector(true)
   }
 
   const toggleDocSelection = (docId: string) => {
-      if (selectedDocsToPrint.includes(docId)) {
-          setSelectedDocsToPrint(prev => prev.filter(id => id !== docId))
-      } else {
-          setSelectedDocsToPrint(prev => [...prev, docId])
-      }
+      setSelectedDocsToPrint(prev => prev.includes(docId) ? prev.filter(id => id !== docId) : [...prev, docId])
   }
 
   const toggleSelectAllDocs = () => {
-      if (selectedDocsToPrint.length === DOC_OPTIONS.length) {
-          setSelectedDocsToPrint([])
-      } else {
-          setSelectedDocsToPrint(DOC_OPTIONS.map(d => d.id))
-      }
+      setSelectedDocsToPrint(selectedDocsToPrint.length === DOC_OPTIONS.length ? [] : DOC_OPTIONS.map(d => d.id))
   }
 
+  // --- GENERACIÓN DE PDF INTELIGENTE ---
   const handleGenerateCombinedDocs = async () => {
-      if (selectedDocsToPrint.length === 0) {
-          toast.warning("Selecciona al menos un documento")
-          return
-      }
-
+      if (selectedDocsToPrint.length === 0) { toast.warning("Selecciona documentos"); return }
       setPreparingDoc(true)
       setShowDocSelector(false) 
-      
+
       setTimeout(async () => {
-          if (!printRef.current) {
-              toast.error("Error: No se encontró el contenedor de impresión")
-              setPreparingDoc(false)
-              return
-          }
+          if (!printRef.current) { toast.error("Error de renderizado"); setPreparingDoc(false); return }
           
           try {
               const pdfDoc = new jsPDF('p', 'mm', 'a4')
               pdfDoc.deletePage(1)
-              
+
               const elements = Array.from(printRef.current.children) as HTMLElement[]
               
               for (let i = 0; i < elements.length; i++) {
@@ -232,12 +193,11 @@ export default function AdminTable() {
                       backgroundColor: '#ffffff',
                       imageTimeout: 0,
                       onclone: (clonedDoc) => {
-                          const container = clonedDoc.getElementById('print-container-root')
-                          if(container) {
-                              container.style.color = '#000000'
-                              container.style.borderColor = '#000000'
-                              container.style.background = '#ffffff'
-                          }
+                          const all = clonedDoc.querySelectorAll('*')
+                          all.forEach((el: any) => {
+                              el.style.color = '#000000'
+                              el.style.borderColor = '#000000'
+                          })
                       }
                   });
 
@@ -253,7 +213,7 @@ export default function AdminTable() {
               }
 
               // Nombre descriptivo: Documentos_Juan_Perez.pdf
-              const nombreArchivo = `Documentos_${workerToPrint?.nombres?.split(' ')[0]}_${workerToPrint?.apellido_paterno}.pdf`
+              const nombreArchivo = `Documentos_${workerToPrint?.nombres?.split(' ')[0] || 'T'}_${workerToPrint?.apellido_paterno || ''}.pdf`
 
               const pdfBlob = pdfDoc.output('blob')
               const pdfUrl = URL.createObjectURL(pdfBlob)
@@ -263,8 +223,8 @@ export default function AdminTable() {
               setPdfFile(file)
 
           } catch (error: any) {
-              console.error("Error detallado:", error)
-              toast.error("Error al generar: " + (error.message || "Revisa la consola"))
+              console.error("Error PDF:", error)
+              toast.error("Error al generar PDF: " + error.message)
           } finally {
               setPreparingDoc(false)
           }
@@ -274,15 +234,14 @@ export default function AdminTable() {
   // --- FILTROS Y PAGINACIÓN ---
   const obrasUnicas = Array.from(new Set(fichas.map(f => f.nombre_obra).filter(Boolean)))
   const filteredAndSorted = fichas.filter(f => {
-      const searchLower = searchTerm.toLowerCase()
-      return (f.nombres?.toLowerCase().includes(searchLower) || f.apellido_paterno?.toLowerCase().includes(searchLower) || f.dni?.includes(searchLower)) &&
+      const s = searchTerm.toLowerCase()
+      return (f.nombres?.toLowerCase().includes(s) || f.apellido_paterno?.toLowerCase().includes(s) || f.dni?.includes(s)) &&
              (filterObra === 'Todas' || f.nombre_obra === filterObra) &&
              (filterEstado === 'Todos' || (filterEstado === 'Completado' ? f.estado === 'completado' : f.estado !== 'completado'))
   }).sort((a, b) => (a.apellido_paterno || '').localeCompare(b.apellido_paterno || ''))
 
   const totalPages = Math.ceil(filteredAndSorted.length / itemsPerPage)
   const paginatedData = filteredAndSorted.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-
   const workerToPrint = fichas.find(f => f.id === selectedIds[0])
 
   useEffect(() => { setCurrentPage(1) }, [searchTerm, filterObra, filterEstado])
@@ -290,7 +249,7 @@ export default function AdminTable() {
   return (
     <div className="flex flex-col h-full bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden relative">
       
-      {/* --- AREA DE RENDERIZADO OCULTO --- */}
+      {/* --- CONTENEDOR OCULTO --- */}
       <div className="fixed top-0 left-0 pointer-events-none opacity-0 overflow-hidden" style={{ zIndex: -100 }}>
           <div ref={printRef} id="print-container-root" style={{ width: 'fit-content', background: 'white' }}>
               {workerToPrint && selectedDocsToPrint.map((docId) => (
@@ -315,6 +274,7 @@ export default function AdminTable() {
                 <input type="text" placeholder="Buscar..." className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none text-sm font-medium" value={searchTerm} onChange={e => setSearchTerm(e.target.value)}/>
             </div>
 
+            {/* ACCIONES MASIVAS */}
             {selectedIds.length > 0 && (
                 <motion.div initial={{opacity:0, scale:0.9}} animate={{opacity:1, scale:1}} className="flex items-center gap-3">
                     <span className="text-sm font-bold text-slate-600">{selectedIds.length} seleccionado</span>
@@ -407,7 +367,7 @@ export default function AdminTable() {
                 onDelete={handleDeleteLocal} 
                 onDownload={() => handleDownloadPDF(selectedFicha)} 
                 downloading={downloadingPdf} 
-                onPrintPreview={(img) => setPrintImage(img)} // YA NO DA ERROR
+                onPrintPreview={(img) => setPrintImage(img)}
             />
         )}
       </AnimatePresence>
@@ -424,7 +384,7 @@ export default function AdminTable() {
         )}
       </AnimatePresence>
 
-      {/* MODAL VISTA PREVIA IMAGEN INDIVIDUAL (DEL DRAWER) */}
+      {/* MODAL VISTA PREVIA IMAGEN INDIVIDUAL (DEL DRAWER) - RECUPERADO */}
       <AnimatePresence>
         {printImage && (
             <PrintPreviewModal image={printImage} onClose={() => setPrintImage(null)} />
@@ -440,28 +400,41 @@ export default function AdminTable() {
                         <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2"><Printer className="text-blue-600"/> Seleccionar Documentos</h3>
                         <button onClick={() => setShowDocSelector(false)} className="p-2 hover:bg-slate-100 rounded-full"><X size={20}/></button>
                     </div>
+                    
                     <div className="p-6">
                         <div className="mb-4 flex items-center justify-between">
                             <span className="text-sm font-bold text-slate-500">Seleccionar documentos:</span>
-                            <button onClick={toggleSelectAllDocs} className="text-xs font-bold text-blue-600 hover:text-blue-800">{selectedDocsToPrint.length === DOC_OPTIONS.length ? 'Deseleccionar Todos' : 'Seleccionar Todos'}</button>
+                            <button onClick={toggleSelectAllDocs} className="text-xs font-bold text-blue-600 hover:text-blue-800">
+                                {selectedDocsToPrint.length === DOC_OPTIONS.length ? 'Deseleccionar Todos' : 'Seleccionar Todos'}
+                            </button>
                         </div>
+
                         <div className="space-y-2 mb-6 max-h-[300px] overflow-y-auto">
                             {DOC_OPTIONS.map((doc) => (
                                 <label key={doc.id} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${selectedDocsToPrint.includes(doc.id) ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-blue-300'}`}>
-                                    <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${selectedDocsToPrint.includes(doc.id) ? 'bg-blue-600 border-blue-600' : 'bg-white border-slate-300'}`}>{selectedDocsToPrint.includes(doc.id) && <CheckSquare size={14} className="text-white"/>}</div>
+                                    <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${selectedDocsToPrint.includes(doc.id) ? 'bg-blue-600 border-blue-600' : 'bg-white border-slate-300'}`}>
+                                        {selectedDocsToPrint.includes(doc.id) && <CheckSquare size={14} className="text-white"/>}
+                                    </div>
                                     <input type="checkbox" className="hidden" checked={selectedDocsToPrint.includes(doc.id)} onChange={() => toggleDocSelection(doc.id)}/>
                                     <div><div className="font-bold text-slate-800 text-sm">{doc.label}</div><div className="text-xs text-slate-400">{doc.desc}</div></div>
                                 </label>
                             ))}
                         </div>
-                        <button onClick={handleGenerateCombinedDocs} disabled={selectedDocsToPrint.length === 0 || preparingDoc} className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-slate-800 disabled:opacity-50 transition-all shadow-lg">
-                            {preparingDoc ? <Loader2 className="animate-spin" size={18}/> : <Printer size={18}/>} {preparingDoc ? 'Procesando PDF...' : `Generar PDF (${selectedDocsToPrint.length})`}
+
+                        <button 
+                            onClick={handleGenerateCombinedDocs}
+                            disabled={selectedDocsToPrint.length === 0 || preparingDoc}
+                            className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-slate-800 disabled:opacity-50 transition-all shadow-lg"
+                        >
+                            {preparingDoc ? <Loader2 className="animate-spin" size={18}/> : <Printer size={18}/>}
+                            {preparingDoc ? 'Procesando PDF...' : `Generar PDF (${selectedDocsToPrint.length})`}
                         </button>
                     </div>
                 </motion.div>
             </motion.div>
         )}
       </AnimatePresence>
+
     </div>
   )
 }
@@ -473,7 +446,22 @@ function PdfPreviewModal({ pdfUrl, pdfFile, workerName, onClose }: { pdfUrl: str
     const handleShareWhatsApp = async () => {
         if (!pdfFile) return
 
-        // 1. Descarga Segura para evitar bloqueos
+        // 1. Detección rudimentaria de móvil para usar Share API
+        const userAgent = window.navigator.userAgent.toLowerCase();
+        const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
+
+        if (isMobile && navigator.share && navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+            try {
+                await navigator.share({
+                    files: [pdfFile],
+                    title: 'Documentos SSOMA',
+                    text: `Adjunto documentos firmados del trabajador ${workerName}.`
+                })
+                return 
+            } catch (e) { console.warn("Share API cancelado", e) }
+        }
+
+        // 2. PC / Fallback: Descarga obligatoria y apertura de URL
         const link = document.createElement('a')
         link.href = pdfUrl
         link.download = pdfFile.name
@@ -483,23 +471,13 @@ function PdfPreviewModal({ pdfUrl, pdfFile, workerName, onClose }: { pdfUrl: str
         link.click()
         document.body.removeChild(link)
 
-        // 2. Share API (Móvil)
-        if (navigator.share && navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
-            try {
-                await navigator.share({
-                    files: [pdfFile],
-                    title: 'Documentos SSOMA',
-                    text: 'Adjunto documentos firmados.'
-                })
-                return 
-            } catch (e) { console.warn("Share API cancelado", e) }
-        }
-
         toast.success("✅ Archivo descargado en tu PC. Abriendo WhatsApp...")
         
-        // CORRECCIÓN MENSAJE WHATSAPP
+        // Mensaje limpio y profesional
+        const message = `Hola, adjunto los documentos firmados del trabajador *${workerName}* que acabo de descargar.`
+        
         setTimeout(() => {
-            window.open(`https://wa.me/?text=Hola, adjunto los documentos firmados del trabajador *${workerName}*.`, '_blank')
+            window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank')
         }, 1000)
     }
 
@@ -547,12 +525,13 @@ function PrintPreviewModal({ image, onClose }: { image: string, onClose: () => v
     )
 }
 
-function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloading }: FichaDrawerProps) {
+function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloading, onPrintPreview }: FichaDrawerProps) {
     const [isEditing, setIsEditing] = useState(false)
     const [formData, setFormData] = useState<any>(ficha) 
     const [saving, setSaving] = useState(false)
     const [loadingAction, setLoadingAction] = useState(false) 
     const supabase = createClient()
+    const printRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         let esposaObj = { paterno: '', materno: '', nombres: '', dni: '' }
@@ -566,10 +545,10 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
         setSaving(true)
         const payload = { ...formData, esposa: JSON.stringify(formData.esposa_datos), hijos: JSON.stringify(formData.hijos_datos) }
         delete payload.esposa_datos; delete payload.hijos_datos
-        
-        // CORRECCIÓN ERROR GUARDAR: Eliminar profiles que viene del join
         const cleaned = { ...payload }
-        delete cleaned.profiles // <--- ESTA LÍNEA ARREGLA EL ERROR DE GUARDADO
+        
+        // --- CORRECCIÓN IMPORTANTE: ELIMINAR PROFILES PARA EVITAR ERROR DE SUPABASE ---
+        delete cleaned.profiles 
         
         Object.keys(cleaned).forEach(k => { if(cleaned[k] === '') cleaned[k] = null })
         const { error } = await supabase.from('fichas').update(cleaned).eq('id', ficha.id)
@@ -589,17 +568,25 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
         } catch (error: any) { toast.error("Error: " + error.message) } finally { setLoadingAction(false) }
     }
 
+    const handleGenerateImage = async () => {
+        if (!printRef.current) return; 
+        try { 
+            const canvas = await html2canvas(printRef.current, { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff' }); 
+            onPrintPreview(canvas.toDataURL('image/png')) 
+        } catch (error) { toast.error("Error") }
+    }
+
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/20 backdrop-blur-sm z-50 flex justify-end" onClick={onClose}>
+            {/* ELIMINADO EL RENDERIZADO DEL CARGO RISST AQUI DENTRO, YA NO ES NECESARIO */}
             <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", damping: 30 }} className="w-full max-w-xl bg-white h-full shadow-2xl flex flex-col border-l border-slate-100" onClick={e => e.stopPropagation()}>
                 <div className="h-16 px-6 border-b border-slate-100 flex justify-between items-center bg-white z-10"><div className="flex items-center gap-3"><div><h2 className="font-bold text-slate-800 text-sm flex items-center gap-2">{ficha.nombres} {ficha.apellido_paterno}</h2><p className="text-xs text-slate-400">{ficha.dni}</p></div></div><button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full"><X size={18}/></button></div>
-                
                 <div className="flex-1 overflow-y-auto p-6 space-y-8 bg-slate-50/50">
                     <div className="grid grid-cols-2 gap-2 sticky top-0 z-10 py-2">
+                        {/* BOTON CARGO RISST ELIMINADO */}
                         <button onClick={onDownload} disabled={downloading} className="flex items-center justify-center gap-2 bg-white border border-slate-200 text-slate-700 py-2.5 rounded-lg text-xs font-bold shadow-sm hover:bg-slate-50 disabled:opacity-50">{downloading ? <Loader2 className="animate-spin" size={14}/> : <><Download size={14}/> PDF Digital</>}</button>
                         <button onClick={() => setIsEditing(!isEditing)} className="flex items-center justify-center gap-2 border py-2.5 rounded-lg text-xs font-bold shadow-sm bg-white text-slate-700">{isEditing ? 'Cancelar' : 'Editar Datos'}</button>
                     </div>
-                    
                     <Section title="1. Datos Personales" icon={<User size={16}/>}><Grid><Field label="Apellido Paterno" name="apellido_paterno" val={formData.apellido_paterno} edit={isEditing} set={setFormData}/><Field label="Apellido Materno" name="apellido_materno" val={formData.apellido_materno} edit={isEditing} set={setFormData}/><Field label="Nombres" name="nombres" val={formData.nombres} edit={isEditing} set={setFormData}/><Field label="F. Nacimiento" name="fecha_nacimiento" val={formData.fecha_nacimiento} edit={isEditing} set={setFormData}/><Field label="DNI" name="dni" val={formData.dni} edit={isEditing} set={setFormData}/><Field label="Dirección" name="direccion" val={formData.direccion} edit={isEditing} set={setFormData} full/><Field label="Distrito" name="distrito" val={formData.distrito} edit={isEditing} set={setFormData}/><Field label="Provincia" name="provincia" val={formData.provincia} edit={isEditing} set={setFormData}/><Field label="Correo" name="correo" val={formData.correo} edit={isEditing} set={setFormData}/><Field label="Celular" name="celular" val={formData.celular} edit={isEditing} set={setFormData}/></Grid></Section>
                     <Section title="2. Sistema Pensiones" icon={<ShieldCheck size={16}/>}><Grid><Field label="Régimen" name="sistema_pension" val={formData.sistema_pension} edit={isEditing} set={setFormData}/><Field label="Nombre AFP" name="afp_nombre" val={formData.afp_nombre} edit={isEditing} set={setFormData}/></Grid></Section>
                     <Section title="3. Datos Bancarios" icon={<Wallet size={16}/>}><Grid><Field label="Banco" name="banco" val={formData.banco} edit={isEditing} set={setFormData}/><Field label="Cuenta Ahorros" name="numero_cuenta" val={formData.numero_cuenta} edit={isEditing} set={setFormData}/></Grid></Section>
@@ -607,10 +594,7 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
                     <Section title="5. Laboral / Formación" icon={<HardHat size={16}/>}><Grid><Field label="Categoría" name="categoria" val={formData.categoria} edit={isEditing} set={setFormData}/><Field label="Cargo" name="cargo" val={formData.cargo} edit={isEditing} set={setFormData}/><Field label="Nivel Educativo" name="nivel_educacion" val={formData.nivel_educacion} edit={isEditing} set={setFormData}/><Field label="Carrera" name="carrera" val={formData.carrera} edit={isEditing} set={setFormData}/></Grid></Section>
                     <Section title="6. Documentos" icon={<FileBadge size={16}/>}><div className="grid grid-cols-2 gap-3"><DocCard label="DNI Frontal" url={ficha.url_dni_frontal} /><DocCard label="DNI Reverso" url={ficha.url_dni_reverso} /><DocCard label="Carnet RETCC" url={ficha.url_carnet} /><DocCard label="Antecedentes" url={ficha.url_antecedentes} /></div></Section>
                 </div>
-                <div className="p-4 border-t border-slate-100 bg-white flex justify-between items-center sticky bottom-0 z-20 gap-3">
-                    {ficha.estado === 'completado' ? (<button onClick={() => handleChangeStatus('pendiente')} disabled={loadingAction} className="flex-1 bg-amber-50 text-amber-700 border border-amber-200 py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-amber-100 transition-colors">{loadingAction ? <Loader2 className="animate-spin" size={16}/> : <><Unlock size={16}/> ABRIR FICHA</>}</button>) : (<button onClick={() => handleChangeStatus('completado')} disabled={loadingAction} className="flex-1 bg-slate-900 text-white py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-slate-800 transition-colors shadow-lg">{loadingAction ? <Loader2 className="animate-spin" size={16}/> : <><Lock size={16}/> CERRAR FICHA</>}</button>)}
-                    {isEditing && (<button onClick={handleSave} className="flex-1 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-lg">{saving ? '...' : <><Save size={16}/> GUARDAR</>}</button>)}
-                </div>
+                <div className="p-4 border-t border-slate-100 bg-white flex justify-between items-center sticky bottom-0 z-20 gap-3">{ficha.estado === 'completado' ? (<button onClick={() => handleChangeStatus('pendiente')} disabled={loadingAction} className="flex-1 bg-amber-50 text-amber-700 border border-amber-200 py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-amber-100 transition-colors">{loadingAction ? <Loader2 className="animate-spin" size={16}/> : <><Unlock size={16}/> ABRIR FICHA</>}</button>) : (<button onClick={() => handleChangeStatus('completado')} disabled={loadingAction} className="flex-1 bg-slate-900 text-white py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-slate-800 transition-colors shadow-lg">{loadingAction ? <Loader2 className="animate-spin" size={16}/> : <><Lock size={16}/> CERRAR FICHA</>}</button>)}{isEditing && (<button onClick={handleSave} className="flex-1 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-lg">{saving ? '...' : <><Save size={16}/> GUARDAR</>}</button>)}</div>
             </motion.div>
         </motion.div>
     )

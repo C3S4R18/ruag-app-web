@@ -30,6 +30,7 @@ export default function AdminPage() {
   const [activeView, setActiveView] = useState<'dashboard' | 'biometria'>('dashboard')
   const [isSidebarOpen, setSidebarOpen] = useState(true)
   const [showImport, setShowImport] = useState(false)
+  const [isMobile, setIsMobile] = useState(false) // NUEVO: Detectar si es celular
 
   // Datos Biometría
   const [biometricData, setBiometricData] = useState<any[]>([])
@@ -47,6 +48,23 @@ export default function AdminPage() {
       setLoading(false)
     }
     checkUser()
+
+    // --- CORRECCIÓN SIDEBAR MOVIL ---
+    const handleResize = () => {
+        if (window.innerWidth < 768) {
+            setIsMobile(true)
+            setSidebarOpen(false) // Cerrar por defecto en celular
+        } else {
+            setIsMobile(false)
+            setSidebarOpen(true) // Abrir por defecto en PC
+        }
+    }
+    
+    // Ejecutar al inicio
+    handleResize()
+    
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
   }, [])
 
   // FETCH DATOS
@@ -76,25 +94,48 @@ export default function AdminPage() {
       (worker.dni || '').includes(biometricSearch)
   )
 
+  // Función para cerrar sidebar en movil al hacer click en un item
+  const handleNavClick = (view: 'dashboard' | 'biometria') => {
+      setActiveView(view)
+      if (isMobile) setSidebarOpen(false)
+  }
+
   if (loading) return <div className="h-screen flex items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-blue-600"/></div>
   if (!isAdmin) return null
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden font-sans text-slate-900">
+    <div className="flex h-screen bg-slate-50 overflow-hidden font-sans text-slate-900 relative">
       
-      {/* SIDEBAR */}
+      {/* FONDO OSCURO PARA MOVIL (BACKDROP) */}
+      <AnimatePresence>
+        {isMobile && isSidebarOpen && (
+            <motion.div 
+                initial={{ opacity: 0 }} 
+                animate={{ opacity: 1 }} 
+                exit={{ opacity: 0 }}
+                onClick={() => setSidebarOpen(false)}
+                className="fixed inset-0 bg-black/50 z-30 md:hidden"
+            />
+        )}
+      </AnimatePresence>
+
+      {/* SIDEBAR (Ahora es 'fixed' en móvil y 'relative' en PC) */}
       <motion.aside 
         initial={false}
-        animate={{ width: isSidebarOpen ? 260 : 0, opacity: isSidebarOpen ? 1 : 0 }}
-        className="bg-slate-900 text-white flex flex-col h-full shrink-0 relative z-40 border-r border-slate-800"
+        animate={{ 
+            width: isSidebarOpen ? 260 : 0, 
+            opacity: isSidebarOpen ? 1 : 0,
+            x: isMobile && !isSidebarOpen ? -100 : 0 // Animación de deslizar en móvil
+        }}
+        className={`bg-slate-900 text-white flex flex-col h-full shrink-0 border-r border-slate-800 z-40 ${isMobile ? 'fixed top-0 left-0 bottom-0 shadow-2xl' : 'relative'}`}
       >
         <div className="h-20 flex items-center gap-3 px-6 border-b border-slate-800">
             <div className="bg-blue-600 p-2 rounded-lg shadow-lg shadow-blue-900/50"><ShieldCheck size={20} className="text-white" /></div>
             <div className="whitespace-nowrap overflow-hidden"><h1 className="font-bold text-lg tracking-tight">RUAG <span className="text-blue-500">Admin</span></h1></div>
         </div>
         <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-            <SidebarItem active={activeView === 'dashboard'} onClick={() => setActiveView('dashboard')} icon={<LayoutDashboard size={20}/>} label="Panel General" />
-            <SidebarItem active={activeView === 'biometria'} onClick={() => setActiveView('biometria')} icon={<Fingerprint size={20}/>} label="Biometría y Firmas" />
+            <SidebarItem active={activeView === 'dashboard'} onClick={() => handleNavClick('dashboard')} icon={<LayoutDashboard size={20}/>} label="Panel General" />
+            <SidebarItem active={activeView === 'biometria'} onClick={() => handleNavClick('biometria')} icon={<Fingerprint size={20}/>} label="Biometría y Firmas" />
         </nav>
         <div className="p-4 border-t border-slate-800">
              <button onClick={async () => { await supabase.auth.signOut(); router.push('/') }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-red-500/10 hover:text-red-500 transition-all"><LogOut size={20} /><span className="text-sm font-medium">Cerrar Sesión</span></button>
