@@ -4,7 +4,7 @@ export const CargoRisstPrintable = forwardRef(({ ficha }: { ficha: any }, ref: R
   if (!ficha) return null
 
   const today = new Date()
-  const fechaActual = `${today.getDate()} / ${today.getMonth() + 1} / ${today.getFullYear()}`
+  const fechaActual = `${today.getDate().toString().padStart(2, '0')} / ${(today.getMonth() + 1).toString().padStart(2, '0')} / ${today.getFullYear()}`
   const lugar = "LIMA" 
 
   const styles = {
@@ -60,59 +60,92 @@ export const CargoRisstPrintable = forwardRef(({ ficha }: { ficha: any }, ref: R
         lineHeight: 1.6,
         marginBottom: '15px'
     },
-    // CORRECCIÓN: Estilo de línea de input mejorado
-    inputLine: {
+    // Estilo para datos rellenados (Lugar/Fecha)
+    inlineData: {
         display: 'inline-block',
         borderBottom: '1px dotted #000000',
-        minWidth: '150px',
+        minWidth: '100px',
         textAlign: 'center' as const,
         fontWeight: 'bold',
-        paddingLeft: '10px',
-        paddingRight: '10px',
-        fontFamily: 'Arial, sans-serif', // Fuente distinta para diferenciar datos
+        padding: '0 10px',
+        fontFamily: 'Arial, sans-serif',
         fontSize: '13px'
     },
+    // FOOTER
     footerGrid: {
-        marginTop: '60px',
+        marginTop: '50px',
         display: 'flex',
         flexDirection: 'column' as const,
-        gap: '15px',
+        gap: '20px',
         fontSize: '12px',
         fontWeight: 'bold'
     },
-    inputGroup: {
+    // NUEVO ESTILO: Dato encima de la línea
+    fieldContainer: {
         display: 'flex',
-        alignItems: 'baseline',
-        marginBottom: '10px'
+        alignItems: 'flex-end',
+        marginBottom: '5px'
     },
     label: {
-        minWidth: '140px', // Ancho fijo para alinear
-        fontWeight: 'bold'
+        minWidth: '140px',
+        paddingBottom: '5px' 
     },
-    valueText: {
+    valueContainer: {
         flex: 1,
         borderBottom: '1px dotted #000',
-        paddingLeft: '10px',
+        textAlign: 'center' as const,
+        paddingBottom: '2px' // Espacio entre texto y linea
+    },
+    valueText: {
         fontFamily: 'Arial, sans-serif',
+        fontWeight: 'bold',
+        fontSize: '14px',
         textTransform: 'uppercase' as const,
-        fontSize: '13px'
+        color: '#000'
+    },
+    // BIOMETRÍA
+    biometriaContainer: {
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        marginTop: '40px',
+        alignItems: 'flex-end'
     },
     signatureBox: {
-        marginTop: '10px',
         border: '1px solid #000000',
-        height: '90px',
+        height: '100px',
         width: '220px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        position: 'relative' as const
+        position: 'relative' as const,
+        backgroundColor: '#fff'
+    },
+    fingerprintBox: {
+        border: '1px solid #000000',
+        height: '120px',
+        width: '100px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        position: 'relative' as const,
+        backgroundColor: '#fff'
+    },
+    biometriaImg: {
+        maxWidth: '90%',
+        maxHeight: '90%',
+        objectFit: 'contain' as const
+    },
+    placeholderText: {
+        fontSize: '10px',
+        color: '#ccc',
+        textTransform: 'uppercase' as const
     }
   }
 
   return (
     <div ref={ref} style={styles.page}>
       
-      {/* HEADER TIPO TABLA */}
+      {/* HEADER */}
       <table style={styles.table}>
         <tbody>
             <tr>
@@ -125,18 +158,10 @@ export const CargoRisstPrintable = forwardRef(({ ficha }: { ficha: any }, ref: R
                     <div style={{fontSize: '14px', fontWeight: 'bold', marginTop: '5px'}}>REGLAMENTO INTERNO DE SEGURIDAD Y SALUD EN EL TRABAJO</div>
                 </td>
                 <td style={{...styles.td, width: '20%', padding: '0'}}>
-                    <div style={{...styles.metaText, borderBottom: '1px solid #000', padding: '2px 5px'}}>
-                        <strong>CÓDIGO:</strong> SG-RIT-01
-                    </div>
-                    <div style={{...styles.metaText, borderBottom: '1px solid #000', padding: '2px 5px'}}>
-                        <strong>REVISIÓN:</strong> 01
-                    </div>
-                    <div style={{...styles.metaText, borderBottom: '1px solid #000', padding: '2px 5px'}}>
-                        <strong>FECHA:</strong> 04/01/2024
-                    </div>
-                    <div style={{...styles.metaText, padding: '2px 5px'}}>
-                        <strong>PÁGINA:</strong> 54 de 54
-                    </div>
+                    <div style={{...styles.metaText, borderBottom: '1px solid #000', padding: '2px 5px'}}><strong>CÓDIGO:</strong> SG-RIT-01</div>
+                    <div style={{...styles.metaText, borderBottom: '1px solid #000', padding: '2px 5px'}}><strong>REVISIÓN:</strong> 01</div>
+                    <div style={{...styles.metaText, borderBottom: '1px solid #000', padding: '2px 5px'}}><strong>FECHA:</strong> 04/01/2024</div>
+                    <div style={{...styles.metaText, padding: '2px 5px'}}><strong>PÁGINA:</strong> 54 de 54</div>
                 </td>
             </tr>
         </tbody>
@@ -152,14 +177,10 @@ export const CargoRisstPrintable = forwardRef(({ ficha }: { ficha: any }, ref: R
         RECEPCIÓN DEL REGLAMENTO Y COMPROMISO DE SEGURIDAD, SALUD OCUPACIONAL Y MEDIO AMBIENTE
       </div>
 
-      {/* CUERPO - Usamos flex para alinear Lugar y Fecha */}
+      {/* CUERPO */}
       <div style={{...styles.bodyText, display: 'flex', justifyContent: 'flex-end', gap: '20px'}}>
-        <div>
-            Lugar: <span style={styles.inputLine}>{lugar}</span>
-        </div>
-        <div>
-            Fecha: <span style={styles.inputLine}>{fechaActual}</span>
-        </div>
+        <div>Lugar: <span style={styles.inlineData}>{lugar}</span></div>
+        <div>Fecha: <span style={styles.inlineData}>{fechaActual}</span></div>
       </div>
 
       <div style={styles.bodyText}>
@@ -171,42 +192,61 @@ export const CargoRisstPrintable = forwardRef(({ ficha }: { ficha: any }, ref: R
       </div>
 
       <div style={{...styles.bodyText, marginTop: '30px', fontWeight: 'bold', textDecoration: 'underline'}}>
-        FAVOR, ESCRIBIR CON LETRA IMPRENTA Y CLARA.
       </div>
 
-      {/* FOOTER - ALINEACIÓN PERFECTA DE CAMPOS */}
+      {/* FOOTER DATOS (Diseño: Dato ENCIMA de la línea) */}
       <div style={styles.footerGrid}>
           
-          <div style={styles.inputGroup}>
+          <div style={styles.fieldContainer}>
               <span style={styles.label}>Nombres y Apellidos:</span>
-              <span style={styles.valueText}>
-                  {ficha.apellido_paterno} {ficha.apellido_materno}, {ficha.nombres}
-              </span>
+              <div style={styles.valueContainer}>
+                  <span style={styles.valueText}>
+                      {ficha.apellido_paterno} {ficha.apellido_materno}, {ficha.nombres}
+                  </span>
+              </div>
           </div>
 
-          <div style={styles.inputGroup}>
+          <div style={styles.fieldContainer}>
               <span style={styles.label}>D.N.I.:</span>
-              <span style={styles.valueText}>
-                  {ficha.dni}
-              </span>
+              <div style={styles.valueContainer}>
+                  <span style={styles.valueText}>
+                      {ficha.dni}
+                  </span>
+              </div>
           </div>
 
-          <div style={{display: 'flex', justifyContent: 'space-between', marginTop: '30px'}}>
+          <div style={styles.fieldContainer}>
+              <span style={styles.label}>Cargo:</span>
+              <div style={styles.valueContainer}>
+                  <span style={styles.valueText}>
+                      {ficha.cargo || 'OPERARIO'}
+                  </span>
+              </div>
+          </div>
+
+          {/* ZONA DE FIRMA Y HUELLA AUTOMÁTICA */}
+          <div style={styles.biometriaContainer}>
               <div>
-                  <div style={{marginBottom: '5px'}}>Firma:</div>
+                  <div style={{marginBottom: '5px', textAlign: 'center'}}>Firma:</div>
                   <div style={styles.signatureBox}>
-                      {ficha.url_firma ? (
-                          <img src={ficha.url_firma} crossOrigin="anonymous" style={{width: '180px', height: '80px', objectFit: 'contain'}} />
+                      {/* Detecta firma_url (base64 o url) */}
+                      {ficha.firma_url ? (
+                          <img src={ficha.firma_url} style={styles.biometriaImg} alt="Firma Digital" />
                       ) : (
-                          <span style={{fontSize: '10px', color: '#ccc'}}>Firma Digital</span>
+                          <span style={styles.placeholderText}>Firma Pendiente</span>
                       )}
                   </div>
               </div>
 
               <div>
-                  <div style={{marginBottom: '5px'}}>Huella Digital:</div>
-                  <div style={{...styles.signatureBox, width: '90px', height: '110px'}}>
-                      {/* Espacio vacío para huella */}
+                  <div style={{marginBottom: '5px', textAlign: 'center'}}>Huella Digital:</div>
+                  <div style={styles.fingerprintBox}>
+                      {/* Detecta huella_url (base64 o url) */}
+                      {ficha.huella_url ? (
+                          <img src={ficha.huella_url} style={styles.biometriaImg} alt="Huella Digital" />
+                      ) : (
+                          <span style={styles.placeholderText}>Huella</span>
+                      )}
                   </div>
               </div>
           </div>
