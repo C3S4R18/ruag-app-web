@@ -3,6 +3,9 @@ import React, { forwardRef } from 'react'
 export const InduccionHombreNuevoPrintable = forwardRef(({ ficha }: { ficha: any }, ref: React.Ref<HTMLDivElement>) => {
   if (!ficha) return null
   
+  // Extraemos la data guardada o usamos un objeto vacío si no existe
+  const docData = ficha.doc_states?.induccion?.data || {}
+  
   const today = new Date()
   const fechaActual = `${today.getDate().toString().padStart(2, '0')}/${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`
 
@@ -11,15 +14,17 @@ export const InduccionHombreNuevoPrintable = forwardRef(({ ficha }: { ficha: any
         width: '21cm', 
         minHeight: '29.7cm', 
         backgroundColor: '#fff', 
-        padding: '2.5cm', 
+        padding: '2cm', 
         margin: '0 auto', 
         fontFamily: 'Arial, sans-serif', 
         color: '#000', 
-        fontSize: '11px',
+        fontSize: '10px',
         display: 'flex',
         flexDirection: 'column' as const,
-        boxSizing: 'border-box' as const
+        boxSizing: 'border-box' as const,
+        position: 'relative' as const
     },
+    // Tabla Header
     headerTable: { 
         width: '100%', 
         borderCollapse: 'collapse' as const, 
@@ -28,95 +33,108 @@ export const InduccionHombreNuevoPrintable = forwardRef(({ ficha }: { ficha: any
     },
     td: { 
         border: '1px solid #000', 
-        padding: '8px' 
+        padding: '5px',
+        textAlign: 'center' as const,
+        verticalAlign: 'middle' as const
     },
     title: { 
-        fontSize: '16px', 
+        fontSize: '14px', 
         fontWeight: 'bold', 
         textAlign: 'center' as const 
     },
-    logo: { 
-        color: '#d97706', 
-        fontWeight: 'bold', 
-        fontSize: '20px' 
-    },
-    // Estilo para datos "encima de la línea"
-    inlineInput: {
-        display: 'inline-block',
-        borderBottom: '1px dotted #000',
-        minWidth: '150px',
-        textAlign: 'center' as const,
-        fontWeight: 'bold',
-        padding: '0 10px',
-        marginLeft: '5px',
-        marginRight: '15px',
-        fontFamily: 'Arial, sans-serif',
-        fontSize: '12px',
-        textTransform: 'uppercase' as const
-    },
+    // Datos del trabajador
     row: {
-        marginBottom: '15px',
         display: 'flex',
-        alignItems: 'baseline',
-        flexWrap: 'wrap' as const
+        marginBottom: '12px',
+        alignItems: 'flex-end', 
+        fontSize: '11px'
     },
-    section: { 
+    label: {
+        fontWeight: 'bold',
+        marginRight: '5px',
+        minWidth: 'fit-content'
+    },
+    valueLine: {
+        flex: 1,
+        borderBottom: '1px dotted #000',
+        paddingLeft: '10px',
+        paddingBottom: '2px', // Espacio para que no se pegue
+        fontWeight: 'bold',
+        textTransform: 'uppercase' as const,
+        minHeight: '16px'
+    },
+    // Lista de Checks
+    checkboxList: {
         marginTop: '20px',
-        marginBottom: '20px',
-        flex: 1 // Para que ocupe espacio si sobra
+        display: 'flex',
+        flexDirection: 'column' as const,
+        gap: '8px'
     },
-    checkboxGrid: { 
-        display: 'grid', 
-        gridTemplateColumns: '1fr', 
-        gap: '12px', // Más espacio entre items
-        marginTop: '15px'
-    },
-    checkItem: { 
-        display: 'flex', 
-        gap: '10px',
-        alignItems: 'center'
-    },
-    box: { 
-        width: '14px', 
-        height: '14px', 
-        border: '1px solid #000', 
-        display: 'flex', 
+    checkItem: {
+        display: 'flex',
         alignItems: 'center', 
-        justifyContent: 'center', 
-        fontSize: '10px',
-        fontWeight: 'bold'
+        gap: '10px',
+        fontSize: '11px'
     },
-    // Footer al final de la página
-    signatureArea: { 
+    box: {
+        width: '14px',
+        height: '14px',
+        border: '1px solid #000',
+        display: 'flex',
+        justifyContent: 'center', 
+        alignItems: 'center',     
+        fontSize: '10px',
+        fontWeight: 'bold',
+        flexShrink: 0
+    },
+    // Estilo específico para la Fecha al pie (CORREGIDO)
+    dateField: {
+        display: 'inline-block',
+        borderBottom: '1px solid #000',
+        padding: '0 10px',
+        paddingBottom: '3px', // Separación clave para que no tache el texto
+        fontWeight: 'bold',
+        minWidth: '100px',
+        textAlign: 'center' as const
+    },
+    // Firmas al pie
+    signatureSection: {
         marginTop: 'auto', 
-        paddingTop: '40px',
-        display: 'flex', 
+        paddingTop: '50px',
+        display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'flex-end'
     },
     sigContainer: {
-        width: '40%', 
-        textAlign: 'center' as const
+        width: '40%',
+        textAlign: 'center' as const,
+        display: 'flex',
+        flexDirection: 'column' as const,
+        justifyContent: 'flex-end'
     },
-    sigBox: { 
-        borderTop: '1px solid #000', 
+    sigLine: {
+        borderTop: '1px dotted #000',
         paddingTop: '5px',
-        marginTop: '5px'
+        fontWeight: 'bold',
+        fontSize: '10px'
     },
-    imgSig: { 
-        height: '70px', 
-        objectFit: 'contain' as const, 
-        marginBottom: '-5px' 
+    sigImageContainer: {
+        height: '70px',
+        display: 'flex',
+        alignItems: 'flex-end',
+        justifyContent: 'center',
+        paddingBottom: '5px',
+        overflow: 'hidden'
     }
   }
 
   const topics = [
       "Política de Seguridad y Salud en el Trabajo.",
-      "Organización del sistema de gestión de la seguridad y salud.",
+      "Organización del sistema de gestión de la seguridad y salud en el trabajo.",
       "Reglamento interno de Seguridad y Salud en el trabajo.",
-      "Derecho y obligaciones de los trabajadores y supervisores.",
+      "Derecho y obligaciones de los trabajadores (as) y supervisores (as).",
       "Conceptos básicos de la seguridad y salud en el trabajo.",
-      "Reglas de Tránsito (de ser aplicables a la obra).",
+      "Reglas de Transito (de ser aplicables a la obra).",
       "Trabajos de alto riesgo.",
       "Código de Colores y Señalización.",
       "Control de sustancias peligrosas.",
@@ -126,88 +144,108 @@ export const InduccionHombreNuevoPrintable = forwardRef(({ ficha }: { ficha: any
 
   return (
     <div ref={ref} style={styles.page}>
+      
+      {/* 1. HEADER */}
       <table style={styles.headerTable}>
         <tbody>
             <tr>
-                <td style={{...styles.td, width: '20%', textAlign: 'center'}}>
-                    <div style={styles.logo}>RUAG</div>
-                    <div style={{fontSize:'9px', letterSpacing: '2px'}}>CONSTRUCCIÓN</div>
+                <td style={{...styles.td, width: '20%'}}>
+                    <img src="/logo_ruag.png" alt="RUAG" style={{maxWidth: '100%', maxHeight: '50px', objectFit: 'contain'}} />
                 </td>
-                <td style={{...styles.td, width: '60%', textAlign: 'center'}}>
+                <td style={{...styles.td, width: '55%'}}>
                     <div style={styles.title}>INDUCCIÓN HOMBRE NUEVO</div>
                 </td>
-                <td style={{...styles.td, width: '20%', fontSize: '10px'}}>
-                    <div><strong>CÓDIGO:</strong> SG-FOR-06</div>
-                    <div><strong>REVISIÓN:</strong> 01</div>
-                    <div><strong>FECHA:</strong> 04/01/2024</div>
+                <td style={{...styles.td, width: '25%', padding: 0}}>
+                    <div style={{display:'flex', borderBottom:'1px solid #000'}}>
+                        <div style={{width:'50%', borderRight:'1px solid #000', padding:'2px', textAlign:'left', fontWeight:'bold', fontSize:'9px'}}>CÓDIGO:</div>
+                        <div style={{width:'50%', padding:'2px', fontSize:'9px'}}>SG-FOR-06</div>
+                    </div>
+                    <div style={{display:'flex', borderBottom:'1px solid #000'}}>
+                        <div style={{width:'50%', borderRight:'1px solid #000', padding:'2px', textAlign:'left', fontWeight:'bold', fontSize:'9px'}}>REVISIÓN:</div>
+                        <div style={{width:'50%', padding:'2px', fontSize:'9px'}}>01</div>
+                    </div>
+                    <div style={{display:'flex', borderBottom:'1px solid #000'}}>
+                        <div style={{width:'50%', borderRight:'1px solid #000', padding:'2px', textAlign:'left', fontWeight:'bold', fontSize:'9px'}}>FECHA:</div>
+                        <div style={{width:'50%', padding:'2px', fontSize:'9px'}}>04/01/2024</div>
+                    </div>
+                    <div style={{display:'flex'}}>
+                        <div style={{width:'50%', borderRight:'1px solid #000', padding:'2px', textAlign:'left', fontWeight:'bold', fontSize:'9px'}}>PÁGINA:</div>
+                        <div style={{width:'50%', padding:'2px', fontSize:'9px'}}>01 / 01</div>
+                    </div>
                 </td>
             </tr>
         </tbody>
       </table>
 
-      {/* DATOS DEL TRABAJADOR */}
-      <div style={{marginBottom: '30px'}}>
+      {/* 2. DATOS DEL TRABAJADOR */}
+      <div style={{marginBottom: '30px', paddingLeft: '10px', paddingRight: '10px'}}>
           <div style={styles.row}>
-              <strong>NOMBRE:</strong> 
-              <span style={{...styles.inlineInput, flex: 1, textAlign: 'left'}}>
-                  {ficha.nombres} {ficha.apellido_paterno} {ficha.apellido_materno}
-              </span>
+              <div style={styles.label}>NOMBRE:</div>
+              <div style={styles.valueLine}>{ficha.nombres} {ficha.apellido_paterno} {ficha.apellido_materno}</div>
+              <div style={{...styles.label, marginLeft: '20px'}}>DNI:</div>
+              <div style={{...styles.valueLine, flex: '0 0 120px'}}>{ficha.dni}</div>
           </div>
           
           <div style={styles.row}>
-              <div style={{flex: 1}}>
-                  <strong>DNI:</strong> 
-                  <span style={styles.inlineInput}>{ficha.dni}</span>
-              </div>
-              <div style={{flex: 1}}>
-                  <strong>FECHA DE INGRESO:</strong> 
-                  <span style={styles.inlineInput}>{fechaActual}</span>
-              </div>
-          </div>
-
-          <div style={styles.row}>
-              <strong>OCUPACIÓN / CARGO:</strong> 
-              <span style={{...styles.inlineInput, minWidth: '300px', textAlign: 'left'}}>
-                  {ficha.cargo || 'OPERARIO'}
-              </span>
+              <div style={styles.label}>FECHA DE INGRESO:</div>
+              <div style={styles.valueLine}>{fechaActual}</div>
+              <div style={{...styles.label, marginLeft: '20px'}}>OCUPACION/CARGO:</div>
+              <div style={{...styles.valueLine, flex: '0 0 200px'}}>{ficha.cargo || 'OPERARIO'}</div>
           </div>
       </div>
 
-      {/* TEMAS TRATADOS */}
-      <div style={styles.section}>
-          <div style={{fontWeight: 'bold', fontSize: '12px', textDecoration: 'underline'}}>TEMAS TRATADOS:</div>
-          <div style={styles.checkboxGrid}>
+      {/* 3. LISTA DE TEMAS (CHECKS) */}
+      <div style={{paddingLeft: '20px', paddingRight: '20px'}}>
+          <div style={styles.checkboxList}>
               {topics.map((t, i) => (
                   <div key={i} style={styles.checkItem}>
-                      <div style={styles.box}>X</div>
+                      <div style={styles.box}>
+                          {/* Lectura de datos guardados */}
+                          {docData[`topic_${i}`] ? 'X' : ''}
+                      </div>
                       <div>{t}</div>
                   </div>
               ))}
           </div>
       </div>
 
-      {/* FIRMAS (Al final de la hoja) */}
-      <div style={styles.signatureArea}>
+      {/* 4. FECHA AL PIE (CORREGIDO) */}
+      <div style={{marginTop: '40px', textAlign: 'right', paddingRight: '40px', fontSize: '11px'}}>
+          Fecha: <span style={styles.dateField}>{fechaActual}</span>
+      </div>
+
+      {/* 5. FIRMAS */}
+      <div style={styles.signatureSection}>
+          
+          {/* Firma Trabajador */}
           <div style={styles.sigContainer}>
-              <div style={{height: '80px', display: 'flex', alignItems: 'flex-end', justifyContent: 'center'}}>
-                  {ficha.firma_url ? <img src={ficha.firma_url} style={styles.imgSig} alt="Firma"/> : null}
+              <div style={styles.sigImageContainer}>
+                  {ficha.firma_url && (
+                      <img 
+                        src={ficha.firma_url} 
+                        alt="Firma" 
+                        style={{maxHeight: '100%', maxWidth: '100%', objectFit: 'contain'}} 
+                      />
+                  )}
               </div>
-              <div style={styles.sigBox}>
-                  <strong>Firma del Trabajador</strong><br/>
-                  <span style={{fontSize: '10px'}}>DNI: {ficha.dni}</span>
+              <div style={styles.sigLine}>
+                  Firma del Trabajador.
               </div>
           </div>
           
+          {/* Firma Supervisor */}
           <div style={styles.sigContainer}>
-               <div style={{height: '80px', display: 'flex', alignItems: 'flex-end', justifyContent: 'center'}}>
-                   {/* Espacio para sello/firma del supervisor */}
+               <div style={styles.sigImageContainer}>
+                   {/* Espacio para firma del supervisor */}
                </div>
-               <div style={styles.sigBox}>
-                  <strong>V°B° Supervisor SSOMA</strong><br/>
-                  <span style={{fontSize: '10px'}}>Prevencionista de Riesgos</span>
+               <div style={styles.sigLine}>
+                  V°B° del Supervisor de Seguridad y<br/>
+                  Salud en el Trabajo o Prevencionista de Riesgos
                </div>
           </div>
+
       </div>
+
     </div>
   )
 })

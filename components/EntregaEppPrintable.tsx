@@ -5,210 +5,196 @@ export const EntregaEppPrintable = forwardRef(({ ficha }: { ficha: any }, ref: R
 
   const styles = {
     page: { 
-        width: '21cm', 
-        minHeight: '29.7cm', 
-        backgroundColor: '#fff', 
-        padding: '2cm', 
+        width: '29.7cm', 
+        minHeight: '21cm', 
+        backgroundColor: '#ffffff', 
+        padding: '1.5cm', 
         margin: '0 auto', 
         fontFamily: 'Arial, sans-serif', 
-        fontSize: '10px', 
-        color: '#000',
-        display: 'flex',
-        flexDirection: 'column' as const,
-        boxSizing: 'border-box' as const
+        fontSize: '9px', 
+        color: '#000000',
+        boxSizing: 'border-box' as const,
+        position: 'relative' as const
     },
-    header: {
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        marginBottom: '20px',
-        borderBottom: '2px solid #000',
-        paddingBottom: '10px'
+    table: {
+        width: '100%',
+        borderCollapse: 'collapse' as const,
+        border: '1px solid #000',
+        marginBottom: '-1px'
     },
-    logo: { 
-        color: '#d97706', 
-        fontWeight: 'bold', 
-        fontSize: '18px' 
-    },
-    title: {
-        textAlign: 'center' as const, 
-        fontWeight: 'bold', 
-        fontSize: '14px', 
-        marginBottom: '25px',
-        textDecoration: 'underline'
-    },
-    // Estilo "Encima de la línea"
-    fieldRow: {
-        display: 'flex',
-        alignItems: 'flex-end',
-        marginBottom: '10px',
-        gap: '10px'
-    },
-    label: {
-        fontWeight: 'bold',
-        minWidth: 'fit-content'
-    },
-    inlineInput: {
-        borderBottom: '1px dotted #000',
-        flex: 1,
+    // CORRECCIÓN: Padding aumentado para centrar y despegar de las líneas
+    cell: {
+        border: '1px solid #000',
+        padding: '6px 4px', 
+        verticalAlign: 'middle' as const,
         textAlign: 'center' as const,
-        fontFamily: 'Arial, sans-serif',
-        fontSize: '11px',
-        paddingBottom: '2px',
-        fontWeight: 'bold',
-        textTransform: 'uppercase' as const
-    },
-    // Tabla EPPs
-    tableContainer: {
-        marginTop: '20px',
-        marginBottom: '20px'
-    },
-    table: { 
-        width: '100%', 
-        borderCollapse: 'collapse' as const, 
-        border: '1px solid #000' 
-    },
-    td: { 
-        border: '1px solid #000', 
-        padding: '4px',
-        verticalAlign: 'middle'
-    },
-    th: { 
-        border: '1px solid #000', 
-        padding: '5px', 
-        fontWeight: 'bold', 
-        textAlign: 'center' as const, 
-        backgroundColor: '#f5f5f5',
+        lineHeight: '1.1',
         fontSize: '9px'
     },
-    // Footer al final
-    footer: {
-        marginTop: 'auto',
-        paddingTop: '20px'
+    headerCell: {
+        border: '1px solid #000',
+        padding: '6px 4px',
+        fontWeight: 'bold',
+        textAlign: 'center' as const,
+        verticalAlign: 'middle' as const,
+        backgroundColor: '#e5e5e5', 
+        fontSize: '9px'
     },
-    signatureBox: {
-        border: '1px solid #000', 
-        padding: '5px', 
-        width: '220px',
-        height: '90px',
-        display: 'flex',
-        flexDirection: 'column' as const,
-        alignItems: 'center',
-        justifyContent: 'space-between'
+    // Estilo para las celdas de la derecha (Código, Revisión...)
+    metaCell: {
+        borderBottom: '1px solid #000',
+        padding: '5px', // AUMENTADO para que no tache el texto
+        textAlign: 'left' as const,
+        fontSize: '8px'
+    },
+    alignLeft: {
+        textAlign: 'left' as const,
+        paddingLeft: '8px'
+    },
+    logo: {
+        maxWidth: '100%',
+        maxHeight: '50px',
+        objectFit: 'contain' as const
     }
   }
 
   const epps = [
-      "BARBIQUEJO", "BOTAS PUNTA ACERO", "CASCO SEGURIDAD", "POLO MANGALARGA", "CHALECO REFLEXIVO", 
-      "LENTES CLAROS", "LENTES OSCUROS", "TAPONES AUDITIVOS", "GUANTES ANTICORTE", 
-      "GUANTES CUERO", "GUANTES JEBE", "RESPIRADOR", "UNIFORME / OVEROL"
+      "BARBIQUEJO", "BOTAS CON PUNTA DE ACERO", "CASCO DE SEGURIDAD", "POLO", 
+      "CHALECO REFLEXIVO DE SEGURIDAD", "LENTES CLAROS DE SEGURIDAD", "LENTES OSCUROS", 
+      "TAPONES AUDITIVOS", "GUANTES ANTICORTE NIVEL 5", "GUANTES DE CUERO", 
+      "GUANTES DE JEBE", "GUANTES PARA SOLDAR", "CARETA O PROTECTOR FACIAL", 
+      "MASCARILLA DESECHABLE", "RESPIRADOR DOBLE VIA", "RESPIRADOR DE UNA VIA", 
+      "ESCARPINES", "MANDIL DE SOLDADURA", "ZAPATOS DIELECTRICOS", 
+      "OVEROL O UNIFORME", "OTROS"
   ]
 
   return (
     <div ref={ref} style={styles.page}>
+        
         {/* HEADER */}
-        <div style={styles.header}>
-            <div style={styles.logo}>RUAG <span style={{fontSize:'12px', color:'#000'}}>CONSTRUCCIÓN</span></div>
-            <div style={{textAlign:'right', fontSize: '9px'}}>
-                <strong>CÓDIGO:</strong> SG-FOR-08 <br/> 
-                <strong>REV:</strong> 03
-            </div>
+        <table style={styles.table}>
+            <tbody>
+                <tr>
+                    <td rowSpan={4} style={{...styles.cell, width: '15%'}}>
+                        <img src="/logo_ruag.png" alt="RUAG" style={styles.logo} />
+                    </td>
+                    <td rowSpan={4} style={{...styles.cell, width: '70%', fontWeight: 'bold', fontSize: '14px'}}>
+                        CONTROL DE ENTREGA DE EPP POR TRABAJADOR
+                    </td>
+                    {/* Celdas de metadatos corregidas */}
+                    <td style={{border:'1px solid #000', padding:0, width:'15%', verticalAlign:'top'}}>
+                        <div style={styles.metaCell}><strong>CÓDIGO:</strong> SG-FOR-08</div>
+                        <div style={styles.metaCell}><strong>REVISIÓN:</strong> 03</div>
+                        <div style={styles.metaCell}><strong>FECHA:</strong> 12/12/2025</div>
+                        <div style={{padding: '5px', textAlign: 'left', fontSize:'8px'}}><strong>PÁGINA:</strong> 01/01</div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        {/* DATOS EMPLEADOR */}
+        <div style={{border: '1px solid #000', backgroundColor:'#e5e5e5', fontSize:'9px', fontWeight:'bold', padding:'5px 8px', borderBottom:'none', marginTop: '10px'}}>
+            DATOS DEL EMPLEADOR:
         </div>
+        <table style={styles.table}>
+            <thead>
+                <tr>
+                    <th style={{...styles.headerCell, width: '25%'}}>RAZÓN SOCIAL O DENOMINACIÓN SOCIAL</th>
+                    <th style={{...styles.headerCell, width: '15%'}}>RUC</th>
+                    <th style={{...styles.headerCell, width: '35%'}}>DOMICILIO (Dirección, distrito, departamento, provincia)</th>
+                    <th style={{...styles.headerCell, width: '10%'}}>ACTIVIDAD ECONÓMICA</th>
+                    <th style={{...styles.headerCell, width: '15%'}}>Nº TRABAJADORES</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td style={styles.cell}>RUAG S.R.L. TDA.</td>
+                    <td style={styles.cell}>20343680580</td>
+                    <td style={styles.cell}>Av. Paseo de la Republica No 4956 , Miraflores - Lima</td>
+                    <td style={styles.cell}>Construcción</td>
+                    <td style={styles.cell}></td>
+                </tr>
+            </tbody>
+        </table>
 
-        <div style={styles.title}>
-            CONTROL DE ENTREGA DE EPP POR TRABAJADOR
-        </div>
-
-        {/* DATOS GENERALES (Estilo Input) */}
-        <div style={{marginBottom: '20px'}}>
-            <div style={styles.fieldRow}>
-                <span style={styles.label}>EMPLEADOR:</span>
-                <span style={styles.inlineInput}>RUAG S.R.L.</span>
-                <span style={styles.label}>RUC:</span>
-                <span style={{...styles.inlineInput, flex: '0 0 150px'}}>20343680580</span>
-            </div>
-            
-            <div style={styles.fieldRow}>
-                <span style={styles.label}>DIRECCIÓN:</span>
-                <span style={styles.inlineInput}>Av. Paseo de la República 4956, Miraflores</span>
-            </div>
-
-            <div style={styles.fieldRow}>
-                <span style={styles.label}>TRABAJADOR:</span>
-                <span style={styles.inlineInput}>
-                    {ficha.apellido_paterno} {ficha.apellido_materno}, {ficha.nombres}
-                </span>
-                <span style={styles.label}>DNI:</span>
-                <span style={{...styles.inlineInput, flex: '0 0 120px'}}>
-                    {ficha.dni}
-                </span>
-            </div>
-
-            <div style={styles.fieldRow}>
-                <span style={styles.label}>CARGO:</span>
-                <span style={styles.inlineInput}>
-                    {ficha.cargo || 'OPERARIO'}
-                </span>
-                <span style={styles.label}>OBRA:</span>
-                <span style={styles.inlineInput}>
-                    {ficha.nombre_obra || 'OBRA CENTRAL'}
-                </span>
-            </div>
-        </div>
+        {/* DATOS TRABAJADOR */}
+        <table style={{...styles.table, marginTop: '5px'}}>
+            <tbody>
+                <tr>
+                    <td style={{...styles.cell, width: '15%', backgroundColor:'#f2f2f2', fontWeight:'bold', ...styles.alignLeft}}>OBRA:</td>
+                    <td style={{...styles.cell, width: '55%', ...styles.alignLeft}}>{ficha.nombre_obra || 'OBRA CENTRAL'}</td>
+                    <td style={{...styles.cell, width: '10%', backgroundColor:'#f2f2f2', fontWeight:'bold'}}>CARGO:</td>
+                    <td style={{...styles.cell, width: '20%'}}>{ficha.cargo || 'OPERARIO'}</td>
+                </tr>
+                <tr>
+                    <td style={{...styles.cell, backgroundColor:'#f2f2f2', fontWeight:'bold', ...styles.alignLeft}}>TRABAJADOR:</td>
+                    <td style={{...styles.cell, ...styles.alignLeft}}>{ficha.apellido_paterno} {ficha.apellido_materno}, {ficha.nombres}</td>
+                    <td style={{...styles.cell, backgroundColor:'#f2f2f2', fontWeight:'bold'}}>DNI:</td>
+                    <td style={styles.cell}>{ficha.dni}</td>
+                </tr>
+                <tr>
+                    <td style={{...styles.cell, backgroundColor:'#f2f2f2', fontWeight:'bold', ...styles.alignLeft}}>ESPECIALIDAD:</td>
+                    <td colSpan={3} style={{...styles.cell, ...styles.alignLeft}}>{ficha.cargo}</td>
+                </tr>
+            </tbody>
+        </table>
 
         {/* TABLA EPP */}
-        <div style={styles.tableContainer}>
-            <table style={styles.table}>
-                <thead>
-                    <tr>
-                        <th style={{...styles.th, width: '30%'}} rowSpan={2}>DESCRIPCIÓN DEL ARTÍCULO</th>
-                        <th style={styles.th} colSpan={2}>1RA ENTREGA</th>
-                        <th style={styles.th} colSpan={2}>2DA ENTREGA</th>
-                        <th style={styles.th} colSpan={2}>3RA ENTREGA</th>
+        <table style={{...styles.table, marginTop: '5px'}}>
+            <thead>
+                <tr>
+                    <th rowSpan={2} style={{...styles.headerCell, width: '20%'}}>DESCRIPCION DEL ARTICULO</th>
+                    <th colSpan={2} style={{...styles.headerCell, width: '20%'}}>1RA ENTREGA</th>
+                    <th colSpan={2} style={{...styles.headerCell, width: '20%'}}>2DA ENTREGA</th>
+                    <th colSpan={2} style={{...styles.headerCell, width: '20%'}}>3RA ENTREGA</th>
+                    <th colSpan={2} style={{...styles.headerCell, width: '20%'}}>4TA ENTREGA</th>
+                </tr>
+                <tr>
+                    <th style={styles.headerCell}>FECHA</th><th style={styles.headerCell}>FIRMA</th>
+                    <th style={styles.headerCell}>FECHA</th><th style={styles.headerCell}>FIRMA</th>
+                    <th style={styles.headerCell}>FECHA</th><th style={styles.headerCell}>FIRMA</th>
+                    <th style={styles.headerCell}>FECHA</th><th style={styles.headerCell}>FIRMA</th>
+                </tr>
+            </thead>
+            <tbody>
+                {epps.map((epp, i) => (
+                    <tr key={i}>
+                        <td style={{...styles.cell, textAlign: 'left', paddingLeft: '5px', fontSize: '8px', height: '22px'}}>{epp}</td>
+                        <td style={styles.cell}></td><td style={styles.cell}></td>
+                        <td style={styles.cell}></td><td style={styles.cell}></td>
+                        <td style={styles.cell}></td><td style={styles.cell}></td>
+                        <td style={styles.cell}></td><td style={styles.cell}></td>
                     </tr>
-                    <tr>
-                        <th style={styles.th}>FECHA</th><th style={styles.th}>FIRMA</th>
-                        <th style={styles.th}>FECHA</th><th style={styles.th}>FIRMA</th>
-                        <th style={styles.th}>FECHA</th><th style={styles.th}>FIRMA</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {epps.map((epp, i) => (
-                        <tr key={i}>
-                            <td style={styles.td}>{epp}</td>
-                            <td style={styles.td}></td><td style={styles.td}></td>
-                            <td style={styles.td}></td><td style={styles.td}></td>
-                            <td style={styles.td}></td><td style={styles.td}></td>
-                        </tr>
-                    ))}
-                    {/* Filas vacías extra */}
-                    {[...Array(3)].map((_, i) => (
-                        <tr key={`empty-${i}`}>
-                            <td style={{...styles.td, height: '20px'}}></td>
-                            <td style={styles.td}></td><td style={styles.td}></td>
-                            <td style={styles.td}></td><td style={styles.td}></td>
-                            <td style={styles.td}></td><td style={styles.td}></td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </div>
+                ))}
+            </tbody>
+        </table>
 
-        {/* FOOTER & FIRMA */}
-        <div style={styles.footer}>
-            <div style={styles.signatureBox}>
-                <div style={{textAlign:'center', width: '100%', borderBottom: '1px solid #ccc', paddingBottom: '2px', marginBottom: '5px', fontSize: '9px', fontWeight: 'bold'}}>
-                    FIRMA TRABAJADOR
-                </div>
-                <div style={{flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%'}}>
-                     {ficha.firma_url ? (
-                         <img src={ficha.firma_url} style={{maxHeight:'60px', maxWidth: '90%', objectFit: 'contain'}} alt="Firma"/>
-                     ) : (
-                         <span style={{color: '#ccc', fontSize: '9px'}}>Pendiente</span>
-                     )}
-                </div>
-            </div>
-        </div>
+        {/* RESPONSABLE */}
+        <table style={{...styles.table, marginTop: '0'}}>
+            <thead>
+                <tr>
+                    <th colSpan={2} style={styles.headerCell}>RESPONSABLE DEL REGISTRO</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td style={{...styles.cell, width: '20%', fontWeight: 'bold', ...styles.alignLeft}}>Nombre:</td>
+                    <td style={styles.cell}></td>
+                </tr>
+                <tr>
+                    <td style={{...styles.cell, fontWeight: 'bold', ...styles.alignLeft}}>Cargo:</td>
+                    <td style={styles.cell}></td>
+                </tr>
+                <tr>
+                    <td style={{...styles.cell, fontWeight: 'bold', ...styles.alignLeft}}>Fecha:</td>
+                    <td style={styles.cell}></td>
+                </tr>
+                <tr>
+                    <td style={{...styles.cell, fontWeight: 'bold', height: '50px', ...styles.alignLeft}}>Firma:</td>
+                    <td style={styles.cell}></td>
+                </tr>
+            </tbody>
+        </table>
     </div>
   )
 })

@@ -2,174 +2,162 @@ import React, { forwardRef } from 'react'
 
 export const ActaEntregaIpercPrintable = forwardRef(({ ficha }: { ficha: any }, ref: React.Ref<HTMLDivElement>) => {
   if (!ficha) return null
-  
+
   const today = new Date()
   const fechaActual = `${today.getDate().toString().padStart(2, '0')}/${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`
 
   const styles = {
     page: { 
-        width: '21cm', 
+        width: '21cm', // A4 Vertical
         minHeight: '29.7cm', 
-        backgroundColor: '#fff', 
-        padding: '2.5cm 3cm', // Márgenes más amplios
+        backgroundColor: '#ffffff', 
+        padding: '2.5cm', 
         margin: '0 auto', 
-        fontFamily: '"Times New Roman", serif', 
-        fontSize: '12px', 
-        color: '#000', 
-        display: 'flex', // Flex para distribuir verticalmente
-        flexDirection: 'column' as const,
-        boxSizing: 'border-box' as const
+        fontFamily: 'Arial, sans-serif', 
+        fontSize: '11px', 
+        color: '#000000',
+        boxSizing: 'border-box' as const,
+        position: 'relative' as const
     },
-    header: { 
+    // Tabla Header
+    headerTable: { 
+        width: '100%', 
+        borderCollapse: 'collapse' as const, 
+        border: '1px solid #000',
+        marginBottom: '40px' 
+    },
+    td: { 
         border: '1px solid #000', 
-        padding: '10px 20px', 
-        marginBottom: '40px', 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center' 
-    },
-    logo: { 
-        color: '#d97706', 
-        fontWeight: 'bold', 
-        fontSize: '24px' 
-    },
-    headerMeta: {
-        textAlign: 'right' as const,
-        fontSize: '10px',
-        lineHeight: 1.4
-    },
-    title: { 
-        fontSize: '18px', 
-        fontWeight: 'bold', 
+        padding: '5px', 
         textAlign: 'center' as const, 
-        textDecoration: 'underline', 
-        marginBottom: '50px',
-        letterSpacing: '1px'
+        verticalAlign: 'middle' as const 
     },
-    body: { 
-        lineHeight: 2.5, // Interlineado amplio para que no se vea junto
-        textAlign: 'justify' as const, 
-        fontSize: '14px' 
+    // Títulos de Header
+    headerTitle: { 
+        fontWeight: 'bold', 
+        fontSize: '14px',
+        lineHeight: '1.5'
     },
-    // Estilo para datos "encima de la línea"
-    inlineInput: {
+    // Campos Inline (Subrayados)
+    inlineField: {
         display: 'inline-block',
-        borderBottom: '1px dotted #000',
-        minWidth: '150px', // Ancho mínimo para líneas cortas
+        borderBottom: '1px solid #000',
+        minWidth: '50px',
         textAlign: 'center' as const,
         fontWeight: 'bold',
         padding: '0 10px',
-        margin: '0 5px',
-        fontFamily: 'Arial, sans-serif', // Fuente diferente para simular llenado
-        fontSize: '13px'
+        paddingBottom: '2px', // Espacio para que no toque la línea
+        marginBottom: '-2px'  // Ajuste visual
     },
-    // Footer empujado al final
-    footer: { 
-        marginTop: 'auto', // Esto hace que ocupe toda la hoja
-        paddingBottom: '20px',
-        display: 'flex', 
-        flexDirection: 'column' as const, 
-        gap: '20px' 
+    // Párrafos del cuerpo
+    paragraph: {
+        textAlign: 'justify' as const,
+        marginBottom: '20px',
+        lineHeight: '1.8', // Espaciado cómodo
+        fontSize: '12px'
     },
-    sigSection: {
+    // Sección de Firma
+    signatureSection: {
+        marginTop: '100px',
+        marginLeft: '50px', // Indentación según imagen
         display: 'flex',
-        justifyContent: 'space-between',
-        marginTop: '30px',
-        gap: '20px'
+        flexDirection: 'column' as const,
+        gap: '30px'
     },
-    sigContainer: {
-        textAlign: 'center' as const,
-        width: '220px'
+    signatureRow: {
+        display: 'flex',
+        alignItems: 'flex-end',
+        gap: '10px'
     },
-    sigImageContainer: {
-        height: '80px',
+    signatureLabel: {
+        fontWeight: 'bold',
+        width: '60px'
+    },
+    signatureLine: {
+        borderBottom: '1px solid #000',
+        width: '250px',
+        height: '20px', // Altura para firma/texto
         display: 'flex',
         alignItems: 'flex-end',
         justifyContent: 'center',
-        marginBottom: '5px',
-        borderBottom: '1px solid #000'
-    },
-    sigLabel: {
-        fontWeight: 'bold',
-        fontSize: '12px',
-        marginTop: '5px'
+        paddingBottom: '5px' // Espacio para que no toque
     }
   }
 
   return (
     <div ref={ref} style={styles.page}>
-        {/* ENCABEZADO */}
-        <div style={styles.header}>
-            <div style={styles.logo}>RUAG</div>
-            <div style={styles.headerMeta}>
-                <strong>CÓDIGO:</strong> SG-FOR-112<br/>
-                <strong>VERSIÓN:</strong> 01<br/>
-                <strong>FECHA:</strong> 01/08/2024
-            </div>
+        
+        {/* HEADER */}
+        <table style={styles.headerTable}>
+            <tbody>
+                <tr>
+                    <td rowSpan={3} style={{...styles.td, width: '20%'}}>
+                        <img src="/logo_ruag.png" alt="RUAG" style={{maxWidth: '100%', maxHeight: '60px', objectFit: 'contain'}} />
+                    </td>
+                    <td rowSpan={3} style={{...styles.td, width: '60%'}}>
+                        <div style={styles.headerTitle}>ACTA DE ENTREGA DE IPERC</div>
+                        <div style={{...styles.headerTitle, marginTop: '5px'}}>POR PUESTO DE TRABAJO</div>
+                    </td>
+                    <td style={{...styles.td, width: '20%', padding: 0, fontSize: '10px'}}>
+                        <div style={{borderBottom: '1px solid #000', padding: '4px', textAlign: 'left'}}><strong>CÓDIGO:</strong> SG-FOR-112</div>
+                        <div style={{borderBottom: '1px solid #000', padding: '4px', textAlign: 'left'}}><strong>REVISIÓN:</strong> 01</div>
+                        <div style={{borderBottom: '1px solid #000', padding: '4px', textAlign: 'left'}}><strong>FECHA:</strong> 1/08/2024</div>
+                        <div style={{padding: '4px', textAlign: 'left'}}><strong>PÁGINA:</strong> 01 / 01</div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        {/* CUERPO DEL TEXTO */}
+        <div style={styles.paragraph}>
+            Yo, <span style={{...styles.inlineField, minWidth: '400px'}}>{ficha.nombres} {ficha.apellido_paterno} {ficha.apellido_materno}</span>, 
+            identificado con DNI/CE/Pasaporte Nº <span style={{...styles.inlineField, minWidth: '150px'}}>{ficha.dni}</span>, 
+            desempeño el cargo de <span style={{...styles.inlineField, minWidth: '250px'}}>{ficha.cargo || 'OPERARIO'}</span> en la empresa <span style={{...styles.inlineField, minWidth: '150px'}}>RUAG S.R.L.</span> para el proyecto <span style={{...styles.inlineField, minWidth: '200px'}}>{ficha.nombre_obra || 'OBRA CENTRAL'}</span>.
         </div>
 
-        {/* TÍTULO */}
-        <div style={styles.title}>ACTA DE ENTREGA DE IPERC POR PUESTO DE TRABAJO</div>
-
-        {/* CUERPO DEL TEXTO CON CAMPOS EN LÍNEA */}
-        <div style={styles.body}>
-            Yo, 
-            <span style={{...styles.inlineInput, minWidth: '300px'}}>
-                {ficha.nombres} {ficha.apellido_paterno} {ficha.apellido_materno}
-            </span>, 
-            identificado con DNI/CE N° 
-            <span style={styles.inlineInput}>
-                {ficha.dni}
-            </span>, 
-            quien desempeño el cargo de 
-            <span style={styles.inlineInput}>
-                {ficha.cargo || 'OPERARIO'}
-            </span> 
-            en la empresa <strong> RUAG S.R.L.</strong> para el proyecto 
-            <span style={{...styles.inlineInput, minWidth: '200px'}}>
-                {ficha.nombre_obra || 'OBRA CENTRAL'}
-            </span>.
-            <br/>
-            Por medio de la presente declaro haber recibido copia de la <strong>Matriz de Identificación de Peligros, Evaluación de Riesgos y Controles (IPERC)</strong> 
-            correspondiente a mi puesto de trabajo.
-            <br/>
-            A su vez, declaro mi compromiso en leerla, comprenderla y acatar responsablemente las medidas de control descritas en la misma para salvaguardar mi integridad y la de mis compañeros.
-            <br/>
-            En conformidad con lo mencionado y recepción, firmo el presente documento.
+        <div style={styles.paragraph}>
+            Por medio de la presente declaro haber recibido copia de la Matriz de Identificación de Peligros, Evaluación de Riesgos y Controles (IPERC) de mi puesto de trabajo de parte de RUAG S.R.L.
         </div>
 
-        {/* PIE DE PÁGINA (Al final de la hoja) */}
-        <div style={styles.footer}>
-            <div style={{fontSize: '14px'}}>
-                <strong>FECHA:</strong> <span style={styles.inlineInput}>{fechaActual}</span>
-            </div>
+        <div style={styles.paragraph}>
+            A su vez declaro mi compromiso en leerla, y acatar responsablemente las medidas de control descritas en la misma.
+        </div>
+
+        <div style={styles.paragraph}>
+            En conformidad con lo mencionado y recepción,
+        </div>
+
+        {/* SECCIÓN DE FIRMA */}
+        <div style={styles.signatureSection}>
             
-            <div style={styles.sigSection}>
-                {/* FIRMA */}
-                <div style={styles.sigContainer}>
-                    <div style={styles.sigImageContainer}>
-                        {ficha.firma_url ? (
-                            <img src={ficha.firma_url} style={{maxHeight:'70px', maxWidth: '90%'}} alt="Firma"/>
-                        ) : null}
-                    </div>
-                    <div style={styles.sigLabel}>FIRMA DEL TRABAJADOR</div>
-                    <div style={{fontSize: '11px'}}>DNI: {ficha.dni}</div>
-                </div>
-
-                {/* HUELLA */}
-                <div style={{...styles.sigContainer, width: '120px'}}>
-                    <div style={{...styles.sigImageContainer, border: '1px solid #000', height: '100px', alignItems: 'center'}}>
-                        {ficha.huella_url ? (
-                            <img src={ficha.huella_url} style={{maxHeight:'90px', maxWidth: '90%'}} alt="Huella"/>
-                        ) : (
-                            <span style={{color:'#ccc', fontSize:'10px'}}>HUELLA</span>
-                        )}
-                    </div>
-                    <div style={styles.sigLabel}>HUELLA DIGITAL</div>
+            <div style={styles.signatureRow}>
+                <div style={styles.signatureLabel}>FIRMA:</div>
+                <div style={styles.signatureLine}>
+                    {/* Imagen de firma centrada y contenida */}
+                    {ficha.firma_url && (
+                        <img src={ficha.firma_url} alt="Firma" style={{maxHeight: '50px', maxWidth: '90%', objectFit: 'contain', marginBottom: '-10px'}} />
+                    )}
                 </div>
             </div>
+
+            <div style={styles.signatureRow}>
+                <div style={styles.signatureLabel}>DNI:</div>
+                <div style={{...styles.signatureLine, alignItems: 'center'}}>
+                    <span style={{fontWeight: 'bold', fontSize: '12px'}}>{ficha.dni}</span>
+                </div>
+            </div>
+
+            <div style={styles.signatureRow}>
+                <div style={styles.signatureLabel}>FECHA:</div>
+                <div style={{...styles.signatureLine, alignItems: 'center'}}>
+                    <span style={{fontWeight: 'bold', fontSize: '12px'}}>{fechaActual}</span>
+                </div>
+            </div>
+
         </div>
+
     </div>
   )
 })
+
 ActaEntregaIpercPrintable.displayName = 'ActaEntregaIpercPrintable'

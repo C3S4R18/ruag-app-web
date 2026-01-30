@@ -4,7 +4,7 @@ export const CargoRisstPrintable = forwardRef(({ ficha }: { ficha: any }, ref: R
   if (!ficha) return null
 
   const today = new Date()
-  const fechaActual = `${today.getDate().toString().padStart(2, '0')} / ${(today.getMonth() + 1).toString().padStart(2, '0')} / ${today.getFullYear()}`
+  const fechaActual = `${today.getDate().toString().padStart(2, '0')}/${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`
   const lugar = "LIMA" 
 
   const styles = {
@@ -12,243 +12,225 @@ export const CargoRisstPrintable = forwardRef(({ ficha }: { ficha: any }, ref: R
         width: '21cm',
         minHeight: '29.7cm',
         backgroundColor: '#ffffff',
-        padding: '2.5cm 2cm',
+        padding: '2cm',
         margin: '0 auto',
-        fontFamily: '"Times New Roman", Times, serif',
+        fontFamily: 'Arial, sans-serif',
         color: '#000000',
         boxSizing: 'border-box' as const,
         position: 'relative' as const
     },
-    table: {
+    headerTable: {
         width: '100%',
         borderCollapse: 'collapse' as const,
         marginBottom: '20px',
-        border: '1px solid #000000'
+        border: '1px solid #000'
     },
     td: {
-        border: '1px solid #000000',
+        border: '1px solid #000',
         padding: '5px',
-        verticalAlign: 'middle',
+        textAlign: 'center' as const,
+        verticalAlign: 'middle' as const,
+        fontSize: '10px'
+    },
+    logoCell: {
+        width: '20%',
+        border: '1px solid #000',
+        padding: '5px',
         textAlign: 'center' as const
     },
-    logoText: {
-        fontWeight: 'bold',
-        fontSize: '18px',
-        color: '#d97706'
-    },
-    headerTitle: {
+    titleCell: {
+        width: '60%',
+        border: '1px solid #000',
         fontWeight: 'bold',
         fontSize: '12px',
         textAlign: 'center' as const
     },
-    metaText: {
-        fontSize: '10px',
-        textAlign: 'left' as const,
-        lineHeight: 1.4
+    mainBorder: {
+        border: '2px solid #ef4444', // ROJO
+        padding: '30px',
+        marginTop: '20px',
+        minHeight: '800px', 
+        position: 'relative' as const
     },
     mainTitle: {
         textAlign: 'center' as const,
         fontWeight: 'bold',
-        textDecoration: 'underline',
-        fontSize: '14px',
-        marginTop: '30px',
-        marginBottom: '30px'
+        fontSize: '12px',
+        marginBottom: '40px',
+        lineHeight: '1.5'
     },
     bodyText: {
-        fontSize: '12px',
         textAlign: 'justify' as const,
-        lineHeight: 1.6,
-        marginBottom: '15px'
+        fontSize: '12px',
+        lineHeight: '2', 
+        marginBottom: '40px'
     },
-    // Estilo para datos rellenados (Lugar/Fecha)
-    inlineData: {
+    // CORRECCIÓN: Estilo para Lugar y Fecha (inline-block + padding)
+    inlineField: {
         display: 'inline-block',
-        borderBottom: '1px dotted #000000',
-        minWidth: '100px',
+        borderBottom: '1px dotted #000',
+        minWidth: '120px',
         textAlign: 'center' as const,
         fontWeight: 'bold',
-        padding: '0 10px',
-        fontFamily: 'Arial, sans-serif',
-        fontSize: '13px'
+        paddingBottom: '2px', // Separa el texto de la línea
+        marginLeft: '5px'
     },
-    // FOOTER
-    footerGrid: {
-        marginTop: '50px',
+    fieldSection: {
+        marginTop: '60px',
         display: 'flex',
         flexDirection: 'column' as const,
-        gap: '20px',
-        fontSize: '12px',
-        fontWeight: 'bold'
+        gap: '20px'
     },
-    // NUEVO ESTILO: Dato encima de la línea
-    fieldContainer: {
+    fieldRow: {
         display: 'flex',
-        alignItems: 'flex-end',
-        marginBottom: '5px'
+        flexDirection: 'column' as const,
+        gap: '2px'
     },
     label: {
-        minWidth: '140px',
-        paddingBottom: '5px' 
+        fontSize: '12px',
+        marginBottom: '2px'
     },
-    valueContainer: {
-        flex: 1,
+    valueLine: {
         borderBottom: '1px dotted #000',
-        textAlign: 'center' as const,
-        paddingBottom: '2px' // Espacio entre texto y linea
-    },
-    valueText: {
-        fontFamily: 'Arial, sans-serif',
+        minHeight: '25px',
+        fontSize: '13px',
         fontWeight: 'bold',
-        fontSize: '14px',
         textTransform: 'uppercase' as const,
-        color: '#000'
-    },
-    // BIOMETRÍA
-    biometriaContainer: {
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        marginTop: '40px',
+        paddingLeft: '10px',
+        paddingBottom: '4px',
+        display: 'flex',
         alignItems: 'flex-end'
     },
-    signatureBox: {
-        border: '1px solid #000000',
-        height: '100px',
-        width: '220px',
+    signatureSection: {
         display: 'flex',
+        justifyContent: 'space-between',
+        marginTop: '50px',
+        alignItems: 'flex-end'
+    },
+    signatureContainer: {
+        width: '50%',
+        display: 'flex',
+        flexDirection: 'column' as const,
+        justifyContent: 'flex-end'
+    },
+    fingerprintContainer: {
+        width: '120px',
+        display: 'flex',
+        flexDirection: 'column' as const,
         alignItems: 'center',
-        justifyContent: 'center',
-        position: 'relative' as const,
-        backgroundColor: '#fff'
+        gap: '5px'
     },
     fingerprintBox: {
-        border: '1px solid #000000',
-        height: '120px',
-        width: '100px',
+        width: '90px',
+        height: '110px',
+        border: '1px solid #000',
+        borderRadius: '8px', 
         display: 'flex',
-        alignItems: 'center',
         justifyContent: 'center',
-        position: 'relative' as const,
-        backgroundColor: '#fff'
-    },
-    biometriaImg: {
-        maxWidth: '90%',
-        maxHeight: '90%',
-        objectFit: 'contain' as const
-    },
-    placeholderText: {
-        fontSize: '10px',
-        color: '#ccc',
-        textTransform: 'uppercase' as const
+        alignItems: 'center',
+        overflow: 'hidden'
     }
   }
 
   return (
     <div ref={ref} style={styles.page}>
       
-      {/* HEADER */}
-      <table style={styles.table}>
+      {/* 1. HEADER TABLE */}
+      <table style={styles.headerTable}>
         <tbody>
             <tr>
-                <td style={{...styles.td, width: '20%'}}>
-                    <div style={styles.logoText}>RUAG</div>
-                    <div style={{fontSize: '8px'}}>construcción</div>
+                <td style={styles.logoCell}>
+                    {/* Asegúrate de que logo_ruag.png esté en la carpeta public */}
+                    <img src="/logo_ruag.png" alt="RUAG" style={{maxWidth: '100%', maxHeight: '50px', objectFit: 'contain'}} />
                 </td>
-                <td style={{...styles.td, width: '60%'}}>
-                    <div style={styles.headerTitle}>SISTEMA DE GESTIÓN INTEGRADOS</div>
-                    <div style={{fontSize: '14px', fontWeight: 'bold', marginTop: '5px'}}>REGLAMENTO INTERNO DE SEGURIDAD Y SALUD EN EL TRABAJO</div>
+                <td style={styles.titleCell}>
+                    <div>SISTEMA DE GESTIÓN INTEGRADOS</div>
+                    <div style={{marginTop: '5px', fontSize: '13px'}}>REGLAMENTO INTERNO DE SEGURIDAD Y SALUD EN EL TRABAJO</div>
                 </td>
-                <td style={{...styles.td, width: '20%', padding: '0'}}>
-                    <div style={{...styles.metaText, borderBottom: '1px solid #000', padding: '2px 5px'}}><strong>CÓDIGO:</strong> SG-RIT-01</div>
-                    <div style={{...styles.metaText, borderBottom: '1px solid #000', padding: '2px 5px'}}><strong>REVISIÓN:</strong> 01</div>
-                    <div style={{...styles.metaText, borderBottom: '1px solid #000', padding: '2px 5px'}}><strong>FECHA:</strong> 04/01/2024</div>
-                    <div style={{...styles.metaText, padding: '2px 5px'}}><strong>PÁGINA:</strong> 54 de 54</div>
+                <td style={styles.td}>
+                    <div style={{textAlign: 'left', fontSize: '9px'}}>
+                        <div style={{borderBottom: '1px solid #000', padding: '2px'}}><strong>CÓDIGO:</strong> SG-RIT-01</div>
+                        <div style={{borderBottom: '1px solid #000', padding: '2px'}}><strong>REVISIÓN:</strong> 01</div>
+                        <div style={{borderBottom: '1px solid #000', padding: '2px'}}><strong>FECHA:</strong> 04/01/2024</div>
+                        <div style={{padding: '2px'}}><strong>PÁGINA:</strong> 54 de 54</div>
+                    </div>
                 </td>
             </tr>
         </tbody>
       </table>
 
-      {/* TITULOS */}
-      <div style={styles.mainTitle}>
-        ANEXO N° 3 COMPROMISO<br/>
-        REGLAMENTO INTERNO DE SEGURIDAD, SALUD OCUPACIONAL Y MEDIO AMBIENTE
+      {/* TITULO CENTRAL */}
+      <div style={{textAlign: 'center', fontWeight: 'bold', fontSize: '12px', marginBottom: '10px'}}>
+          ANEXO N° 3 COMPROMISO
       </div>
 
-      <div style={{...styles.mainTitle, fontSize: '12px', textDecoration: 'none'}}>
-        RECEPCIÓN DEL REGLAMENTO Y COMPROMISO DE SEGURIDAD, SALUD OCUPACIONAL Y MEDIO AMBIENTE
-      </div>
-
-      {/* CUERPO */}
-      <div style={{...styles.bodyText, display: 'flex', justifyContent: 'flex-end', gap: '20px'}}>
-        <div>Lugar: <span style={styles.inlineData}>{lugar}</span></div>
-        <div>Fecha: <span style={styles.inlineData}>{fechaActual}</span></div>
-      </div>
-
-      <div style={styles.bodyText}>
-        He recibido el Reglamento Interno de Seguridad, Salud Ocupacional y Medio Ambiente de RUAG SRL, comprendo las disposiciones allí establecidas y me comprometo a cumplirlas siendo éstas condición de empleo.
-      </div>
-
-      <div style={styles.bodyText}>
-        Así mismo, ratifico mi Compromiso con el cumplimiento de la Política de Seguridad, Salud Ocupacional y Medio Ambiente establecidos por RUAG SRL.
-      </div>
-
-      <div style={{...styles.bodyText, marginTop: '30px', fontWeight: 'bold', textDecoration: 'underline'}}>
-      </div>
-
-      {/* FOOTER DATOS (Diseño: Dato ENCIMA de la línea) */}
-      <div style={styles.footerGrid}>
+      {/* 2. CONTENEDOR ROJO PRINCIPAL */}
+      <div style={styles.mainBorder}>
           
-          <div style={styles.fieldContainer}>
-              <span style={styles.label}>Nombres y Apellidos:</span>
-              <div style={styles.valueContainer}>
-                  <span style={styles.valueText}>
-                      {ficha.apellido_paterno} {ficha.apellido_materno}, {ficha.nombres}
-                  </span>
-              </div>
+          <div style={styles.mainTitle}>
+              REGLAMENTO INTERNO DE SEGURIDAD, SALUD OCUPACIONAL Y MEDIO AMBIENTE<br/><br/>
+              RECEPCIÓN DEL REGLAMENTO Y COMPROMISO DE SEGURIDAD, SALUD OCUPACIONAL Y MEDIO AMBIENTE
           </div>
 
-          <div style={styles.fieldContainer}>
-              <span style={styles.label}>D.N.I.:</span>
-              <div style={styles.valueContainer}>
-                  <span style={styles.valueText}>
+          {/* CUERPO DEL TEXTO */}
+          <div style={styles.bodyText}>
+              {/* LUGAR Y FECHA CORREGIDOS */}
+              <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '20px', alignItems: 'baseline'}}>
+                  <div>Lugar: <span style={styles.inlineField}>{lugar}</span></div>
+                  <div>Fecha: <span style={styles.inlineField}>{fechaActual}</span></div>
+              </div>
+              
+              He recibido el Reglamento Interno de Seguridad, Salud Ocupacional y Medio Ambiente de RUAG SRL, comprendo las disposiciones allí establecidas y me comprometo a cumplirlas siendo éstas condición de empleo.<br/>
+              
+              Así mismo, ratifico mi Compromiso con el cumplimiento de la Política de Seguridad, Salud Ocupacional y Medio Ambiente establecidos por RUAG SRL. FAVOR, ESCRIBIR CON LETRA IMPRENTA Y CLARA.
+          </div>
+
+          {/* CAMPOS DE LLENADO */}
+          <div style={styles.fieldSection}>
+              
+              {/* Nombres y Apellidos */}
+              <div style={styles.fieldRow}>
+                  <div style={styles.label}>Nombres y Apellidos</div>
+                  <div style={styles.valueLine}>
+                      {ficha.nombres} {ficha.apellido_paterno} {ficha.apellido_materno}
+                  </div>
+              </div>
+
+              {/* DNI */}
+              <div style={styles.fieldRow}>
+                  <div style={styles.label}>D.N.I.</div>
+                  <div style={{...styles.valueLine, width: '50%'}}>
                       {ficha.dni}
-                  </span>
-              </div>
-          </div>
-
-          <div style={styles.fieldContainer}>
-              <span style={styles.label}>Cargo:</span>
-              <div style={styles.valueContainer}>
-                  <span style={styles.valueText}>
-                      {ficha.cargo || 'OPERARIO'}
-                  </span>
-              </div>
-          </div>
-
-          {/* ZONA DE FIRMA Y HUELLA AUTOMÁTICA */}
-          <div style={styles.biometriaContainer}>
-              <div>
-                  <div style={{marginBottom: '5px', textAlign: 'center'}}>Firma:</div>
-                  <div style={styles.signatureBox}>
-                      {/* Detecta firma_url (base64 o url) */}
-                      {ficha.firma_url ? (
-                          <img src={ficha.firma_url} style={styles.biometriaImg} alt="Firma Digital" />
-                      ) : (
-                          <span style={styles.placeholderText}>Firma Pendiente</span>
-                      )}
                   </div>
               </div>
 
-              <div>
-                  <div style={{marginBottom: '5px', textAlign: 'center'}}>Huella Digital:</div>
-                  <div style={styles.fingerprintBox}>
-                      {/* Detecta huella_url (base64 o url) */}
-                      {ficha.huella_url ? (
-                          <img src={ficha.huella_url} style={styles.biometriaImg} alt="Huella Digital" />
-                      ) : (
-                          <span style={styles.placeholderText}>Huella</span>
-                      )}
+              {/* FIRMA Y HUELLA */}
+              <div style={styles.signatureSection}>
+                  
+                  {/* Firma */}
+                  <div style={styles.signatureContainer}>
+                      <div style={{height: '70px', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', marginBottom: '5px', overflow:'hidden'}}>
+                          {ficha.firma_url && (
+                              <img src={ficha.firma_url} alt="Firma" style={{maxHeight: '100%', maxWidth: '100%', objectFit: 'contain'}} />
+                          )}
+                      </div>
+                      <div style={{borderTop: '1px dotted #000', paddingTop: '5px', fontSize: '12px'}}>
+                          Firma
+                      </div>
                   </div>
+
+                  {/* Huella */}
+                  <div style={styles.fingerprintContainer}>
+                      <div style={styles.fingerprintBox}>
+                          {ficha.huella_url && (
+                              <img src={ficha.huella_url} alt="Huella" style={{maxHeight: '90%', maxWidth: '90%', objectFit: 'contain'}} />
+                          )}
+                      </div>
+                      <div style={{fontSize: '12px'}}>Huella Digital</div>
+                  </div>
+
               </div>
+
           </div>
 
       </div>
