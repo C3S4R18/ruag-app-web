@@ -5,6 +5,7 @@ import { createClient } from '@/utils/supabase/client'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 import SignatureCanvas from 'react-signature-canvas'
+import jsPDF from 'jspdf' // Asegúrate de tener instalado: npm install jspdf
 import { 
   User, CheckCircle, ChevronRight, ChevronLeft,
   Camera, Loader2, HeartPulse, GraduationCap, Wallet,
@@ -67,6 +68,7 @@ export default function FichaForm() {
     url_firma: ''
   })
 
+  // Detectar PDF para mostrar icono en lugar de preview
   const isDniPdf = formData.doc_dni_trabajador && formData.doc_dni_trabajador.toLowerCase().includes('.pdf');
 
   // Carga inicial
@@ -367,7 +369,7 @@ export default function FichaForm() {
 
                     <SectionTitle title="Documentos del Trabajador" icon={<FileBadge/>} />
                     <p className="text-xs text-slate-500 mb-6 bg-slate-50 p-3 rounded-lg border border-slate-200 inline-block">
-                        💡 Puedes subir archivos PDF o tomar una foto directa.
+                        💡 Puedes subir archivos PDF o tomar una foto (se convertirá a PDF automáticamente).
                     </p>
                     
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-8">
@@ -379,7 +381,7 @@ export default function FichaForm() {
                             </motion.div>
                         )}
                         
-                        <ImageUpload label="Certiadulto" bucket="documentos" currentUrl={formData.doc_certiadulto} onUpload={(u:any)=>setFormData({...formData, doc_certiadulto:u})} />
+                        <ImageUpload label="Certiadulto (Antecedentes)" bucket="documentos" currentUrl={formData.doc_certiadulto} onUpload={(u:any)=>setFormData({...formData, doc_certiadulto:u})} />
                         <ImageUpload label="Carnet RETCC" bucket="documentos" currentUrl={formData.doc_carnet_retcc} onUpload={(u:any)=>setFormData({...formData, doc_carnet_retcc:u})} />
                         <ImageUpload label="Ant. Policiales" bucket="documentos" currentUrl={formData.doc_policiales} onUpload={(u:any)=>setFormData({...formData, doc_policiales:u})} />
                         <ImageUpload label="Ant. Penales" bucket="documentos" currentUrl={formData.doc_penales} onUpload={(u:any)=>setFormData({...formData, doc_penales:u})} />
@@ -427,21 +429,128 @@ export default function FichaForm() {
   )
 }
 
-// --- MODAL DE CÁMARA MEJORADO ---
-function CameraCaptureModal({ onClose, onCapture }: { onClose: () => void, onCapture: (file: File) => void }) {
+// --- COMPONENTE MEJORADO: SOPORTE CAMARA, PDF AUTO Y ENCUADRE ---
+function ImageUpload({label, bucket, onUpload, currentUrl}: any) { 
+    const [uploading, setUploading] = useState(false); 
+    const [showCamera, setShowCamera] = useState(false);
+    const supabase = createClient(); 
+    
+    // Detectar si ya es un PDF (por si viene de BD)
+    const isPdf = currentUrl?.toLowerCase().includes('.pdf');
+    
+    // Determinar el formato de captura basado en el nombre del documento
+    // Si dice DNI o Carnet -> Horizontal (ID Card). Si no -> Vertical (A4)
+    const captureFormat = (label.toLowerCase().includes('dni') || label.toLowerCase().includes('carnet')) 
+        ? 'id-card' 
+        : 'a4';
+
+    // Subida Normal de Archivos
+    const handleFile = async (e:any) => { 
+        if(!e.target.files?.length) return; 
+        processUpload(e.target.files[0]);
+    }; 
+    
+    // Subida desde Cámara (Recibe un File que YA ES PDF gracias al modal)
+    const handleCameraCapture = (file: File) => {
+        setShowCamera(false);
+        processUpload(file);
+    };
+
+    const processUpload = async (file: File) => {
+        setUploading(true);
+        // Generar nombre único
+        const fileExt = file.name.split('.').pop() || 'pdf'; 
+        const fileName = `${Math.random().toString(36).substring(7)}_${Date.now()}.${fileExt}`;
+        
+        const { error } = await supabase.storage.from(bucket).upload(fileName, file, {
+            contentType: file.type // Aseguramos que se suba con el tipo correcto (pdf o img)
+        }); 
+        
+        if(error) {
+            toast.error("Error al subir el documento");
+            console.error(error);
+        } else { 
+            const { data } = supabase.storage.from(bucket).getPublicUrl(fileName); 
+            onUpload(data.publicUrl); 
+            toast.success("Documento cargado correctamente"); 
+        } 
+        setUploading(false);
+    };
+
+    return (
+        <>
+            <div className={`relative border border-dashed rounded-xl p-4 text-center transition-all group h-36 flex flex-col items-center justify-center overflow-hidden ${currentUrl ? (isPdf ? 'border-red-500 bg-red-50/30' : 'border-emerald-500 bg-emerald-50/30') : 'border-slate-300 hover:border-slate-400 hover:bg-slate-50'}`}>
+                
+                <div className="flex flex-col gap-3 w-full relative z-10">
+                    {!uploading && (
+                        <>
+                            <div className="flex justify-center gap-2">
+                                <label className="cursor-pointer bg-white p-2 rounded-lg shadow-sm border border-slate-200 text-slate-500 hover:text-blue-600 hover:border-blue-200 transition-colors active:scale-95" title="Subir Archivo">
+                                    <input type="file" accept="image/*,.pdf" onChange={handleFile} className="hidden" />
+                                    <UploadCloud size={18}/>
+                                </label>
+                                <button onClick={() => setShowCamera(true)} className="bg-white p-2 rounded-lg shadow-sm border border-slate-200 text-slate-500 hover:text-emerald-600 hover:border-emerald-200 transition-colors active:scale-95" title="Tomar Foto">
+                                    <Camera size={18}/>
+                                </button>
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-xs font-bold text-slate-600 leading-tight px-1 line-clamp-2">{label}</span>
+                                <span className="text-[9px] text-slate-400 mt-1">{currentUrl ? 'Actualizar' : 'PDF o Foto'}</span>
+                            </div>
+                        </>
+                    )}
+                    {uploading && <div className="flex flex-col items-center"><Loader2 className="animate-spin text-blue-500" size={24}/><span className="text-[10px] font-bold text-blue-500 mt-2">Procesando...</span></div>}
+                </div>
+
+                {currentUrl && !isPdf && <div className="absolute inset-0 z-0 opacity-20 bg-center bg-cover blur-sm" style={{backgroundImage: `url(${currentUrl})`}}></div>}
+                {currentUrl && isPdf && <div className="absolute inset-0 z-0 opacity-10 flex items-center justify-center"><FileText size={60} className="text-red-500"/></div>}
+            </div> 
+
+            {/* Modal de Cámara Inteligente */}
+            {showCamera && (
+                <CameraCaptureModal 
+                    onClose={() => setShowCamera(false)} 
+                    onCapture={handleCameraCapture} 
+                    format={captureFormat} // Pasamos el formato detectado
+                />
+            )}
+        </>
+    )
+}
+
+// --- MODAL DE CÁMARA MEJORADO (CON GENERACIÓN DE PDF) ---
+function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => void, onCapture: (file: File) => void, format: 'id-card' | 'a4' }) {
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [stream, setStream] = useState<MediaStream | null>(null);
     const [image, setImage] = useState<string | null>(null);
+    const [processing, setProcessing] = useState(false);
+
+    // Configuración según formato
+    const isLandscape = format === 'id-card';
+    const guideText = isLandscape ? "Ubica el DNI dentro del recuadro" : "Ubica el documento completo";
+    
+    // Estilos del recuadro guía (Aspect Ratio)
+    // DNI aprox 1.58:1 (landscape) | A4 aprox 1:1.41 (portrait)
+    const frameClasses = isLandscape 
+        ? "w-[90%] aspect-[1.58] max-w-md"  // Horizontal
+        : "h-[80%] aspect-[0.70] max-h-[600px]"; // Vertical
 
     const startCamera = async () => {
         try {
-            const mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+            // Intentar usar cámara trasera con alta resolución
+            const mediaStream = await navigator.mediaDevices.getUserMedia({ 
+                video: { 
+                    facingMode: 'environment',
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 }
+                } 
+            });
             setStream(mediaStream);
             if (videoRef.current) videoRef.current.srcObject = mediaStream;
         } catch (err) {
-            console.error("Error accediendo a la cámara:", err);
-            toast.error("No se pudo acceder a la cámara. Revisa los permisos.");
+            console.error("Error cámara:", err);
+            toast.error("No se pudo acceder a la cámara.");
             onClose();
         }
     };
@@ -459,61 +568,147 @@ function CameraCaptureModal({ onClose, onCapture }: { onClose: () => void, onCap
         if (videoRef.current && canvasRef.current) {
             const video = videoRef.current;
             const canvas = canvasRef.current;
+            
+            // Configurar canvas al tamaño nativo del video para máxima calidad
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
+            
             const ctx = canvas.getContext('2d');
             if (ctx) {
+                // Efecto espejo si es cámara frontal (opcional, aquí asumimos trasera)
                 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                setImage(canvas.toDataURL('image/jpeg'));
-                stopCamera();
+                setImage(canvas.toDataURL('image/jpeg', 0.9)); // Calidad 0.9
+                // No detenemos la cámara aún por si quiere reintentar rápido
             }
         }
     };
 
-    const confirmPhoto = async () => {
-        if (image) {
-            const res = await fetch(image);
-            const blob = await res.blob();
-            const file = new File([blob], "captura_camara.jpg", { type: "image/jpeg" });
+    const confirmAndConvertToPdf = async () => {
+        if (!image) return;
+        setProcessing(true);
+
+        try {
+            // 1. Crear instancia de PDF (A4)
+            // 'p' = portrait (vertical), 'l' = landscape (horizontal)
+            // Si el formato es ID-Card, usamos A4 pero ponemos la imagen centrada
+            // Si el formato es A4, llenamos la página
+            const pdfDoc = new jsPDF('p', 'mm', 'a4');
+            const pageWidth = pdfDoc.internal.pageSize.getWidth();
+            const pageHeight = pdfDoc.internal.pageSize.getHeight();
+
+            // 2. Cargar imagen para obtener dimensiones
+            const imgProps = pdfDoc.getImageProperties(image);
+            
+            let finalWidth, finalHeight, x, y;
+
+            if (isLandscape) {
+                // DNI: Centrado y con un tamaño razonable (ej. 85mm ancho real aprox, lo escalamos a 150mm para que se vea bien)
+                finalWidth = 150; 
+                finalHeight = (imgProps.height * finalWidth) / imgProps.width;
+                x = (pageWidth - finalWidth) / 2;
+                y = (pageHeight - finalHeight) / 2;
+            } else {
+                // A4: Ajustar al ancho de la página con márgenes
+                const margin = 10;
+                finalWidth = pageWidth - (margin * 2);
+                finalHeight = (imgProps.height * finalWidth) / imgProps.width;
+                
+                // Si la altura se pasa, ajustar por altura
+                if (finalHeight > (pageHeight - margin * 2)) {
+                    finalHeight = pageHeight - (margin * 2);
+                    finalWidth = (imgProps.width * finalHeight) / imgProps.height;
+                }
+                x = (pageWidth - finalWidth) / 2;
+                y = margin; // Margen superior
+            }
+
+            // 3. Agregar imagen al PDF
+            pdfDoc.addImage(image, 'JPEG', x, y, finalWidth, finalHeight);
+
+            // 4. Generar Blob
+            const pdfBlob = pdfDoc.output('blob');
+            const fileName = `scan_${isLandscape ? 'dni' : 'doc'}_${Date.now()}.pdf`;
+            const file = new File([pdfBlob], fileName, { type: "application/pdf" });
+
+            // 5. Enviar al padre
             onCapture(file);
+            stopCamera();
+        } catch (e) {
+            console.error(e);
+            toast.error("Error al generar PDF");
+            setProcessing(false);
         }
     };
 
     return (
-        <div className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center">
+        <div className="fixed inset-0 z-[100] bg-black flex flex-col">
             {image ? (
-                <div className="relative w-full h-full flex flex-col items-center justify-center bg-black">
-                    <img src={image} alt="Captura" className="max-w-full max-h-[80vh] object-contain" />
-                    <div className="absolute bottom-10 flex gap-4 w-full justify-center px-4">
-                        <button onClick={() => { setImage(null); startCamera(); }} className="flex-1 bg-white text-black py-4 rounded-full font-bold text-lg">Reintentar</button>
-                        <button onClick={confirmPhoto} className="flex-1 bg-emerald-500 text-white py-4 rounded-full font-bold text-lg">Usar Foto</button>
+                // VISTA PREVIA
+                <div className="relative flex-1 flex flex-col items-center justify-center bg-black">
+                    <img src={image} alt="Captura" className="max-w-full max-h-[80vh] object-contain shadow-2xl border border-white/20" />
+                    <div className="absolute bottom-0 w-full p-6 bg-gradient-to-t from-black via-black/80 to-transparent flex gap-4 justify-center pb-8">
+                        <button 
+                            onClick={() => setImage(null)} 
+                            className="flex-1 bg-white/10 backdrop-blur-md text-white border border-white/20 py-3.5 rounded-2xl font-bold text-sm hover:bg-white/20 transition-all"
+                            disabled={processing}
+                        >
+                            <RefreshCw className="inline mr-2" size={16}/> Repetir
+                        </button>
+                        <button 
+                            onClick={confirmAndConvertToPdf} 
+                            disabled={processing}
+                            className="flex-1 bg-emerald-500 text-white py-3.5 rounded-2xl font-bold text-sm hover:bg-emerald-600 shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2 transition-all"
+                        >
+                            {processing ? <Loader2 className="animate-spin" size={18}/> : <><CheckCircle size={18}/> Confirmar PDF</>}
+                        </button>
                     </div>
                 </div>
             ) : (
-                <div className="relative w-full h-full bg-black overflow-hidden">
-                    <video ref={videoRef} autoPlay playsInline className="absolute inset-0 w-full h-full object-cover" />
-                    
-                    {/* --- RECUADRO GUÍA --- */}
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                        <div className="w-[85%] aspect-[1.6] border-2 border-white/80 rounded-2xl relative shadow-[0_0_0_9999px_rgba(0,0,0,0.5)]">
-                            <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-emerald-500 -mt-0.5 -ml-0.5 rounded-tl-lg"></div>
-                            <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-emerald-500 -mt-0.5 -mr-0.5 rounded-tr-lg"></div>
-                            <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-emerald-500 -mb-0.5 -ml-0.5 rounded-bl-lg"></div>
-                            <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-emerald-500 -mb-0.5 -mr-0.5 rounded-br-lg"></div>
-                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white/80 text-xs font-bold bg-black/50 px-3 py-1 rounded-full">UBICA EL DOCUMENTO AQUÍ</div>
+                // VISTA CÁMARA
+                <div className="relative flex-1 bg-black overflow-hidden flex flex-col">
+                    {/* Header */}
+                    <div className="absolute top-0 left-0 w-full p-4 z-20 flex justify-between items-start bg-gradient-to-b from-black/60 to-transparent">
+                        <button onClick={onClose} className="text-white bg-white/10 p-2.5 rounded-full backdrop-blur-md"><X size={20}/></button>
+                        <div className="px-3 py-1.5 bg-black/40 backdrop-blur-md rounded-full text-white/90 text-xs font-medium border border-white/10">
+                            {isLandscape ? 'Modo: Tarjeta / DNI' : 'Modo: Documento A4'}
                         </div>
                     </div>
 
-                    {/* Botones de control */}
-                    <button onClick={onClose} className="absolute top-6 left-6 text-white bg-black/40 p-2 rounded-full backdrop-blur-md"><X size={24}/></button>
+                    <video ref={videoRef} autoPlay playsInline className="absolute inset-0 w-full h-full object-cover" />
                     
-                    <div className="absolute bottom-10 left-0 w-full flex justify-center items-center pb-safe">
-                        <button onClick={capturePhoto} className="w-20 h-20 bg-white rounded-full border-4 border-slate-300 shadow-xl active:scale-90 transition-transform flex items-center justify-center">
-                            <div className="w-16 h-16 bg-slate-100 rounded-full border-2 border-slate-200"></div>
+                    {/* --- RECUADRO GUÍA INTELIGENTE --- */}
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                        {/* Fondo oscuro con recorte (mask) visualmente simulado por bordes grandes o div semitransparentes, 
+                            aquí usaremos un borde simple pero elegante */}
+                        <div className={`relative border-2 border-white/90 rounded-xl shadow-[0_0_0_100vmax_rgba(0,0,0,0.6)] transition-all duration-300 ${frameClasses}`}>
+                            {/* Esquinas decorativas */}
+                            <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-emerald-400 -mt-0.5 -ml-0.5 rounded-tl-lg"></div>
+                            <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-emerald-400 -mt-0.5 -mr-0.5 rounded-tr-lg"></div>
+                            <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-emerald-400 -mb-0.5 -ml-0.5 rounded-bl-lg"></div>
+                            <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-emerald-400 -mb-0.5 -mr-0.5 rounded-br-lg"></div>
+                            
+                            {/* Línea de escaneo animada */}
+                            <div className="absolute top-0 left-0 w-full h-0.5 bg-emerald-400/80 shadow-[0_0_15px_rgba(52,211,153,0.8)] animate-scan"></div>
+                            
+                            {/* Instrucción central */}
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white/90 text-xs font-bold bg-black/60 px-4 py-2 rounded-full border border-white/10 backdrop-blur-sm whitespace-nowrap">
+                                {guideText}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Footer Controles */}
+                    <div className="absolute bottom-0 w-full pb-10 pt-20 bg-gradient-to-t from-black via-black/50 to-transparent flex justify-center items-center z-20">
+                        <button 
+                            onClick={capturePhoto} 
+                            className="w-20 h-20 bg-white rounded-full border-4 border-slate-300/50 shadow-2xl active:scale-90 transition-transform flex items-center justify-center relative"
+                        >
+                            <div className="w-16 h-16 bg-white rounded-full border-2 border-slate-200 ring-2 ring-transparent group-hover:ring-emerald-500"></div>
                         </button>
                     </div>
                 </div>
             )}
+            {/* Canvas oculto para procesar */}
             <canvas ref={canvasRef} className="hidden" />
         </div>
     );
@@ -530,79 +725,6 @@ function SectionRead({title, icon, children}: any) { return <div className="bg-w
 function Input({label, name, val, set, type="text", required=false, readOnly=false, onChange, placeholder, className=""}: any) { return <div className={className}><label className="flex items-center justify-between text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 pl-1"><span>{label} {required && <span className="text-red-500">*</span>}</span>{readOnly && <Lock size={10} className="text-slate-300" />}</label><input type={type} name={name} value={val || ''} onChange={onChange || set} readOnly={readOnly} placeholder={placeholder} className={`w-full p-3.5 rounded-xl border outline-none transition-all font-medium text-sm ${readOnly ? 'bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed select-none shadow-none' : 'bg-slate-50 border-slate-200 text-slate-800 focus:bg-white focus:border-slate-900 focus:ring-4 focus:ring-slate-100 placeholder:text-slate-300 shadow-sm'}`} /></div>}
 function Select({label, name, val, set, options=[], required=false}: any) { return <div><label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 pl-1">{label} {required && <span className="text-red-500">*</span>}</label><div className="relative"><select name={name} value={val || ''} onChange={set} className="w-full p-3.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-slate-900 focus:ring-4 focus:ring-slate-100 outline-none transition-all font-medium text-sm text-slate-700 appearance-none cursor-pointer shadow-sm"><option value="">Seleccionar...</option>{options.map((o:string)=><option key={o} value={o}>{o}</option>)}</select><div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400"><ChevronRight className="rotate-90" size={16}/></div></div></div>}
 function Radio({label, name, val, current, set}: any) { return <label className={`flex items-center gap-3 cursor-pointer px-4 py-3 rounded-xl border transition-all w-full ${current === val ? 'bg-slate-900 text-white border-slate-900 shadow-lg shadow-slate-900/20' : 'bg-white border-slate-200 hover:border-slate-300'}`}><div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${current === val ? 'border-white' : 'border-slate-300'}`}>{current === val && <div className="w-2 h-2 rounded-full bg-white"/>}</div><input type="radio" name={name} value={val} checked={current === val} onChange={set} className="hidden"/><span className="font-bold text-sm">{label}</span></label>}
-
-// --- COMPONENTE MEJORADO: SOPORTE CAMARA Y ARCHIVOS ---
-function ImageUpload({label, bucket, onUpload, currentUrl}: any) { 
-    const [uploading, setUploading] = useState(false); 
-    const [showCamera, setShowCamera] = useState(false);
-    const supabase = createClient(); 
-    const isPdf = currentUrl?.toLowerCase().includes('.pdf');
-    
-    // Subida Normal
-    const handleFile = async (e:any) => { 
-        if(!e.target.files?.length) return; 
-        processUpload(e.target.files[0]);
-    }; 
-    
-    // Subida desde Cámara
-    const handleCameraCapture = (file: File) => {
-        setShowCamera(false);
-        processUpload(file);
-    };
-
-    const processUpload = async (file: File) => {
-        setUploading(true);
-        const fileExt = file.name.split('.').pop() || 'jpg';
-        const fileName = `${Math.random()}.${fileExt}`;
-        const { error } = await supabase.storage.from(bucket).upload(fileName, file); 
-        
-        if(error) {
-            toast.error("Error al subir");
-        } else { 
-            const { data } = supabase.storage.from(bucket).getPublicUrl(fileName); 
-            onUpload(data.publicUrl); 
-            toast.success("Documento cargado"); 
-        } 
-        setUploading(false);
-    };
-
-    return (
-        <>
-            <div className={`relative border border-dashed rounded-xl p-4 text-center transition-all group h-36 flex flex-col items-center justify-center overflow-hidden ${currentUrl ? (isPdf ? 'border-red-500 bg-red-50/30' : 'border-emerald-500 bg-emerald-50/30') : 'border-slate-300 hover:border-slate-400 hover:bg-slate-50'}`}>
-                
-                {/* Opciones de subida */}
-                <div className="flex flex-col gap-3 w-full relative z-10">
-                    {!uploading && (
-                        <>
-                            <div className="flex justify-center gap-2">
-                                <label className="cursor-pointer bg-white p-2 rounded-lg shadow-sm border border-slate-200 text-slate-500 hover:text-blue-600 hover:border-blue-200 transition-colors" title="Subir Archivo">
-                                    <input type="file" accept="image/*,.pdf" onChange={handleFile} className="hidden" />
-                                    <UploadCloud size={18}/>
-                                </label>
-                                <button onClick={() => setShowCamera(true)} className="bg-white p-2 rounded-lg shadow-sm border border-slate-200 text-slate-500 hover:text-emerald-600 hover:border-emerald-200 transition-colors" title="Tomar Foto">
-                                    <Camera size={18}/>
-                                </button>
-                            </div>
-                            <div className="flex flex-col">
-                                <span className="text-xs font-bold text-slate-600 leading-tight px-1 line-clamp-2">{label}</span>
-                                <span className="text-[9px] text-slate-400 mt-1">{currentUrl ? 'Actualizar' : 'PDF o Foto'}</span>
-                            </div>
-                        </>
-                    )}
-                    {uploading && <div className="flex flex-col items-center"><Loader2 className="animate-spin text-blue-500" size={24}/><span className="text-[10px] font-bold text-blue-500 mt-2">Subiendo...</span></div>}
-                </div>
-
-                {/* Fondo Preview */}
-                {currentUrl && !isPdf && <div className="absolute inset-0 z-0 opacity-20 bg-center bg-cover blur-sm" style={{backgroundImage: `url(${currentUrl})`}}></div>}
-                {currentUrl && isPdf && <div className="absolute inset-0 z-0 opacity-10 flex items-center justify-center"><FileText size={60} className="text-red-500"/></div>}
-            </div> 
-
-            {/* Modal de Cámara */}
-            {showCamera && <CameraCaptureModal onClose={() => setShowCamera(false)} onCapture={handleCameraCapture} />}
-        </>
-    )
-}
-
 function StepWrapper({children}: any) { return <motion.div initial={{opacity:0, x:20}} animate={{opacity:1, x:0}} exit={{opacity:0, x:-20}} className="p-1">{children}</motion.div>}
 function GridRead({children}: any) { return <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">{children}</div> }
 function FieldRead({label, val, full, highlight}: any) { return <div className={`${full ? 'col-span-1 md:col-span-2' : ''} flex flex-col`}><span className="text-[10px] font-bold text-slate-400 uppercase mb-1">{label}</span><span className={`text-sm font-medium border-b border-slate-100 pb-1 ${highlight ? 'text-blue-700 font-bold' : 'text-slate-800'}`}>{val || '-'}</span></div> }
