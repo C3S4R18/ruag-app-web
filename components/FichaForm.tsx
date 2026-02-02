@@ -8,16 +8,16 @@ import SignatureCanvas from 'react-signature-canvas'
 import { 
   User, CheckCircle, ChevronRight, ChevronLeft,
   Camera, Loader2, HeartPulse, GraduationCap, Wallet,
-  HardHat, ShieldCheck, PenTool, Eraser, Users, FileBadge, Plus, Trash2, Lock, Hammer, FileText, Download, Image as ImageIcon
+  HardHat, ShieldCheck, PenTool, Eraser, Users, FileBadge, Plus, Trash2, Lock, Hammer, FileText, Download, Image as ImageIcon, UploadCloud, RefreshCw, X, Maximize
 } from 'lucide-react'
 
 // --- ESTRUCTURA DE PASOS ---
 const STEPS = [
-  { id: 1, title: 'Datos Personales', icon: <User size={18} /> },
+  { id: 1, title: 'Personal', icon: <User size={18} /> },
   { id: 2, title: 'Familia', icon: <Users size={18} /> },
   { id: 3, title: 'Laboral', icon: <HardHat size={18} /> },
   { id: 4, title: 'Documentos', icon: <FileBadge size={18} /> },
-  { id: 5, title: 'Finalizar', icon: <PenTool size={18} /> },
+  { id: 5, title: 'Firma', icon: <PenTool size={18} /> },
 ]
 
 export default function FichaForm() {
@@ -67,7 +67,6 @@ export default function FichaForm() {
     url_firma: ''
   })
 
-  // --- LÓGICA PARA DETECTAR SI EL DNI ES PDF ---
   const isDniPdf = formData.doc_dni_trabajador && formData.doc_dni_trabajador.toLowerCase().includes('.pdf');
 
   // Carga inicial
@@ -103,7 +102,7 @@ export default function FichaForm() {
                 doc_policiales: ficha.url_policiales,
                 doc_penales: ficha.url_penales,
                 doc_esposa_matrimonio: ficha.url_acta_matrimonio,
-                doc_esposa_dni: ficha.url_esposa_dni, // <--- CORREGIDO AQUÍ TAMBIÉN AL LEER
+                doc_esposa_dni: ficha.url_esposa_dni, 
                 doc_hijos_nacimiento: ficha.url_hijos_nacimiento,
                 doc_hijos_dni: ficha.url_hijos_dni, 
                 doc_hijos_estudios: ficha.url_constancia_estudios,
@@ -144,7 +143,6 @@ export default function FichaForm() {
   const handleSignatureEnd = () => { if (sigPad.current) setFormData((prev:any) => ({ ...prev, url_firma: sigPad.current.getTrimmedCanvas().toDataURL('image/png') })) }
   const clearSignature = () => { sigPad.current?.clear(); setFormData((prev:any) => ({ ...prev, url_firma: '' })) }
   
-  // --- FUNCIÓN GUARDAR (AQUÍ ESTABA EL ERROR) ---
   const guardarProgreso = async (complete: boolean = false) => {
     if (!user) return
     const payload = {
@@ -162,11 +160,7 @@ export default function FichaForm() {
         url_antecedentes: formData.doc_certiadulto, url_policiales: formData.doc_policiales, url_penales: formData.doc_penales,
         url_carnet: formData.doc_carnet_retcc,
         url_acta_matrimonio: formData.doc_esposa_matrimonio, 
-        
-        // --- CORRECCIÓN AQUÍ ---
-        // Antes decía url_dni_esposa, ahora es url_esposa_dni según tu DB
         url_esposa_dni: formData.doc_esposa_dni, 
-        
         url_hijos_nacimiento: formData.doc_hijos_nacimiento, url_hijos_dni: formData.doc_hijos_dni, url_constancia_estudios: formData.doc_hijos_estudios,
         
         url_firma: formData.url_firma, updated_at: new Date().toISOString(), estado: complete ? 'completado' : 'pendiente'
@@ -194,7 +188,7 @@ export default function FichaForm() {
     setSending(false)
   }
 
-  if (isLoadingData) return <div className="h-screen flex items-center justify-center bg-slate-100"><Loader2 className="animate-spin text-slate-800" size={40}/></div>
+  if (isLoadingData) return <div className="h-screen flex items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-slate-800" size={40}/></div>
 
   // VISTA LECTURA
   if (isCompleted) {
@@ -257,18 +251,38 @@ export default function FichaForm() {
 
   if (!hasStarted) return <WelcomeScreen onStart={() => setHasStarted(true)} />
 
-  // --- WIZARD EDITABLE ---
+  // --- WIZARD EDITABLE (MEJORADO) ---
   return (
-    <div className="min-h-screen bg-slate-100 py-8 px-4 font-sans pb-32">
-      <div className="max-w-5xl mx-auto">
-        <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4 px-2">
-             <div className="flex items-center gap-3">
-                 <div className="w-10 h-10 bg-slate-900 text-white rounded-xl flex items-center justify-center shadow-lg shadow-slate-300">{STEPS[currentStep-1].icon}</div>
-                 <div><h2 className="text-xl font-bold text-slate-900 leading-none">{STEPS[currentStep-1].title}</h2><p className="text-xs text-slate-500 font-medium mt-1">Paso {currentStep} de 5</p></div>
-             </div>
+    <div className="min-h-screen bg-slate-50 py-6 px-4 font-sans pb-32">
+      <div className="max-w-4xl mx-auto">
+        
+        {/* Header de Pasos Mejorado */}
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-6 sticky top-2 z-20">
+            <div className="flex justify-between items-center mb-2">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Paso {currentStep} de 5</span>
+                <span className="text-xs font-bold text-slate-800">{Math.round((currentStep / 5) * 100)}% Completado</span>
+            </div>
+            <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                <motion.div 
+                    initial={{ width: 0 }} 
+                    animate={{ width: `${(currentStep / 5) * 100}%` }} 
+                    className="bg-slate-900 h-full rounded-full" 
+                    transition={{ duration: 0.5 }}
+                />
+            </div>
+            <div className="flex justify-between mt-4 px-2">
+                {STEPS.map((step) => (
+                    <div key={step.id} className={`flex flex-col items-center gap-1 ${currentStep === step.id ? 'text-slate-900 scale-105' : currentStep > step.id ? 'text-emerald-500' : 'text-slate-300'}`}>
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all ${currentStep === step.id ? 'border-slate-900 bg-slate-900 text-white' : currentStep > step.id ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-slate-200'}`}>
+                            {currentStep > step.id ? <CheckCircle size={14}/> : step.icon}
+                        </div>
+                        <span className="text-[10px] font-bold hidden sm:block">{step.title}</span>
+                    </div>
+                ))}
+            </div>
         </div>
 
-        <div className="bg-white rounded-3xl shadow-xl shadow-slate-200 border border-white overflow-hidden p-8 min-h-[500px] relative">
+        <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden p-6 md:p-10 min-h-[500px] relative">
              <AnimatePresence mode='wait'>
                 {currentStep === 1 && <StepWrapper key="1">
                     <SectionTitle title="Información Personal" icon={<User/>} />
@@ -314,12 +328,12 @@ export default function FichaForm() {
                         </div>
                         <div>
                             <div className="flex justify-between items-center mb-4 border-b pb-2"><h4 className="font-bold text-slate-800">Hijos Registrados</h4><button onClick={addHijo} className="text-xs bg-slate-900 text-white px-3 py-1.5 rounded-lg font-bold hover:bg-slate-700 flex gap-1 items-center"><Plus size={12}/> AGREGAR</button></div>
-                            <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2">
+                            <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
                                 {formData.hijos_datos.length === 0 && <p className="text-slate-400 italic text-sm text-center py-4">No hay hijos registrados</p>}
                                 {formData.hijos_datos.map((hijo:any, idx:number) => (
                                     <div key={idx} className="bg-slate-50 p-4 rounded-xl border border-slate-200 relative group">
-                                        <button onClick={()=>removeHijo(idx)} className="absolute top-2 right-2 text-slate-400 hover:text-red-500 bg-white p-1 rounded shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={14}/></button>
-                                        <div className="grid grid-cols-1 gap-3"><Input label="Nombres" val={hijo.nombres} onChange={(e:any)=>handleHijoChange(idx, 'nombres', e.target.value)} /><div className="grid grid-cols-2 gap-3"><Input label="Paterno" val={hijo.paterno} onChange={(e:any)=>handleHijoChange(idx, 'paterno', e.target.value)} /><Input label="Materno" val={hijo.materno} onChange={(e:any)=>handleHijoChange(idx, 'materno', e.target.value)} /></div></div>
+                                            <button onClick={()=>removeHijo(idx)} className="absolute top-2 right-2 text-slate-400 hover:text-red-500 bg-white p-1 rounded shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={14}/></button>
+                                            <div className="grid grid-cols-1 gap-3"><Input label="Nombres" val={hijo.nombres} onChange={(e:any)=>handleHijoChange(idx, 'nombres', e.target.value)} /><div className="grid grid-cols-2 gap-3"><Input label="Paterno" val={hijo.paterno} onChange={(e:any)=>handleHijoChange(idx, 'paterno', e.target.value)} /><Input label="Materno" val={hijo.materno} onChange={(e:any)=>handleHijoChange(idx, 'materno', e.target.value)} /></div></div>
                                     </div>
                                 ))}
                             </div>
@@ -337,9 +351,9 @@ export default function FichaForm() {
                     </div>
                     <SectionTitle title="Formación Académica" icon={<GraduationCap/>} />
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                         <Select label="Nivel educativo" name="nivel_educativo" val={formData.nivel_educativo} set={handleChange} options={['Primaria', 'Secundaria', 'Técnico', 'Universitario']} required />
-                         <Input label="Carrera / Oficio" name="carrera" val={formData.carrera} set={handleChange} required />
-                         <Input label="Institución Educativa" name="centro_formacion" val={formData.centro_formacion} set={handleChange} required className="md:col-span-2" />
+                            <Select label="Nivel educativo" name="nivel_educativo" val={formData.nivel_educativo} set={handleChange} options={['Primaria', 'Secundaria', 'Técnico', 'Universitario']} required />
+                            <Input label="Carrera / Oficio" name="carrera" val={formData.carrera} set={handleChange} required />
+                            <Input label="Institución Educativa" name="centro_formacion" val={formData.centro_formacion} set={handleChange} required className="md:col-span-2" />
                     </div>
                 </StepWrapper>}
 
@@ -352,15 +366,17 @@ export default function FichaForm() {
                     </div>
 
                     <SectionTitle title="Documentos del Trabajador" icon={<FileBadge/>} />
-                    <p className="text-xs text-slate-500 mb-4 -mt-2">Puedes subir fotos (JPG/PNG) o documentos PDF. Si subes un PDF en el DNI, no es necesario subir el reverso.</p>
+                    <p className="text-xs text-slate-500 mb-6 bg-slate-50 p-3 rounded-lg border border-slate-200 inline-block">
+                        💡 Puedes subir archivos PDF o tomar una foto directa.
+                    </p>
                     
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                         <ImageUpload label="DNI (Frontal o PDF)" bucket="documentos" currentUrl={formData.doc_dni_trabajador} onUpload={(u:any)=>setFormData({...formData, doc_dni_trabajador:u})} />
                         
                         {!isDniPdf && (
-                             <motion.div initial={{opacity:0, scale:0.9}} animate={{opacity:1, scale:1}}>
+                            <motion.div initial={{opacity:0, scale:0.9}} animate={{opacity:1, scale:1}}>
                                 <ImageUpload label="DNI (Reverso)" bucket="documentos" currentUrl={formData.doc_dni_reverso} onUpload={(u:any)=>setFormData({...formData, doc_dni_reverso:u})} />
-                             </motion.div>
+                            </motion.div>
                         )}
                         
                         <ImageUpload label="Certiadulto" bucket="documentos" currentUrl={formData.doc_certiadulto} onUpload={(u:any)=>setFormData({...formData, doc_certiadulto:u})} />
@@ -380,35 +396,127 @@ export default function FichaForm() {
 
                 {currentStep === 5 && <StepWrapper key="5">
                     <div className="text-center mb-8">
-                         <h3 className="text-2xl font-bold text-slate-900">Firma de Conformidad</h3>
-                         <p className="text-slate-500">Dibuja tu firma en el recuadro para validar la ficha.</p>
+                            <h3 className="text-2xl font-bold text-slate-900">Firma de Conformidad</h3>
+                            <p className="text-slate-500">Dibuja tu firma en el recuadro para validar la ficha.</p>
                     </div>
-                    <div className="border-2 border-slate-200 border-dashed rounded-2xl bg-slate-50 relative overflow-hidden h-56 mx-auto max-w-xl touch-none mb-8 shadow-inner">
+                    <div className="border-2 border-slate-200 border-dashed rounded-2xl bg-slate-50 relative overflow-hidden h-56 mx-auto max-w-xl touch-none mb-8 shadow-inner hover:border-slate-300 transition-colors">
                         {formData.url_firma ? <img src={formData.url_firma} className="w-full h-full object-contain p-4" /> : <SignatureCanvas ref={sigPad} penColor="black" canvasProps={{className: 'w-full h-full cursor-crosshair'}} onEnd={handleSignatureEnd} />}
                         {formData.url_firma && <button onClick={clearSignature} className="absolute top-4 right-4 bg-white text-slate-700 hover:text-red-600 p-2 rounded-lg shadow-md border border-slate-100 transition-colors"><Eraser size={20}/></button>}
-                        {!formData.url_firma && <div className="absolute bottom-2 left-0 w-full text-center text-xs text-slate-400 pointer-events-none">Firma aquí</div>}
+                        {!formData.url_firma && <div className="absolute bottom-2 left-0 w-full text-center text-xs text-slate-400 pointer-events-none">Firma dentro del recuadro</div>}
                     </div>
                     <label className={`flex items-center gap-4 p-5 rounded-xl border cursor-pointer transition-all max-w-xl mx-auto ${declaracionAceptada ? 'bg-slate-900 text-white border-slate-900 ring-2 ring-slate-900 ring-offset-2' : 'bg-white border-slate-200 hover:border-slate-300'}`}>
-                        <input type="checkbox" checked={declaracionAceptada} onChange={(e) => setDeclaracionAceptada(e.target.checked)} className="w-6 h-6 accent-blue-600" />
+                        <input type="checkbox" checked={declaracionAceptada} onChange={(e) => setDeclaracionAceptada(e.target.checked)} className="w-6 h-6 accent-emerald-500" />
                         <div><span className="font-bold block text-sm">Declaración Jurada</span><span className={`text-xs ${declaracionAceptada ? 'text-slate-300' : 'text-slate-500'}`}>Declaro bajo juramento que toda la información consignada es verdadera.</span></div>
                     </label>
                 </StepWrapper>}
              </AnimatePresence>
         </div>
 
-        <div className="fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 p-4 z-50">
+        <div className="fixed bottom-0 left-0 w-full bg-white/80 backdrop-blur-md border-t border-slate-200 p-4 z-50">
              <div className="max-w-5xl mx-auto flex justify-between items-center">
-                 <button onClick={() => setCurrentStep(p => Math.max(1, p - 1))} disabled={currentStep === 1} className={`flex items-center gap-2 font-bold px-6 py-3 rounded-xl transition-all ${currentStep === 1 ? 'opacity-0 pointer-events-none' : 'text-slate-500 hover:bg-slate-100'}`}><ChevronLeft size={20}/> Atrás</button>
+                 <button onClick={() => setCurrentStep(p => Math.max(1, p - 1))} disabled={currentStep === 1} className={`flex items-center gap-2 font-bold px-6 py-3 rounded-xl transition-all ${currentStep === 1 ? 'opacity-0 pointer-events-none' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'}`}><ChevronLeft size={20}/> Atrás</button>
                  {currentStep < 5 ? (
-                    <button onClick={() => { guardarProgreso(); setCurrentStep(p => Math.min(5, p + 1)) }} className="bg-slate-900 text-white font-bold px-8 py-3 rounded-xl hover:bg-slate-800 transition-all flex items-center gap-2 shadow-lg shadow-slate-900/20">Siguiente <ChevronRight size={20}/></button>
+                    <button onClick={() => { guardarProgreso(); setCurrentStep(p => Math.min(5, p + 1)) }} className="bg-slate-900 text-white font-bold px-8 py-3 rounded-xl hover:bg-slate-800 transition-all flex items-center gap-2 shadow-lg shadow-slate-900/20 active:scale-95">Siguiente <ChevronRight size={20}/></button>
                  ) : (
-                    <button onClick={finalizarFicha} disabled={sending} className="bg-emerald-600 text-white font-bold px-10 py-3 rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/30 flex items-center gap-2">{sending ? <Loader2 className="animate-spin"/> : <><CheckCircle/> ENVIAR FICHA</>}</button>
+                    <button onClick={finalizarFicha} disabled={sending} className="bg-emerald-600 text-white font-bold px-10 py-3 rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/30 flex items-center gap-2 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed">{sending ? <Loader2 className="animate-spin"/> : <><CheckCircle/> ENVIAR FICHA</>}</button>
                  )}
              </div>
         </div>
       </div>
     </div>
   )
+}
+
+// --- MODAL DE CÁMARA MEJORADO ---
+function CameraCaptureModal({ onClose, onCapture }: { onClose: () => void, onCapture: (file: File) => void }) {
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const [stream, setStream] = useState<MediaStream | null>(null);
+    const [image, setImage] = useState<string | null>(null);
+
+    const startCamera = async () => {
+        try {
+            const mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+            setStream(mediaStream);
+            if (videoRef.current) videoRef.current.srcObject = mediaStream;
+        } catch (err) {
+            console.error("Error accediendo a la cámara:", err);
+            toast.error("No se pudo acceder a la cámara. Revisa los permisos.");
+            onClose();
+        }
+    };
+
+    const stopCamera = () => {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+            setStream(null);
+        }
+    };
+
+    useEffect(() => { startCamera(); return () => stopCamera(); }, []);
+
+    const capturePhoto = () => {
+        if (videoRef.current && canvasRef.current) {
+            const video = videoRef.current;
+            const canvas = canvasRef.current;
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                setImage(canvas.toDataURL('image/jpeg'));
+                stopCamera();
+            }
+        }
+    };
+
+    const confirmPhoto = async () => {
+        if (image) {
+            const res = await fetch(image);
+            const blob = await res.blob();
+            const file = new File([blob], "captura_camara.jpg", { type: "image/jpeg" });
+            onCapture(file);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center">
+            {image ? (
+                <div className="relative w-full h-full flex flex-col items-center justify-center bg-black">
+                    <img src={image} alt="Captura" className="max-w-full max-h-[80vh] object-contain" />
+                    <div className="absolute bottom-10 flex gap-4 w-full justify-center px-4">
+                        <button onClick={() => { setImage(null); startCamera(); }} className="flex-1 bg-white text-black py-4 rounded-full font-bold text-lg">Reintentar</button>
+                        <button onClick={confirmPhoto} className="flex-1 bg-emerald-500 text-white py-4 rounded-full font-bold text-lg">Usar Foto</button>
+                    </div>
+                </div>
+            ) : (
+                <div className="relative w-full h-full bg-black overflow-hidden">
+                    <video ref={videoRef} autoPlay playsInline className="absolute inset-0 w-full h-full object-cover" />
+                    
+                    {/* --- RECUADRO GUÍA --- */}
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <div className="w-[85%] aspect-[1.6] border-2 border-white/80 rounded-2xl relative shadow-[0_0_0_9999px_rgba(0,0,0,0.5)]">
+                            <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-emerald-500 -mt-0.5 -ml-0.5 rounded-tl-lg"></div>
+                            <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-emerald-500 -mt-0.5 -mr-0.5 rounded-tr-lg"></div>
+                            <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-emerald-500 -mb-0.5 -ml-0.5 rounded-bl-lg"></div>
+                            <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-emerald-500 -mb-0.5 -mr-0.5 rounded-br-lg"></div>
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white/80 text-xs font-bold bg-black/50 px-3 py-1 rounded-full">UBICA EL DOCUMENTO AQUÍ</div>
+                        </div>
+                    </div>
+
+                    {/* Botones de control */}
+                    <button onClick={onClose} className="absolute top-6 left-6 text-white bg-black/40 p-2 rounded-full backdrop-blur-md"><X size={24}/></button>
+                    
+                    <div className="absolute bottom-10 left-0 w-full flex justify-center items-center pb-safe">
+                        <button onClick={capturePhoto} className="w-20 h-20 bg-white rounded-full border-4 border-slate-300 shadow-xl active:scale-90 transition-transform flex items-center justify-center">
+                            <div className="w-16 h-16 bg-slate-100 rounded-full border-2 border-slate-200"></div>
+                        </button>
+                    </div>
+                </div>
+            )}
+            <canvas ref={canvasRef} className="hidden" />
+        </div>
+    );
 }
 
 // --- COMPONENTES AUXILIARES ---
@@ -423,21 +531,75 @@ function Input({label, name, val, set, type="text", required=false, readOnly=fal
 function Select({label, name, val, set, options=[], required=false}: any) { return <div><label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 pl-1">{label} {required && <span className="text-red-500">*</span>}</label><div className="relative"><select name={name} value={val || ''} onChange={set} className="w-full p-3.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-slate-900 focus:ring-4 focus:ring-slate-100 outline-none transition-all font-medium text-sm text-slate-700 appearance-none cursor-pointer shadow-sm"><option value="">Seleccionar...</option>{options.map((o:string)=><option key={o} value={o}>{o}</option>)}</select><div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400"><ChevronRight className="rotate-90" size={16}/></div></div></div>}
 function Radio({label, name, val, current, set}: any) { return <label className={`flex items-center gap-3 cursor-pointer px-4 py-3 rounded-xl border transition-all w-full ${current === val ? 'bg-slate-900 text-white border-slate-900 shadow-lg shadow-slate-900/20' : 'bg-white border-slate-200 hover:border-slate-300'}`}><div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${current === val ? 'border-white' : 'border-slate-300'}`}>{current === val && <div className="w-2 h-2 rounded-full bg-white"/>}</div><input type="radio" name={name} value={val} checked={current === val} onChange={set} className="hidden"/><span className="font-bold text-sm">{label}</span></label>}
 
-// --- COMPONENTE MEJORADO: SOPORTE PDF + IMAGEN ---
+// --- COMPONENTE MEJORADO: SOPORTE CAMARA Y ARCHIVOS ---
 function ImageUpload({label, bucket, onUpload, currentUrl}: any) { 
     const [uploading, setUploading] = useState(false); 
+    const [showCamera, setShowCamera] = useState(false);
     const supabase = createClient(); 
     const isPdf = currentUrl?.toLowerCase().includes('.pdf');
-    const handleFile = async (e:any) => { if(!e.target.files?.length) return; setUploading(true); const file = e.target.files[0]; const fn = `${Math.random()}.${file.name.split('.').pop()}`; const { error } = await supabase.storage.from(bucket).upload(fn, file); if(error) toast.error("Error al subir"); else { const { data } = supabase.storage.from(bucket).getPublicUrl(fn); onUpload(data.publicUrl); toast.success("Documento cargado"); } setUploading(false) }; 
+    
+    // Subida Normal
+    const handleFile = async (e:any) => { 
+        if(!e.target.files?.length) return; 
+        processUpload(e.target.files[0]);
+    }; 
+    
+    // Subida desde Cámara
+    const handleCameraCapture = (file: File) => {
+        setShowCamera(false);
+        processUpload(file);
+    };
+
+    const processUpload = async (file: File) => {
+        setUploading(true);
+        const fileExt = file.name.split('.').pop() || 'jpg';
+        const fileName = `${Math.random()}.${fileExt}`;
+        const { error } = await supabase.storage.from(bucket).upload(fileName, file); 
+        
+        if(error) {
+            toast.error("Error al subir");
+        } else { 
+            const { data } = supabase.storage.from(bucket).getPublicUrl(fileName); 
+            onUpload(data.publicUrl); 
+            toast.success("Documento cargado"); 
+        } 
+        setUploading(false);
+    };
+
     return (
-        <div className={`relative border border-dashed rounded-xl p-4 text-center cursor-pointer transition-all group h-32 flex flex-col items-center justify-center overflow-hidden ${currentUrl ? (isPdf ? 'border-red-500 bg-red-50/30' : 'border-emerald-500 bg-emerald-50/30') : 'border-slate-300 hover:border-slate-400 hover:bg-slate-50'}`}>
-            <input type="file" accept="image/*,.pdf" onChange={handleFile} className="absolute inset-0 opacity-0 z-10 cursor-pointer" disabled={uploading} />
-            <div className="flex flex-col items-center gap-2 z-0">
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${currentUrl ? (isPdf ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600') : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200'}`}>{uploading ? <Loader2 className="animate-spin" size={20}/> : currentUrl ? (isPdf ? <FileText size={20}/> : <ImageIcon size={20}/>) : <Camera size={20}/>}</div>
-                <div className="flex flex-col"><span className="text-xs font-bold text-slate-600 leading-tight px-2 line-clamp-2">{label}</span><span className="text-[10px] text-slate-400 mt-1">{uploading ? 'Subiendo...' : currentUrl ? 'Clic para cambiar' : 'Foto o PDF'}</span></div>
-            </div>
-            {currentUrl && !isPdf && <div className="absolute inset-0 z-[-1] opacity-20 bg-center bg-cover" style={{backgroundImage: `url(${currentUrl})`}}></div>}
-        </div> 
+        <>
+            <div className={`relative border border-dashed rounded-xl p-4 text-center transition-all group h-36 flex flex-col items-center justify-center overflow-hidden ${currentUrl ? (isPdf ? 'border-red-500 bg-red-50/30' : 'border-emerald-500 bg-emerald-50/30') : 'border-slate-300 hover:border-slate-400 hover:bg-slate-50'}`}>
+                
+                {/* Opciones de subida */}
+                <div className="flex flex-col gap-3 w-full relative z-10">
+                    {!uploading && (
+                        <>
+                            <div className="flex justify-center gap-2">
+                                <label className="cursor-pointer bg-white p-2 rounded-lg shadow-sm border border-slate-200 text-slate-500 hover:text-blue-600 hover:border-blue-200 transition-colors" title="Subir Archivo">
+                                    <input type="file" accept="image/*,.pdf" onChange={handleFile} className="hidden" />
+                                    <UploadCloud size={18}/>
+                                </label>
+                                <button onClick={() => setShowCamera(true)} className="bg-white p-2 rounded-lg shadow-sm border border-slate-200 text-slate-500 hover:text-emerald-600 hover:border-emerald-200 transition-colors" title="Tomar Foto">
+                                    <Camera size={18}/>
+                                </button>
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-xs font-bold text-slate-600 leading-tight px-1 line-clamp-2">{label}</span>
+                                <span className="text-[9px] text-slate-400 mt-1">{currentUrl ? 'Actualizar' : 'PDF o Foto'}</span>
+                            </div>
+                        </>
+                    )}
+                    {uploading && <div className="flex flex-col items-center"><Loader2 className="animate-spin text-blue-500" size={24}/><span className="text-[10px] font-bold text-blue-500 mt-2">Subiendo...</span></div>}
+                </div>
+
+                {/* Fondo Preview */}
+                {currentUrl && !isPdf && <div className="absolute inset-0 z-0 opacity-20 bg-center bg-cover blur-sm" style={{backgroundImage: `url(${currentUrl})`}}></div>}
+                {currentUrl && isPdf && <div className="absolute inset-0 z-0 opacity-10 flex items-center justify-center"><FileText size={60} className="text-red-500"/></div>}
+            </div> 
+
+            {/* Modal de Cámara */}
+            {showCamera && <CameraCaptureModal onClose={() => setShowCamera(false)} onCapture={handleCameraCapture} />}
+        </>
     )
 }
 
