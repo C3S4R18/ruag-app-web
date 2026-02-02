@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 
-// CLIENTE ADMIN (Service Role Key es OBLIGATORIA en .env.local)
+// CLIENTE ADMIN
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -20,13 +20,17 @@ export async function POST(request: Request) {
 
     for (const emp of employees) {
       const documentNumber = emp.dni.trim()
-      const email = `${documentNumber}@ruag.sistema` 
+      // Generamos el correo "falso" por defecto
+      const generatedEmail = `${documentNumber}@ruag.sistema` 
       const password = documentNumber 
 
       let userId = null;
+      let finalEmailToUse = generatedEmail; // Por defecto usaremos el generado
+      let isExistingUser = false;
 
-      // 1. ESTRATEGIA DE BÚSQUEDA DE ID (Sin límite de 50)
-      // Primero buscamos si ya tiene perfil (es lo más rápido)
+      // 1. ESTRATEGIA DE BÚSQUEDA
+      // Buscamos si ya tiene perfil. Si existe, intentamos obtener su email REAL de la tabla fichas o profiles
+      // para no sobrescribirlo con el falso.
       const { data: existingProfile } = await supabaseAdmin
         .from('profiles')
         .select('id')
@@ -35,10 +39,24 @@ export async function POST(request: Request) {
 
       if (existingProfile) {
         userId = existingProfile.id
+        isExistingUser = true;
+        
+        // OPCIONAL: Si quieres asegurarte de usar el correo que YA tiene en la tabla fichas:
+        const { data: existingFicha } = await supabaseAdmin
+            .from('fichas')
+            .select('correo')
+            .eq('user_id', userId)
+            .single()
+            
+        if (existingFicha && existingFicha.correo) {
+            finalEmailToUse = existingFicha.correo; // Mantenemos su correo actual (sea real o falso)
+        }
+
       } else {
+        // --- USUARIO NUEVO ---
         // Si no tiene perfil, intentamos crearlo en Auth
         const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-          email: email,
+          email: generatedEmail,
           password: password,
           email_confirm: true,
           user_metadata: { full_name: emp.nombres }
@@ -47,27 +65,11 @@ export async function POST(request: Request) {
         if (!authError && authData.user) {
           userId = authData.user.id
         } else if (authError?.message?.includes('already registered')) {
-          // CASO CRÍTICO: Existe en Auth pero no tenía perfil. Lo recuperamos.
-          // (Esto arregla el error de que se salte usuarios existentes)
-          const { data: userData } = await supabaseAdmin.from('auth.users').select('id').eq('email', email).maybeSingle()
-          // Alternativa si no tienes acceso directo a auth.users: getByUserEmail no existe en admin directamente a veces, 
-          // pero el create fallido confirma existencia. 
-          // En Supabase Admin JS, la mejor forma de "buscar" un user específico es listUsers con filtro (no soportado en todas las versiones)
-          // O intentar login (lento).
-          // SOLUCIÓN ROBUSTA: Asumimos que si profile no existe, recreamos profile usando el ID que logremos pescar.
-          // Como no podemos consultar ID por email fácilmente sin listar todo, 
-          // usaremos una técnica de inserción de Perfil con ON CONFLICT si el ID auth se pudiera deducir, pero no se puede.
-          
-          // PLAN B: Listar usuarios buscando solo ESTE email (si la API lo permite) o forzar borrado y re-creación es peligroso.
-          // MEJOR OPCIÓN: Vamos a asumir que el error nos impide obtener el ID fácilmente y lo logueamos, 
-          // PERO la mayoría de veces el perfil SÍ existirá si se creó bien.
-          // Si llegamos aquí es un caso de "Usuario fantasma" (Auth sin Perfil).
-          
-          // Intento final de recuperación:
-          // Como no podemos obtener el ID fácilmente de un user ya creado sin listarlos todos,
-          // marcaremos error para estos casos raros, PERO tus 50 usuarios ya tienen perfil, así que entrarán por el 'if (existingProfile)'.
+          // Si existe en Auth pero no en Profiles (Caso raro/recuperación)
+          // En este caso, no podemos recuperar el email real fácilmente sin el ID, 
+          // así que usaremos el generado, pero marcaremos el error si no podemos proceder.
           results.errors++
-          results.details.push({ dni: documentNumber, error: "Usuario existe en Auth pero no tiene Perfil. Contactar soporte." })
+          results.details.push({ dni: documentNumber, error: "Usuario existe en Auth sin Perfil. Requiere revisión manual." })
           continue
         } else {
           results.errors++
@@ -77,7 +79,6 @@ export async function POST(request: Request) {
       }
 
       // 2. ACTUALIZAR / CREAR PERFIL
-      // (Esto asegura que aparezcan en la lista de perfiles)
       if (userId) {
         await supabaseAdmin.from('profiles').upsert({
           id: userId,
@@ -90,13 +91,12 @@ export async function POST(request: Request) {
         })
 
         // 3. ACTUALIZAR / CREAR FICHA
-        // Aquí metemos TODOS los campos que pediste
-        const { error: fichaError } = await supabaseAdmin.from('fichas').upsert({
+        // Aquí preparamos el objeto para upsert
+        const fichaData: any = {
           user_id: userId,
-          correo: email,
-          estado: 'completado', 
+          estado: 'completado',
           
-          // --- DATOS PERSONALES ---
+          // Datos personales
           nombres: emp.nombres,
           apellido_paterno: emp.apellido_paterno,
           apellido_materno: emp.apellido_materno,
@@ -105,30 +105,46 @@ export async function POST(request: Request) {
           celular: emp.celular,
           estado_civil: emp.estado_civil,
           
-          // --- UBICACIÓN ---
+          // Ubicación
           direccion: emp.direccion,
           distrito: emp.distrito,
           provincia: emp.provincia,
           departamento: emp.departamento,
           
-          // --- LABORAL ---
+          // Laboral
           nombre_obra: emp.nombre_obra, 
           fecha_ingreso: emp.fecha_ingreso,
           cargo: emp.cargo,
-          // vencimiento RETCC no suele venir en TXT, pero si lo detectaste, va aquí
           
-          // --- FINANCIERO (Importante: Banco y Cuenta) ---
+          // Financiero
           banco: emp.banco,
           numero_cuenta: emp.numero_cuenta,
           cci: emp.cci,
           
-          // --- SALUD ---
+          // Salud
           sistema_pension: emp.sistema_pension,
           afp_nombre: emp.afp_nombre,
           cuspp: emp.cuspp,
           
           updated_at: new Date().toISOString()
-        }, { onConflict: 'user_id' })
+        }
+
+        // CORRECCIÓN CRÍTICA:
+        // Solo actualizamos el campo 'correo' si es un usuario NUEVO.
+        // Si es antiguo, NO enviamos el campo 'correo' en el upsert para que la base de datos mantenga el valor actual.
+        // O si preferimos, usamos el 'finalEmailToUse' que recuperamos arriba.
+        if (!isExistingUser) {
+            fichaData.correo = generatedEmail;
+        } else {
+            // Si ya existe, nos aseguramos de que el upsert NO toque el correo,
+            // O forzamos el correo que recuperamos de la base de datos (finalEmailToUse)
+            fichaData.correo = finalEmailToUse; 
+        }
+
+        const { error: fichaError } = await supabaseAdmin.from('fichas').upsert(
+            fichaData, 
+            { onConflict: 'user_id' }
+        )
 
         if (fichaError) {
             console.error("Error ficha:", fichaError)

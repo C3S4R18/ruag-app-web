@@ -538,12 +538,23 @@ function AdminProfileSettings({ userEmail, supabase }: any) {
         const updates: any = { email }
         if (password) updates.password = password
 
-        const { error } = await supabase.auth.updateUser(updates)
+        // --- AQUÍ ESTÁ EL CAMBIO ---
+        // Agregamos el segundo parámetro con emailRedirectTo
+        const { error } = await supabase.auth.updateUser(updates, {
+            emailRedirectTo: `${window.location.origin}/dashboard` // Redirige al dashboard al confirmar
+        })
+        // ---------------------------
 
         if (error) {
             toast.error("Error al actualizar: " + error.message)
         } else {
-            toast.success("✅ Credenciales actualizadas correctamente.")
+            // Si se cambió el correo, avisamos que revise su bandeja
+            if (email !== userEmail) {
+                toast.success("Revisa tu nuevo correo para confirmar el cambio.")
+            } else {
+                toast.success("✅ Credenciales actualizadas correctamente.")
+            }
+            
             toast.info("Usa estos datos para tu próximo inicio de sesión.")
             setPassword('')
             setConfirmPassword('')
