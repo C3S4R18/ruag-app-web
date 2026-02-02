@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link' 
 import AdminTable from '@/components/AdminTable' 
 import MassImport from '@/components/MassImport' 
-import ChatSystem from '@/components/ChatSystem' // <--- IMPORTANTE: Componente de Chat
+import ChatSystem from '@/components/ChatSystem' 
 
 // IMPORTS
 import BiometricSignature from '@/components/ssoma/BiometricSignature'
@@ -17,7 +17,7 @@ import {
   Search, TrendingUp, Activity, HardHat, UploadCloud, X,
   LayoutDashboard, Fingerprint, Menu, PenTool, CheckCircle, Loader2, AlertCircle,
   FileText, Lock, Unlock, ScanLine, Trash2, ChevronLeft, ChevronRight, Bell,
-  UserCog, Mail, Key, Save
+  UserCog, Mail, Key, Save, Send // <--- AGREGADO EL ICONO SEND
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
@@ -207,7 +207,7 @@ export default function AdminPage() {
             
             <div className="pt-4 pb-2 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Gestión Operativa</div>
             <SidebarItem active={activeView === 'biometria'} onClick={() => handleNavClick('biometria')} icon={<Fingerprint size={20}/>} label="Biometría y Firmas" />
-            <SidebarItem active={activeView === 'documentos'} onClick={() => handleNavClick('documentos')} icon={<FileText size={20}/>} label="Documentación SSOMA" />
+            <SidebarItem active={activeView === 'documentos'} onClick={() => handleNavClick('documentos')} icon={<FileText size={20}/>} label="Registros SSOMA" />
             
             <div className="pt-4 pb-2 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Cuenta</div>
             <SidebarItem active={activeView === 'profile'} onClick={() => handleNavClick('profile')} icon={<UserCog size={20}/>} label="Mi Perfil" />
@@ -269,7 +269,7 @@ export default function AdminPage() {
                     <div className="flex flex-wrap justify-end gap-3">
                         <Link href="/admin/ssoma/induccion">
                             <div className="flex items-center gap-2 px-5 py-3 rounded-xl bg-slate-900 text-white text-xs font-bold shadow-xl shadow-slate-900/20 hover:scale-105 transition-all cursor-pointer border border-slate-700">
-                                <HardHat size={18}/> MODO KIOSCO SSOMA
+                                <HardHat size={18}/> Gestion SSOMA
                             </div>
                         </Link>
                         <button onClick={() => setShowImport(true)} className="flex items-center gap-2 px-5 py-3 bg-white text-slate-700 border border-slate-200 rounded-xl text-xs font-bold shadow-sm hover:border-blue-300 hover:text-blue-600 hover:shadow-md transition-all">
@@ -703,6 +703,21 @@ function AdminDocsDrawer({ worker, onClose, onUpdate }: any) {
         updateDocState(docId, { status: 'locked', data: {}, completed_at: null }, "Documento reseteado")
     }
 
+    // --- NUEVA FUNCIÓN PARA ENVIAR PDF DEL RISST AL OBRERO ---
+    const sendRisstPdfToWorker = async () => {
+        // Actualizamos un estado específico 'risst_pdf_download' en el JSONB
+        // El panel del obrero deberá escuchar este estado para mostrar el modal
+        updateDocState(
+            'risst_pdf_download', 
+            { 
+                status: 'pending_download', 
+                sent_at: new Date().toISOString(),
+                label: 'Reglamento Interno de SST'
+            }, 
+            `PDF de RISST enviado a ${worker.nombres}`
+        )
+    }
+
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm z-50 flex justify-end" onClick={onClose}>
             <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }} className="w-full max-w-md bg-white h-full shadow-2xl flex flex-col border-l border-slate-100" onClick={e => e.stopPropagation()}>
@@ -718,6 +733,29 @@ function AdminDocsDrawer({ worker, onClose, onUpdate }: any) {
                 </div>
                 
                 <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50/50">
+                    
+                    {/* --- NUEVA SECCIÓN DE ENVÍO DE PDF (RISST) --- */}
+                    <div className="mb-6 bg-indigo-50 p-4 rounded-2xl border border-indigo-100 shadow-sm">
+                        <div className="flex items-start gap-3">
+                            <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
+                                <FileText size={20}/>
+                            </div>
+                            <div>
+                                <h4 className="font-bold text-indigo-900 text-sm">Reglamento Interno (RISST)</h4>
+                                <p className="text-xs text-indigo-600/80 mt-1 leading-relaxed">
+                                    Envía el documento PDF digital para que el obrero lo descargue obligatoriamente desde su panel.
+                                </p>
+                            </div>
+                        </div>
+                        <button 
+                            onClick={sendRisstPdfToWorker} 
+                            className="mt-3 w-full py-2.5 bg-indigo-600 text-white text-xs font-bold rounded-xl hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-indigo-200"
+                        >
+                            <Send size={14}/> Enviar PDF al Obrero
+                        </button>
+                    </div>
+                    {/* --------------------------------------------- */}
+
                     <div className="flex items-center justify-between mb-4">
                         <p className="text-xs text-slate-500 uppercase font-bold tracking-wider">Estado de Documentos</p>
                         <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-bold">{DIGITAL_DOCS.length} Docs</span>

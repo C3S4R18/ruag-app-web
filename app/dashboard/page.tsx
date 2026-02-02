@@ -4,11 +4,11 @@ import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import { useRouter } from 'next/navigation'
 import FichaForm from '@/components/FichaForm'
-import ChatSystem from '@/components/ChatSystem' // <--- IMPORTANTE: Asegúrate de tener este componente creado
+import ChatSystem from '@/components/ChatSystem' 
 import { 
   LogOut, Calendar, Bell, FileText, ChevronRight, Lock, 
   CheckCircle, Save, X, Loader2, AlertCircle, Eye, 
-  Menu, Home, UserCog, Key, Mail, ShieldCheck
+  Menu, Home, UserCog, Key, Mail, ShieldCheck, Download, FileCheck
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
@@ -123,6 +123,9 @@ export default function DashboardPage() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [isNotifOpen, setIsNotifOpen] = useState(false)
 
+  // --- NUEVO: MODAL DE DESCARGA RISST ---
+  const [showRisstModal, setShowRisstModal] = useState(false)
+
   // REFS PARA REALTIME
   const docStatesRef = useRef(docStates)
   const fichaStatusRef = useRef(fichaStatus)
@@ -168,8 +171,7 @@ export default function DashboardPage() {
     }
     getUserData()
 
-    // --- REALTIME LISTENER (SOLO PARA DOCUMENTOS Y ESTADO FICHA) ---
-    // El chat maneja su propio realtime en el componente ChatSystem
+    // --- REALTIME LISTENER ---
     const channel = supabase.channel('worker-docs')
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'fichas' }, (payload: any) => {
             if (payload.new.user_id === userId) {
@@ -180,7 +182,7 @@ export default function DashboardPage() {
                 const newDocs = newData.doc_states || {}
                 const oldDocs = docStatesRef.current
                 
-                // Detectar cambios en estado de documentos
+                // Detectar cambios en documentos
                 Object.keys(newDocs).forEach(key => {
                     const oldStatus = oldDocs[key]?.status
                     const newStatus = newDocs[key]?.status
@@ -196,6 +198,17 @@ export default function DashboardPage() {
                         toast.warning(`🔒 Bloqueado: ${docName}`)
                     }
                 })
+
+                // --- DETECCIÓN DE ENVÍO DE RISST (NUEVO) ---
+                const risstState = newDocs.risst_pdf_download;
+                const oldRisstState = oldDocs.risst_pdf_download;
+                
+                if (risstState?.status === 'pending_download' && oldRisstState?.status !== 'pending_download') {
+                    setShowRisstModal(true)
+                    playNotificationSound()
+                    toast.success("Nuevo documento recibido: RISST")
+                }
+                // ------------------------------------------
 
                 const newFichaState = newData.estado
                 const oldFichaState = fichaStatusRef.current
@@ -221,6 +234,11 @@ export default function DashboardPage() {
           setFullWorkerData(data)
           setDocStates(data.doc_states || {})
           setFichaStatus(data.estado || '')
+
+          // Comprobar si hay descarga pendiente al cargar
+          if (data.doc_states?.risst_pdf_download?.status === 'pending_download') {
+              setShowRisstModal(true)
+          }
       }
   }
 
@@ -232,6 +250,40 @@ export default function DashboardPage() {
           read: false
       }
       setNotifications(prev => [newNotif, ...prev])
+  }
+
+  // --- FUNCIÓN DE DESCARGA Y CONFIRMACIÓN CORREGIDA ---
+  const handleDownloadRisst = async () => {
+      // 1. Iniciar descarga (Asegúrate que risst.pdf esté en la carpeta public)
+      const link = document.createElement('a');
+      link.href = '/risst.pdf'; // <--- CORREGIDO: Nombre simple sin espacios
+      link.download = 'REGLAMENTO_INTERNO_SST_RUAG.pdf';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // 2. Actualizar estado en BD
+      try {
+          const { data: currentFicha } = await supabase.from('fichas').select('doc_states').eq('id', fichaId).single()
+          const currentStates = currentFicha?.doc_states || {}
+          
+          const newStates = { 
+              ...currentStates, 
+              risst_pdf_download: { 
+                  status: 'downloaded', 
+                  downloaded_at: new Date().toISOString() 
+              } 
+          }
+          
+          await supabase.from('fichas').update({ doc_states: newStates }).eq('id', fichaId)
+          setShowRisstModal(false)
+          toast.success("Descarga confirmada. Gracias.")
+          
+          // Actualizar estado local
+          setDocStates(newStates)
+      } catch (e) {
+          console.error("Error al confirmar descarga", e)
+      }
   }
 
   const handleLogout = async () => { await supabase.auth.signOut(); router.push('/') }
@@ -262,7 +314,6 @@ export default function DashboardPage() {
       <motion.aside 
         className={`bg-white border-r border-slate-200 flex flex-col h-full shrink-0 z-50 fixed lg:relative shadow-2xl lg:shadow-none w-72 lg:w-64`}
         initial={false}
-        // CORRECCIÓN: Usamos 'isDesktop' en lugar de 'window.innerWidth'
         animate={{ 
             x: (isDesktop || isSidebarOpen) ? 0 : -288, 
             width: (isDesktop || isSidebarOpen) ? 260 : 0 
@@ -465,6 +516,16 @@ export default function DashboardPage() {
                 fullFichaData={fullWorkerData}
                 onClose={() => setDocToFill(null)}
                 onSave={() => { fetchFichaData(userId); setDocToFill(null) }}
+            />
+        )}
+      </AnimatePresence>
+
+      {/* --- NUEVO: MODAL MODERNO PARA DESCARGA DE RISST --- */}
+      <AnimatePresence>
+        {showRisstModal && (
+            <RisstDownloadModal 
+                onDownload={handleDownloadRisst}
+                userName={userName}
             />
         )}
       </AnimatePresence>
@@ -699,5 +760,78 @@ function DocumentFillingModal({ docId, fichaId, existingData, fullFichaData, onC
                 </div>
             </motion.div>
         </motion.div>
+    )
+}
+
+// --- MODAL PREMIUM PARA DESCARGA DE RISST ---
+function RisstDownloadModal({ onDownload, userName }: any) {
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
+            {/* Overlay con desenfoque */}
+            <motion.div 
+                initial={{ opacity: 0 }} 
+                animate={{ opacity: 1 }} 
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
+            />
+            
+            {/* Contenedor del Modal */}
+            <motion.div 
+                initial={{ scale: 0.9, y: 20, opacity: 0 }}
+                animate={{ scale: 1, y: 0, opacity: 1 }}
+                exit={{ scale: 0.9, y: 20, opacity: 0 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                className="bg-white w-full max-w-md rounded-3xl shadow-2xl relative z-10 overflow-hidden border border-white/20"
+            >
+                {/* Header Decorativo */}
+                <div className="bg-gradient-to-r from-indigo-600 to-blue-600 p-6 text-center relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-full bg-white/10 opacity-30 pattern-grid-lg"></div>
+                    <div className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-white/30 shadow-lg relative z-10">
+                        <FileCheck size={40} className="text-white drop-shadow-md" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-white relative z-10">Documento Importante</h2>
+                    <p className="text-blue-100 text-sm mt-1 relative z-10">Acción requerida inmediata</p>
+                </div>
+
+                {/* Contenido */}
+                <div className="p-8 text-center space-y-6">
+                    <div className="space-y-2">
+                        <p className="text-slate-800 font-medium text-lg">
+                            Hola <span className="font-bold text-indigo-600">{userName}</span>,
+                        </p>
+                        <p className="text-slate-500 text-sm leading-relaxed">
+                            El departamento de SSOMA te ha enviado el <span className="font-bold text-slate-700">Reglamento Interno de Seguridad y Salud en el Trabajo (RISST)</span>.
+                        </p>
+                        <p className="text-slate-500 text-sm leading-relaxed">
+                            Es obligatorio que lo descargues y lo leas para continuar con tus labores en la obra.
+                        </p>
+                    </div>
+
+                    <div className="bg-indigo-50 rounded-2xl p-4 flex items-center gap-4 text-left border border-indigo-100">
+                        <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm text-red-500 shrink-0">
+                            <FileText size={24} />
+                        </div>
+                        <div>
+                            <p className="font-bold text-slate-800 text-sm">RISST_RUAG_2026.pdf</p>
+                            <p className="text-xs text-slate-500">Documento Oficial • 2.4 MB</p>
+                        </div>
+                    </div>
+
+                    <button 
+                        onClick={onDownload}
+                        className="w-full py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold shadow-xl shadow-slate-900/20 transition-all transform active:scale-[0.98] flex items-center justify-center gap-3 group"
+                    >
+                        <span className="bg-white/20 p-1.5 rounded-lg group-hover:bg-white/30 transition-colors">
+                            <Download size={20} />
+                        </span>
+                        DESCARGAR Y CONFIRMAR
+                    </button>
+                    
+                    <p className="text-[10px] text-slate-400">
+                        Al descargar, confirmas la recepción digital de este documento.
+                    </p>
+                </div>
+            </motion.div>
+        </div>
     )
 }
