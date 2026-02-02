@@ -1,10 +1,15 @@
 'use client'
 
-import FichaForm from '@/components/FichaForm'
+import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import { useRouter } from 'next/navigation'
-import { LogOut, Calendar, ShieldCheck, Bell, FileText, ChevronRight, Lock, CheckCircle, Save, X, Loader2, FileCheck, AlertCircle, Eye, Maximize2 } from 'lucide-react'
-import { useEffect, useState, useRef } from 'react'
+import FichaForm from '@/components/FichaForm'
+import ChatSystem from '@/components/ChatSystem' // <--- IMPORTANTE: Asegúrate de tener este componente creado
+import { 
+  LogOut, Calendar, Bell, FileText, ChevronRight, Lock, 
+  CheckCircle, Save, X, Loader2, AlertCircle, Eye, 
+  Menu, Home, UserCog, Key, Mail, ShieldCheck
+} from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 
@@ -96,18 +101,29 @@ interface NotificationItem {
 export default function DashboardPage() {
   const supabase = createClient()
   const router = useRouter()
+  
+  // ESTADOS PRINCIPALES
+  const [activeTab, setActiveTab] = useState<'home' | 'documents' | 'profile'>('home')
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false) 
+  const [isDesktop, setIsDesktop] = useState(true)
+
+  // DATOS DEL USUARIO
   const [userName, setUserName] = useState('')
+  const [userEmail, setUserEmail] = useState('')
   const [userId, setUserId] = useState('')
   const [fichaId, setFichaId] = useState<string | null>(null)
   const [fullWorkerData, setFullWorkerData] = useState<any>(null)
+  
+  // ESTADOS DE DOCUMENTOS
   const [docStates, setDocStates] = useState<any>({})
   const [fichaStatus, setFichaStatus] = useState<string>('') 
   
-  const [isDocDrawerOpen, setIsDocDrawerOpen] = useState(false)
+  // MODALES
   const [docToFill, setDocToFill] = useState<string | null>(null) 
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [isNotifOpen, setIsNotifOpen] = useState(false)
 
+  // REFS PARA REALTIME
   const docStatesRef = useRef(docStates)
   const fichaStatusRef = useRef(fichaStatus)
   const isInitialLoad = useRef(true)
@@ -120,11 +136,29 @@ export default function DashboardPage() {
       audio.play().catch(e => console.log("Audio bloqueado:", e))
   }
 
+  // --- DETECTAR TAMAÑO DE PANTALLA ---
+  useEffect(() => {
+    const handleResize = () => {
+        setIsDesktop(window.innerWidth >= 1024)
+        if (window.innerWidth >= 1024) setIsSidebarOpen(false)
+    }
+    
+    if (typeof window !== 'undefined') {
+        handleResize()
+        window.addEventListener('resize', handleResize)
+    }
+    return () => {
+        if (typeof window !== 'undefined') window.removeEventListener('resize', handleResize)
+    }
+  }, [])
+
+  // --- CARGA INICIAL ---
   useEffect(() => {
     const getUserData = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/'); return }
       setUserId(user.id)
+      setUserEmail(user.email || '')
 
       const { data: profile } = await supabase.from('profiles').select('nombres').eq('id', user.id).single()
       if (profile) setUserName(profile.nombres.split(' ')[0])
@@ -134,6 +168,8 @@ export default function DashboardPage() {
     }
     getUserData()
 
+    // --- REALTIME LISTENER (SOLO PARA DOCUMENTOS Y ESTADO FICHA) ---
+    // El chat maneja su propio realtime en el componente ChatSystem
     const channel = supabase.channel('worker-docs')
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'fichas' }, (payload: any) => {
             if (payload.new.user_id === userId) {
@@ -144,6 +180,7 @@ export default function DashboardPage() {
                 const newDocs = newData.doc_states || {}
                 const oldDocs = docStatesRef.current
                 
+                // Detectar cambios en estado de documentos
                 Object.keys(newDocs).forEach(key => {
                     const oldStatus = oldDocs[key]?.status
                     const newStatus = newDocs[key]?.status
@@ -201,6 +238,7 @@ export default function DashboardPage() {
   const today = new Date().toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'long' })
   const unreadCount = notifications.filter(n => !n.read).length
 
+  // --- CÁLCULOS DEL DASHBOARD ---
   const docKeys = Object.keys(DOC_LABELS)
   const totalDocs = docKeys.length
   const completedDocs = docKeys.filter(key => docStates[key]?.status === 'completed').length
@@ -208,79 +246,216 @@ export default function DashboardPage() {
   const progress = totalDocs > 0 ? Math.round((completedDocs / totalDocs) * 100) : 0
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] font-sans text-slate-900 relative">
-      <header className="bg-white/80 backdrop-blur-md border-b border-slate-200/60 sticky top-0 z-40 shadow-sm transition-all">
-        <div className="container mx-auto px-4 h-16 flex justify-between items-center max-w-5xl">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-blue-500/30">R</div>
-            <div className="leading-tight"><span className="font-bold text-lg tracking-tight text-slate-900 block">RUAG</span><span className="text-slate-500 font-medium text-xs uppercase tracking-wider">Portal Obrero</span></div>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="relative">
-                <button onClick={() => { setIsNotifOpen(!isNotifOpen); setNotifications(prev => prev.map(n => ({...n, read: true}))) }} className="relative p-2.5 rounded-xl hover:bg-slate-100 transition-all text-slate-600 border border-transparent hover:border-slate-200">
-                    <Bell size={20}/>{unreadCount > 0 && <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border border-white animate-pulse"></span>}
-                </button>
-                <AnimatePresence>{isNotifOpen && (<motion.div initial={{opacity:0, y: 10, scale: 0.95}} animate={{opacity:1, y: 0, scale: 1}} exit={{opacity:0, scale: 0.95}} className="absolute right-0 top-14 w-80 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-50 origin-top-right ring-1 ring-black/5"><div className="p-3 border-b border-slate-50 bg-slate-50/50 flex justify-between items-center backdrop-blur-sm"><span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Notificaciones</span><button onClick={() => setNotifications([])} className="text-blue-600 hover:text-blue-800 text-xs font-medium px-2 py-1 rounded hover:bg-blue-50 transition-colors">Borrar todo</button></div><div className="max-h-[300px] overflow-y-auto">{notifications.length === 0 ? (<div className="flex flex-col items-center justify-center py-8 text-slate-400"><Bell size={32} className="mb-2 opacity-20"/><p className="text-xs font-medium">Sin novedades</p></div>) : (notifications.map(n => (<div key={n.id} className="p-4 border-b border-slate-50 hover:bg-blue-50/50 transition-colors cursor-default"><p className="text-sm font-medium text-slate-800 leading-snug">{n.msg}</p><p className="text-[10px] text-slate-400 mt-1.5">{n.time}</p></div>)))}</div></motion.div>)}</AnimatePresence>
-            </div>
-            <button onClick={handleLogout} className="flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-red-600 px-3 py-2 rounded-xl hover:bg-red-50 transition-colors"><LogOut size={18} /> <span className="hidden sm:inline">Salir</span></button>
-          </div>
-        </div>
-      </header>
-
-      <div className="relative bg-white pt-8 pb-16 px-4 overflow-hidden border-b border-slate-100">
-        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-blue-50/50 to-white pointer-events-none"/>
-        <div className="container mx-auto max-w-5xl relative z-10">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-8">
-              <div>
-                  <div className="flex items-center gap-2 mb-2"><span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold flex items-center gap-1.5 border border-emerald-200"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"/> ACTIVO</span><span className="px-3 py-1 rounded-full bg-slate-100 text-slate-600 text-xs font-medium border border-slate-200 flex items-center gap-1.5 capitalize"><Calendar size={12}/> {today}</span></div>
-                  <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight mb-2">Hola, {userName || 'Compañero'} 👋</h1>
-                  <p className="text-slate-500 text-lg max-w-lg leading-relaxed">Bienvenido a tu espacio personal.</p>
-              </div>
-              <div className="w-full md:w-auto bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-5">
-                  <div className="relative w-14 h-14 flex items-center justify-center">
-                        <svg className="w-full h-full transform -rotate-90"><circle cx="28" cy="28" r="24" stroke="currentColor" strokeWidth="5" fill="transparent" className="text-slate-100" /><circle cx="28" cy="28" r="24" stroke="currentColor" strokeWidth="5" fill="transparent" strokeDasharray={150} strokeDashoffset={150 - (150 * progress) / 100} className="text-blue-600 transition-all duration-1000 ease-out" /></svg>
-                        <span className="absolute text-xs font-bold text-blue-700">{progress}%</span>
-                  </div>
-                  <div><p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Tu Progreso</p><p className="text-sm font-bold text-slate-800">{completedDocs} de {totalDocs} Docs</p>{pendingDocs > 0 && <p className="text-xs text-amber-500 font-medium mt-0.5">{pendingDocs} pendientes</p>}</div>
-              </div>
-          </div>
-          <button onClick={() => setIsDocDrawerOpen(true)} className="w-full md:w-auto bg-slate-900 text-white pl-6 pr-8 py-4 rounded-2xl font-bold shadow-xl shadow-slate-900/20 hover:bg-slate-800 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center md:justify-start gap-4 group">
-              <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center group-hover:bg-white/20 transition-colors"><FileText size={20}/></div>
-              <div className="text-left"><div className="text-sm font-bold">Gestionar Documentos</div><div className="text-xs text-slate-400 font-normal">Revisar y firmar pendientes</div></div>
-              <ChevronRight className="ml-auto opacity-50 group-hover:opacity-100 group-hover:translate-x-1 transition-all"/>
-          </button>
-        </div>
-      </div>
-
-      <div className="container mx-auto px-4 pb-24 -mt-6 max-w-5xl relative z-20"><FichaForm /></div>
-
+    <div className="flex h-screen bg-[#F8FAFC] font-sans text-slate-900 overflow-hidden">
+      
+      {/* --- SIDEBAR --- */}
       <AnimatePresence>
-        {isDocDrawerOpen && (
-            <>
-                <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} onClick={() => setIsDocDrawerOpen(false)} className="fixed inset-0 bg-slate-900/40 z-50 backdrop-blur-sm"/>
-                <motion.div initial={{x:'100%'}} animate={{x:0}} exit={{x:'100%'}} transition={{type:'spring', damping: 25, stiffness: 200}} className="fixed top-0 right-0 bottom-0 w-full max-w-md bg-white z-50 shadow-2xl flex flex-col border-l border-slate-100">
-                    <div className="h-20 px-6 border-b border-slate-100 flex justify-between items-center bg-white/80 backdrop-blur-md">
-                        <div><h2 className="font-bold text-xl text-slate-900 flex items-center gap-2">Documentación</h2><p className="text-xs text-slate-500">SSOMA - Seguridad y Salud</p></div>
-                        <button onClick={() => setIsDocDrawerOpen(false)} className="p-2 bg-slate-50 hover:bg-slate-100 text-slate-500 rounded-full transition-colors"><X size={20}/></button>
-                    </div>
-                    <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50/50">
-                        {pendingDocs > 0 ? (<div className="bg-blue-50 border border-blue-100 p-4 rounded-xl flex gap-3 mb-2"><AlertCircle className="text-blue-600 shrink-0" size={20}/><div><p className="text-sm font-bold text-blue-800">Tienes {pendingDocs} documentos pendientes</p><p className="text-xs text-blue-600 mt-1">Por favor, revísalos y fírmalos para continuar.</p></div></div>) : (<div className="bg-emerald-50 border border-emerald-100 p-4 rounded-xl flex gap-3 mb-2"><CheckCircle className="text-emerald-600 shrink-0" size={20}/><div><p className="text-sm font-bold text-emerald-800">¡Todo al día!</p><p className="text-xs text-emerald-600 mt-1">No tienes documentos pendientes de firma.</p></div></div>)}
-                        {Object.entries(DOC_LABELS).map(([docId, label]) => {
-                            const state = docStates[docId] || {}
-                            const isUnlocked = state.status === 'unlocked'; const isCompleted = state.status === 'completed'; const isLocked = !isUnlocked && !isCompleted
-                            return (
-                                <motion.div layout key={docId} onClick={() => { if (isUnlocked) setDocToFill(docId); else if (isLocked) toast.error("Este documento aún no ha sido habilitado.") }} className={`relative p-4 rounded-2xl border transition-all cursor-pointer group overflow-hidden ${isUnlocked ? 'bg-white border-blue-200 shadow-lg shadow-blue-100/50 hover:border-blue-400 hover:-translate-y-1' : isCompleted ? 'bg-emerald-50/50 border-emerald-100 hover:bg-emerald-50' : 'bg-white border-slate-200 opacity-60 grayscale hover:opacity-80'}`}>
-                                    {isUnlocked && <div className="absolute top-0 left-0 w-1 h-full bg-blue-500"/>}{isCompleted && <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500"/>}
-                                    <div className="flex items-center justify-between"><div className="flex items-center gap-4"><div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-sm ${isCompleted ? 'bg-emerald-100 text-emerald-600' : isUnlocked ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400'}`}>{isCompleted ? <CheckCircle size={20}/> : <FileText size={20}/>}</div><div><h4 className={`font-bold text-sm ${isUnlocked ? 'text-blue-900' : 'text-slate-700'}`}>{label}</h4><p className="text-[10px] font-bold mt-0.5 flex items-center gap-1.5"><span className={`w-1.5 h-1.5 rounded-full ${isCompleted ? 'bg-emerald-500' : isUnlocked ? 'bg-blue-500 animate-pulse' : 'bg-slate-400'}`}></span><span style={{color: isCompleted ? '#059669' : isUnlocked ? '#2563EB' : '#94A3B8'}}>{isCompleted ? 'FIRMADO Y ENVIADO' : isUnlocked ? 'DISPONIBLE PARA FIRMA' : 'BLOQUEADO'}</span></p></div></div><div className="text-slate-300 group-hover:text-blue-500 transition-colors">{isLocked ? <Lock size={18}/> : <ChevronRight size={20}/>}</div></div>
-                                </motion.div>
-                            )
-                        })}
-                    </div>
-                </motion.div>
-            </>
+        {!isDesktop && isSidebarOpen && (
+            <motion.div 
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} 
+                onClick={() => setIsSidebarOpen(false)} 
+                className="fixed inset-0 bg-black/40 z-40 backdrop-blur-sm lg:hidden"
+            />
         )}
       </AnimatePresence>
 
+      <motion.aside 
+        className={`bg-white border-r border-slate-200 flex flex-col h-full shrink-0 z-50 fixed lg:relative shadow-2xl lg:shadow-none w-72 lg:w-64`}
+        initial={false}
+        // CORRECCIÓN: Usamos 'isDesktop' en lugar de 'window.innerWidth'
+        animate={{ 
+            x: (isDesktop || isSidebarOpen) ? 0 : -288, 
+            width: (isDesktop || isSidebarOpen) ? 260 : 0 
+        }}
+      >
+        <div className="h-20 flex items-center gap-3 px-6 border-b border-slate-100 bg-white">
+            <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-blue-500/30">R</div>
+            <div>
+                <h1 className="font-bold text-lg text-slate-800 leading-none">RUAG</h1>
+                <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">Portal Obrero</span>
+            </div>
+        </div>
+
+        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+            <NavItem 
+                active={activeTab === 'home'} 
+                onClick={() => { setActiveTab('home'); if(!isDesktop) setIsSidebarOpen(false) }} 
+                icon={<Home size={20}/>} 
+                label="Inicio" 
+            />
+            <NavItem 
+                active={activeTab === 'documents'} 
+                onClick={() => { setActiveTab('documents'); if(!isDesktop) setIsSidebarOpen(false) }} 
+                icon={<FileText size={20}/>} 
+                label="Mis Documentos" 
+                badge={pendingDocs > 0 ? pendingDocs : undefined}
+            />
+            <div className="pt-4 pb-2 px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Mi Cuenta</div>
+            <NavItem 
+                active={activeTab === 'profile'} 
+                onClick={() => { setActiveTab('profile'); if(!isDesktop) setIsSidebarOpen(false) }} 
+                icon={<UserCog size={20}/>} 
+                label="Mi Perfil" 
+            />
+        </nav>
+
+        <div className="p-4 border-t border-slate-100">
+            <button onClick={handleLogout} className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-slate-500 hover:bg-red-50 hover:text-red-600 transition-all font-medium text-sm group">
+                <LogOut size={18} className="group-hover:-translate-x-1 transition-transform"/> Cerrar Sesión
+            </button>
+        </div>
+      </motion.aside>
+
+
+      {/* --- CONTENIDO PRINCIPAL --- */}
+      <main className="flex-1 flex flex-col h-full min-w-0 bg-[#F8FAFC] relative overflow-hidden">
+        
+        {/* Header Superior */}
+        <header className="h-16 bg-white/80 backdrop-blur-md border-b border-slate-200/60 px-4 md:px-8 flex items-center justify-between shrink-0 z-30 sticky top-0">
+            <div className="flex items-center gap-4">
+                <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="lg:hidden p-2 rounded-lg hover:bg-slate-100 text-slate-600">
+                    <Menu size={24}/>
+                </button>
+                <h2 className="text-lg font-bold text-slate-800">
+                    {activeTab === 'home' && 'Bienvenido'}
+                    {activeTab === 'documents' && 'Gestión de Documentos'}
+                    {activeTab === 'profile' && 'Configuración de Cuenta'}
+                </h2>
+            </div>
+
+            <div className="flex items-center gap-4">
+                <div className="relative">
+                    <button 
+                        onClick={() => { setIsNotifOpen(!isNotifOpen); setNotifications(prev => prev.map(n => ({...n, read: true}))) }}
+                        className="relative p-2 rounded-xl hover:bg-slate-100 transition-all text-slate-600"
+                    >
+                        <Bell size={20}/>
+                        {unreadCount > 0 && <span className="absolute top-1.5 right-2 w-2 h-2 bg-red-500 rounded-full border border-white animate-pulse"></span>}
+                    </button>
+                    <AnimatePresence>
+                        {isNotifOpen && (
+                            <motion.div initial={{opacity:0, y: 10, scale: 0.95}} animate={{opacity:1, y: 0, scale: 1}} exit={{opacity:0, scale: 0.95}} className="absolute right-0 top-12 w-80 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-50 origin-top-right ring-1 ring-black/5">
+                                <div className="p-3 border-b bg-slate-50 flex justify-between items-center">
+                                    <span className="text-xs font-bold text-slate-500 uppercase">Notificaciones</span>
+                                    <button onClick={() => setNotifications([])} className="text-blue-600 hover:text-blue-800 text-xs font-medium">Borrar</button>
+                                </div>
+                                <div className="max-h-60 overflow-y-auto">
+                                    {notifications.length === 0 ? <p className="p-6 text-center text-xs text-slate-400">Sin novedades</p> : notifications.map(n => (
+                                        <div key={n.id} className="p-3 border-b border-slate-50 hover:bg-blue-50/50"><p className="text-sm text-slate-800 font-medium">{n.msg}</p><p className="text-[10px] text-slate-400 mt-1">{n.time}</p></div>
+                                    ))}
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+                <div className="w-9 h-9 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold border border-blue-200 shadow-sm">
+                    {userName.charAt(0)}
+                </div>
+            </div>
+        </header>
+
+        {/* --- CONTENIDO DINÁMICO --- */}
+        <div className="flex-1 overflow-y-auto p-4 md:p-8 scroll-smooth">
+            <div className="max-w-5xl mx-auto">
+                
+                {/* VISTA: HOME */}
+                {activeTab === 'home' && (
+                    <motion.div initial={{opacity:0, y: 20}} animate={{opacity:1, y: 0}} className="space-y-8 pb-20">
+                        {/* Hero Card */}
+                        <div className="bg-gradient-to-br from-blue-600 to-indigo-800 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
+                            <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                                <div>
+                                    <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm border border-white/20 px-3 py-1 rounded-full text-xs font-bold mb-4">
+                                        <Calendar size={12}/> {today}
+                                    </div>
+                                    <h1 className="text-3xl font-bold mb-2">Hola, {userName || 'Compañero'} 👋</h1>
+                                    <p className="text-blue-100 max-w-md">Bienvenido a tu portal. Aquí puedes gestionar tus documentos y actualizar tu información.</p>
+                                </div>
+                                <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/20 flex items-center gap-4 min-w-[200px]">
+                                    <div className="relative w-12 h-12 flex items-center justify-center">
+                                        <svg className="w-full h-full -rotate-90"><circle cx="24" cy="24" r="20" stroke="currentColor" strokeWidth="4" fill="transparent" className="text-blue-900/30"/><circle cx="24" cy="24" r="20" stroke="currentColor" strokeWidth="4" fill="transparent" strokeDasharray={126} strokeDashoffset={126 - (126 * progress) / 100} className="text-white transition-all duration-1000"/></svg>
+                                        <span className="absolute text-xs font-bold">{progress}%</span>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-blue-200 font-bold uppercase">Documentación</p>
+                                        <p className="text-sm font-bold">{completedDocs} / {totalDocs} listos</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Ficha Form (Visualización) */}
+                        <FichaForm />
+                    </motion.div>
+                )}
+
+                {/* VISTA: DOCUMENTOS */}
+                {activeTab === 'documents' && (
+                    <motion.div initial={{opacity:0, x: 20}} animate={{opacity:1, x: 0}} className="space-y-6 pb-20">
+                        <div className="flex items-center justify-between mb-2">
+                            <h2 className="text-xl font-bold text-slate-800">Tus Documentos</h2>
+                            <span className="text-xs font-bold bg-slate-100 text-slate-500 px-3 py-1 rounded-full">{pendingDocs} pendientes</span>
+                        </div>
+
+                        <div className="grid gap-4">
+                            {Object.entries(DOC_LABELS).map(([docId, label]) => {
+                                const state = docStates[docId] || {}
+                                const isUnlocked = state.status === 'unlocked'
+                                const isCompleted = state.status === 'completed'
+                                const isLocked = !isUnlocked && !isCompleted
+
+                                return (
+                                    <div 
+                                        key={docId}
+                                        onClick={() => {
+                                            if (isUnlocked) setDocToFill(docId)
+                                            else if (isLocked) toast.error("Documento no disponible aún.")
+                                        }}
+                                        className={`group relative p-5 rounded-2xl border transition-all cursor-pointer overflow-hidden ${isUnlocked ? 'bg-white border-blue-200 shadow-md hover:border-blue-400 hover:shadow-lg' : isCompleted ? 'bg-emerald-50/50 border-emerald-100 hover:bg-emerald-50' : 'bg-white border-slate-100 opacity-60 grayscale hover:opacity-80'}`}
+                                    >
+                                        {isUnlocked && <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-blue-500"/>}
+                                        {isCompleted && <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-emerald-500"/>}
+
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-4">
+                                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${isCompleted ? 'bg-emerald-100 text-emerald-600' : isUnlocked ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400'}`}>
+                                                    {isCompleted ? <CheckCircle size={24}/> : <FileText size={24}/>}
+                                                </div>
+                                                <div>
+                                                    <h3 className={`font-bold text-base ${isUnlocked ? 'text-blue-900' : 'text-slate-700'}`}>{label}</h3>
+                                                    <p className="text-xs font-bold mt-1 flex items-center gap-1.5">
+                                                        <span className={`w-1.5 h-1.5 rounded-full ${isCompleted ? 'bg-emerald-500' : isUnlocked ? 'bg-blue-500 animate-pulse' : 'bg-slate-400'}`}></span>
+                                                        <span style={{color: isCompleted ? '#059669' : isUnlocked ? '#2563EB' : '#94A3B8'}}>
+                                                            {isCompleted ? 'FIRMADO Y ENVIADO' : isUnlocked ? 'DISPONIBLE PARA FIRMA' : 'BLOQUEADO'}
+                                                        </span>
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="bg-slate-50 p-2 rounded-full text-slate-300 group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors">
+                                                {isLocked ? <Lock size={20}/> : <ChevronRight size={20}/>}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    </motion.div>
+                )}
+
+                {/* VISTA: PERFIL */}
+                {activeTab === 'profile' && (
+                    <motion.div initial={{opacity:0, scale:0.95}} animate={{opacity:1, scale:1}} className="max-w-lg mx-auto pb-20">
+                        <ProfileSettingsCard userEmail={userEmail} supabase={supabase} />
+                    </motion.div>
+                )}
+
+            </div>
+        </div>
+
+      </main>
+
+      {/* --- MODAL LLENADO DOCUMENTOS --- */}
       <AnimatePresence>
         {docToFill && (
             <DocumentFillingModal 
@@ -293,8 +468,130 @@ export default function DashboardPage() {
             />
         )}
       </AnimatePresence>
+
+      {/* --- CHAT FLOTANTE PARA EL OBRERO --- */}
+      <ChatSystem 
+          workerId={userId} 
+          workerName={userName}
+          currentUserId={userId}
+          isAdmin={false}
+          isOpen={false} // El obrero gestiona su minimizado internamente
+          onClose={() => {}} 
+      />
+
     </div>
   )
+}
+
+// --- COMPONENTES AUXILIARES ---
+
+function NavItem({ active, onClick, icon, label, badge }: any) {
+    return (
+        <button onClick={onClick} className={`w-full flex items-center justify-between px-4 py-3.5 rounded-xl text-sm font-medium transition-all group ${active ? 'bg-blue-50 text-blue-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'}`}>
+            <div className="flex items-center gap-3">
+                <span className={active ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600'}>{icon}</span>
+                <span>{label}</span>
+            </div>
+            {badge && <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">{badge}</span>}
+        </button>
+    )
+}
+
+// --- CARD DE PERFIL (CAMBIO DE CONTRASEÑA) ---
+function ProfileSettingsCard({ userEmail, supabase }: any) {
+    const [email, setEmail] = useState(userEmail)
+    const [password, setPassword] = useState('')
+    const [confirmPassword, setConfirmPassword] = useState('')
+    const [loading, setLoading] = useState(false)
+
+    const handleUpdate = async (e: React.FormEvent) => {
+        e.preventDefault()
+        if (password && password !== confirmPassword) { toast.error("Las contraseñas no coinciden"); return }
+        if (password && password.length < 6) { toast.error("La contraseña debe tener al menos 6 caracteres"); return }
+
+        setLoading(true)
+        const updates: any = { email }
+        if (password) updates.password = password
+
+        const { error } = await supabase.auth.updateUser(updates)
+
+        if (error) {
+            toast.error("Error al actualizar: " + error.message)
+        } else {
+            toast.success("✅ Credenciales actualizadas correctamente.")
+            toast.info("Por favor, usa estos datos para tu próximo inicio de sesión.")
+            setPassword('')
+            setConfirmPassword('')
+        }
+        setLoading(false)
+    }
+
+    return (
+        <div className="bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden">
+            <div className="p-8 border-b border-slate-100 text-center bg-gradient-to-b from-white to-slate-50/50">
+                <div className="w-20 h-20 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-white shadow-lg">
+                    <UserCog size={36}/>
+                </div>
+                <h2 className="text-2xl font-bold text-slate-800">Configurar Cuenta</h2>
+                <p className="text-slate-500 text-sm mt-1 max-w-xs mx-auto">Actualiza tu correo y contraseña para asegurar tu acceso al sistema.</p>
+            </div>
+            
+            <form onSubmit={handleUpdate} className="p-8 space-y-6">
+                <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2 pl-1">Correo Electrónico</label>
+                    <div className="relative">
+                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
+                        <input 
+                            type="email" 
+                            value={email} 
+                            onChange={e => setEmail(e.target.value)} 
+                            className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                            placeholder="tuemail@ejemplo.com"
+                        />
+                    </div>
+                </div>
+
+                <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2 pl-1">Nueva Contraseña</label>
+                    <div className="relative">
+                        <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
+                        <input 
+                            type="password" 
+                            value={password} 
+                            onChange={e => setPassword(e.target.value)} 
+                            className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                            placeholder="Mínimo 6 caracteres"
+                        />
+                    </div>
+                </div>
+
+                <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2 pl-1">Confirmar Contraseña</label>
+                    <div className="relative">
+                        <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
+                        <input 
+                            type="password" 
+                            value={confirmPassword} 
+                            onChange={e => setConfirmPassword(e.target.value)} 
+                            className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                            placeholder="Repite la contraseña"
+                        />
+                    </div>
+                </div>
+
+                <div className="pt-4">
+                    <button 
+                        type="submit" 
+                        disabled={loading}
+                        className="w-full py-4 bg-slate-900 text-white rounded-xl font-bold shadow-lg hover:bg-slate-800 disabled:opacity-70 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+                    >
+                        {loading ? <Loader2 className="animate-spin" size={20}/> : <Save size={20}/>}
+                        {loading ? 'Actualizando...' : 'Guardar Cambios'}
+                    </button>
+                </div>
+            </form>
+        </div>
+    )
 }
 
 function DocumentFillingModal({ docId, fichaId, existingData, fullFichaData, onClose, onSave }: any) {
@@ -303,21 +600,17 @@ function DocumentFillingModal({ docId, fichaId, existingData, fullFichaData, onC
     const [saving, setSaving] = useState(false)
     const content = DOC_CONTENT[docId] || [] 
     
-    // Detectamos si es horizontal para ajustar el ancho del modal
     const isHorizontal = ['capacitacion', 'epp'].includes(docId)
     const showChecklist = content.length > 0
-
-    // Escala dinámica para que quepa en pantalla
     const [scale, setScale] = useState(1)
     
     useEffect(() => {
         if (!showChecklist) {
-            // Ajustar escala al cargar
             const updateScale = () => {
                 const width = window.innerWidth
-                if (width < 640) setScale(0.45) // Móvil
-                else if (width < 1024) setScale(0.65) // Tablet
-                else setScale(0.85) // Desktop
+                if (width < 640) setScale(0.45) 
+                else if (width < 1024) setScale(0.65)
+                else setScale(0.85)
             }
             updateScale()
             window.addEventListener('resize', updateScale)
@@ -355,7 +648,6 @@ function DocumentFillingModal({ docId, fichaId, existingData, fullFichaData, onC
 
     return (
         <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[60] flex items-center justify-center p-4">
-            {/* Modal Responsive: Se ensancha si es un documento horizontal */}
             <motion.div 
                 initial={{scale:0.95, y: 20}} animate={{scale:1, y: 0}} exit={{scale:0.95, y: 20}} 
                 className={`bg-white w-full ${isHorizontal ? 'max-w-7xl' : 'max-w-4xl'} rounded-3xl shadow-2xl flex flex-col h-[90vh] border border-white/20 transition-all duration-300 overflow-hidden`}
@@ -383,13 +675,8 @@ function DocumentFillingModal({ docId, fichaId, existingData, fullFichaData, onC
                             })}
                         </div>
                     ) : (
-                        // VISTA DE LECTURA (DOCUMENTO REAL)
-                        // Usamos un contenedor flexible con scroll automático en ambas direcciones
                         <div className="min-h-full flex items-center justify-center p-8 overflow-auto">
-                            <div 
-                                style={{ transform: `scale(${scale})`, transformOrigin: 'top center' }} 
-                                className="bg-white shadow-2xl ring-1 ring-black/5 transition-transform duration-300 pointer-events-none select-none origin-top"
-                            >
+                            <div style={{ transform: `scale(${scale})`, transformOrigin: 'top center' }} className="bg-white shadow-2xl ring-1 ring-black/5 transition-transform duration-300 pointer-events-none select-none origin-top">
                                 {renderPrintablePreview()}
                             </div>
                         </div>
@@ -401,9 +688,7 @@ function DocumentFillingModal({ docId, fichaId, existingData, fullFichaData, onC
                         {!showChecklist && (
                             <div className="flex items-start gap-3 bg-blue-50 p-3 rounded-xl mb-1 border border-blue-100">
                                 <Eye className="text-blue-600 shrink-0 mt-0.5" size={18}/>
-                                <p className="text-xs text-blue-800 leading-relaxed font-medium">
-                                    Al presionar confirmar, declaras bajo juramento haber leído, comprendido y recibido el documento mostrado en pantalla con tus datos y firma digital.
-                                </p>
+                                <p className="text-xs text-blue-800 leading-relaxed font-medium">Al presionar confirmar, declaras bajo juramento haber leído, comprendido y recibido el documento mostrado en pantalla con tus datos y firma digital.</p>
                             </div>
                         )}
                         <button onClick={handleSave} disabled={saving} className="w-full py-3.5 bg-slate-900 text-white rounded-xl font-bold shadow-xl shadow-slate-900/20 hover:bg-slate-800 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-3 transition-all active:scale-[0.98]">

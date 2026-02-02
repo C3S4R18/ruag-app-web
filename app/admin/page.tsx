@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link' 
 import AdminTable from '@/components/AdminTable' 
 import MassImport from '@/components/MassImport' 
+import ChatSystem from '@/components/ChatSystem' // <--- IMPORTANTE: Componente de Chat
 
 // IMPORTS
 import BiometricSignature from '@/components/ssoma/BiometricSignature'
@@ -15,7 +16,8 @@ import {
   LayoutGrid, Users, LogOut, ShieldCheck, 
   Search, TrendingUp, Activity, HardHat, UploadCloud, X,
   LayoutDashboard, Fingerprint, Menu, PenTool, CheckCircle, Loader2, AlertCircle,
-  FileText, Lock, Unlock, ScanLine, Trash2, ChevronLeft, ChevronRight, Bell
+  FileText, Lock, Unlock, ScanLine, Trash2, ChevronLeft, ChevronRight, Bell,
+  UserCog, Mail, Key, Save
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
@@ -35,9 +37,12 @@ export default function AdminPage() {
   
   const [isAdmin, setIsAdmin] = useState(false)
   const [userName, setUserName] = useState('')
+  const [userEmail, setUserEmail] = useState('')
+  const [userId, setUserId] = useState('') // ID del Admin logueado
   const [loading, setLoading] = useState(true)
 
-  const [activeView, setActiveView] = useState<'dashboard' | 'biometria' | 'documentos'>('dashboard')
+  // VISTAS: DASHBOARD | BIOMETRIA | DOCUMENTOS | PERFIL
+  const [activeView, setActiveView] = useState<'dashboard' | 'biometria' | 'documentos' | 'profile'>('dashboard')
   
   const [isSidebarOpen, setSidebarOpen] = useState(true)
   const [isMobile, setIsMobile] = useState(false)
@@ -49,9 +54,10 @@ export default function AdminPage() {
   const [loadingData, setLoadingData] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   
-  // Selección
+  // Selección de Modales
   const [selectedWorkerBiometria, setSelectedWorkerBiometria] = useState<any>(null)
   const [selectedWorkerDocs, setSelectedWorkerDocs] = useState<any>(null)
+  const [chatWorker, setChatWorker] = useState<any>(null) // <--- Estado para el chat activo
 
   const workersDataRef = useRef(workersData)
   const selectedWorkerDocsRef = useRef(selectedWorkerDocs)
@@ -71,6 +77,9 @@ export default function AdminPage() {
     const checkUser = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/'); return }
+      setUserId(user.id)
+      setUserEmail(user.email || '')
+      
       const { data: profile } = await supabase.from('profiles').select('role, nombres').eq('id', user.id).single()
       if (profile?.role !== 'admin') { router.push('/dashboard') } 
       else { setIsAdmin(true); setUserName(profile.nombres.split(' ')[0]) }
@@ -85,9 +94,14 @@ export default function AdminPage() {
         else setSidebarOpen(true)
     }
     
-    handleResize()
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
+    // Ejecutar solo en cliente
+    if (typeof window !== 'undefined') {
+        handleResize()
+        window.addEventListener('resize', handleResize)
+    }
+    return () => {
+        if (typeof window !== 'undefined') window.removeEventListener('resize', handleResize)
+    }
   }, [])
 
   const fetchData = async () => {
@@ -169,6 +183,7 @@ export default function AdminPage() {
 
       <motion.aside 
         initial={false}
+        // Animación simple para evitar errores de SSR
         animate={{ 
             width: isSidebarOpen ? 280 : 0, 
             x: isMobile && !isSidebarOpen ? -280 : 0,
@@ -193,6 +208,9 @@ export default function AdminPage() {
             <div className="pt-4 pb-2 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Gestión Operativa</div>
             <SidebarItem active={activeView === 'biometria'} onClick={() => handleNavClick('biometria')} icon={<Fingerprint size={20}/>} label="Biometría y Firmas" />
             <SidebarItem active={activeView === 'documentos'} onClick={() => handleNavClick('documentos')} icon={<FileText size={20}/>} label="Documentación SSOMA" />
+            
+            <div className="pt-4 pb-2 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Cuenta</div>
+            <SidebarItem active={activeView === 'profile'} onClick={() => handleNavClick('profile')} icon={<UserCog size={20}/>} label="Mi Perfil" />
         </nav>
 
         <div className="p-4 border-t border-slate-800/50 bg-slate-900/30">
@@ -219,6 +237,7 @@ export default function AdminPage() {
                         {activeView === 'dashboard' && 'Resumen General'}
                         {activeView === 'biometria' && 'Control Biométrico'}
                         {activeView === 'documentos' && 'Gestión Documental'}
+                        {activeView === 'profile' && 'Configuración de Cuenta'}
                     </h2>
                     <p className="text-xs text-slate-400 hidden sm:block">Panel de administración centralizada</p>
                 </div>
@@ -301,7 +320,8 @@ export default function AdminPage() {
                                 Registro de Trabajadores
                             </h3>
                         </div>
-                        <AdminTable />
+                        {/* PASAMOS LA FUNCIÓN PARA ABRIR CHAT */}
+                        <AdminTable onOpenChat={(worker) => setChatWorker(worker)} />
                     </div>
                 </motion.div>
             )}
@@ -322,7 +342,7 @@ export default function AdminPage() {
                         </div>
                         <div className="flex items-center gap-2 text-sm text-slate-500 font-medium bg-slate-50 px-4 py-2 rounded-xl border border-slate-100">
                             <Users size={16} className="text-slate-400"/>
-                            <span>Total filtrado: <span className="text-slate-900 font-bold">{filteredWorkers.length}</span></span>
+                            <span>Resultados: <span className="text-slate-900 font-bold">{filteredWorkers.length}</span></span>
                         </div>
                     </div>
 
@@ -385,8 +405,19 @@ export default function AdminPage() {
                     )}
                 </motion.div>
             )}
+
+            {/* VISTA: PERFIL DE ADMINISTRADOR */}
+            {activeView === 'profile' && (
+                <motion.div initial={{opacity:0, scale:0.95}} animate={{opacity:1, scale:1}} className="max-w-lg mx-auto pb-20 mt-10">
+                    <AdminProfileSettings userEmail={userEmail} supabase={supabase} />
+                </motion.div>
+            )}
+
         </div>
 
+        {/* --- MODALES --- */}
+        
+        {/* MODAL BIOMETRÍA */}
         <AnimatePresence>
             {selectedWorkerBiometria && (
                 <BiometricModal 
@@ -397,6 +428,7 @@ export default function AdminPage() {
             )}
         </AnimatePresence>
 
+        {/* MODAL GESTIÓN DOCUMENTAL */}
         <AnimatePresence>
             {selectedWorkerDocs && (
                 <AdminDocsDrawer 
@@ -407,6 +439,7 @@ export default function AdminPage() {
             )}
         </AnimatePresence>
         
+        {/* MODAL IMPORTACION */}
         <AnimatePresence>
             {showImport && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -421,10 +454,30 @@ export default function AdminPage() {
             )}
         </AnimatePresence>
 
+        {/* --- SISTEMA DE CHAT ADMIN (DRAWER) --- */}
+        <AnimatePresence>
+            {chatWorker && (
+                <ChatSystem 
+                    // CORRECCIÓN CRÍTICA AQUÍ ABAJO:
+                    // Antes decía: workerId={chatWorker.id}
+                    // Debe decir:  workerId={chatWorker.user_id}
+                    workerId={chatWorker.user_id} 
+                    
+                    workerName={`${chatWorker.nombres} ${chatWorker.apellido_paterno}`}
+                    currentUserId={userId}
+                    isAdmin={true}
+                    isOpen={!!chatWorker}
+                    onClose={() => setChatWorker(null)}
+                />
+            )}
+        </AnimatePresence>
+
       </main>
     </div>
   )
 }
+
+// --- COMPONENTES AUXILIARES CON MEJOR DISEÑO ---
 
 function SidebarItem({ active, onClick, icon, label }: any) {
     return (
@@ -469,6 +522,103 @@ function StatCard({title, value, desc, icon, bg, delay}: any) {
     )
 }
 
+// --- NUEVO COMPONENTE: PERFIL DE ADMINISTRADOR ---
+function AdminProfileSettings({ userEmail, supabase }: any) {
+    const [email, setEmail] = useState(userEmail)
+    const [password, setPassword] = useState('')
+    const [confirmPassword, setConfirmPassword] = useState('')
+    const [loading, setLoading] = useState(false)
+
+    const handleUpdate = async (e: React.FormEvent) => {
+        e.preventDefault()
+        if (password && password !== confirmPassword) { toast.error("Las contraseñas no coinciden"); return }
+        if (password && password.length < 6) { toast.error("La contraseña debe tener al menos 6 caracteres"); return }
+
+        setLoading(true)
+        const updates: any = { email }
+        if (password) updates.password = password
+
+        const { error } = await supabase.auth.updateUser(updates)
+
+        if (error) {
+            toast.error("Error al actualizar: " + error.message)
+        } else {
+            toast.success("✅ Credenciales actualizadas correctamente.")
+            toast.info("Usa estos datos para tu próximo inicio de sesión.")
+            setPassword('')
+            setConfirmPassword('')
+        }
+        setLoading(false)
+    }
+
+    return (
+        <div className="bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden">
+            <div className="p-8 border-b border-slate-100 text-center bg-gradient-to-b from-white to-slate-50/50">
+                <div className="w-20 h-20 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-white shadow-lg">
+                    <UserCog size={36}/>
+                </div>
+                <h2 className="text-2xl font-bold text-slate-800">Cuenta de Administrador</h2>
+                <p className="text-slate-500 text-sm mt-1 max-w-xs mx-auto">Actualiza tus credenciales de acceso al sistema.</p>
+            </div>
+            
+            <form onSubmit={handleUpdate} className="p-8 space-y-6">
+                <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2 pl-1">Correo Electrónico</label>
+                    <div className="relative">
+                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
+                        <input 
+                            type="email" 
+                            value={email} 
+                            onChange={e => setEmail(e.target.value)} 
+                            className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                            placeholder="admin@empresa.com"
+                        />
+                    </div>
+                </div>
+
+                <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2 pl-1">Nueva Contraseña</label>
+                    <div className="relative">
+                        <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
+                        <input 
+                            type="password" 
+                            value={password} 
+                            onChange={e => setPassword(e.target.value)} 
+                            className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                            placeholder="••••••••"
+                        />
+                    </div>
+                </div>
+
+                <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2 pl-1">Confirmar Contraseña</label>
+                    <div className="relative">
+                        <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
+                        <input 
+                            type="password" 
+                            value={confirmPassword} 
+                            onChange={e => setConfirmPassword(e.target.value)} 
+                            className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                            placeholder="••••••••"
+                        />
+                    </div>
+                </div>
+
+                <div className="pt-4">
+                    <button 
+                        type="submit" 
+                        disabled={loading}
+                        className="w-full py-4 bg-slate-900 text-white rounded-xl font-bold shadow-lg hover:bg-slate-800 disabled:opacity-70 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+                    >
+                        {loading ? <Loader2 className="animate-spin" size={20}/> : <Save size={20}/>}
+                        {loading ? 'Actualizando...' : 'Guardar Cambios'}
+                    </button>
+                </div>
+            </form>
+        </div>
+    )
+}
+
 function BiometricModal({ worker, onClose, onUpdate }: any) {
     const supabase = createClient()
     const [tab, setTab] = useState<'firma' | 'huella'>('firma')
@@ -493,7 +643,7 @@ function BiometricModal({ worker, onClose, onUpdate }: any) {
                             {worker.nombres.charAt(0)}
                         </div>
                         <div>
-                            <h3 className="font-bold text-slate-900 text-xl uppercase">{worker.nombres} {worker.apellido_paterno}</h3>
+                            <h3 className="font-bold text-slate-900 text-xl">{worker.nombres} {worker.apellido_paterno}</h3>
                             <div className="flex items-center gap-2 mt-1">
                                 <span className="text-xs font-mono font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">{worker.dni}</span>
                                 <span className="text-xs text-slate-400">•</span>
@@ -501,7 +651,7 @@ function BiometricModal({ worker, onClose, onUpdate }: any) {
                             </div>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full transition-colors text-slate-500"><X size={20}/></button>
+                    <button onClick={onClose} className="p-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full transition-colors"><X size={20}/></button>
                 </div>
                 
                 <div className="flex border-b border-slate-200 shrink-0 bg-slate-50/50 p-1 gap-1 mx-6 mt-4 rounded-xl">
@@ -561,16 +711,16 @@ function AdminDocsDrawer({ worker, onClose, onUpdate }: any) {
                         <h2 className="font-bold text-slate-900 text-xl tracking-tight">Documentación</h2>
                         <div className="flex items-center gap-2 mt-1">
                             <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                            <p className="text-xs text-slate-500 font-medium uppercase">{worker.nombres}</p>
+                            <p className="text-xs text-slate-500 font-medium">{worker.nombres}</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full transition-colors text-slate-500"><X size={20}/></button>
+                    <button onClick={onClose} className="p-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full transition-colors"><X size={20}/></button>
                 </div>
                 
                 <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50/50">
                     <div className="flex items-center justify-between mb-4">
                         <p className="text-xs text-slate-500 uppercase font-bold tracking-wider">Estado de Documentos</p>
-                        <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-bold">{DIGITAL_DOCS.length} Documentos</span>
+                        <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-bold">{DIGITAL_DOCS.length} Docs</span>
                     </div>
                     
                     {DIGITAL_DOCS.map((doc) => {

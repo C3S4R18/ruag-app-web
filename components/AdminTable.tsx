@@ -27,10 +27,11 @@ import {
   ChevronLeft, ChevronRight, User, Wallet, HardHat, 
   CheckSquare, Square, Unlock, Lock, FileBadge, BellRing, BellOff,
   PenTool, Fingerprint, Share2, MoreHorizontal, Edit3,
-  FileCheck
+  FileCheck, MessageSquare 
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
+// --- INTERFACES ---
 interface FichaDrawerProps {
     ficha: any;
     onClose: () => void;
@@ -39,6 +40,10 @@ interface FichaDrawerProps {
     onDownload: () => void;
     downloading: boolean;
     onPrintPreview: (img: string) => void;
+}
+
+interface AdminTableProps {
+    onOpenChat?: (worker: any) => void;
 }
 
 const DOC_OPTIONS = [
@@ -50,7 +55,7 @@ const DOC_OPTIONS = [
     { id: 'iperc', label: 'Entrega IPERC', desc: 'SG-FOR-112' },
 ]
 
-export default function AdminTable() {
+export default function AdminTable({ onOpenChat }: AdminTableProps) {
   const supabase = createClient()
   const [fichas, setFichas] = useState<any[]>([])
   const [selectedFicha, setSelectedFicha] = useState<any>(null)
@@ -77,10 +82,13 @@ export default function AdminTable() {
   
   // SOLUCIÓN AL AUDIO: Estado persistente
   const [audioEnabled, setAudioEnabled] = useState(false) 
+  
+  // --- NUEVO: Estado para contar mensajes no leídos por trabajador ---
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({})
 
   // Carga inicial y configuración de Audio
   useEffect(() => {
-    // 1. Recuperar preferencia de audio del LocalStorage
+    // 1. Recuperar preferencia de audio
     const savedAudioPref = localStorage.getItem('admin_audio_enabled')
     if (savedAudioPref === 'true') {
         setAudioEnabled(true)
@@ -88,20 +96,46 @@ export default function AdminTable() {
 
     fetchFichas()
     
-    // Realtime Listener
-    const channel = supabase.channel('realtime-fichas').on('postgres_changes', { event: '*', schema: 'public', table: 'fichas' }, (payload: any) => {
+    // 2. Listener para cambios en FICHAS (nuevos usuarios, etc)
+    const fichasChannel = supabase.channel('realtime-fichas').on('postgres_changes', { event: '*', schema: 'public', table: 'fichas' }, (payload: any) => {
           if (payload.eventType === 'INSERT') {
              setFichas((prev) => [payload.new, ...prev])
-             if(payload.new.estado === 'completado') { toast.success(`🔔 Nuevo Ingreso: ${payload.new.nombres}`); playSoundIfEnabled() }
+             if(payload.new.estado === 'completado') { toast.success(`🔔 Nuevo Ingreso: ${payload.new.nombres}`); playSystemSound() }
           } else if (payload.eventType === 'UPDATE') {
              setFichas((prev) => prev.map(f => f.id === payload.new.id ? payload.new : f))
-             if (payload.new.estado === 'completado') { toast.success(`✅ Completado: ${payload.new.nombres}`); playSoundIfEnabled() }
+             if (payload.new.estado === 'completado') { toast.success(`✅ Completado: ${payload.new.nombres}`); playSystemSound() }
           } else if (payload.eventType === 'DELETE') {
              setFichas((prev) => prev.filter(f => f.id !== payload.old.id))
              setSelectedIds(prev => prev.filter(id => id !== payload.old.id))
           }
       }).subscribe()
-    return () => { supabase.removeChannel(channel) }
+
+    // 3. --- NUEVO: Listener GLOBAL para mensajes entrantes (NOTIFICACIONES DE CHAT) ---
+    const chatChannel = supabase.channel('global-chat-notifications')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload: any) => {
+            const newMsg = payload.new
+            
+            // Si el mensaje NO es enviado por un admin (es decir, viene de un obrero)
+            if (!newMsg.is_admin) {
+                // Reproducir sonido específico de CHAT
+                playChatSound()
+                
+                // Mostrar toast
+                toast.info("Nuevo mensaje de chat recibido")
+
+                // Actualizar contador de no leídos para ese trabajador específico
+                setUnreadCounts(prev => ({
+                    ...prev,
+                    [newMsg.worker_id]: (prev[newMsg.worker_id] || 0) + 1
+                }))
+            }
+        })
+        .subscribe()
+
+    return () => { 
+        supabase.removeChannel(fichasChannel) 
+        supabase.removeChannel(chatChannel)
+    }
   }, [])
 
   const fetchFichas = async () => {
@@ -111,14 +145,21 @@ export default function AdminTable() {
     setLoading(false)
   }
 
-  // Reproductor de sonido inteligente (lee el estado actualizado o el localStorage directamente)
-  const playSoundIfEnabled = () => {
-    // Verificamos localStorage directamente por si el estado de React aún no se ha hidratado en un render rápido
+  // Reproductor de sonido SISTEMA (Fichas)
+  const playSystemSound = () => {
     const isEnabled = localStorage.getItem('admin_audio_enabled') === 'true'
-    
     if (isEnabled) {
         const audio = new Audio('/notification.mp3')
-        audio.play().catch((e) => console.warn("Audio bloqueado por el navegador:", e))
+        audio.play().catch((e) => console.warn("Audio bloqueado:", e))
+    }
+  }
+
+  // Reproductor de sonido CHAT (Nuevo)
+  const playChatSound = () => {
+    const isEnabled = localStorage.getItem('admin_audio_enabled') === 'true'
+    if (isEnabled) {
+        const audio = new Audio('/notificationMSM.mp3') // <--- SONIDO ESPECÍFICO CHAT
+        audio.play().catch((e) => console.warn("Audio bloqueado:", e))
     }
   }
 
@@ -135,6 +176,21 @@ export default function AdminTable() {
       }
   }
 
+  // --- Función para abrir chat y limpiar notificaciones ---
+  const handleChatClick = (worker: any) => {
+      // Limpiar contador de no leídos al abrir
+      if (worker.user_id) {
+          setUnreadCounts(prev => {
+              const newCounts = { ...prev }
+              delete newCounts[worker.user_id]
+              return newCounts
+          })
+      }
+      
+      // Abrir chat
+      if (onOpenChat) onOpenChat(worker)
+  }
+
   const handleSelectAll = (filteredData: any[]) => {
       if (selectedIds.length === filteredData.length && filteredData.length > 0) setSelectedIds([]) 
       else setSelectedIds(filteredData.map(f => f.id)) 
@@ -146,7 +202,7 @@ export default function AdminTable() {
   }
 
   const handleBulkDelete = async () => {
-      if (!confirm(`⚠️ ¿Estás seguro de eliminar ${selectedIds.length} fichas seleccionadas? Esta acción no se puede deshacer.`)) return
+      if (!confirm(`⚠️ ¿Estás seguro de eliminar ${selectedIds.length} fichas seleccionadas?`)) return
       setDeleting(true)
       try {
           const { error } = await supabase.from('fichas').delete().in('id', selectedIds)
@@ -171,7 +227,7 @@ export default function AdminTable() {
 
   // --- LÓGICA DE IMPRESIÓN ---
   const handleOpenDocSelector = () => {
-      if (selectedIds.length !== 1) { toast.warning("Por favor, selecciona exactamente 1 trabajador para imprimir sus documentos."); return }
+      if (selectedIds.length !== 1) { toast.warning("Selecciona exactamente 1 trabajador para imprimir."); return }
       setSelectedDocsToPrint([]) 
       setShowDocSelector(true)
   }
@@ -200,18 +256,13 @@ export default function AdminTable() {
               
               for (let i = 0; i < elements.length; i++) {
                   const element = elements[i]
-                  
                   const canvas = await html2canvas(element, { 
-                      scale: 2, 
-                      useCORS: true, 
-                      allowTaint: true,
-                      backgroundColor: '#ffffff',
+                      scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff',
                       onclone: (clonedDoc) => {
                           const all = clonedDoc.querySelectorAll('*')
                           all.forEach((el: any) => { el.style.color = '#000000'; el.style.borderColor = '#000000' })
                       }
                   });
-
                   const imgData = canvas.toDataURL('image/png')
                   const imgProps = pdfDoc.getImageProperties(imgData)
                   const orientation = imgProps.width > imgProps.height ? 'l' : 'p'
@@ -232,7 +283,7 @@ export default function AdminTable() {
 
           } catch (error: any) {
               console.error("Error PDF:", error)
-              toast.error("Error al generar PDF: " + error.message)
+              toast.error("Error: " + error.message)
           } finally {
               setPreparingDoc(false)
           }
@@ -395,6 +446,23 @@ export default function AdminTable() {
                         </td>
                         <td className="px-6 py-4 text-right">
                             <div className="flex items-center justify-end gap-2">
+                                {/* BOTÓN DE CHAT INTELIGENTE CON NOTIFICACIONES */}
+                                {onOpenChat && (
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); handleChatClick(ficha) }}
+                                        className="relative p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors border border-transparent hover:border-indigo-100 group" 
+                                        title="Chat con trabajador"
+                                    >
+                                        <MessageSquare size={16} />
+                                        {/* INDICADOR DE MENSAJES NO LEÍDOS */}
+                                        {unreadCounts[ficha.user_id] > 0 && (
+                                            <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white shadow-sm ring-1 ring-white">
+                                                {unreadCounts[ficha.user_id]}
+                                            </span>
+                                        )}
+                                    </button>
+                                )}
+                                
                                 <button onClick={(e) => { e.stopPropagation(); setSelectedFicha(ficha) }} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-transparent hover:border-blue-100"><Edit3 size={16}/></button>
                                 <button onClick={(e) => { e.stopPropagation(); handleDownloadPDF(ficha) }} className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors border border-transparent hover:border-emerald-100" title="Descargar Ficha PDF">{downloadingPdf ? <Loader2 className="animate-spin" size={16}/> : <FileText size={16}/>}</button>
                             </div>
