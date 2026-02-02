@@ -24,3 +24,108 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* --- TOUR DE CAPACITACIÓN (DISEÑO PREMIUM) --- */
+.driver-popover.driverjs-theme {
+  background-color: #ffffff;
+  border-radius: 16px;
+  padding: 0; /* Quitamos padding contenedor para controlar mejor el layout */
+  box-shadow: 
+    0 0 0 1px rgba(0, 0, 0, 0.05),
+    0 20px 40px -10px rgba(0, 0, 0, 0.15);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  max-width: 360px;
+  color: #1e293b;
+  overflow: hidden;
+  z-index: 100000 !important;
+}
+
+/* Cabecera del Popover */
+.driver-popover.driverjs-theme .driver-popover-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 20px 20px 10px 20px; /* Margen interno */
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Cuerpo del texto */
+.driver-popover.driverjs-theme .driver-popover-description {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #64748b;
+  margin: 0 20px 20px 20px;
+}
+
+/* Footer de botones */
+.driver-popover.driverjs-theme .driver-popover-footer {
+  background-color: #f8fafc;
+  padding: 12px 20px;
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Botón Siguiente/Terminar */
+.driver-popover.driverjs-theme button.driver-popover-next-btn {
+  background-color: #0f172a; /* Negro azulado elegante */
+  color: white;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  border: none;
+  text-shadow: none;
+  transition: all 0.2s;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.driver-popover.driverjs-theme button.driver-popover-next-btn:hover {
+  background-color: #334155;
+  transform: translateY(-1px);
+}
+
+/* Botón Atrás */
+.driver-popover.driverjs-theme button.driver-popover-prev-btn {
+  background-color: white;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  text-shadow: none;
+}
+
+.driver-popover.driverjs-theme button.driver-popover-prev-btn:hover {
+  background-color: #f1f5f9;
+  color: #334155;
+}
+
+/* Botón Cerrar (X) */
+.driver-popover.driverjs-theme .driver-popover-close-btn {
+  color: #94a3b8;
+  top: 10px;
+  right: 10px;
+  padding: 5px;
+  transition: color 0.2s;
+}
+.driver-popover.driverjs-theme .driver-popover-close-btn:hover {
+  color: #ef4444;
+}
+
+/* Progress Text (Paso 1 de 5) */
+.driver-popover.driverjs-theme .driver-popover-progress-text {
+  font-size: 10px;
+  color: #94a3b8;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Capas superiores */
+#driver-page-overlay { z-index: 99999 !important; opacity: 0.6 !important; }
+#driver-highlighted-element-stage { z-index: 99999 !important; }

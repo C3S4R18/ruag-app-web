@@ -7,6 +7,7 @@ import Link from 'next/link'
 import AdminTable from '@/components/AdminTable' 
 import MassImport from '@/components/MassImport' 
 import ChatSystem from '@/components/ChatSystem' 
+import AdminTour from '@/components/AdminTour' // <--- IMPORTACIÓN DEL TOUR
 
 // IMPORTS
 import BiometricSignature from '@/components/ssoma/BiometricSignature'
@@ -17,7 +18,7 @@ import {
   Search, TrendingUp, Activity, HardHat, UploadCloud, X,
   LayoutDashboard, Fingerprint, Menu, PenTool, CheckCircle, Loader2, AlertCircle,
   FileText, Lock, Unlock, ScanLine, Trash2, ChevronLeft, ChevronRight, Bell,
-  UserCog, Mail, Key, Save, Send // <--- AGREGADO EL ICONO SEND
+  UserCog, Mail, Key, Save, Send 
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
@@ -106,12 +107,19 @@ export default function AdminPage() {
 
   const fetchData = async () => {
       if (workersData.length === 0) setLoadingData(true)
+      
+      // MODIFICACIÓN: Filtramos usando la relación con la tabla profiles
       const { data, error } = await supabase
         .from('fichas')
-        .select('*')
+        .select('*, profiles!inner(role)') // !inner asegura que solo traiga si hay match y permite filtrar
+        .neq('profiles.role', 'admin')      // CONDICIÓN: El rol en profiles NO debe ser 'admin'
         .order('updated_at', { ascending: false })
       
-      if(error) toast.error("Error al cargar datos")
+      if(error) {
+          console.error("Error fetching workers:", error)
+          toast.error("Error al cargar datos")
+      }
+      
       if(data) setWorkersData(data)
       setLoadingData(false)
   }
@@ -163,6 +171,28 @@ export default function AdminPage() {
       if (isMobile) setSidebarOpen(false)
   }
 
+  // --- FUNCIONES PARA EL TOUR INTERACTIVO ---
+  const openFirstWorkerDrawerForTour = () => {
+      // Abre el drawer de documentos del primer trabajador disponible
+      const targetWorker = filteredWorkers.length > 0 ? filteredWorkers[0] : (workersData.length > 0 ? workersData[0] : null);
+      
+      if (targetWorker) {
+          if (activeView === 'biometria') {
+              setSelectedWorkerBiometria(targetWorker);
+          } else {
+              setSelectedWorkerDocs(targetWorker);
+          }
+      } else {
+          toast.warning("Para ver esta parte del tour, necesitas tener al menos un trabajador registrado.");
+      }
+  }
+
+  const closeDrawersForTour = () => {
+      setSelectedWorkerDocs(null);
+      setSelectedWorkerBiometria(null);
+  }
+  // ------------------------------------------
+
   if (loading) return <div className="h-screen flex items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-blue-600" size={40}/></div>
   if (!isAdmin) return null
 
@@ -183,7 +213,6 @@ export default function AdminPage() {
 
       <motion.aside 
         initial={false}
-        // Animación simple para evitar errores de SSR
         animate={{ 
             width: isSidebarOpen ? 280 : 0, 
             x: isMobile && !isSidebarOpen ? -280 : 0,
@@ -206,14 +235,30 @@ export default function AdminPage() {
             <SidebarItem active={activeView === 'dashboard'} onClick={() => handleNavClick('dashboard')} icon={<LayoutDashboard size={20}/>} label="Dashboard General" />
             
             <div className="pt-4 pb-2 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Gestión Operativa</div>
-            <SidebarItem active={activeView === 'biometria'} onClick={() => handleNavClick('biometria')} icon={<Fingerprint size={20}/>} label="Biometría y Firmas" />
-            <SidebarItem active={activeView === 'documentos'} onClick={() => handleNavClick('documentos')} icon={<FileText size={20}/>} label="Registros SSOMA" />
+            
+            {/* ID PARA EL TOUR: NAVEGACIÓN BIOMETRÍA */}
+            <div id="nav-biometria">
+                <SidebarItem active={activeView === 'biometria'} onClick={() => handleNavClick('biometria')} icon={<Fingerprint size={20}/>} label="Biometría y Firmas" />
+            </div>
+
+            {/* ID PARA EL TOUR: NAVEGACIÓN DOCUMENTOS */}
+            <div id="nav-documentos">
+                <SidebarItem active={activeView === 'documentos'} onClick={() => handleNavClick('documentos')} icon={<FileText size={20}/>} label="Registros SSOMA" />
+            </div>
             
             <div className="pt-4 pb-2 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Cuenta</div>
             <SidebarItem active={activeView === 'profile'} onClick={() => handleNavClick('profile')} icon={<UserCog size={20}/>} label="Mi Perfil" />
         </nav>
 
-        <div className="p-4 border-t border-slate-800/50 bg-slate-900/30">
+        {/* --- TOUR INTERACTIVO INTEGRADO EN SIDEBAR --- */}
+        <AdminTour 
+            changeView={(view) => setActiveView(view)} 
+            openFirstDrawer={openFirstWorkerDrawerForTour}
+            closeDrawer={closeDrawersForTour}
+        />
+        {/* --------------------------------------------- */}
+
+        <div className="p-4 bg-slate-900/30">
              <button onClick={async () => { await supabase.auth.signOut(); router.push('/') }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-red-500/10 hover:text-red-400 transition-all group">
                 <LogOut size={20} className="group-hover:-translate-x-1 transition-transform"/>
                 <span className="text-sm font-medium">Cerrar Sesión</span>
@@ -232,7 +277,8 @@ export default function AdminPage() {
                     <Menu size={22}/>
                 </button>
                 
-                <div>
+                {/* ID PARA EL TOUR: BIENVENIDA */}
+                <div id="tour-welcome">
                     <h2 className="text-xl font-bold text-slate-800 tracking-tight">
                         {activeView === 'dashboard' && 'Resumen General'}
                         {activeView === 'biometria' && 'Control Biométrico'}
@@ -272,12 +318,18 @@ export default function AdminPage() {
                                 <HardHat size={18}/> Gestion SSOMA
                             </div>
                         </Link>
-                        <button onClick={() => setShowImport(true)} className="flex items-center gap-2 px-5 py-3 bg-white text-slate-700 border border-slate-200 rounded-xl text-xs font-bold shadow-sm hover:border-blue-300 hover:text-blue-600 hover:shadow-md transition-all">
+                        {/* ID PARA EL TOUR: IMPORTACIÓN */}
+                        <button 
+                            id="tour-import"
+                            onClick={() => setShowImport(true)} 
+                            className="flex items-center gap-2 px-5 py-3 bg-white text-slate-700 border border-slate-200 rounded-xl text-xs font-bold shadow-sm hover:border-blue-300 hover:text-blue-600 hover:shadow-md transition-all"
+                        >
                             <UploadCloud size={18}/> CARGA MASIVA
                         </button>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* ID PARA EL TOUR: ESTADÍSTICAS */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6" id="tour-stats">
                         <StatCard 
                             title="Total Personal" 
                             value={workersData.length.toString()} 
@@ -330,7 +382,8 @@ export default function AdminPage() {
                 <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6 h-full flex flex-col max-w-7xl mx-auto">
                     
                     <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4 justify-between items-center sticky top-0 z-10">
-                        <div className="relative w-full md:w-96 group">
+                        {/* ID PARA EL TOUR: BUSCADOR */}
+                        <div className="relative w-full md:w-96 group" id="tour-search">
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors" size={20}/>
                             <input 
                                 type="text" 
@@ -359,10 +412,15 @@ export default function AdminPage() {
                             <p className="font-bold text-slate-600 text-lg">No hay coincidencias</p>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 pb-20">
-                            {filteredWorkers.map((worker) => (
+                        // ID PARA EL TOUR: GRID DE TRABAJADORES (Para señalar el primer elemento)
+                        <div 
+                            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 pb-20"
+                            id={activeView === 'biometria' ? 'tour-biometria-grid' : 'tour-docs-grid'}
+                        >
+                            {filteredWorkers.map((worker, index) => (
                                 <div 
                                     key={worker.id} 
+                                    id={index === 0 ? 'tour-worker-card' : undefined} // Marcamos el primero para el tour
                                     onClick={() => activeView === 'biometria' ? setSelectedWorkerBiometria(worker) : setSelectedWorkerDocs(worker)} 
                                     className="group bg-white rounded-2xl p-5 border border-slate-200 shadow-sm cursor-pointer transition-all hover:shadow-xl hover:shadow-blue-900/5 hover:-translate-y-1 hover:border-blue-200 relative overflow-hidden"
                                 >
@@ -538,23 +596,18 @@ function AdminProfileSettings({ userEmail, supabase }: any) {
         const updates: any = { email }
         if (password) updates.password = password
 
-        // --- AQUÍ ESTÁ EL CAMBIO ---
-        // Agregamos el segundo parámetro con emailRedirectTo
         const { error } = await supabase.auth.updateUser(updates, {
-            emailRedirectTo: `${window.location.origin}/dashboard` // Redirige al dashboard al confirmar
+            emailRedirectTo: `${window.location.origin}/dashboard` 
         })
-        // ---------------------------
 
         if (error) {
             toast.error("Error al actualizar: " + error.message)
         } else {
-            // Si se cambió el correo, avisamos que revise su bandeja
             if (email !== userEmail) {
                 toast.success("Revisa tu nuevo correo para confirmar el cambio.")
             } else {
                 toast.success("✅ Credenciales actualizadas correctamente.")
             }
-            
             toast.info("Usa estos datos para tu próximo inicio de sesión.")
             setPassword('')
             setConfirmPassword('')
@@ -610,7 +663,7 @@ function AdminProfileSettings({ userEmail, supabase }: any) {
                             value={confirmPassword} 
                             onChange={e => setConfirmPassword(e.target.value)} 
                             className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
-                            placeholder="••••••••"
+                            placeholder="Repite la contraseña"
                         />
                     </div>
                 </div>
@@ -716,23 +769,33 @@ function AdminDocsDrawer({ worker, onClose, onUpdate }: any) {
 
     // --- NUEVA FUNCIÓN PARA ENVIAR PDF DEL RISST AL OBRERO ---
     const sendRisstPdfToWorker = async () => {
-        // Actualizamos un estado específico 'risst_pdf_download' en el JSONB
-        // El panel del obrero deberá escuchar este estado para mostrar el modal
-        updateDocState(
-            'risst_pdf_download', 
-            { 
-                status: 'pending_download', 
-                sent_at: new Date().toISOString(),
-                label: 'Reglamento Interno de SST'
-            }, 
-            `PDF de RISST enviado a ${worker.nombres}`
-        )
+        try {
+            const { data: currentFicha } = await supabase.from('fichas').select('doc_states').eq('id', worker.id).single()
+            const currentStates = currentFicha?.doc_states || {}
+            
+            const newStates = { 
+                ...currentStates, 
+                risst_pdf_download: { 
+                    status: 'pending_download', 
+                    sent_at: new Date().toISOString(),
+                    label: 'Reglamento Interno de SST'
+                } 
+            }
+            
+            const { error } = await supabase.from('fichas').update({ doc_states: newStates }).eq('id', worker.id)
+            if (error) throw error
+            toast.success(`PDF de RISST enviado a ${worker.nombres}`)
+        } catch (error: any) {
+            toast.error("Error al enviar RISST: " + error.message)
+        }
     }
 
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm z-50 flex justify-end" onClick={onClose}>
             <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }} className="w-full max-w-md bg-white h-full shadow-2xl flex flex-col border-l border-slate-100" onClick={e => e.stopPropagation()}>
-                <div className="h-20 px-6 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
+                
+                {/* Header con ID para el Tour */}
+                <div id="drawer-header" className="h-20 px-6 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
                     <div>
                         <h2 className="font-bold text-slate-900 text-xl tracking-tight">Documentación</h2>
                         <div className="flex items-center gap-2 mt-1">
@@ -740,13 +803,14 @@ function AdminDocsDrawer({ worker, onClose, onUpdate }: any) {
                             <p className="text-xs text-slate-500 font-medium">{worker.nombres}</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full transition-colors"><X size={20}/></button>
+                    {/* Botón cerrar con ID para el Tour */}
+                    <button id="drawer-close-btn" onClick={onClose} className="p-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full transition-colors"><X size={20}/></button>
                 </div>
                 
                 <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50/50">
                     
-                    {/* --- NUEVA SECCIÓN DE ENVÍO DE PDF (RISST) --- */}
-                    <div className="mb-6 bg-indigo-50 p-4 rounded-2xl border border-indigo-100 shadow-sm">
+                    {/* --- BOTÓN RISST CON ID PARA EL TOUR --- */}
+                    <div id="drawer-risst-btn" className="mb-6 bg-indigo-50 p-4 rounded-2xl border border-indigo-100 shadow-sm">
                         <div className="flex items-start gap-3">
                             <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
                                 <FileText size={20}/>
@@ -760,52 +824,54 @@ function AdminDocsDrawer({ worker, onClose, onUpdate }: any) {
                         </div>
                         <button 
                             onClick={sendRisstPdfToWorker} 
-                            className="mt-3 w-full py-2.5 bg-indigo-600 text-white text-xs font-bold rounded-xl hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-indigo-200"
+                            className="mt-3 w-full py-2.5 bg-indigo-600 text-white text-xs font-bold rounded-xl hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-indigo-200 active:scale-95"
                         >
                             <Send size={14}/> Enviar PDF al Obrero
                         </button>
                     </div>
-                    {/* --------------------------------------------- */}
-
-                    <div className="flex items-center justify-between mb-4">
-                        <p className="text-xs text-slate-500 uppercase font-bold tracking-wider">Estado de Documentos</p>
-                        <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-bold">{DIGITAL_DOCS.length} Docs</span>
-                    </div>
                     
-                    {DIGITAL_DOCS.map((doc) => {
-                        const status = docStates[doc.id]?.status || 'locked'
-                        const isUnlocked = status === 'unlocked'
-                        const isCompleted = status === 'completed'
+                    {/* Sección de Documentos con ID para el Tour */}
+                    <div id="drawer-info-section">
+                        <div className="flex items-center justify-between mb-4">
+                            <p className="text-xs text-slate-500 uppercase font-bold tracking-wider">Estado de Documentos</p>
+                            <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-bold">{DIGITAL_DOCS.length} Docs</span>
+                        </div>
+                        
+                        {DIGITAL_DOCS.map((doc) => {
+                            const status = docStates[doc.id]?.status || 'locked'
+                            const isUnlocked = status === 'unlocked'
+                            const isCompleted = status === 'completed'
 
-                        return (
-                            <div key={doc.id} className={`p-4 rounded-2xl border flex items-center justify-between transition-all group ${isCompleted ? 'bg-emerald-50/50 border-emerald-200' : isUnlocked ? 'bg-white border-blue-200 shadow-md shadow-blue-100/50 ring-1 ring-blue-100' : 'bg-white border-slate-200 shadow-sm opacity-70 grayscale'}`}>
-                                <div className="flex items-center gap-4">
-                                    <div className={`p-2.5 rounded-xl ${isCompleted ? 'bg-emerald-100 text-emerald-600' : isUnlocked ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400'}`}>
-                                        {isCompleted ? <CheckCircle size={20}/> : <FileText size={20}/>}
+                            return (
+                                <div key={doc.id} className={`p-4 rounded-2xl border flex items-center justify-between transition-all group ${isCompleted ? 'bg-emerald-50/50 border-emerald-200' : isUnlocked ? 'bg-white border-blue-200 shadow-md shadow-blue-100/50 ring-1 ring-blue-100' : 'bg-white border-slate-200 shadow-sm opacity-70 grayscale'}`}>
+                                    <div className="flex items-center gap-4">
+                                        <div className={`p-2.5 rounded-xl ${isCompleted ? 'bg-emerald-100 text-emerald-600' : isUnlocked ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400'}`}>
+                                            {isCompleted ? <CheckCircle size={20}/> : <FileText size={20}/>}
+                                        </div>
+                                        <div>
+                                            <h4 className="font-bold text-sm text-slate-800">{doc.label}</h4>
+                                            <p className="text-[10px] font-bold mt-0.5 flex items-center gap-1.5">
+                                                <span className={`w-1.5 h-1.5 rounded-full ${isCompleted ? 'bg-emerald-500' : isUnlocked ? 'bg-blue-500 animate-pulse' : 'bg-slate-400'}`}></span>
+                                                <span style={{color: isCompleted ? '#059669' : isUnlocked ? '#2563EB' : '#94A3B8'}}>
+                                                    {isCompleted ? 'FIRMADO' : isUnlocked ? 'DISPONIBLE' : 'BLOQUEADO'}
+                                                </span>
+                                            </p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <h4 className="font-bold text-sm text-slate-800">{doc.label}</h4>
-                                        <p className="text-[10px] font-bold mt-0.5 flex items-center gap-1.5">
-                                            <span className={`w-1.5 h-1.5 rounded-full ${isCompleted ? 'bg-emerald-500' : isUnlocked ? 'bg-blue-500 animate-pulse' : 'bg-slate-400'}`}></span>
-                                            <span style={{color: isCompleted ? '#059669' : isUnlocked ? '#2563EB' : '#94A3B8'}}>
-                                                {isCompleted ? 'FIRMADO' : isUnlocked ? 'DISPONIBLE' : 'BLOQUEADO'}
-                                            </span>
-                                        </p>
+                                    <div className="flex items-center gap-2">
+                                        <button onClick={() => resetDoc(doc.id)} className="p-2 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors" title="Reiniciar"><Trash2 size={16} /></button>
+                                        <button 
+                                            onClick={() => toggleLock(doc.id)} 
+                                            className={`p-2 rounded-lg transition-all shadow-sm ${isUnlocked ? 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-blue-200' : 'bg-white border border-slate-200 text-slate-500 hover:bg-slate-50'}`} 
+                                            title={isUnlocked ? "Bloquear" : "Habilitar"}
+                                        >
+                                            {isUnlocked ? <Unlock size={18} /> : <Lock size={18} />}
+                                        </button>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    <button onClick={() => resetDoc(doc.id)} className="p-2 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors" title="Reiniciar"><Trash2 size={16} /></button>
-                                    <button 
-                                        onClick={() => toggleLock(doc.id)} 
-                                        className={`p-2 rounded-lg transition-all shadow-sm ${isUnlocked ? 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-blue-200' : 'bg-white border border-slate-200 text-slate-500 hover:bg-slate-50'}`} 
-                                        title={isUnlocked ? "Bloquear" : "Habilitar"}
-                                    >
-                                        {isUnlocked ? <Unlock size={18} /> : <Lock size={18} />}
-                                    </button>
-                                </div>
-                            </div>
-                        )
-                    })}
+                            )
+                        })}
+                    </div>
                 </div>
                 
                 <div className="p-6 border-t border-slate-200 bg-white">
