@@ -46,6 +46,7 @@ interface AdminTableProps {
     onOpenChat?: (worker: any) => void;
 }
 
+// ESTA ES LA CONSTANTE QUE USAREMOS (DOC_OPTIONS)
 const DOC_OPTIONS = [
     { id: 'risst', label: 'Cargo RISST', desc: 'Anexo 03 - Reglamento Interno' },
     { id: 'capacitacion', label: 'Registro Capacitación', desc: 'SG-FOR-01 Inducción General' },
@@ -903,12 +904,12 @@ function AdminDocsDrawer({ worker, onClose, onUpdate }: any) {
         updateDocState(docId, { status: 'locked', data: {}, completed_at: null }, "Documento reseteado")
     }
 
-    // (La función sendRisstPdfToWorker se eliminó al quitar el botón, pero se puede dejar si es necesaria para lógica futura, aquí la quito para limpiar)
-
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm z-50 flex justify-end" onClick={onClose}>
             <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }} className="w-full max-w-md bg-white h-full shadow-2xl flex flex-col border-l border-slate-100" onClick={e => e.stopPropagation()}>
-                <div className="h-20 px-6 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
+                
+                {/* Header con ID para el Tour */}
+                <div id="drawer-header" className="h-20 px-6 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
                     <div>
                         <h2 className="font-bold text-slate-900 text-xl tracking-tight">Documentación</h2>
                         <div className="flex items-center gap-2 mt-1">
@@ -916,18 +917,20 @@ function AdminDocsDrawer({ worker, onClose, onUpdate }: any) {
                             <p className="text-xs text-slate-500 font-medium">{worker.nombres}</p>
                         </div>
                     </div>
-                    {/* Botón cerrar con ID para Tour */}
+                    {/* Botón cerrar con ID para el Tour */}
                     <button id="drawer-close-btn" onClick={onClose} className="p-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full transition-colors"><X size={20}/></button>
                 </div>
                 
                 <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50/50">
+                    
+                    {/* Sección de Documentos con ID para el Tour */}
                     <div id="drawer-info-section">
                         <div className="flex items-center justify-between mb-4">
                             <p className="text-xs text-slate-500 uppercase font-bold tracking-wider">Estado de Documentos</p>
-                            <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-bold">{DIGITAL_DOCS.length} Docs</span>
+                            <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-bold">{DOC_OPTIONS.length} Docs</span>
                         </div>
                         
-                        {DIGITAL_DOCS.map((doc) => {
+                        {DOC_OPTIONS.map((doc: any) => {
                             const status = docStates[doc.id]?.status || 'locked'
                             const isUnlocked = status === 'unlocked'
                             const isCompleted = status === 'completed'
