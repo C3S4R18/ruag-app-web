@@ -27,7 +27,7 @@ import {
   ChevronLeft, ChevronRight, User, Wallet, HardHat, 
   CheckSquare, Square, Unlock, Lock, FileBadge, BellRing, BellOff, Bell,
   PenTool, Fingerprint, Share2, MoreHorizontal, Edit3,
-  FileCheck, MessageSquare, Filter 
+  FileCheck, MessageSquare, Filter, ScanFace
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -40,10 +40,15 @@ interface FichaDrawerProps {
     onDownload: () => void;
     downloading: boolean;
     onPrintPreview: (img: string) => void;
+    // Agregamos esto para que el Drawer también pueda notificar
+    onNotifyChange?: (action: string, details: string) => void;
 }
 
 interface AdminTableProps {
     onOpenChat?: (worker: any) => void;
+    refreshTrigger?: number; 
+    // CORRECCIÓN: Agregamos la propiedad que faltaba para las notificaciones "Google Sheets"
+    onNotifyChange?: (action: string, details: string) => void; 
 }
 
 // ESTA ES LA CONSTANTE QUE USAREMOS (DOC_OPTIONS)
@@ -56,7 +61,7 @@ const DOC_OPTIONS = [
     { id: 'iperc', label: 'Entrega IPERC', desc: 'SG-FOR-112' },
 ]
 
-export default function AdminTable({ onOpenChat }: AdminTableProps) {
+export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyChange }: AdminTableProps) {
   const supabase = createClient()
   const [fichas, setFichas] = useState<any[]>([])
   const [selectedFicha, setSelectedFicha] = useState<any>(null)
@@ -70,6 +75,9 @@ export default function AdminTable({ onOpenChat }: AdminTableProps) {
   const [preparingDoc, setPreparingDoc] = useState(false)
   const [printImage, setPrintImage] = useState<string | null>(null)
   const printRef = useRef<HTMLDivElement>(null)
+  
+  // ESTADO PARA CONTROLAR LA INCLUSIÓN DE FIRMAS (Switch Manual/Digital)
+  const [includeSignatures, setIncludeSignatures] = useState(false)
 
   // FILTROS & UI
   const [searchTerm, setSearchTerm] = useState('')
@@ -81,17 +89,24 @@ export default function AdminTable({ onOpenChat }: AdminTableProps) {
   const [downloadingPdf, setDownloadingPdf] = useState(false)
   const [deleting, setDeleting] = useState(false)
   
-  // SOLUCIÓN AL AUDIO: Estado persistente
+  // Audio
   const [audioEnabled, setAudioEnabled] = useState(false) 
   
-  // --- NUEVO: Estado para contar mensajes no leídos por trabajador ---
+  // Notificaciones Chat
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({})
   const [notifications, setNotifications] = useState<any[]>([]) 
   const [showNotifDropdown, setShowNotifDropdown] = useState(false)
 
+  // --- EFECTO NUEVO: REFRESCAR CUANDO EL PADRE (IMPORTADOR) LO PIDA ---
+  useEffect(() => {
+    if (refreshTrigger > 0) {
+        console.log("Refrescando tabla por importación masiva...")
+        fetchFichas()
+    }
+  }, [refreshTrigger])
+
   // Carga inicial y configuración de Audio
   useEffect(() => {
-    // 1. Recuperar preferencia de audio
     const savedAudioPref = localStorage.getItem('admin_audio_enabled')
     if (savedAudioPref === 'true') {
         setAudioEnabled(true)
@@ -99,7 +114,7 @@ export default function AdminTable({ onOpenChat }: AdminTableProps) {
 
     fetchFichas()
     
-    // 2. Listener para cambios en FICHAS (nuevos usuarios, etc)
+    // Listener para cambios en FICHAS
     const fichasChannel = supabase.channel('realtime-fichas').on('postgres_changes', { event: '*', schema: 'public', table: 'fichas' }, (payload: any) => {
           if (payload.eventType === 'INSERT') {
              setFichas((prev) => [payload.new, ...prev])
@@ -113,26 +128,17 @@ export default function AdminTable({ onOpenChat }: AdminTableProps) {
           }
       }).subscribe()
 
-    // 3. --- NUEVO: Listener GLOBAL para mensajes entrantes (NOTIFICACIONES DE CHAT) ---
+    // Listener GLOBAL para mensajes entrantes
     const chatChannel = supabase.channel('global-chat-notifications')
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload: any) => {
             const newMsg = payload.new
-            
-            // Si el mensaje NO es enviado por un admin (es decir, viene de un obrero)
             if (!newMsg.is_admin) {
-                // Reproducir sonido específico de CHAT
                 playChatSound()
-                
-                // Mostrar toast
                 toast.info("Nuevo mensaje de chat recibido")
-
-                // Actualizar contador de no leídos para ese trabajador específico
                 setUnreadCounts(prev => ({
                     ...prev,
                     [newMsg.worker_id]: (prev[newMsg.worker_id] || 0) + 1
                 }))
-
-                // Agregar a la lista de notificaciones locales
                 setNotifications(prev => [
                     { 
                         id: newMsg.id, 
@@ -153,13 +159,13 @@ export default function AdminTable({ onOpenChat }: AdminTableProps) {
   }, [])
 
   const fetchFichas = async () => {
+    // Evitamos poner loading(true) si ya hay datos para que el refresh sea suave visualmente
     if(fichas.length === 0) setLoading(true)
     const { data } = await supabase.from('fichas').select(`*, profiles(role)`).order('updated_at', { ascending: false })
     if (data) setFichas(data)
     setLoading(false)
   }
 
-  // Reproductor de sonido SISTEMA (Fichas)
   const playSystemSound = () => {
     const isEnabled = localStorage.getItem('admin_audio_enabled') === 'true'
     if (isEnabled) {
@@ -168,7 +174,6 @@ export default function AdminTable({ onOpenChat }: AdminTableProps) {
     }
   }
 
-  // Reproductor de sonido CHAT (Nuevo)
   const playChatSound = () => {
     const isEnabled = localStorage.getItem('admin_audio_enabled') === 'true'
     if (isEnabled) {
@@ -182,7 +187,7 @@ export default function AdminTable({ onOpenChat }: AdminTableProps) {
       setAudioEnabled(newState)
       localStorage.setItem('admin_audio_enabled', String(newState))
       if (newState) {
-          toast.success("🔊 Audio activado para notificaciones")
+          toast.success("🔊 Audio activado")
           const audio = new Audio('/notification.mp3')
           audio.play().catch(() => {})
       } else {
@@ -190,9 +195,7 @@ export default function AdminTable({ onOpenChat }: AdminTableProps) {
       }
   }
 
-  // --- Función para abrir chat y limpiar notificaciones ---
   const handleChatClick = (worker: any) => {
-      // Limpiar contador de no leídos al abrir
       if (worker.user_id) {
           setUnreadCounts(prev => {
               const newCounts = { ...prev }
@@ -200,8 +203,6 @@ export default function AdminTable({ onOpenChat }: AdminTableProps) {
               return newCounts
           })
       }
-      
-      // Abrir chat
       if (onOpenChat) onOpenChat(worker)
   }
 
@@ -233,6 +234,10 @@ export default function AdminTable({ onOpenChat }: AdminTableProps) {
           const { error } = await supabase.from('fichas').delete().in('id', selectedIds)
           if (error) throw error
           toast.success("Registros eliminados correctamente")
+          
+          // NOTIFICACIÓN "GOOGLE SHEETS" A OTROS ADMINS
+          if(onNotifyChange) onNotifyChange("eliminó", `${selectedIds.length} fichas de trabajadores`)
+
           setSelectedIds([])
       } catch (error: any) { toast.error("Error: " + error.message) } finally { setDeleting(false) }
   }
@@ -254,6 +259,7 @@ export default function AdminTable({ onOpenChat }: AdminTableProps) {
   const handleOpenDocSelector = () => {
       if (selectedIds.length !== 1) { toast.warning("Selecciona exactamente 1 trabajador para imprimir."); return }
       setSelectedDocsToPrint([]) 
+      setIncludeSignatures(false) // Por defecto: SIN FIRMA (Manual)
       setShowDocSelector(true)
   }
 
@@ -269,6 +275,9 @@ export default function AdminTable({ onOpenChat }: AdminTableProps) {
       if (selectedDocsToPrint.length === 0) { toast.warning("Selecciona al menos un documento"); return }
       setPreparingDoc(true)
       setShowDocSelector(false) 
+
+      // NOTIFICACIÓN "GOOGLE SHEETS" (Opcional, avisa que alguien está imprimiendo)
+      // if(onNotifyChange) onNotifyChange("está imprimiendo", `Legajo de ${workerToPrint?.nombres}`)
 
       setTimeout(async () => {
           if (!printRef.current) { toast.error("Error de renderizado"); setPreparingDoc(false); return }
@@ -315,7 +324,6 @@ export default function AdminTable({ onOpenChat }: AdminTableProps) {
       }, 1500) 
   }
 
-  // --- FILTROS Y PAGINACIÓN ---
   const obrasUnicas = Array.from(new Set(fichas.map(f => f.nombre_obra).filter(Boolean)))
   const filteredAndSorted = fichas.filter(f => {
       const s = searchTerm.toLowerCase()
@@ -336,16 +344,22 @@ export default function AdminTable({ onOpenChat }: AdminTableProps) {
       {/* CONTENEDOR OCULTO DE IMPRESIÓN */}
       <div className="fixed top-0 left-0 pointer-events-none opacity-0 overflow-hidden" style={{ zIndex: -100 }}>
           <div ref={printRef} style={{ width: 'fit-content', background: 'white' }}>
-              {workerToPrint && selectedDocsToPrint.map((docId) => (
-                  <div key={docId} style={{ padding: 0, margin: 0 }}> 
-                      {docId === 'risst' && <CargoRisstPrintable ficha={workerToPrint} />}
-                      {docId === 'capacitacion' && <RegistroCapacitacionPrintable ficha={workerToPrint} />}
-                      {docId === 'induccion' && <InduccionHombreNuevoPrintable ficha={workerToPrint} />}
-                      {docId === 'epp' && <EntregaEppPrintable ficha={workerToPrint} />}
-                      {docId === 'derecho' && <ActaDerechoSaberPrintable ficha={workerToPrint} />}
-                      {docId === 'iperc' && <ActaEntregaIpercPrintable ficha={workerToPrint} />}
-                  </div>
-              ))}
+              {workerToPrint && selectedDocsToPrint.map((docId) => {
+                  const fichaForPrint = includeSignatures 
+                      ? workerToPrint 
+                      : { ...workerToPrint, firma_url: null, huella_url: null };
+
+                  return (
+                      <div key={docId} style={{ padding: 0, margin: 0 }}> 
+                          {docId === 'risst' && <CargoRisstPrintable ficha={fichaForPrint} />}
+                          {docId === 'capacitacion' && <RegistroCapacitacionPrintable ficha={fichaForPrint} />}
+                          {docId === 'induccion' && <InduccionHombreNuevoPrintable ficha={fichaForPrint} />}
+                          {docId === 'epp' && <EntregaEppPrintable ficha={fichaForPrint} />}
+                          {docId === 'derecho' && <ActaDerechoSaberPrintable ficha={fichaForPrint} />}
+                          {docId === 'iperc' && <ActaEntregaIpercPrintable ficha={fichaForPrint} />}
+                      </div>
+                  );
+              })}
           </div>
       </div>
 
@@ -353,7 +367,6 @@ export default function AdminTable({ onOpenChat }: AdminTableProps) {
       <div className="px-6 py-5 border-b border-slate-100 bg-white/80 backdrop-blur-sm sticky top-0 z-30">
         <div className="flex flex-col xl:flex-row gap-4 justify-between items-center">
             
-            {/* Buscador Moderno con ID para Tour */}
             <div className="relative w-full xl:w-96 group" id="tour-search">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors pointer-events-none">
                     <Search size={18} />
@@ -368,8 +381,6 @@ export default function AdminTable({ onOpenChat }: AdminTableProps) {
             </div>
 
             <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto justify-end">
-                
-                {/* --- CAMPANA DE NOTIFICACIONES con ID para Tour --- */}
                 <div className="relative" id="tour-notifications">
                     <button 
                         onClick={() => setShowNotifDropdown(!showNotifDropdown)}
@@ -429,7 +440,6 @@ export default function AdminTable({ onOpenChat }: AdminTableProps) {
                     </AnimatePresence>
                 </div>
 
-                {/* Switch de Audio con ID para Tour */}
                 <button 
                     id="tour-audio"
                     onClick={toggleAudio} 
@@ -439,7 +449,6 @@ export default function AdminTable({ onOpenChat }: AdminTableProps) {
                     <span className="hidden sm:inline">{audioEnabled ? 'Sonido ON' : 'Sonido OFF'}</span>
                 </button>
 
-                {/* Filtros Estilizados con ID para Tour */}
                 <div className="flex items-center gap-2 bg-slate-50/50 p-1 rounded-xl border border-slate-200" id="tour-filters">
                     <div className="relative">
                         <Building2 size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
@@ -467,7 +476,6 @@ export default function AdminTable({ onOpenChat }: AdminTableProps) {
                     </div>
                 </div>
                 
-                {/* Acciones Masivas Flotantes con ID para Tour */}
                 <AnimatePresence>
                     {selectedIds.length > 0 && (
                         <motion.div 
@@ -517,7 +525,6 @@ export default function AdminTable({ onOpenChat }: AdminTableProps) {
                 ) : paginatedData.map((ficha, index) => (
                     <motion.tr 
                         key={ficha.id} 
-                        // ID PARA EL TOUR (Solo la primera fila)
                         id={index === 0 ? "tour-row-0" : undefined}
                         initial={{ opacity: 0, y: 5 }} 
                         animate={{ opacity: 1, y: 0 }} 
@@ -534,7 +541,6 @@ export default function AdminTable({ onOpenChat }: AdminTableProps) {
                             <div className="flex items-center gap-4">
                                 <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-50 to-blue-50 flex items-center justify-center text-blue-600 font-bold text-sm border border-blue-100 shadow-sm shrink-0 uppercase relative">
                                     {ficha.nombres?.charAt(0)}{ficha.apellido_paterno?.charAt(0)}
-                                    {/* Indicador Online (Simulado) */}
                                     <span className="absolute -bottom-1 -right-1 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full"></span>
                                 </div>
                                 <div className="min-w-0">
@@ -570,17 +576,16 @@ export default function AdminTable({ onOpenChat }: AdminTableProps) {
                         </td>
                         <td className="px-6 py-4">
                             <div className="flex items-center justify-center gap-3">
-                                <div className={`p-2 rounded-lg border transition-all ${ficha.firma_url ? 'bg-emerald-50/50 border-emerald-200 text-emerald-600' : 'bg-slate-50 border-slate-100 text-slate-300'}`} title="Firma Digital">
+                                <div className={`p-2 rounded-lg border transition-all ${ficha.firma_url ? 'bg-emerald-50/50 border-emerald-200 text-emerald-600' : 'bg-slate-50 border-slate-100 text-slate-300'}`} title={ficha.firma_url ? "Firma Registrada" : "Falta Firma"}>
                                     <PenTool size={14}/>
                                 </div>
-                                <div className={`p-2 rounded-lg border transition-all ${ficha.huella_url ? 'bg-emerald-50/50 border-emerald-200 text-emerald-600' : 'bg-slate-50 border-slate-100 text-slate-300'}`} title="Huella Dactilar">
+                                <div className={`p-2 rounded-lg border transition-all ${ficha.huella_url ? 'bg-emerald-50/50 border-emerald-200 text-emerald-600' : 'bg-slate-50 border-slate-100 text-slate-300'}`} title={ficha.huella_url ? "Huella Registrada" : "Falta Huella"}>
                                     <Fingerprint size={14}/>
                                 </div>
                             </div>
                         </td>
                         <td className="px-6 py-4 text-right">
                             <div className="flex items-center justify-end gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
-                                {/* BOTÓN DE CHAT INTELIGENTE */}
                                 {onOpenChat && (
                                     <button 
                                         onClick={(e) => { e.stopPropagation(); handleChatClick(ficha) }}
@@ -595,7 +600,6 @@ export default function AdminTable({ onOpenChat }: AdminTableProps) {
                                         )}
                                     </button>
                                 )}
-                                
                                 <button onClick={(e) => { e.stopPropagation(); setSelectedFicha(ficha) }} className="p-2.5 text-slate-400 hover:text-white hover:bg-blue-600 rounded-xl transition-all active:scale-95" title="Editar Ficha"><Edit3 size={16}/></button>
                                 <button onClick={(e) => { e.stopPropagation(); handleDownloadPDF(ficha) }} className="p-2.5 text-slate-400 hover:text-white hover:bg-emerald-600 rounded-xl transition-all active:scale-95" title="Descargar PDF"><Download size={16}/></button>
                             </div>
@@ -606,7 +610,6 @@ export default function AdminTable({ onOpenChat }: AdminTableProps) {
         </table>
       </div>
 
-      {/* PAGINACIÓN MODERNA */}
       <div className="p-4 border-t border-slate-100 bg-white flex justify-between items-center text-sm sticky bottom-0 z-20">
           <div className="text-slate-400 font-medium text-xs">
               Mostrando <span className="text-slate-900 font-bold">{paginatedData.length}</span> de <span className="text-slate-900 font-bold">{filteredAndSorted.length}</span> colaboradores
@@ -618,7 +621,6 @@ export default function AdminTable({ onOpenChat }: AdminTableProps) {
           </div>
       </div>
 
-      {/* --- DRAWER (PANEL LATERAL) --- */}
       <AnimatePresence>
         {selectedFicha && (
             <FichaDrawer 
@@ -629,11 +631,11 @@ export default function AdminTable({ onOpenChat }: AdminTableProps) {
                 onDownload={() => handleDownloadPDF(selectedFicha)} 
                 downloading={downloadingPdf} 
                 onPrintPreview={(img) => setPrintImage(img)}
+                onNotifyChange={onNotifyChange} // PASAMOS LA FUNCIÓN AL DRAWER
             />
         )}
       </AnimatePresence>
 
-      {/* --- MODAL IMPRESIÓN --- */}
       <AnimatePresence>
         {showDocSelector && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[60] flex items-center justify-center p-4" onClick={() => setShowDocSelector(false)}>
@@ -647,6 +649,23 @@ export default function AdminTable({ onOpenChat }: AdminTableProps) {
                     </div>
                     
                     <div className="p-6">
+                        {/* SELECTOR DE MODO DE IMPRESIÓN */}
+                        <div className="mb-6">
+                            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">Modo de Impresión</div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div onClick={() => setIncludeSignatures(false)} className={`relative p-4 rounded-xl border-2 cursor-pointer transition-all ${!includeSignatures ? 'border-blue-600 bg-blue-50/50' : 'border-slate-100 hover:border-slate-300'}`}>
+                                    <div className="flex justify-center mb-2 text-slate-600"><PenTool size={24} className={!includeSignatures ? 'text-blue-600' : 'text-slate-400'}/></div>
+                                    <div className="text-center"><div className={`text-sm font-bold ${!includeSignatures ? 'text-blue-700' : 'text-slate-600'}`}>Firma Manual</div><div className="text-[10px] text-slate-400 mt-1">Imprimir sin firmas.</div></div>
+                                    {!includeSignatures && <div className="absolute top-2 right-2 text-blue-600"><CheckCircle size={16}/></div>}
+                                </div>
+                                <div onClick={() => setIncludeSignatures(true)} className={`relative p-4 rounded-xl border-2 cursor-pointer transition-all ${includeSignatures ? 'border-indigo-600 bg-indigo-50/50' : 'border-slate-100 hover:border-slate-300'}`}>
+                                    <div className="flex justify-center mb-2 text-slate-600"><ScanFace size={24} className={includeSignatures ? 'text-indigo-600' : 'text-slate-400'}/></div>
+                                    <div className="text-center"><div className={`text-sm font-bold ${includeSignatures ? 'text-indigo-700' : 'text-slate-600'}`}>Biometría Digital</div><div className="text-[10px] text-slate-400 mt-1">Usar firmas escaneadas.</div></div>
+                                    {includeSignatures && <div className="absolute top-2 right-2 text-indigo-600"><CheckCircle size={16}/></div>}
+                                </div>
+                            </div>
+                        </div>
+
                         <div className="mb-4 flex items-center justify-between">
                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Documentos Disponibles</span>
                             <button onClick={toggleSelectAllDocs} className="text-xs font-bold text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-2 py-1 rounded-md transition-colors">
@@ -654,7 +673,7 @@ export default function AdminTable({ onOpenChat }: AdminTableProps) {
                             </button>
                         </div>
 
-                        <div className="space-y-2 mb-6 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
+                        <div className="space-y-2 mb-6 max-h-[250px] overflow-y-auto pr-1 custom-scrollbar">
                             {DOC_OPTIONS.map((doc) => (
                                 <label key={doc.id} className={`flex items-start gap-4 p-4 rounded-2xl border cursor-pointer transition-all ${selectedDocsToPrint.includes(doc.id) ? 'border-blue-500 bg-blue-50/50 shadow-sm ring-1 ring-blue-500/20' : 'border-slate-100 hover:border-blue-200 hover:bg-slate-50'}`}>
                                     <div className={`mt-0.5 w-5 h-5 rounded-full border flex items-center justify-center transition-all ${selectedDocsToPrint.includes(doc.id) ? 'bg-blue-600 border-blue-600 scale-110' : 'bg-white border-slate-300'}`}>
@@ -680,7 +699,6 @@ export default function AdminTable({ onOpenChat }: AdminTableProps) {
         )}
       </AnimatePresence>
 
-      {/* --- MODAL VISTA PREVIA PDF --- */}
       <AnimatePresence>
         {pdfBlobUrl && (
             <PdfPreviewModal pdfUrl={pdfBlobUrl} pdfFile={pdfFile} workerName={workerToPrint ? `${workerToPrint.nombres.split(' ')[0]} ${workerToPrint.apellido_paterno}` : ''} onClose={() => { setPdfBlobUrl(null); setPdfFile(null) }} />
@@ -692,9 +710,7 @@ export default function AdminTable({ onOpenChat }: AdminTableProps) {
   )
 }
 
-// --- SUBCOMPONENTES ---
-
-function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloading, onPrintPreview }: FichaDrawerProps) {
+function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloading, onPrintPreview, onNotifyChange }: FichaDrawerProps & { onNotifyChange?: (a:string, d:string)=>void }) {
     const [isEditing, setIsEditing] = useState(false)
     const [formData, setFormData] = useState<any>(ficha) 
     const [saving, setSaving] = useState(false)
@@ -717,7 +733,13 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
         const { error } = await supabase.from('fichas').update(cleaned).eq('id', ficha.id)
         setSaving(false)
         if (error) toast.error("Error al guardar: " + error.message)
-        else { toast.success("Datos actualizados"); setIsEditing(false); onUpdate() }
+        else { 
+            toast.success("Datos actualizados")
+            // NOTIFICAR CAMBIO
+            if(onNotifyChange) onNotifyChange("editó", `Datos de ${ficha.nombres}`)
+            setIsEditing(false)
+            onUpdate() 
+        }
     }
 
     const handleChangeStatus = async (newStatus: 'pendiente' | 'completado') => {
@@ -727,11 +749,12 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
             if (error) throw error
             if(newStatus === 'pendiente') toast.success("Ficha ABIERTA para edición")
             else toast.success("Ficha CERRADA y Validada")
+            // NOTIFICAR CAMBIO
+            if(onNotifyChange) onNotifyChange(newStatus === 'completado' ? 'validó' : 'reabrió', `Ficha de ${ficha.nombres}`)
             onUpdate(); onClose()
         } catch (error: any) { toast.error("Error: " + error.message) } finally { setLoadingAction(false) }
     }
 
-    // Función para borrar documento
     const handleDeleteDoc = async (field: string) => {
         if (!confirm("¿Eliminar este documento?")) return
         const { error } = await supabase.from('fichas').update({ [field]: null }).eq('id', ficha.id)
@@ -739,7 +762,7 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
         else {
             toast.success("Documento eliminado")
             setFormData((prev: any) => ({ ...prev, [field]: null }))
-            onUpdate() // Actualiza la tabla principal
+            onUpdate() 
         }
     }
 
@@ -747,7 +770,6 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex justify-end" onClick={onClose}>
             <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", damping: 30, stiffness: 300 }} className="w-full max-w-2xl bg-white h-full shadow-2xl flex flex-col border-l border-white/20" onClick={e => e.stopPropagation()}>
                 
-                {/* Header Drawer con ID para Tour */}
                 <div id="drawer-header" className="h-24 px-8 border-b border-slate-100 flex justify-between items-center bg-white z-10 shrink-0 relative overflow-hidden">
                     <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none"><ShieldCheck size={120} /></div>
                     <div className="flex items-center gap-5 relative z-10">
@@ -760,18 +782,15 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
                             <span className="inline-block mt-1 px-2 py-0.5 bg-slate-100 rounded text-[10px] font-mono text-slate-500">{ficha.dni}</span>
                         </div>
                     </div>
-                    {/* Botón de cierre con ID para Tour */}
                     <button id="drawer-close-btn" onClick={onClose} className="p-2.5 bg-slate-50 hover:bg-slate-100 rounded-full transition-colors relative z-10 text-slate-500"><X size={20}/></button>
                 </div>
                 
                 <div className="flex-1 overflow-y-auto p-8 space-y-8 bg-slate-50 scroll-smooth">
-                    {/* Acciones Superiores con ID para Tour */}
                     <div id="drawer-actions-top" className="flex gap-3 sticky top-0 z-10 pb-4 bg-slate-50/95 backdrop-blur-sm pt-2">
                         <button onClick={onDownload} disabled={downloading} className="flex-1 flex items-center justify-center gap-2 bg-white border border-slate-200 text-slate-700 py-3.5 rounded-xl text-sm font-bold shadow-sm hover:border-blue-300 hover:text-blue-600 transition-all disabled:opacity-50 active:scale-95">{downloading ? <Loader2 className="animate-spin" size={16}/> : <><Download size={16}/> Descargar PDF</>}</button>
                         <button onClick={() => setIsEditing(!isEditing)} className={`flex-1 flex items-center justify-center gap-2 border py-3.5 rounded-xl text-sm font-bold shadow-sm transition-all active:scale-95 ${isEditing ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:bg-white hover:border-slate-300'}`}>{isEditing ? 'Cancelar Edición' : 'Editar Datos'}</button>
                     </div>
 
-                    {/* Sección de Información con ID para Tour */}
                     <div id="drawer-info-section">
                         <Section title="Información Personal" icon={<User size={18}/>}>
                             <Grid>

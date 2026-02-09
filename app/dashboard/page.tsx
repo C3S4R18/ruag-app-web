@@ -13,16 +13,16 @@ import {
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 
-// --- IMPORTS DE DOCUMENTOS VISUALES ---
-import { CargoRisstPrintable } from '@/components/CargoRisstPrintable'
+// --- IMPORTS DE DOCUMENTOS VISUALES (SSOMA) ---
+import { CargoRisstPrintable } from '@/components/CargoRisstPrintable'  
 import { RegistroCapacitacionPrintable } from '@/components/RegistroCapacitacionPrintable'
 import { EntregaEppPrintable } from '@/components/EntregaEppPrintable'
 import { ActaEntregaIpercPrintable } from '@/components/ActaEntregaIpercPrintable'
 import { InduccionHombreNuevoPrintable } from '@/components/InduccionHombreNuevoPrintable'
 import { ActaDerechoSaberPrintable } from '@/components/ActaDerechoSaberPrintable'
 
-// --- CONFIGURACIÓN DE CONTENIDO ---
-const DOC_CONTENT: Record<string, string[]> = {
+// --- CONFIGURACIÓN DE CONTENIDO SSOMA ---
+const DOC_CONTENT_SSOMA: Record<string, string[]> = {
     risst: [], 
     capacitacion: [],
     epp: [],
@@ -82,7 +82,7 @@ const DOC_CONTENT: Record<string, string[]> = {
     ]
 }
 
-const DOC_LABELS: Record<string, string> = {
+const DOC_LABELS_SSOMA: Record<string, string> = {
     risst: "Cargo RISST",
     capacitacion: "Registro Capacitación",
     induccion: "Inducción Hombre Nuevo",
@@ -119,12 +119,15 @@ export default function DashboardPage() {
   const [fichaStatus, setFichaStatus] = useState<string>('') 
   
   // MODALES
-  const [docToFill, setDocToFill] = useState<string | null>(null) 
+  const [docToFill, setDocToFill] = useState<{id: string} | null>(null) 
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [isNotifOpen, setIsNotifOpen] = useState(false)
 
-  // --- NUEVO: MODAL DE DESCARGA RISST ---
-  const [showRisstModal, setShowRisstModal] = useState(false)
+  // --- MODAL DE DESCARGA OBLIGATORIA ---
+  const [pendingDownload, setPendingDownload] = useState<{key: string, label: string, file: string} | null>(null)
+
+  // --- ESTADO DEL CHAT (CORREGIDO) ---
+  const [isChatOpen, setIsChatOpen] = useState(false)
 
   // REFS PARA REALTIME
   const docStatesRef = useRef(docStates)
@@ -171,7 +174,7 @@ export default function DashboardPage() {
     }
     getUserData()
 
-    // --- REALTIME LISTENER ---
+    // --- REALTIME LISTENER (SSOMA) ---
     const channel = supabase.channel('worker-docs')
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'fichas' }, (payload: any) => {
             if (payload.new.user_id === userId) {
@@ -182,11 +185,10 @@ export default function DashboardPage() {
                 const newDocs = newData.doc_states || {}
                 const oldDocs = docStatesRef.current
                 
-                // Detectar cambios en documentos
                 Object.keys(newDocs).forEach(key => {
                     const oldStatus = oldDocs[key]?.status
                     const newStatus = newDocs[key]?.status
-                    const docName = DOC_LABELS[key] || key
+                    const docName = DOC_LABELS_SSOMA[key] || key
 
                     if (newStatus === 'unlocked' && oldStatus !== 'unlocked') {
                         addNotification(`Se ha habilitado el documento: ${docName}`)
@@ -197,18 +199,19 @@ export default function DashboardPage() {
                         addNotification(`El documento ha sido bloqueado: ${docName}`)
                         toast.warning(`🔒 Bloqueado: ${docName}`)
                     }
+                    
+                    // DETECCIÓN DE DESCARGAS PENDIENTES (RISST)
+                    if (newStatus === 'pending_download' && oldStatus !== 'pending_download') {
+                        const fileData = newDocs[key]
+                        setPendingDownload({
+                            key: key,
+                            label: fileData.label || 'Documento Importante',
+                            file: fileData.file || (key === 'risst_pdf_download' ? 'risst.pdf' : '')
+                        })
+                        playNotificationSound()
+                        toast.success(`Nuevo documento recibido: ${fileData.label}`)
+                    }
                 })
-
-                // --- DETECCIÓN DE ENVÍO DE RISST (NUEVO) ---
-                const risstState = newDocs.risst_pdf_download;
-                const oldRisstState = oldDocs.risst_pdf_download;
-                
-                if (risstState?.status === 'pending_download' && oldRisstState?.status !== 'pending_download') {
-                    setShowRisstModal(true)
-                    playNotificationSound()
-                    toast.success("Nuevo documento recibido: RISST")
-                }
-                // ------------------------------------------
 
                 const newFichaState = newData.estado
                 const oldFichaState = fichaStatusRef.current
@@ -235,9 +238,10 @@ export default function DashboardPage() {
           setDocStates(data.doc_states || {})
           setFichaStatus(data.estado || '')
 
-          // Comprobar si hay descarga pendiente al cargar
-          if (data.doc_states?.risst_pdf_download?.status === 'pending_download') {
-              setShowRisstModal(true)
+          // Comprobar descargas pendientes
+          const states = data.doc_states || {}
+          if (states.risst_pdf_download?.status === 'pending_download') {
+              setPendingDownload({key: 'risst_pdf_download', label: 'Reglamento Interno SST', file: 'risst.pdf'})
           }
       }
   }
@@ -252,12 +256,14 @@ export default function DashboardPage() {
       setNotifications(prev => [newNotif, ...prev])
   }
 
-  // --- FUNCIÓN DE DESCARGA Y CONFIRMACIÓN CORREGIDA ---
-  const handleDownloadRisst = async () => {
-      // 1. Iniciar descarga (Asegúrate que risst.pdf esté en la carpeta public)
+  // --- FUNCIÓN GENÉRICA DE DESCARGA ---
+  const handleDownload = async () => {
+      if (!pendingDownload) return
+
+      // 1. Iniciar descarga
       const link = document.createElement('a');
-      link.href = '/risst.pdf'; // <--- CORREGIDO: Nombre simple sin espacios
-      link.download = 'REGLAMENTO_INTERNO_SST_RUAG.pdf';
+      link.href = `/${pendingDownload.file}`; 
+      link.download = pendingDownload.file;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -269,17 +275,16 @@ export default function DashboardPage() {
           
           const newStates = { 
               ...currentStates, 
-              risst_pdf_download: { 
+              [pendingDownload.key]: { 
                   status: 'downloaded', 
                   downloaded_at: new Date().toISOString() 
               } 
           }
           
           await supabase.from('fichas').update({ doc_states: newStates }).eq('id', fichaId)
-          setShowRisstModal(false)
+          setPendingDownload(null)
           toast.success("Descarga confirmada. Gracias.")
           
-          // Actualizar estado local
           setDocStates(newStates)
       } catch (e) {
           console.error("Error al confirmar descarga", e)
@@ -291,10 +296,12 @@ export default function DashboardPage() {
   const unreadCount = notifications.filter(n => !n.read).length
 
   // --- CÁLCULOS DEL DASHBOARD ---
-  const docKeys = Object.keys(DOC_LABELS)
-  const totalDocs = docKeys.length
-  const completedDocs = docKeys.filter(key => docStates[key]?.status === 'completed').length
-  const pendingDocs = docKeys.filter(key => docStates[key]?.status === 'unlocked').length
+  const ssomaKeys = Object.keys(DOC_LABELS_SSOMA)
+  
+  const totalDocs = ssomaKeys.length
+  
+  const completedDocs = [...ssomaKeys].filter(key => docStates[key]?.status === 'completed' || docStates[key]?.status === 'downloaded').length
+  const pendingDocs = [...ssomaKeys].filter(key => docStates[key]?.status === 'unlocked' || docStates[key]?.status === 'pending_download').length
   const progress = totalDocs > 0 ? Math.round((completedDocs / totalDocs) * 100) : 0
 
   return (
@@ -443,54 +450,32 @@ export default function DashboardPage() {
 
                 {/* VISTA: DOCUMENTOS */}
                 {activeTab === 'documents' && (
-                    <motion.div initial={{opacity:0, x: 20}} animate={{opacity:1, x: 0}} className="space-y-6 pb-20">
-                        <div className="flex items-center justify-between mb-2">
-                            <h2 className="text-xl font-bold text-slate-800">Tus Documentos</h2>
-                            <span className="text-xs font-bold bg-slate-100 text-slate-500 px-3 py-1 rounded-full">{pendingDocs} pendientes</span>
-                        </div>
-
-                        <div className="grid gap-4">
-                            {Object.entries(DOC_LABELS).map(([docId, label]) => {
-                                const state = docStates[docId] || {}
-                                const isUnlocked = state.status === 'unlocked'
-                                const isCompleted = state.status === 'completed'
-                                const isLocked = !isUnlocked && !isCompleted
-
-                                return (
-                                    <div 
+                    <motion.div initial={{opacity:0, x: 20}} animate={{opacity:1, x: 0}} className="space-y-8 pb-20">
+                        
+                        {/* SECCIÓN SSOMA */}
+                        <div>
+                            <div className="flex items-center gap-2 mb-4 border-b border-slate-200 pb-2">
+                                <ShieldCheck className="text-blue-600" size={24}/>
+                                <h2 className="text-lg font-bold text-slate-800">Documentación SSOMA</h2>
+                            </div>
+                            <div className="grid gap-4">
+                                {Object.entries(DOC_LABELS_SSOMA).map(([docId, label]) => (
+                                    <DocItem 
                                         key={docId}
+                                        id={docId}
+                                        label={label}
+                                        state={docStates[docId]}
                                         onClick={() => {
-                                            if (isUnlocked) setDocToFill(docId)
-                                            else if (isLocked) toast.error("Documento no disponible aún.")
+                                            const state = docStates[docId] || {}
+                                            if (state.status === 'unlocked') setDocToFill({id: docId})
+                                            else if (state.status !== 'completed') toast.error("Documento no disponible aún.")
                                         }}
-                                        className={`group relative p-5 rounded-2xl border transition-all cursor-pointer overflow-hidden ${isUnlocked ? 'bg-white border-blue-200 shadow-md hover:border-blue-400 hover:shadow-lg' : isCompleted ? 'bg-emerald-50/50 border-emerald-100 hover:bg-emerald-50' : 'bg-white border-slate-100 opacity-60 grayscale hover:opacity-80'}`}
-                                    >
-                                        {isUnlocked && <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-blue-500"/>}
-                                        {isCompleted && <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-emerald-500"/>}
-
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-4">
-                                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${isCompleted ? 'bg-emerald-100 text-emerald-600' : isUnlocked ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400'}`}>
-                                                    {isCompleted ? <CheckCircle size={24}/> : <FileText size={24}/>}
-                                                </div>
-                                                <div>
-                                                    <h3 className={`font-bold text-base ${isUnlocked ? 'text-blue-900' : 'text-slate-700'}`}>{label}</h3>
-                                                    <p className="text-xs font-bold mt-1 flex items-center gap-1.5">
-                                                        <span className={`w-1.5 h-1.5 rounded-full ${isCompleted ? 'bg-emerald-500' : isUnlocked ? 'bg-blue-500 animate-pulse' : 'bg-slate-400'}`}></span>
-                                                        <span style={{color: isCompleted ? '#059669' : isUnlocked ? '#2563EB' : '#94A3B8'}}>
-                                                            {isCompleted ? 'FIRMADO Y ENVIADO' : isUnlocked ? 'DISPONIBLE PARA FIRMA' : 'BLOQUEADO'}
-                                                        </span>
-                                                    </p>
-                                                </div>
-                                            </div>
-                                            <div className="bg-slate-50 p-2 rounded-full text-slate-300 group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors">
-                                                {isLocked ? <Lock size={20}/> : <ChevronRight size={20}/>}
-                                            </div>
-                                        </div>
-                                    </div>
-                                )
-                            })}
+                                        type="ssoma"
+                                    />
+                                ))}
+                            </div>
                         </div>
+
                     </motion.div>
                 )}
 
@@ -510,9 +495,9 @@ export default function DashboardPage() {
       <AnimatePresence>
         {docToFill && (
             <DocumentFillingModal 
-                docId={docToFill}
+                docId={docToFill.id}
                 fichaId={fichaId}
-                existingData={docStates[docToFill]?.data || {}}
+                existingData={docStates[docToFill.id]?.data || {}}
                 fullFichaData={fullWorkerData}
                 onClose={() => setDocToFill(null)}
                 onSave={() => { fetchFichaData(userId); setDocToFill(null) }}
@@ -520,31 +505,74 @@ export default function DashboardPage() {
         )}
       </AnimatePresence>
 
-      {/* --- NUEVO: MODAL MODERNO PARA DESCARGA DE RISST --- */}
+      {/* --- MODAL DE DESCARGA OBLIGATORIA (RISST) --- */}
       <AnimatePresence>
-        {showRisstModal && (
-            <RisstDownloadModal 
-                onDownload={handleDownloadRisst}
+        {pendingDownload && (
+            <DownloadModal 
+                data={pendingDownload}
+                onDownload={handleDownload}
                 userName={userName}
             />
         )}
       </AnimatePresence>
 
-      {/* --- CHAT FLOTANTE PARA EL OBRERO --- */}
-      <ChatSystem 
-          workerId={userId} 
-          workerName={userName}
-          currentUserId={userId}
-          isAdmin={false}
-          isOpen={false} // El obrero gestiona su minimizado internamente
-          onClose={() => {}} 
-      />
+      {/* --- CHAT FLOTANTE (CORREGIDO PARA TIEMPO REAL) --- */}
+      {userId && (
+          <ChatSystem 
+              workerId={userId} 
+              workerName={userName}
+              currentUserId={userId}
+              isAdmin={false}
+              isOpen={isChatOpen} // Controlado por el estado local
+              onClose={() => setIsChatOpen(!isChatOpen)} 
+          />
+      )}
 
     </div>
   )
 }
 
 // --- COMPONENTES AUXILIARES ---
+
+function DocItem({ id, label, state, onClick, type }: any) {
+    const status = state?.status || 'locked'
+    const isUnlocked = status === 'unlocked'
+    const isCompleted = status === 'completed'
+    const isLocked = !isUnlocked && !isCompleted
+
+    const activeColor = 'blue'
+    const completedColor = 'emerald'
+
+    return (
+        <div 
+            onClick={onClick}
+            className={`group relative p-5 rounded-2xl border transition-all cursor-pointer overflow-hidden ${isUnlocked ? `bg-white border-${activeColor}-200 shadow-md hover:border-${activeColor}-400 hover:shadow-lg` : isCompleted ? `bg-${completedColor}-50/50 border-${completedColor}-100 hover:bg-${completedColor}-50` : 'bg-white border-slate-100 opacity-60 grayscale hover:opacity-80'}`}
+        >
+            {isUnlocked && <div className={`absolute left-0 top-0 bottom-0 w-1.5 bg-${activeColor}-500`}/>}
+            {isCompleted && <div className={`absolute left-0 top-0 bottom-0 w-1.5 bg-${completedColor}-500`}/>}
+
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${isCompleted ? `bg-${completedColor}-100 text-${completedColor}-600` : isUnlocked ? `bg-${activeColor}-100 text-${activeColor}-600` : 'bg-slate-100 text-slate-400'}`}>
+                        {isCompleted ? <CheckCircle size={24}/> : <FileText size={24}/>}
+                    </div>
+                    <div>
+                        <h3 className={`font-bold text-base ${isUnlocked ? `text-${activeColor}-900` : 'text-slate-700'}`}>{label}</h3>
+                        <p className="text-xs font-bold mt-1 flex items-center gap-1.5">
+                            <span className={`w-1.5 h-1.5 rounded-full ${isCompleted ? `bg-${completedColor}-500` : isUnlocked ? `bg-${activeColor}-500 animate-pulse` : 'bg-slate-400'}`}></span>
+                            <span className={isCompleted ? `text-${completedColor}-600` : isUnlocked ? `text-${activeColor}-600` : 'text-slate-400'}>
+                                {isCompleted ? 'FIRMADO Y ENVIADO' : isUnlocked ? 'DISPONIBLE PARA FIRMA' : 'BLOQUEADO'}
+                            </span>
+                        </p>
+                    </div>
+                </div>
+                <div className="bg-slate-50 p-2 rounded-full text-slate-300 group-hover:bg-slate-100 transition-colors">
+                    {isLocked ? <Lock size={20}/> : <ChevronRight size={20}/>}
+                </div>
+            </div>
+        </div>
+    )
+}
 
 function NavItem({ active, onClick, icon, label, badge }: any) {
     return (
@@ -558,7 +586,7 @@ function NavItem({ active, onClick, icon, label, badge }: any) {
     )
 }
 
-// --- CARD DE PERFIL (CAMBIO DE CONTRASEÑA) ---
+// --- CARD DE PERFIL ---
 function ProfileSettingsCard({ userEmail, supabase }: any) {
     const [email, setEmail] = useState(userEmail)
     const [password, setPassword] = useState('')
@@ -659,10 +687,10 @@ function DocumentFillingModal({ docId, fichaId, existingData, fullFichaData, onC
     const supabase = createClient()
     const [checks, setChecks] = useState<Record<string, boolean>>(existingData || {})
     const [saving, setSaving] = useState(false)
-    const content = DOC_CONTENT[docId] || [] 
+    const content = DOC_CONTENT_SSOMA[docId] || []
     
-    const isHorizontal = ['capacitacion', 'epp'].includes(docId)
     const showChecklist = content.length > 0
+    const isHorizontal = ['capacitacion', 'epp'].includes(docId)
     const [scale, setScale] = useState(1)
     
     useEffect(() => {
@@ -716,7 +744,7 @@ function DocumentFillingModal({ docId, fichaId, existingData, fullFichaData, onC
                 <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-white rounded-t-3xl shrink-0 z-20 relative shadow-sm">
                     <div>
                         <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded uppercase tracking-wider mb-1 inline-block">SSOMA</span>
-                        <h3 className="font-bold text-lg text-slate-900">{DOC_LABELS[docId]}</h3>
+                        <h3 className="font-bold text-lg text-slate-900">{DOC_LABELS_SSOMA[docId]}</h3>
                         <p className="text-xs text-slate-500 mt-0.5">{showChecklist ? "Marca los puntos tratados." : "Lee atentamente el documento completo."}</p>
                     </div>
                     <button onClick={onClose} className="p-2 bg-slate-50 hover:bg-slate-100 text-slate-500 rounded-full transition-colors"><X size={20}/></button>
@@ -763,27 +791,20 @@ function DocumentFillingModal({ docId, fichaId, existingData, fullFichaData, onC
     )
 }
 
-// --- MODAL PREMIUM PARA DESCARGA DE RISST ---
-function RisstDownloadModal({ onDownload, userName }: any) {
+// --- MODAL DE DESCARGA GENÉRICO (RISST) ---
+function DownloadModal({ data, onDownload, userName }: any) {
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
-            {/* Overlay con desenfoque */}
             <motion.div 
-                initial={{ opacity: 0 }} 
-                animate={{ opacity: 1 }} 
-                exit={{ opacity: 0 }}
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 className="absolute inset-0 bg-slate-900/60 backdrop-blur-md"
             />
             
-            {/* Contenedor del Modal */}
             <motion.div 
-                initial={{ scale: 0.9, y: 20, opacity: 0 }}
-                animate={{ scale: 1, y: 0, opacity: 1 }}
-                exit={{ scale: 0.9, y: 20, opacity: 0 }}
+                initial={{ scale: 0.9, y: 20, opacity: 0 }} animate={{ scale: 1, y: 0, opacity: 1 }} exit={{ scale: 0.9, y: 20, opacity: 0 }}
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 className="bg-white w-full max-w-md rounded-3xl shadow-2xl relative z-10 overflow-hidden border border-white/20"
             >
-                {/* Header Decorativo */}
                 <div className="bg-gradient-to-r from-indigo-600 to-blue-600 p-6 text-center relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-full h-full bg-white/10 opacity-30 pattern-grid-lg"></div>
                     <div className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-white/30 shadow-lg relative z-10">
@@ -793,27 +814,17 @@ function RisstDownloadModal({ onDownload, userName }: any) {
                     <p className="text-blue-100 text-sm mt-1 relative z-10">Acción requerida inmediata</p>
                 </div>
 
-                {/* Contenido */}
                 <div className="p-8 text-center space-y-6">
                     <div className="space-y-2">
-                        <p className="text-slate-800 font-medium text-lg">
-                            Hola <span className="font-bold text-indigo-600">{userName}</span>,
-                        </p>
-                        <p className="text-slate-500 text-sm leading-relaxed">
-                            El departamento de SSOMA te ha enviado el <span className="font-bold text-slate-700">Reglamento Interno de Seguridad y Salud en el Trabajo (RISST)</span>.
-                        </p>
-                        <p className="text-slate-500 text-sm leading-relaxed">
-                            Es obligatorio que lo descargues y lo leas para continuar con tus labores en la obra.
-                        </p>
+                        <p className="text-slate-800 font-medium text-lg">Hola <span className="font-bold text-indigo-600">{userName}</span>,</p>
+                        <p className="text-slate-500 text-sm leading-relaxed">Se te ha enviado el siguiente documento obligatorio:</p>
                     </div>
 
                     <div className="bg-indigo-50 rounded-2xl p-4 flex items-center gap-4 text-left border border-indigo-100">
-                        <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm text-red-500 shrink-0">
-                            <FileText size={24} />
-                        </div>
+                        <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm text-red-500 shrink-0"><FileText size={24} /></div>
                         <div>
-                            <p className="font-bold text-slate-800 text-sm">RISST_RUAG_2026.pdf</p>
-                            <p className="text-xs text-slate-500">Documento Oficial • 2.4 MB</p>
+                            <p className="font-bold text-slate-800 text-sm">{data.label}</p>
+                            <p className="text-xs text-slate-500">{data.file}</p>
                         </div>
                     </div>
 
@@ -821,15 +832,11 @@ function RisstDownloadModal({ onDownload, userName }: any) {
                         onClick={onDownload}
                         className="w-full py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold shadow-xl shadow-slate-900/20 transition-all transform active:scale-[0.98] flex items-center justify-center gap-3 group"
                     >
-                        <span className="bg-white/20 p-1.5 rounded-lg group-hover:bg-white/30 transition-colors">
-                            <Download size={20} />
-                        </span>
+                        <span className="bg-white/20 p-1.5 rounded-lg group-hover:bg-white/30 transition-colors"><Download size={20} /></span>
                         DESCARGAR Y CONFIRMAR
                     </button>
                     
-                    <p className="text-[10px] text-slate-400">
-                        Al descargar, confirmas la recepción digital de este documento.
-                    </p>
+                    <p className="text-[10px] text-slate-400">Al descargar, confirmas la recepción digital de este documento.</p>
                 </div>
             </motion.div>
         </div>

@@ -7,22 +7,24 @@ import Link from 'next/link'
 import AdminTable from '@/components/AdminTable' 
 import MassImport from '@/components/MassImport' 
 import ChatSystem from '@/components/ChatSystem' 
-import AdminTour from '@/components/AdminTour' // <--- IMPORTACIÓN DEL TOUR
+import AdminTour from '@/components/AdminTour' 
+import BiometricBatchUpload from '@/components/BiometricBatchUpload'
 
-// IMPORTS
+// IMPORTS COMPONENTES
 import BiometricSignature from '@/components/ssoma/BiometricSignature'
 import BiometricFingerprint from '@/components/ssoma/BiometricFingerprint'
 
 import { 
   LayoutGrid, Users, LogOut, ShieldCheck, 
   Search, TrendingUp, Activity, HardHat, UploadCloud, X,
-  LayoutDashboard, Fingerprint, Menu, PenTool, CheckCircle, Loader2, AlertCircle,
-  FileText, Lock, Unlock, ScanLine, Trash2, ChevronLeft, ChevronRight, Bell,
-  UserCog, Mail, Key, Save, Send 
+  LayoutDashboard, Fingerprint, Menu, PenTool, CheckCircle, Loader2,
+  FileText, Lock, Unlock, ScanLine, Trash2, ChevronRight,
+  UserCog, Mail, Key, Save, Send, ScanFace, Zap
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 
+// --- CONFIGURACIÓN DOCUMENTOS SSOMA ---
 const DIGITAL_DOCS = [
     { id: 'risst', label: 'Cargo RISST' },
     { id: 'capacitacion', label: 'Registro Capacitación' },
@@ -39,16 +41,25 @@ export default function AdminPage() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [userName, setUserName] = useState('')
   const [userEmail, setUserEmail] = useState('')
-  const [userId, setUserId] = useState('') // ID del Admin logueado
+  const [userId, setUserId] = useState('') 
   const [loading, setLoading] = useState(true)
 
-  // VISTAS: DASHBOARD | BIOMETRIA | DOCUMENTOS | PERFIL
+  // VISTAS
   const [activeView, setActiveView] = useState<'dashboard' | 'biometria' | 'documentos' | 'profile'>('dashboard')
   
   const [isSidebarOpen, setSidebarOpen] = useState(true)
   const [isMobile, setIsMobile] = useState(false)
 
+  // --- MODALES DE IMPORTACIÓN ---
   const [showImport, setShowImport] = useState(false)
+  const [showBioImport, setShowBioImport] = useState(false)
+
+  // --- ESTADO PARA COMUNICACIÓN CON TABLA HIJA ---
+  const [refreshTrigger, setRefreshTrigger] = useState(0)
+
+  // --- NUEVO: COLABORACIÓN EN TIEMPO REAL ---
+  const [onlineUsers, setOnlineUsers] = useState<any[]>([]) // Lista de admins conectados
+  const channelRef = useRef<any>(null) // Referencia al canal de Supabase
 
   // Datos
   const [workersData, setWorkersData] = useState<any[]>([])
@@ -57,8 +68,8 @@ export default function AdminPage() {
   
   // Selección de Modales
   const [selectedWorkerBiometria, setSelectedWorkerBiometria] = useState<any>(null)
-  const [selectedWorkerDocs, setSelectedWorkerDocs] = useState<any>(null)
-  const [chatWorker, setChatWorker] = useState<any>(null) // <--- Estado para el chat activo
+  const [selectedWorkerDocs, setSelectedWorkerDocs] = useState<any>(null) 
+  const [chatWorker, setChatWorker] = useState<any>(null) 
 
   const workersDataRef = useRef(workersData)
   const selectedWorkerDocsRef = useRef(selectedWorkerDocs)
@@ -74,6 +85,18 @@ export default function AdminPage() {
       }
   }
 
+  // --- FUNCIÓN PARA NOTIFICAR CAMBIOS A OTROS ADMINS ---
+  // Esta función se pasa al AdminTable
+  const broadcastChange = async (action: string, details: string) => {
+    if (channelRef.current) {
+        await channelRef.current.send({
+            type: 'broadcast',
+            event: 'admin_action',
+            payload: { user: userName, action, details }
+        })
+    }
+  }
+
   useEffect(() => {
     const checkUser = async () => {
       const { data: { user } } = await supabase.auth.getUser()
@@ -83,7 +106,48 @@ export default function AdminPage() {
       
       const { data: profile } = await supabase.from('profiles').select('role, nombres').eq('id', user.id).single()
       if (profile?.role !== 'admin') { router.push('/dashboard') } 
-      else { setIsAdmin(true); setUserName(profile.nombres.split(' ')[0]) }
+      else { 
+          setIsAdmin(true); 
+          const name = profile.nombres.split(' ')[0]
+          setUserName(name) 
+          
+          // --- INICIAR PRESENCIA REALTIME (Solo si es admin) ---
+          const channel = supabase.channel('admin_room', {
+              config: { presence: { key: user.id } }
+          })
+
+          channel
+            .on('presence', { event: 'sync' }, () => {
+                const newState = channel.presenceState()
+                const users = Object.values(newState).map((u: any) => u[0])
+                setOnlineUsers(users)
+            })
+            .on('broadcast', { event: 'admin_action' }, ({ payload }: any) => {
+                // NOTIFICACIÓN TIPO GOOGLE SHEETS
+                // Solo mostrar si NO fui yo quien hizo el cambio
+                if (payload.user !== name) {
+                    toast.info(
+                        <div className="flex flex-col">
+                            <span className="font-bold text-xs">{payload.user} {payload.action}</span>
+                            <span className="text-[10px] opacity-80">{payload.details}</span>
+                        </div>, 
+                        { duration: 4000, icon: <Zap size={16} className="text-amber-500"/> }
+                    )
+                }
+            })
+            .subscribe(async (status) => {
+                if (status === 'SUBSCRIBED') {
+                    // Enviar mi estado: "Estoy conectado"
+                    await channel.track({ 
+                        name: name, 
+                        online_at: new Date().toISOString(),
+                        color: '#' + Math.floor(Math.random()*16777215).toString(16) // Color aleatorio para el avatar
+                    })
+                }
+            })
+            
+            channelRef.current = channel
+      }
       setLoading(false)
     }
     checkUser()
@@ -95,24 +159,23 @@ export default function AdminPage() {
         else setSidebarOpen(true)
     }
     
-    // Ejecutar solo en cliente
     if (typeof window !== 'undefined') {
         handleResize()
         window.addEventListener('resize', handleResize)
     }
     return () => {
         if (typeof window !== 'undefined') window.removeEventListener('resize', handleResize)
+        if (channelRef.current) supabase.removeChannel(channelRef.current)
     }
   }, [])
 
   const fetchData = async () => {
       if (workersData.length === 0) setLoadingData(true)
       
-      // MODIFICACIÓN: Filtramos usando la relación con la tabla profiles
       const { data, error } = await supabase
         .from('fichas')
-        .select('*, profiles!inner(role)') // !inner asegura que solo traiga si hay match y permite filtrar
-        .neq('profiles.role', 'admin')      // CONDICIÓN: El rol en profiles NO debe ser 'admin'
+        .select('*, profiles!inner(role)') 
+        .neq('profiles.role', 'admin')      
         .order('updated_at', { ascending: false })
       
       if(error) {
@@ -171,17 +234,11 @@ export default function AdminPage() {
       if (isMobile) setSidebarOpen(false)
   }
 
-  // --- FUNCIONES PARA EL TOUR INTERACTIVO ---
   const openFirstWorkerDrawerForTour = () => {
-      // Abre el drawer de documentos del primer trabajador disponible
       const targetWorker = filteredWorkers.length > 0 ? filteredWorkers[0] : (workersData.length > 0 ? workersData[0] : null);
-      
       if (targetWorker) {
-          if (activeView === 'biometria') {
-              setSelectedWorkerBiometria(targetWorker);
-          } else {
-              setSelectedWorkerDocs(targetWorker);
-          }
+          if (activeView === 'biometria') setSelectedWorkerBiometria(targetWorker);
+          else if (activeView === 'documentos') setSelectedWorkerDocs(targetWorker);
       } else {
           toast.warning("Para ver esta parte del tour, necesitas tener al menos un trabajador registrado.");
       }
@@ -191,7 +248,6 @@ export default function AdminPage() {
       setSelectedWorkerDocs(null);
       setSelectedWorkerBiometria(null);
   }
-  // ------------------------------------------
 
   if (loading) return <div className="h-screen flex items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-blue-600" size={40}/></div>
   if (!isAdmin) return null
@@ -202,9 +258,7 @@ export default function AdminPage() {
       <AnimatePresence>
         {isMobile && isSidebarOpen && (
             <motion.div 
-                initial={{ opacity: 0 }} 
-                animate={{ opacity: 1 }} 
-                exit={{ opacity: 0 }} 
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} 
                 onClick={() => setSidebarOpen(false)} 
                 className="fixed inset-0 bg-black/40 z-40 backdrop-blur-sm lg:hidden"
             />
@@ -236,27 +290,23 @@ export default function AdminPage() {
             
             <div className="pt-4 pb-2 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Gestión Operativa</div>
             
-            {/* ID PARA EL TOUR: NAVEGACIÓN BIOMETRÍA */}
             <div id="nav-biometria">
                 <SidebarItem active={activeView === 'biometria'} onClick={() => handleNavClick('biometria')} icon={<Fingerprint size={20}/>} label="Biometría y Firmas" />
             </div>
 
-            {/* ID PARA EL TOUR: NAVEGACIÓN DOCUMENTOS */}
             <div id="nav-documentos">
-                <SidebarItem active={activeView === 'documentos'} onClick={() => handleNavClick('documentos')} icon={<FileText size={20}/>} label="Registros SSOMA" />
+                <SidebarItem active={activeView === 'documentos'} onClick={() => handleNavClick('documentos')} icon={<HardHat size={20}/>} label="Registros SSOMA" />
             </div>
             
             <div className="pt-4 pb-2 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Cuenta</div>
             <SidebarItem active={activeView === 'profile'} onClick={() => handleNavClick('profile')} icon={<UserCog size={20}/>} label="Mi Perfil" />
         </nav>
 
-        {/* --- TOUR INTERACTIVO INTEGRADO EN SIDEBAR --- */}
         <AdminTour 
             changeView={(view) => setActiveView(view)} 
             openFirstDrawer={openFirstWorkerDrawerForTour}
             closeDrawer={closeDrawersForTour}
         />
-        {/* --------------------------------------------- */}
 
         <div className="p-4 bg-slate-900/30">
              <button onClick={async () => { await supabase.auth.signOut(); router.push('/') }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-red-500/10 hover:text-red-400 transition-all group">
@@ -268,6 +318,7 @@ export default function AdminPage() {
 
       <main className="flex-1 flex flex-col h-full min-w-0 bg-[#F8FAFC] relative">
         
+        {/* HEADER: AHORA INCLUYE LOS AVATARES DE PRESENCIA */}
         <header className="h-20 bg-white/80 backdrop-blur-xl border-b border-slate-200/60 px-6 flex items-center justify-between shrink-0 sticky top-0 z-30 shadow-sm">
             <div className="flex items-center gap-4">
                 <button 
@@ -277,29 +328,47 @@ export default function AdminPage() {
                     <Menu size={22}/>
                 </button>
                 
-                {/* ID PARA EL TOUR: BIENVENIDA */}
                 <div id="tour-welcome">
                     <h2 className="text-xl font-bold text-slate-800 tracking-tight">
                         {activeView === 'dashboard' && 'Resumen General'}
                         {activeView === 'biometria' && 'Control Biométrico'}
-                        {activeView === 'documentos' && 'Gestión Documental'}
+                        {activeView === 'documentos' && 'Gestión Documental SSOMA'}
                         {activeView === 'profile' && 'Configuración de Cuenta'}
                     </h2>
                     <p className="text-xs text-slate-400 hidden sm:block">Panel de administración centralizada</p>
                 </div>
             </div>
 
-            <div className="flex items-center gap-4">
-                <div className="hidden sm:flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-full border border-slate-100">
-                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-                    <span className="text-xs font-semibold text-slate-600">Sincronización activa</span>
+            <div className="flex items-center gap-6">
+                
+                {/* --- NUEVO: MOSTRAR ADMINS CONECTADOS --- */}
+                <div className="hidden md:flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase mr-1">En línea:</span>
+                    <div className="flex -space-x-2">
+                        {onlineUsers.map((user: any, i) => (
+                            <div key={i} className="relative group" title={user.name}>
+                                <div 
+                                    className="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-white text-xs font-bold shadow-sm"
+                                    style={{ backgroundColor: user.color || '#3b82f6' }}
+                                >
+                                    {user.name.charAt(0)}
+                                </div>
+                                {/* Tooltip simple */}
+                                <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+                                    {user.name}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 </div>
+
                 <div className="h-8 w-[1px] bg-slate-200 hidden sm:block"></div>
+                
                 <div className="flex items-center gap-3">
-                     <div className="text-right hidden sm:block">
+                      <div className="text-right hidden sm:block">
                         <p className="text-sm font-bold text-slate-800 leading-tight">{userName}</p>
                         <p className="text-[10px] text-blue-600 font-bold uppercase">Administrador</p>
-                     </div>
+                      </div>
                     <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-xl flex items-center justify-center font-bold text-lg shadow-lg shadow-blue-500/20">
                         {userName.charAt(0)}
                     </div>
@@ -318,17 +387,23 @@ export default function AdminPage() {
                                 <HardHat size={18}/> Gestion SSOMA
                             </div>
                         </Link>
-                        {/* ID PARA EL TOUR: IMPORTACIÓN */}
+                        
+                        <button 
+                            onClick={() => setShowBioImport(true)} 
+                            className="flex items-center gap-2 px-5 py-3 bg-blue-600 text-white border border-blue-500 rounded-xl text-xs font-bold shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all"
+                        >
+                            <ScanFace size={18}/> IMPORTAR FIRMAS/HUELLAS
+                        </button>
+
                         <button 
                             id="tour-import"
                             onClick={() => setShowImport(true)} 
                             className="flex items-center gap-2 px-5 py-3 bg-white text-slate-700 border border-slate-200 rounded-xl text-xs font-bold shadow-sm hover:border-blue-300 hover:text-blue-600 hover:shadow-md transition-all"
                         >
-                            <UploadCloud size={18}/> CARGA MASIVA
+                            <UploadCloud size={18}/> CARGA MASIVA DATA
                         </button>
                     </div>
 
-                    {/* ID PARA EL TOUR: ESTADÍSTICAS */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6" id="tour-stats">
                         <StatCard 
                             title="Total Personal" 
@@ -372,17 +447,22 @@ export default function AdminPage() {
                                 Registro de Trabajadores
                             </h3>
                         </div>
-                        {/* PASAMOS LA FUNCIÓN PARA ABRIR CHAT */}
-                        <AdminTable onOpenChat={(worker) => setChatWorker(worker)} />
+                        
+                        {/* --- AQUI SE PASAN LOS PROPS NUEVOS --- */}
+                        <AdminTable 
+                            onOpenChat={(worker) => setChatWorker(worker)} 
+                            refreshTrigger={refreshTrigger}
+                            onNotifyChange={broadcastChange} // Para que la tabla pueda notificar
+                        />
                     </div>
                 </motion.div>
             )}
 
+            {/* SECCIÓN GRID COMPARTIDA (BIOMETRIA, DOCS) */}
             {(activeView === 'biometria' || activeView === 'documentos') && (
                 <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6 h-full flex flex-col max-w-7xl mx-auto">
                     
                     <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4 justify-between items-center sticky top-0 z-10">
-                        {/* ID PARA EL TOUR: BUSCADOR */}
                         <div className="relative w-full md:w-96 group" id="tour-search">
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors" size={20}/>
                             <input 
@@ -412,7 +492,6 @@ export default function AdminPage() {
                             <p className="font-bold text-slate-600 text-lg">No hay coincidencias</p>
                         </div>
                     ) : (
-                        // ID PARA EL TOUR: GRID DE TRABAJADORES (Para señalar el primer elemento)
                         <div 
                             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 pb-20"
                             id={activeView === 'biometria' ? 'tour-biometria-grid' : 'tour-docs-grid'}
@@ -420,14 +499,17 @@ export default function AdminPage() {
                             {filteredWorkers.map((worker, index) => (
                                 <div 
                                     key={worker.id} 
-                                    id={index === 0 ? 'tour-worker-card' : undefined} // Marcamos el primero para el tour
-                                    onClick={() => activeView === 'biometria' ? setSelectedWorkerBiometria(worker) : setSelectedWorkerDocs(worker)} 
+                                    id={index === 0 ? 'tour-worker-card' : undefined} 
+                                    onClick={() => {
+                                        if (activeView === 'biometria') setSelectedWorkerBiometria(worker)
+                                        else if (activeView === 'documentos') setSelectedWorkerDocs(worker)
+                                    }} 
                                     className="group bg-white rounded-2xl p-5 border border-slate-200 shadow-sm cursor-pointer transition-all hover:shadow-xl hover:shadow-blue-900/5 hover:-translate-y-1 hover:border-blue-200 relative overflow-hidden"
                                 >
-                                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-400 to-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r transition-opacity opacity-0 group-hover:opacity-100 from-blue-400 to-indigo-500"></div>
                                     
                                     <div className="flex items-start gap-4 mb-5">
-                                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-600 font-bold text-xl border border-white shadow-inner group-hover:from-blue-50 group-hover:to-blue-100 group-hover:text-blue-600 transition-colors">
+                                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-600 font-bold text-xl border border-white shadow-inner transition-colors group-hover:from-blue-50 group-hover:to-blue-100 group-hover:text-blue-600">
                                             {worker.nombres?.charAt(0)}{worker.apellido_paterno?.charAt(0)}
                                         </div>
                                         <div className="min-w-0 flex-1">
@@ -464,7 +546,6 @@ export default function AdminPage() {
                 </motion.div>
             )}
 
-            {/* VISTA: PERFIL DE ADMINISTRADOR */}
             {activeView === 'profile' && (
                 <motion.div initial={{opacity:0, scale:0.95}} animate={{opacity:1, scale:1}} className="max-w-lg mx-auto pb-20 mt-10">
                     <AdminProfileSettings userEmail={userEmail} supabase={supabase} />
@@ -486,7 +567,7 @@ export default function AdminPage() {
             )}
         </AnimatePresence>
 
-        {/* MODAL GESTIÓN DOCUMENTAL */}
+        {/* MODAL GESTIÓN DOCUMENTAL SSOMA */}
         <AnimatePresence>
             {selectedWorkerDocs && (
                 <AdminDocsDrawer 
@@ -496,8 +577,8 @@ export default function AdminPage() {
                 />
             )}
         </AnimatePresence>
-        
-        {/* MODAL IMPORTACION */}
+
+        {/* MODAL IMPORTACION DATA (TXT/EXCEL) */}
         <AnimatePresence>
             {showImport && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -512,19 +593,38 @@ export default function AdminPage() {
             )}
         </AnimatePresence>
 
-        {/* --- SISTEMA DE CHAT ADMIN (DRAWER) --- */}
+        {/* --- MODAL IMPORTACIÓN BIOMETRÍA (NUEVO) --- */}
+        <AnimatePresence>
+            {showBioImport && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <motion.div initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }} className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden relative border border-slate-200">
+                         <div className="p-6 border-b flex justify-between items-center bg-slate-50/50">
+                            <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2"><ScanFace className="text-blue-600"/> Importación de Firmas y Huellas</h3>
+                            <button onClick={() => setShowBioImport(false)} className="p-2 bg-white border border-slate-200 rounded-full hover:bg-slate-100 transition-colors"><X size={18} className="text-slate-500"/></button>
+                         </div>
+                        <div className="p-8">
+                            <BiometricBatchUpload 
+                                onComplete={() => { 
+                                    fetchData(); // Actualiza las estadísticas del dashboard
+                                    setRefreshTrigger(prev => prev + 1); // <--- ESTO LE DICE A LA TABLA QUE SE REFRESQUE
+                                    broadcastChange('actualizó', 'Biometría masiva importada') // Notificar a otros admins
+                                }} 
+                            />
+                        </div>
+                    </motion.div>
+                </motion.div>
+            )}
+        </AnimatePresence>
+
+        {/* --- SISTEMA DE CHAT ADMIN --- */}
         <AnimatePresence>
             {chatWorker && (
                 <ChatSystem 
-                    // CORRECCIÓN CRÍTICA AQUÍ ABAJO:
-                    // Antes decía: workerId={chatWorker.id}
-                    // Debe decir:  workerId={chatWorker.user_id}
                     workerId={chatWorker.user_id} 
-                    
                     workerName={`${chatWorker.nombres} ${chatWorker.apellido_paterno}`}
                     currentUserId={userId}
                     isAdmin={true}
-                    isOpen={!!chatWorker}
+                    isOpen={!!chatWorker} 
                     onClose={() => setChatWorker(null)}
                 />
             )}
@@ -535,8 +635,7 @@ export default function AdminPage() {
   )
 }
 
-// --- COMPONENTES AUXILIARES CON MEJOR DISEÑO ---
-
+// ... (Resto de componentes AUXILIARES se mantienen igual: SidebarItem, StatCard, etc.) ...
 function SidebarItem({ active, onClick, icon, label }: any) {
     return (
         <button 
@@ -580,7 +679,6 @@ function StatCard({title, value, desc, icon, bg, delay}: any) {
     )
 }
 
-// --- NUEVO COMPONENTE: PERFIL DE ADMINISTRADOR ---
 function AdminProfileSettings({ userEmail, supabase }: any) {
     const [email, setEmail] = useState(userEmail)
     const [password, setPassword] = useState('')
@@ -767,7 +865,6 @@ function AdminDocsDrawer({ worker, onClose, onUpdate }: any) {
         updateDocState(docId, { status: 'locked', data: {}, completed_at: null }, "Documento reseteado")
     }
 
-    // --- NUEVA FUNCIÓN PARA ENVIAR PDF DEL RISST AL OBRERO ---
     const sendRisstPdfToWorker = async () => {
         try {
             const { data: currentFicha } = await supabase.from('fichas').select('doc_states').eq('id', worker.id).single()
@@ -794,22 +891,19 @@ function AdminDocsDrawer({ worker, onClose, onUpdate }: any) {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm z-50 flex justify-end" onClick={onClose}>
             <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }} className="w-full max-w-md bg-white h-full shadow-2xl flex flex-col border-l border-slate-100" onClick={e => e.stopPropagation()}>
                 
-                {/* Header con ID para el Tour */}
                 <div id="drawer-header" className="h-20 px-6 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
                     <div>
-                        <h2 className="font-bold text-slate-900 text-xl tracking-tight">Documentación</h2>
+                        <h2 className="font-bold text-slate-900 text-xl tracking-tight">SSOMA</h2>
                         <div className="flex items-center gap-2 mt-1">
                             <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                             <p className="text-xs text-slate-500 font-medium">{worker.nombres}</p>
                         </div>
                     </div>
-                    {/* Botón cerrar con ID para el Tour */}
                     <button id="drawer-close-btn" onClick={onClose} className="p-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full transition-colors"><X size={20}/></button>
                 </div>
                 
                 <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50/50">
                     
-                    {/* --- BOTÓN RISST CON ID PARA EL TOUR --- */}
                     <div id="drawer-risst-btn" className="mb-6 bg-indigo-50 p-4 rounded-2xl border border-indigo-100 shadow-sm">
                         <div className="flex items-start gap-3">
                             <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
@@ -830,7 +924,6 @@ function AdminDocsDrawer({ worker, onClose, onUpdate }: any) {
                         </button>
                     </div>
                     
-                    {/* Sección de Documentos con ID para el Tour */}
                     <div id="drawer-info-section">
                         <div className="flex items-center justify-between mb-4">
                             <p className="text-xs text-slate-500 uppercase font-bold tracking-wider">Estado de Documentos</p>
