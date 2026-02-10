@@ -5,7 +5,7 @@ import { createClient } from '@/utils/supabase/client'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 import SignatureCanvas from 'react-signature-canvas'
-import jsPDF from 'jspdf' // Asegúrate de tener instalado: npm install jspdf
+import jsPDF from 'jspdf' 
 import { 
   User, CheckCircle, ChevronRight, ChevronLeft,
   Camera, Loader2, HeartPulse, GraduationCap, Wallet,
@@ -145,6 +145,61 @@ export default function FichaForm() {
   const handleSignatureEnd = () => { if (sigPad.current) setFormData((prev:any) => ({ ...prev, url_firma: sigPad.current.getTrimmedCanvas().toDataURL('image/png') })) }
   const clearSignature = () => { sigPad.current?.clear(); setFormData((prev:any) => ({ ...prev, url_firma: '' })) }
   
+  // --- LÓGICA DE VALIDACIÓN ESTRICTA ---
+  const validateCurrentStep = () => {
+    // Paso 1: Personal y Banco
+    if (currentStep === 1) {
+        if (!formData.apellido_paterno || !formData.apellido_materno || !formData.nombres || 
+            !formData.fecha_nacimiento || !formData.dni || !formData.celular || 
+            !formData.direccion || !formData.distrito || !formData.provincia || !formData.departamento ||
+            !formData.banco || !formData.cuenta_ahorros || !formData.sistema_pension) {
+            toast.error("Por favor, completa todos los campos personales y bancarios marcados con *.")
+            return false
+        }
+        if (formData.dni.length < 8) {
+            toast.error("El DNI debe tener al menos 8 dígitos.")
+            return false
+        }
+    }
+
+    // Paso 2: Familia (Opcional, siempre pasa)
+    if (currentStep === 2) {
+        return true
+    }
+
+    // Paso 3: Laboral
+    if (currentStep === 3) {
+        if (!formData.cargo || !formData.nombre_obra || !formData.categoria || 
+            !formData.nivel_educativo || !formData.carrera || !formData.centro_formacion) {
+            toast.error("Por favor, completa toda la información laboral y académica obligatoria.")
+            return false
+        }
+    }
+
+    // Paso 4: Documentos y Emergencia
+    if (currentStep === 4) {
+        if (!formData.emergencia_nombre || !formData.emergencia_parentesco || !formData.emergencia_telefono) {
+            toast.error("Los datos de contacto de emergencia son obligatorios.")
+            return false
+        }
+        // Validar documentos mínimos (DNI es crucial)
+        if (!formData.doc_dni_trabajador || !formData.doc_dni_reverso) {
+             toast.error("Es obligatorio subir la foto frontal y posterior del DNI.")
+             return false
+        }
+    }
+
+    // Paso 5: Validación final en el envío
+    return true
+  }
+
+  const handleNextStep = () => {
+      if (validateCurrentStep()) {
+          guardarProgreso()
+          setCurrentStep(p => Math.min(5, p + 1))
+      }
+  }
+
   const guardarProgreso = async (complete: boolean = false) => {
     if (!user) return
     const payload = {
@@ -181,8 +236,13 @@ export default function FichaForm() {
   }
 
   const finalizarFicha = async () => {
-    if(!formData.apellido_paterno || !formData.dni || !formData.celular) { toast.error("Faltan datos obligatorios"); return }
-    if (!declaracionAceptada) { toast.error("Debes aceptar la declaración jurada"); return }
+    // Validar firma y checkbox
+    if (!formData.url_firma) { toast.error("Debes firmar en el recuadro para continuar."); return }
+    if (!declaracionAceptada) { toast.error("Debes aceptar la declaración jurada."); return }
+    
+    // Validar todo de nuevo por seguridad
+    if (!validateCurrentStep()) return
+
     setSending(true)
     const error = await guardarProgreso(true)
     if (!error) { toast.success("Ficha enviada"); setIsCompleted(true) }
@@ -418,7 +478,7 @@ export default function FichaForm() {
              <div className="max-w-5xl mx-auto flex justify-between items-center">
                  <button onClick={() => setCurrentStep(p => Math.max(1, p - 1))} disabled={currentStep === 1} className={`flex items-center gap-2 font-bold px-6 py-3 rounded-xl transition-all ${currentStep === 1 ? 'opacity-0 pointer-events-none' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'}`}><ChevronLeft size={20}/> Atrás</button>
                  {currentStep < 5 ? (
-                    <button onClick={() => { guardarProgreso(); setCurrentStep(p => Math.min(5, p + 1)) }} className="bg-slate-900 text-white font-bold px-8 py-3 rounded-xl hover:bg-slate-800 transition-all flex items-center gap-2 shadow-lg shadow-slate-900/20 active:scale-95">Siguiente <ChevronRight size={20}/></button>
+                    <button onClick={handleNextStep} className="bg-slate-900 text-white font-bold px-8 py-3 rounded-xl hover:bg-slate-800 transition-all flex items-center gap-2 shadow-lg shadow-slate-900/20 active:scale-95">Siguiente <ChevronRight size={20}/></button>
                  ) : (
                     <button onClick={finalizarFicha} disabled={sending} className="bg-emerald-600 text-white font-bold px-10 py-3 rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/30 flex items-center gap-2 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed">{sending ? <Loader2 className="animate-spin"/> : <><CheckCircle/> ENVIAR FICHA</>}</button>
                  )}
@@ -439,7 +499,6 @@ function ImageUpload({label, bucket, onUpload, currentUrl}: any) {
     const isPdf = currentUrl?.toLowerCase().includes('.pdf');
     
     // Determinar el formato de captura basado en el nombre del documento
-    // Si dice DNI o Carnet -> Horizontal (ID Card). Si no -> Vertical (A4)
     const captureFormat = (label.toLowerCase().includes('dni') || label.toLowerCase().includes('carnet')) 
         ? 'id-card' 
         : 'a4';
@@ -530,15 +589,12 @@ function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => voi
     const isLandscape = format === 'id-card';
     const guideText = isLandscape ? "Ubica el DNI dentro del recuadro" : "Ubica el documento completo";
     
-    // Estilos del recuadro guía (Aspect Ratio)
-    // DNI aprox 1.58:1 (landscape) | A4 aprox 1:1.41 (portrait)
     const frameClasses = isLandscape 
         ? "w-[90%] aspect-[1.58] max-w-md"  // Horizontal
         : "h-[80%] aspect-[0.70] max-h-[600px]"; // Vertical
 
     const startCamera = async () => {
         try {
-            // Intentar usar cámara trasera con alta resolución
             const mediaStream = await navigator.mediaDevices.getUserMedia({ 
                 video: { 
                     facingMode: 'environment',
@@ -568,17 +624,12 @@ function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => voi
         if (videoRef.current && canvasRef.current) {
             const video = videoRef.current;
             const canvas = canvasRef.current;
-            
-            // Configurar canvas al tamaño nativo del video para máxima calidad
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
-            
             const ctx = canvas.getContext('2d');
             if (ctx) {
-                // Efecto espejo si es cámara frontal (opcional, aquí asumimos trasera)
                 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                setImage(canvas.toDataURL('image/jpeg', 0.9)); // Calidad 0.9
-                // No detenemos la cámara aún por si quiere reintentar rápido
+                setImage(canvas.toDataURL('image/jpeg', 0.9));
             }
         }
     };
@@ -588,49 +639,35 @@ function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => voi
         setProcessing(true);
 
         try {
-            // 1. Crear instancia de PDF (A4)
-            // 'p' = portrait (vertical), 'l' = landscape (horizontal)
-            // Si el formato es ID-Card, usamos A4 pero ponemos la imagen centrada
-            // Si el formato es A4, llenamos la página
             const pdfDoc = new jsPDF('p', 'mm', 'a4');
             const pageWidth = pdfDoc.internal.pageSize.getWidth();
             const pageHeight = pdfDoc.internal.pageSize.getHeight();
-
-            // 2. Cargar imagen para obtener dimensiones
             const imgProps = pdfDoc.getImageProperties(image);
             
             let finalWidth, finalHeight, x, y;
 
             if (isLandscape) {
-                // DNI: Centrado y con un tamaño razonable (ej. 85mm ancho real aprox, lo escalamos a 150mm para que se vea bien)
                 finalWidth = 150; 
                 finalHeight = (imgProps.height * finalWidth) / imgProps.width;
                 x = (pageWidth - finalWidth) / 2;
                 y = (pageHeight - finalHeight) / 2;
             } else {
-                // A4: Ajustar al ancho de la página con márgenes
                 const margin = 10;
                 finalWidth = pageWidth - (margin * 2);
                 finalHeight = (imgProps.height * finalWidth) / imgProps.width;
-                
-                // Si la altura se pasa, ajustar por altura
                 if (finalHeight > (pageHeight - margin * 2)) {
                     finalHeight = pageHeight - (margin * 2);
                     finalWidth = (imgProps.width * finalHeight) / imgProps.height;
                 }
                 x = (pageWidth - finalWidth) / 2;
-                y = margin; // Margen superior
+                y = margin;
             }
 
-            // 3. Agregar imagen al PDF
             pdfDoc.addImage(image, 'JPEG', x, y, finalWidth, finalHeight);
-
-            // 4. Generar Blob
             const pdfBlob = pdfDoc.output('blob');
             const fileName = `scan_${isLandscape ? 'dni' : 'doc'}_${Date.now()}.pdf`;
             const file = new File([pdfBlob], fileName, { type: "application/pdf" });
 
-            // 5. Enviar al padre
             onCapture(file);
             stopCamera();
         } catch (e) {
@@ -643,72 +680,35 @@ function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => voi
     return (
         <div className="fixed inset-0 z-[100] bg-black flex flex-col">
             {image ? (
-                // VISTA PREVIA
                 <div className="relative flex-1 flex flex-col items-center justify-center bg-black">
                     <img src={image} alt="Captura" className="max-w-full max-h-[80vh] object-contain shadow-2xl border border-white/20" />
                     <div className="absolute bottom-0 w-full p-6 bg-gradient-to-t from-black via-black/80 to-transparent flex gap-4 justify-center pb-8">
-                        <button 
-                            onClick={() => setImage(null)} 
-                            className="flex-1 bg-white/10 backdrop-blur-md text-white border border-white/20 py-3.5 rounded-2xl font-bold text-sm hover:bg-white/20 transition-all"
-                            disabled={processing}
-                        >
-                            <RefreshCw className="inline mr-2" size={16}/> Repetir
-                        </button>
-                        <button 
-                            onClick={confirmAndConvertToPdf} 
-                            disabled={processing}
-                            className="flex-1 bg-emerald-500 text-white py-3.5 rounded-2xl font-bold text-sm hover:bg-emerald-600 shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2 transition-all"
-                        >
-                            {processing ? <Loader2 className="animate-spin" size={18}/> : <><CheckCircle size={18}/> Confirmar PDF</>}
-                        </button>
+                        <button onClick={() => setImage(null)} className="flex-1 bg-white/10 backdrop-blur-md text-white border border-white/20 py-3.5 rounded-2xl font-bold text-sm hover:bg-white/20 transition-all" disabled={processing}><RefreshCw className="inline mr-2" size={16}/> Repetir</button>
+                        <button onClick={confirmAndConvertToPdf} disabled={processing} className="flex-1 bg-emerald-500 text-white py-3.5 rounded-2xl font-bold text-sm hover:bg-emerald-600 shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2 transition-all">{processing ? <Loader2 className="animate-spin" size={18}/> : <><CheckCircle size={18}/> Confirmar PDF</>}</button>
                     </div>
                 </div>
             ) : (
-                // VISTA CÁMARA
                 <div className="relative flex-1 bg-black overflow-hidden flex flex-col">
-                    {/* Header */}
                     <div className="absolute top-0 left-0 w-full p-4 z-20 flex justify-between items-start bg-gradient-to-b from-black/60 to-transparent">
                         <button onClick={onClose} className="text-white bg-white/10 p-2.5 rounded-full backdrop-blur-md"><X size={20}/></button>
-                        <div className="px-3 py-1.5 bg-black/40 backdrop-blur-md rounded-full text-white/90 text-xs font-medium border border-white/10">
-                            {isLandscape ? 'Modo: Tarjeta / DNI' : 'Modo: Documento A4'}
-                        </div>
+                        <div className="px-3 py-1.5 bg-black/40 backdrop-blur-md rounded-full text-white/90 text-xs font-medium border border-white/10">{isLandscape ? 'Modo: Tarjeta / DNI' : 'Modo: Documento A4'}</div>
                     </div>
-
                     <video ref={videoRef} autoPlay playsInline className="absolute inset-0 w-full h-full object-cover" />
-                    
-                    {/* --- RECUADRO GUÍA INTELIGENTE --- */}
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                        {/* Fondo oscuro con recorte (mask) visualmente simulado por bordes grandes o div semitransparentes, 
-                            aquí usaremos un borde simple pero elegante */}
                         <div className={`relative border-2 border-white/90 rounded-xl shadow-[0_0_0_100vmax_rgba(0,0,0,0.6)] transition-all duration-300 ${frameClasses}`}>
-                            {/* Esquinas decorativas */}
                             <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-emerald-400 -mt-0.5 -ml-0.5 rounded-tl-lg"></div>
                             <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-emerald-400 -mt-0.5 -mr-0.5 rounded-tr-lg"></div>
                             <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-emerald-400 -mb-0.5 -ml-0.5 rounded-bl-lg"></div>
                             <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-emerald-400 -mb-0.5 -mr-0.5 rounded-br-lg"></div>
-                            
-                            {/* Línea de escaneo animada */}
                             <div className="absolute top-0 left-0 w-full h-0.5 bg-emerald-400/80 shadow-[0_0_15px_rgba(52,211,153,0.8)] animate-scan"></div>
-                            
-                            {/* Instrucción central */}
-                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white/90 text-xs font-bold bg-black/60 px-4 py-2 rounded-full border border-white/10 backdrop-blur-sm whitespace-nowrap">
-                                {guideText}
-                            </div>
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white/90 text-xs font-bold bg-black/60 px-4 py-2 rounded-full border border-white/10 backdrop-blur-sm whitespace-nowrap">{guideText}</div>
                         </div>
                     </div>
-
-                    {/* Footer Controles */}
                     <div className="absolute bottom-0 w-full pb-10 pt-20 bg-gradient-to-t from-black via-black/50 to-transparent flex justify-center items-center z-20">
-                        <button 
-                            onClick={capturePhoto} 
-                            className="w-20 h-20 bg-white rounded-full border-4 border-slate-300/50 shadow-2xl active:scale-90 transition-transform flex items-center justify-center relative"
-                        >
-                            <div className="w-16 h-16 bg-white rounded-full border-2 border-slate-200 ring-2 ring-transparent group-hover:ring-emerald-500"></div>
-                        </button>
+                        <button onClick={capturePhoto} className="w-20 h-20 bg-white rounded-full border-4 border-slate-300/50 shadow-2xl active:scale-90 transition-transform flex items-center justify-center relative"><div className="w-16 h-16 bg-white rounded-full border-2 border-slate-200 ring-2 ring-transparent group-hover:ring-emerald-500"></div></button>
                     </div>
                 </div>
             )}
-            {/* Canvas oculto para procesar */}
             <canvas ref={canvasRef} className="hidden" />
         </div>
     );

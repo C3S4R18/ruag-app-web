@@ -5,7 +5,7 @@ import { createClient } from '@/utils/supabase/client'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Loader2, ShieldCheck, User, Mail, Phone, Lock, ArrowRight, Building2, CreditCard } from 'lucide-react'
+import { Loader2, ShieldCheck, User, Mail, Phone, Lock, ArrowRight, Building2, CreditCard, Eye, EyeOff } from 'lucide-react'
 
 export default function AuthPage() {
   const [view, setView] = useState<'login' | 'register'>('login')
@@ -239,6 +239,12 @@ export default function AuthPage() {
 // --- Componentes Reutilizables de Diseño ---
 
 function InputGroup({ icon, name, type = "text", placeholder, required, maxLength }: any) {
+    const [showPassword, setShowPassword] = useState(false)
+    const isPassword = type === 'password'
+    
+    // Si es password y showPassword es true, mostramos texto, si no, lo que venga (password o text original)
+    const inputType = isPassword ? (showPassword ? 'text' : 'password') : type
+
     return (
         <div className="relative group">
             {icon && (
@@ -248,12 +254,21 @@ function InputGroup({ icon, name, type = "text", placeholder, required, maxLengt
             )}
             <input 
                 name={name} 
-                type={type} 
+                type={inputType} 
                 required={required}
                 maxLength={maxLength}
                 placeholder={placeholder}
-                className={`w-full bg-white border border-slate-200 text-slate-800 text-sm font-medium rounded-xl py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400 shadow-sm ${icon ? 'pl-11 pr-4' : 'px-4'}`}
+                className={`w-full bg-white border border-slate-200 text-slate-800 text-sm font-medium rounded-xl py-3.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400 shadow-sm ${icon ? 'pl-11 pr-10' : 'px-4'}`}
             />
+            {isPassword && (
+                <button 
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none transition-colors"
+                >
+                    {showPassword ? <EyeOff size={18}/> : <Eye size={18}/>}
+                </button>
+            )}
         </div>
     )
 }
