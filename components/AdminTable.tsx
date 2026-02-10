@@ -32,7 +32,8 @@ import {
   CheckSquare, Square, Unlock, Lock, FileBadge, BellRing, BellOff, Bell,
   PenTool, Fingerprint, Share2, MoreHorizontal, Edit3,
   FileCheck, MessageSquare, Filter, ScanFace, Briefcase, 
-  HeartPulse, GraduationCap, UploadCloud, Plus, Users, Zap
+  HeartPulse, GraduationCap, UploadCloud, Plus, Users, Zap, Mail,
+  MailCheck, Clock, AlertCircle, RotateCcw // <--- NUEVO ICONO AGREGADO
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -55,7 +56,6 @@ interface AdminTableProps {
 }
 
 // --- CONSTANTES DE DOCUMENTOS ---
-
 const SSOMA_DOCS = [
     { id: 'risst', label: 'Cargo RISST', desc: 'Anexo 03 - Reglamento Interno SST' },
     { id: 'capacitacion', label: 'Registro Capacitación', desc: 'SG-FOR-01 Inducción General' },
@@ -85,7 +85,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
   const [printImage, setPrintImage] = useState<string | null>(null)
   const printRef = useRef<HTMLDivElement>(null)
   
-  // ESTADO PARA CONTROLAR LA INCLUSIÓN DE FIRMAS (Switch Manual/Digital)
+  // ESTADO PARA CONTROLAR LA INCLUSIÓN DE FIRMAS
   const [includeSignatures, setIncludeSignatures] = useState(false)
 
   // FILTROS & UI
@@ -107,7 +107,6 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
   // --- EFECTO REFRESH AUTOMÁTICO ---
   useEffect(() => {
     if (refreshTrigger > 0) {
-        console.log("Refrescando tabla por importación masiva...")
         fetchFichas()
     }
   }, [refreshTrigger])
@@ -128,7 +127,15 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
              if(payload.new.estado === 'completado') { toast.success(`🔔 Nuevo Ingreso: ${payload.new.nombres}`); playSystemSound() }
           } else if (payload.eventType === 'UPDATE') {
              setFichas((prev) => prev.map(f => f.id === payload.new.id ? payload.new : f))
-             if (payload.new.estado === 'completado') { toast.success(`✅ Completado: ${payload.new.nombres}`); playSystemSound() }
+             // Notificar si se confirmó el correo
+             if (payload.new.email_confirmed_at && !payload.old.email_confirmed_at) {
+                 toast.success(`📧 Correo confirmado por ${payload.new.nombres}`);
+                 playSystemSound();
+             }
+             if (payload.new.estado === 'completado' && payload.old.estado !== 'completado') { 
+                 toast.success(`✅ Completado: ${payload.new.nombres}`); 
+                 playSystemSound();
+             }
           } else if (payload.eventType === 'DELETE') {
              setFichas((prev) => prev.filter(f => f.id !== payload.old.id))
              setSelectedIds(prev => prev.filter(id => id !== payload.old.id))
@@ -160,22 +167,17 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
         })
         .subscribe()
 
-    // --- NUEVO: Listener de Actividad de Administradores (Google Sheets Style) ---
     const adminActivityChannel = supabase.channel('admin_room')
         .on('broadcast', { event: 'admin_action' }, ({ payload }) => {
-            // Agregamos la acción al historial de notificaciones
             const newLog = {
                 id: Date.now().toString(),
                 type: 'action',
-                user: payload.user, // Nombre del admin que hizo el cambio
+                user: payload.user,
                 msg: `${payload.action}`,
                 details: payload.details,
                 time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
             }
             setNotifications(prev => [newLog, ...prev])
-            
-            // Opcional: Sonido sutil para cambios
-            // playSystemSound() 
         })
         .subscribe()
 
@@ -234,7 +236,6 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
   }
 
   const handleNotificationClick = (notif: any) => {
-      // Si es chat, abrimos el chat
       if (notif.type === 'chat') {
           const worker = fichas.find(f => f.user_id === notif.worker_id)
           if (worker) {
@@ -245,10 +246,6 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
               toast.error("El trabajador no se encuentra en la lista actual.")
           }
       } 
-      // Si es acción de admin, solo la marcamos como leída o borramos
-      else if (notif.type === 'action') {
-          // No hacemos nada especial, solo cerrar o borrar si se quiere
-      }
   }
 
   const handleSelectAll = (filteredData: any[]) => {
@@ -271,6 +268,24 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
           if(onNotifyChange) onNotifyChange("eliminó", `${selectedIds.length} fichas de trabajadores`)
           setSelectedIds([])
       } catch (error: any) { toast.error("Error: " + error.message) } finally { setDeleting(false) }
+  }
+
+  // --- NUEVA FUNCIÓN: RESETEAR CONFIRMACIÓN ---
+  const handleResetConfirmation = async (id: string) => {
+      if(!confirm("¿Deseas anular la confirmación de recepción y volver a estado Pendiente?")) return;
+      
+      const { error } = await supabase
+          .from('fichas')
+          .update({ email_confirmed_at: null }) // Lo volvemos nulo
+          .eq('id', id)
+
+      if (error) {
+          toast.error("Error al resetear: " + error.message)
+      } else {
+          toast.success("Estado reseteado a Pendiente")
+          // Actualizamos el estado local inmediatamente
+          setFichas(prev => prev.map(f => f.id === id ? { ...f, email_confirmed_at: null } : f))
+      }
   }
 
   const handleDownloadPDF = async (ficha: any) => {
@@ -301,7 +316,6 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
   const toggleSelectAllDocs = (docs: any[]) => {
       const allIds = docs.map(d => d.id)
       const allSelected = allIds.every((id: string) => selectedDocsToPrint.includes(id))
-      
       if (allSelected) {
           setSelectedDocsToPrint(prev => prev.filter(id => !allIds.includes(id)))
       } else {
@@ -327,8 +341,6 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
               
               for (let i = 0; i < elements.length; i++) {
                   const element = elements[i]
-
-                  // --- CORRECCIÓN CRÍTICA DE COLORES 'LAB' ---
                   const canvas = await html2canvas(element, { 
                       scale: 2, 
                       useCORS: true, 
@@ -390,7 +402,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
   return (
     <div className="flex flex-col h-full bg-white rounded-3xl border border-slate-200/60 shadow-xl shadow-slate-200/40 overflow-hidden relative font-sans">
       
-      {/* CONTENEDOR OCULTO DE IMPRESIÓN (Con Fix de Colores) */}
+      {/* CONTENEDOR OCULTO DE IMPRESIÓN */}
       <div className="fixed top-0 left-0 pointer-events-none opacity-0 overflow-hidden" style={{ zIndex: -100 }}>
           <div ref={printRef} style={{ width: 'fit-content', backgroundColor: '#ffffff', color: '#000000' }}>
               {workerToPrint && selectedDocsToPrint.map((docId) => {
@@ -456,7 +468,6 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                                                 const w = fichas.find(f => f.user_id === notif.worker_id); const name = w ? w.nombres.split(' ')[0] : 'Obrero'
                                                 return <div key={notif.id} onClick={() => handleNotificationClick(notif)} className="p-4 hover:bg-blue-50 transition-colors border-b border-slate-50 last:border-0 cursor-pointer group"><div className="flex items-start gap-3"><div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold shrink-0">{name.charAt(0)}</div><div><p className="text-sm font-bold text-slate-800 group-hover:text-blue-700 transition-colors">{name}</p><p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{notif.msg}</p><p className="text-[10px] text-slate-400 mt-1">{notif.time}</p></div></div></div>
                                             } else {
-                                                // TIPO ACCIÓN ADMIN
                                                 return (
                                                     <div key={notif.id} className="p-4 bg-slate-50/50 hover:bg-slate-100 transition-colors border-b border-slate-100 last:border-0 cursor-default">
                                                         <div className="flex items-start gap-3">
@@ -518,7 +529,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                     <th className="px-6 py-4 w-16 text-center"><button onClick={() => handleSelectAll(filteredAndSorted)} className="text-slate-300 hover:text-blue-600 transition-colors">{selectedIds.length > 0 && selectedIds.length === filteredAndSorted.length ? <CheckSquare size={20} className="text-blue-600"/> : <Square size={20}/>}</button></th>
                     <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Colaborador</th>
                     <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Ubicación / Cargo</th>
-                    <th className="px-6 py-4 text-center text-[11px] font-bold text-slate-400 uppercase tracking-widest">Estado</th>
+                    <th className="px-6 py-4 text-center text-[11px] font-bold text-slate-400 uppercase tracking-widest">Confirmación</th>
                     <th className="px-6 py-4 text-center text-[11px] font-bold text-slate-400 uppercase tracking-widest">Biometría</th>
                     <th className="px-6 py-4 text-right text-[11px] font-bold text-slate-400 uppercase tracking-widest">Acciones</th>
                 </tr>
@@ -533,7 +544,27 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                         <td className="px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}><button onClick={() => handleSelectOne(ficha.id)} className="text-slate-300 hover:text-blue-600 transition-colors">{selectedIds.includes(ficha.id) ? <CheckSquare size={20} className="text-blue-600"/> : <Square size={20}/>}</button></td>
                         <td className="px-6 py-4"><div className="flex items-center gap-4"><div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-50 to-blue-50 flex items-center justify-center text-blue-600 font-bold text-sm border border-blue-100 shadow-sm shrink-0 uppercase relative">{ficha.nombres?.charAt(0)}{ficha.apellido_paterno?.charAt(0)}<span className="absolute -bottom-1 -right-1 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full"></span></div><div className="min-w-0"><p className="font-bold text-slate-800 text-sm truncate group-hover:text-blue-700 transition-colors">{ficha.apellido_paterno} {ficha.apellido_materno}, {ficha.nombres}</p><div className="flex items-center gap-2 mt-0.5"><span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">{ficha.dni}</span></div></div></div></td>
                         <td className="px-6 py-4"><div className="flex flex-col gap-1"><div className="flex items-center gap-1.5 text-xs font-medium text-slate-700"><Building2 size={13} className="text-slate-400"/><span className="truncate max-w-[150px]" title={ficha.nombre_obra}>{ficha.nombre_obra || 'Sin Obra'}</span></div><div className="flex items-center gap-1.5 text-xs text-slate-500"><HardHat size={13} className="text-slate-400"/><span className="truncate capitalize">{ficha.cargo || 'Sin Cargo'}</span></div></div></td>
-                        <td className="px-6 py-4 text-center">{ficha.estado === 'completado' ? (<span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/60 shadow-sm"><CheckCircle size={12}/> Completado</span>) : (<span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200/60 shadow-sm"><Loader2 size={12} className="animate-spin"/> Pendiente</span>)}</td>
+                        <td className="px-6 py-4 text-center">
+                            {/* --- COLUMNA DE CONFIRMACIÓN (NUEVA) --- */}
+                            {ficha.email_confirmed_at ? (
+                                <div className="flex items-center justify-center gap-2">
+                                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/60 shadow-sm cursor-help" title={`Confirmado el: ${new Date(ficha.email_confirmed_at).toLocaleString()}`}>
+                                        <MailCheck size={14}/> RECIBIDO
+                                    </div>
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); handleResetConfirmation(ficha.id); }}
+                                        className="p-1.5 rounded-full bg-slate-50 text-slate-400 hover:bg-red-50 hover:text-red-500 border border-slate-200 transition-colors"
+                                        title="Resetear a Pendiente"
+                                    >
+                                        <RotateCcw size={12}/>
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200 shadow-sm opacity-70">
+                                    <Clock size={14}/> PENDIENTE
+                                </div>
+                            )}
+                        </td>
                         <td className="px-6 py-4"><div className="flex items-center justify-center gap-3"><div className={`p-2 rounded-lg border transition-all ${ficha.firma_url ? 'bg-emerald-50/50 border-emerald-200 text-emerald-600' : 'bg-slate-50 border-slate-100 text-slate-300'}`} title={ficha.firma_url ? "Firma Registrada" : "Falta Firma"}><PenTool size={14}/></div><div className={`p-2 rounded-lg border transition-all ${ficha.huella_url ? 'bg-emerald-50/50 border-emerald-200 text-emerald-600' : 'bg-slate-50 border-slate-100 text-slate-300'}`} title={ficha.huella_url ? "Huella Registrada" : "Falta Huella"}><Fingerprint size={14}/></div></div></td>
                         <td className="px-6 py-4 text-right"><div className="flex items-center justify-end gap-1 opacity-60 group-hover:opacity-100 transition-opacity">{onOpenChat && (<button onClick={(e) => { e.stopPropagation(); handleChatClick(ficha) }} className="relative p-2.5 text-slate-400 hover:text-white hover:bg-indigo-600 rounded-xl transition-all active:scale-95" title="Chat con trabajador"><MessageSquare size={16} />{unreadCounts[ficha.user_id] > 0 && (<span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white shadow-sm ring-2 ring-white">{unreadCounts[ficha.user_id]}</span>)}</button>)}<button onClick={(e) => { e.stopPropagation(); setSelectedFicha(ficha) }} className="p-2.5 text-slate-400 hover:text-white hover:bg-blue-600 rounded-xl transition-all active:scale-95" title="Editar Ficha"><Edit3 size={16}/></button><button onClick={(e) => { e.stopPropagation(); handleDownloadPDF(ficha) }} className="p-2.5 text-slate-400 hover:text-white hover:bg-emerald-600 rounded-xl transition-all active:scale-95" title="Descargar PDF"><Download size={16}/></button></div></td>
                     </motion.tr>
@@ -622,7 +653,17 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
         )}
       </AnimatePresence>
 
-      <AnimatePresence>{pdfBlobUrl && (<PdfPreviewModal pdfUrl={pdfBlobUrl} pdfFile={pdfFile} workerName={workerToPrint ? `${workerToPrint.nombres.split(' ')[0]} ${workerToPrint.apellido_paterno}` : ''} onClose={() => { setPdfBlobUrl(null); setPdfFile(null) }} />)}</AnimatePresence>
+      <AnimatePresence>
+        {pdfBlobUrl && (
+            <PdfPreviewModal 
+                pdfUrl={pdfBlobUrl} 
+                pdfFile={pdfFile} 
+                workerName={workerToPrint ? `${workerToPrint.nombres.split(' ')[0]} ${workerToPrint.apellido_paterno}` : ''} 
+                workerId={workerToPrint?.id}
+                onClose={() => { setPdfBlobUrl(null); setPdfFile(null) }} 
+            />
+        )}
+      </AnimatePresence>
       <AnimatePresence>{printImage && (<PrintPreviewModal image={printImage} onClose={() => setPrintImage(null)} />)}</AnimatePresence>
     </div>
   )
@@ -780,13 +821,13 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
                                 </div>
                                 {formData.hijos_datos?.map((h:any, i:number) => (
                                     <div key={i} className="mb-3 p-3 bg-slate-100 rounded-lg relative group">
-                                        {isEditing && <button onClick={()=>removeHijo(i)} className="absolute top-1 right-1 text-slate-400 hover:text-red-500"><X size={14}/></button>}
-                                        <Grid>
-                                            <Field label="Nombres" val={h.nombres} edit={isEditing} customChange={(v:any)=>handleHijoChange(i, 'nombres', v)} />
-                                            <Field label="F. Nacimiento" val={h.fecha_nacimiento} edit={isEditing} type="date" customChange={(v:any)=>handleHijoChange(i, 'fecha_nacimiento', v)} />
-                                            <Field label="Ap. Paterno" val={h.paterno} edit={isEditing} customChange={(v:any)=>handleHijoChange(i, 'paterno', v)} />
-                                            <Field label="Ap. Materno" val={h.materno} edit={isEditing} customChange={(v:any)=>handleHijoChange(i, 'materno', v)} />
-                                        </Grid>
+                                            {isEditing && <button onClick={()=>removeHijo(i)} className="absolute top-1 right-1 text-slate-400 hover:text-red-500"><X size={14}/></button>}
+                                            <Grid>
+                                                <Field label="Nombres" val={h.nombres} edit={isEditing} customChange={(v:any)=>handleHijoChange(i, 'nombres', v)} />
+                                                <Field label="F. Nacimiento" val={h.fecha_nacimiento} edit={isEditing} type="date" customChange={(v:any)=>handleHijoChange(i, 'fecha_nacimiento', v)} />
+                                                <Field label="Ap. Paterno" val={h.paterno} edit={isEditing} customChange={(v:any)=>handleHijoChange(i, 'paterno', v)} />
+                                                <Field label="Ap. Materno" val={h.materno} edit={isEditing} customChange={(v:any)=>handleHijoChange(i, 'materno', v)} />
+                                            </Grid>
                                     </div>
                                 ))}
                              </div>
@@ -878,7 +919,11 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
     )
 }
 
-function PdfPreviewModal({ pdfUrl, pdfFile, workerName, onClose }: { pdfUrl: string, pdfFile: File | null, workerName: string, onClose: () => void }) {
+function PdfPreviewModal({ pdfUrl, pdfFile, workerName, workerId, onClose }: { pdfUrl: string, pdfFile: File | null, workerName: string, workerId?: string, onClose: () => void }) {
+    const supabase = createClient()
+    const [recipientEmail, setRecipientEmail] = useState('')
+    const [sendingEmail, setSendingEmail] = useState(false)
+
     const handleShareWhatsApp = async () => {
         if (!pdfFile) return
         const userAgent = window.navigator.userAgent.toLowerCase();
@@ -891,12 +936,93 @@ function PdfPreviewModal({ pdfUrl, pdfFile, workerName, onClose }: { pdfUrl: str
         toast.success("✅ Descargado. Abriendo WhatsApp...");
         setTimeout(() => { window.open(`https://wa.me/?text=${encodeURIComponent(`Hola, adjunto los documentos firmados de *${workerName}*.`)}`, '_blank') }, 1000)
     }
+
+    const handleShareOutlook = async () => {
+        if (!recipientEmail || !recipientEmail.includes('@')) {
+            toast.error("Por favor ingresa un correo válido.");
+            return;
+        }
+        if (!pdfFile) return;
+
+        setSendingEmail(true);
+        const toastId = toast.loading("Subiendo documento y generando enlaces...");
+
+        try {
+            // 1. Subir PDF
+            const fileName = `legajo_${workerId || 'temp'}_${Date.now()}.pdf`;
+            const { data: uploadData, error: uploadError } = await supabase.storage
+                .from('documentos_temporales') 
+                .upload(fileName, pdfFile);
+
+            if (uploadError) throw uploadError;
+
+            // 2. URL Pública
+            const { data: { publicUrl } } = supabase.storage
+                .from('documentos_temporales')
+                .getPublicUrl(fileName);
+
+            // 3. Link Confirmación
+            const confirmLink = `${window.location.origin}/api/confirm-receipt?id=${workerId}&doc=legajo`;
+
+            // 4. Cuerpo Correo
+            const subject = `Documentación Laboral - ${workerName}`;
+            const body = 
+`Estimado(a) colaborador(a):
+
+Se adjunta el enlace para descargar su documentación laboral (Legajo SSOMA/RRHH).
+
+📂 DESCARGAR DOCUMENTOS:
+${publicUrl}
+
+--------------------------------------------------
+IMPORTANTE:
+Por favor, confirme la recepción de estos documentos haciendo clic en el siguiente enlace:
+
+✅ CONFIRMAR RECEPCIÓN:
+${confirmLink}
+--------------------------------------------------
+
+Atentamente,
+Departamento de RRHH / SSOMA
+RUAG System`;
+
+            // 5. Deeplink Outlook
+            const outlookUrl = `https://outlook.office.com/mail/deeplink/compose?to=${recipientEmail}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+            
+            window.open(outlookUrl, '_blank');
+            toast.success("Outlook abierto.", { id: toastId });
+            setSendingEmail(false);
+
+        } catch (error: any) {
+            console.error(error);
+            toast.error("Error: " + (error.message || "Verifica bucket 'documentos_temporales'"), { id: toastId });
+            setSendingEmail(false);
+        }
+    }
+
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/90 z-[100] flex items-center justify-center p-4" onClick={onClose}>
             <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-white rounded-3xl overflow-hidden shadow-2xl max-w-4xl w-full flex flex-col h-[90vh]" onClick={e => e.stopPropagation()}>
                 <div className="p-5 border-b flex justify-between items-center bg-white shrink-0"><h3 className="font-bold text-slate-800 text-lg flex items-center gap-2"><FileCheck size={24} className="text-emerald-500"/> Vista Previa</h3><button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={24}/></button></div>
                 <div className="flex-1 bg-slate-100 relative"><iframe src={pdfUrl} className="w-full h-full" title="PDF Preview" /></div>
-                <div className="p-5 border-t bg-white flex flex-col sm:flex-row gap-4 shrink-0"><button onClick={onClose} className="flex-1 py-3.5 rounded-xl font-bold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">Cerrar</button><button onClick={handleShareWhatsApp} className="flex-1 py-3.5 rounded-xl font-bold bg-green-500 text-white hover:bg-green-600 shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95"><Share2 size={20}/> Compartir por WhatsApp</button></div>
+                
+                <div className="p-5 border-t bg-white flex flex-col gap-4 shrink-0">
+                    <div className="flex flex-col gap-2">
+                        <label className="text-xs font-bold text-slate-500 uppercase ml-1">Correo del Destinatario (Obrero)</label>
+                        <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
+                            <Mail className="text-slate-400 ml-2" size={20}/>
+                            <input type="email" placeholder="ejemplo@correo.com" className="flex-1 bg-transparent outline-none text-sm text-slate-700 font-medium placeholder:text-slate-400" value={recipientEmail} onChange={(e) => setRecipientEmail(e.target.value)}/>
+                        </div>
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                        <button onClick={onClose} className="px-6 py-3.5 rounded-xl font-bold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">Cerrar</button>
+                        <button onClick={handleShareWhatsApp} className="flex-1 py-3.5 rounded-xl font-bold bg-green-500 text-white hover:bg-green-600 shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95"><Share2 size={20}/> WhatsApp</button>
+                        <button onClick={handleShareOutlook} disabled={sendingEmail || !recipientEmail} className="flex-1 py-3.5 rounded-xl font-bold bg-blue-600 text-white hover:bg-blue-700 shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+                            {sendingEmail ? <Loader2 className="animate-spin" size={20}/> : <Mail size={20}/>}
+                            {sendingEmail ? 'Generando Enlace...' : 'Enviar por Outlook Web'}
+                        </button>
+                    </div>
+                </div>
             </motion.div>
         </motion.div>
     )

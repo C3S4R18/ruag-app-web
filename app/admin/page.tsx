@@ -19,15 +19,16 @@ import {
   Search, TrendingUp, Activity, HardHat, UploadCloud, X,
   LayoutDashboard, Fingerprint, Menu, PenTool, CheckCircle, Loader2,
   FileText, Lock, Unlock, ScanLine, Trash2, ChevronRight,
-  UserCog, Mail, Key, Save, Send, ScanFace, Zap, Briefcase, FileBadge, HeartHandshake, CheckSquare, Square
+  UserCog, Mail, Key, Save, Send, ScanFace, Zap, Briefcase, FileBadge, 
+  HeartHandshake, CheckSquare, Square, ExternalLink, ArrowUpDown 
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 
 // --- CONFIGURACIÓN DOCUMENTOS SSOMA ---
 const DIGITAL_DOCS = [
-    { id: 'risst', label: 'Cargo RISST', type: 'lock' }, // Tipo PDF para descarga
-    { id: 'capacitacion', label: 'Registro Capacitación', type: 'lock' },           // Tipo Lock para habilitar firma
+    { id: 'risst', label: 'Cargo RISST', type: 'lock' },
+    { id: 'capacitacion', label: 'Registro Capacitación', type: 'lock' },
     { id: 'induccion', label: 'Inducción Hombre Nuevo', type: 'lock' },
     { id: 'epp', label: 'Entrega de EPPs', type: 'lock' },
     { id: 'acta_derecho', label: 'Acta Derecho a Saber', type: 'lock' },
@@ -43,7 +44,7 @@ const RRHH_DOCS_CONFIG = [
     { id: 'cargo_rit', label: 'Cargo Reglamento Trabajo', type: 'lock' },
 ]
 
-// --- CONFIGURACIÓN DOCUMENTOS RRHH (CARGOS PARA HABILITAR - Referencia visual del drawer) ---
+// --- CONFIGURACIÓN DOCUMENTOS RRHH (CARGOS PARA HABILITAR) ---
 const RRHH_DOCS = [
     { id: 'cargo_politica_prevencion', label: 'Cargo Política de Prevención' },
     { id: 'cargo_rit', label: 'Cargo del Reglamento de Trabajo' },
@@ -72,7 +73,7 @@ export default function AdminPage() {
   // --- ESTADO PARA COMUNICACIÓN CON TABLA HIJA ---
   const [refreshTrigger, setRefreshTrigger] = useState(0)
 
-  // --- REALTIME ---
+  // --- REALTIME (GOOGLE SHEETS BUBBLES) ---
   const [onlineUsers, setOnlineUsers] = useState<any[]>([]) 
   const channelRef = useRef<any>(null)
 
@@ -81,13 +82,16 @@ export default function AdminPage() {
   const [loadingData, setLoadingData] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   
+  // --- ORDENAMIENTO ---
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+  
   // Selección de Modales Individuales
   const [selectedWorkerBiometria, setSelectedWorkerBiometria] = useState<any>(null)
   const [selectedWorkerDocs, setSelectedWorkerDocs] = useState<any>(null) // SSOMA
   const [selectedWorkerRRHH, setSelectedWorkerRRHH] = useState<any>(null) // RRHH
   const [chatWorker, setChatWorker] = useState<any>(null) 
 
-  // --- NUEVO: SELECCIÓN MÚLTIPLE (GRID) ---
+  // --- SELECCIÓN MÚLTIPLE (GRID/LIST) ---
   const [selectedGridIds, setSelectedGridIds] = useState<string[]>([])
   const [showMassActionModal, setShowMassActionModal] = useState(false)
   const [massActionType, setMassActionType] = useState<'ssoma' | 'rrhh'>('ssoma')
@@ -141,6 +145,15 @@ export default function AdminPage() {
           const name = profile.nombres.split(' ')[0]
           setUserName(name) 
           
+          // --- LOGICA DE PRESENCIA (BURBUJAS) ---
+          // Pre-llenamos con el usuario actual para que se vea inmediatamente
+          const currentUserData = {
+             name: name,
+             online_at: new Date().toISOString(),
+             color: '#' + Math.floor(Math.random()*16777215).toString(16)
+          };
+          setOnlineUsers([currentUserData]); 
+
           const channel = supabase.channel('admin_room', {
               config: { presence: { key: user.id } }
           })
@@ -149,6 +162,7 @@ export default function AdminPage() {
             .on('presence', { event: 'sync' }, () => {
                 const newState = channel.presenceState()
                 const users = Object.values(newState).map((u: any) => u[0])
+                // Ordenar para que siempre salgas tú primero o se mantenga estable
                 setOnlineUsers(users)
             })
             .on('broadcast', { event: 'admin_action' }, ({ payload }: any) => {
@@ -164,11 +178,7 @@ export default function AdminPage() {
             })
             .subscribe(async (status) => {
                 if (status === 'SUBSCRIBED') {
-                    await channel.track({ 
-                        name: name, 
-                        online_at: new Date().toISOString(),
-                        color: '#' + Math.floor(Math.random()*16777215).toString(16)
-                    })
+                    await channel.track(currentUserData)
                 }
             })
             channelRef.current = channel
@@ -252,11 +262,18 @@ export default function AdminPage() {
       return () => { supabase.removeChannel(channel) }
   }, []) 
 
+  // --- FILTRO Y ORDENAMIENTO ---
   const filteredWorkers = workersData.filter(worker => 
       (worker.nombres || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
       (worker.apellido_paterno || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
       (worker.dni || '').includes(searchQuery)
-  )
+  ).sort((a, b) => {
+      const nameA = `${a.apellido_paterno} ${a.nombres}`.toLowerCase();
+      const nameB = `${b.apellido_paterno} ${b.nombres}`.toLowerCase();
+      
+      if (sortOrder === 'asc') return nameA.localeCompare(nameB);
+      else return nameB.localeCompare(nameA);
+  });
 
   const handleNavClick = (view: any) => {
       setActiveView(view)
@@ -468,23 +485,29 @@ export default function AdminPage() {
 
             <div className="flex items-center gap-6">
                 
-                {/* MOSTRAR ADMINS CONECTADOS */}
-                <div className="hidden md:flex items-center gap-2">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase mr-1">En línea:</span>
+                {/* MOSTRAR ADMINS CONECTADOS (BURBUJAS) - AHORA SIEMPRE VISIBLE */}
+                <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase mr-1 hidden md:inline">En línea:</span>
                     <div className="flex -space-x-2">
                         {onlineUsers.map((user: any, i) => (
-                            <div key={i} className="relative group" title={user.name}>
+                            <div key={i} className="relative group cursor-help">
                                 <div 
-                                    className="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-white text-xs font-bold shadow-sm"
+                                    className="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-white text-xs font-bold shadow-sm transition-transform hover:scale-110 hover:z-10"
                                     style={{ backgroundColor: user.color || '#3b82f6' }}
                                 >
-                                    {user.name.charAt(0)}
+                                    {user.name ? user.name.charAt(0) : '?'}
                                 </div>
+                                {/* Tooltip */}
                                 <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
-                                    {user.name}
+                                    {user.name || 'Admin'}
                                 </div>
                             </div>
                         ))}
+                        {onlineUsers.length === 0 && (
+                             <div className="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center bg-slate-200 text-slate-400 text-xs font-bold animate-pulse">
+                                ...
+                             </div>
+                        )}
                     </div>
                 </div>
 
@@ -583,17 +606,27 @@ export default function AdminPage() {
                 </motion.div>
             )}
 
-            {/* SECCIÓN GRID COMPARTIDA (BIOMETRIA, DOCS, RRHH) */}
+            {/* SECCIÓN GRID/LISTA COMPARTIDA */}
             {(activeView === 'biometria' || activeView === 'documentos' || activeView === 'rrhh') && (
                 <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6 h-full flex flex-col max-w-7xl mx-auto">
                     
                     <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4 justify-between items-center sticky top-0 z-10">
                         {/* SELECTOR MASIVO GLOBAL */}
                         {(activeView === 'documentos' || activeView === 'rrhh') && (
-                            <div className="flex items-center mr-4 border-r border-slate-200 pr-4">
+                            <div className="flex items-center gap-4 mr-4 border-r border-slate-200 pr-4">
                                 <button onClick={handleGridSelectAll} className="flex items-center gap-2 text-slate-500 hover:text-blue-600 font-bold text-xs bg-slate-50 px-3 py-2.5 rounded-xl border border-slate-100 hover:border-blue-200 transition-all">
                                     {selectedGridIds.length === filteredWorkers.length && filteredWorkers.length > 0 ? <CheckSquare size={18} className="text-blue-600"/> : <Square size={18}/>}
                                     {selectedGridIds.length > 0 ? `${selectedGridIds.length} Seleccionados` : 'Todos'}
+                                </button>
+
+                                {/* BOTÓN DE ORDENAMIENTO (NUEVO) */}
+                                <button 
+                                    onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                                    className="flex items-center gap-2 text-slate-500 hover:text-indigo-600 font-bold text-xs bg-slate-50 px-3 py-2.5 rounded-xl border border-slate-100 hover:border-indigo-200 transition-all"
+                                    title="Ordenar alfabéticamente"
+                                >
+                                    <ArrowUpDown size={16} />
+                                    {sortOrder === 'asc' ? 'A - Z' : 'Z - A'}
                                 </button>
                             </div>
                         )}
@@ -652,56 +685,34 @@ export default function AdminPage() {
                             <p className="font-bold text-slate-600 text-lg">No hay coincidencias</p>
                         </div>
                     ) : (
-                        <div 
-                            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 pb-20"
-                            id={activeView === 'biometria' ? 'tour-biometria-grid' : 'tour-docs-grid'}
-                        >
-                            {filteredWorkers.map((worker, index) => {
-                                const isSelected = selectedGridIds.includes(worker.id);
-                                return (
-                                    <div 
-                                        key={worker.id} 
-                                        id={index === 0 ? 'tour-worker-card' : undefined} 
-                                        onClick={() => {
-                                            // Si estamos en modo selección o hacemos clic en el checkbox
-                                            // no abrimos el modal, solo seleccionamos
-                                            if (activeView === 'documentos' || activeView === 'rrhh') {
-                                                // Permitir abrir modal si se hace click fuera del checkbox
-                                                // Pero gestionamos selección aquí si se quiere
-                                            }
-                                        }} 
-                                        className={`group bg-white rounded-2xl p-5 border shadow-sm transition-all hover:shadow-xl hover:-translate-y-1 relative overflow-hidden ${isSelected ? 'border-blue-500 ring-2 ring-blue-500/20' : 'border-slate-200'}`}
-                                    >
-                                        <div className={`absolute top-0 left-0 w-full h-1 bg-gradient-to-r transition-opacity opacity-0 group-hover:opacity-100 ${activeView === 'rrhh' ? 'from-purple-400 to-pink-500' : 'from-blue-400 to-indigo-500'}`}></div>
-                                        
-                                        {/* CHECKBOX DE SELECCIÓN (Solo en vistas relevantes) */}
-                                        {(activeView === 'documentos' || activeView === 'rrhh') && (
-                                            <div 
-                                                onClick={(e) => { e.stopPropagation(); handleGridSelect(worker.id); }}
-                                                className="absolute top-3 right-3 p-2 cursor-pointer z-10 text-slate-300 hover:text-blue-600 transition-colors"
-                                            >
-                                                {isSelected ? <CheckSquare size={20} className="text-blue-600"/> : <Square size={20}/>}
+                        <>
+                            {/* --- VISTA GRID (SOLO PARA BIOMETRÍA) --- */}
+                            {activeView === 'biometria' ? (
+                                <div 
+                                    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 pb-20"
+                                    id="tour-biometria-grid"
+                                >
+                                    {filteredWorkers.map((worker, index) => (
+                                        <div 
+                                            key={worker.id} 
+                                            id={index === 0 ? 'tour-worker-card' : undefined} 
+                                            className="group bg-white rounded-2xl p-5 border border-slate-200 shadow-sm transition-all hover:shadow-xl hover:-translate-y-1 relative overflow-hidden"
+                                        >
+                                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-400 to-indigo-500 transition-opacity opacity-0 group-hover:opacity-100"></div>
+                                            
+                                            <div className="flex items-start gap-4 mb-5 cursor-pointer" onClick={() => setSelectedWorkerBiometria(worker)}>
+                                                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-600 font-bold text-xl border border-white shadow-inner transition-colors group-hover:from-blue-50 group-hover:to-blue-100 group-hover:text-blue-600">
+                                                    {worker.nombres?.charAt(0)}{worker.apellido_paterno?.charAt(0)}
+                                                </div>
+                                                <div className="min-w-0 flex-1">
+                                                    <h4 className="font-bold text-slate-800 truncate text-base group-hover:text-blue-700 transition-colors uppercase">{worker.apellido_paterno}</h4>
+                                                    <p className="text-sm text-slate-500 truncate mb-1">{worker.nombres}</p>
+                                                    <span className="text-[10px] font-mono font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 group-hover:bg-blue-50 group-hover:text-blue-600 group-hover:border-blue-100 transition-colors">
+                                                        {worker.dni}
+                                                    </span>
+                                                </div>
                                             </div>
-                                        )}
 
-                                        <div className="flex items-start gap-4 mb-5 cursor-pointer" onClick={() => {
-                                            if (activeView === 'biometria') setSelectedWorkerBiometria(worker)
-                                            else if (activeView === 'documentos') setSelectedWorkerDocs(worker)
-                                            else if (activeView === 'rrhh') setSelectedWorkerRRHH(worker)
-                                        }}>
-                                            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-600 font-bold text-xl border border-white shadow-inner transition-colors group-hover:from-blue-50 group-hover:to-blue-100 group-hover:text-blue-600">
-                                                {worker.nombres?.charAt(0)}{worker.apellido_paterno?.charAt(0)}
-                                            </div>
-                                            <div className="min-w-0 flex-1">
-                                                <h4 className="font-bold text-slate-800 truncate text-base group-hover:text-blue-700 transition-colors uppercase">{worker.apellido_paterno}</h4>
-                                                <p className="text-sm text-slate-500 truncate mb-1">{worker.nombres}</p>
-                                                <span className="text-[10px] font-mono font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 group-hover:bg-blue-50 group-hover:text-blue-600 group-hover:border-blue-100 transition-colors">
-                                                    {worker.dni}
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        {activeView === 'biometria' ? (
                                             <div className="grid grid-cols-2 gap-2 cursor-pointer" onClick={() => setSelectedWorkerBiometria(worker)}>
                                                 <div className={`py-2.5 rounded-xl text-[10px] font-bold text-center border flex flex-col items-center justify-center gap-1 transition-colors ${worker.firma_url ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-400 border-slate-100'}`}>
                                                     <PenTool size={14} className={worker.firma_url ? "text-emerald-500" : "text-slate-300"}/> 
@@ -712,24 +723,69 @@ export default function AdminPage() {
                                                     {worker.huella_url ? 'HUELLA OK' : 'SIN HUELLA'}
                                                 </div>
                                             </div>
-                                        ) : (
-                                            <div className="w-full">
-                                                <button 
-                                                    onClick={() => {
-                                                        if (activeView === 'documentos') setSelectedWorkerDocs(worker)
-                                                        else if (activeView === 'rrhh') setSelectedWorkerRRHH(worker)
-                                                    }}
-                                                    className={`w-full py-2.5 rounded-xl bg-slate-50 text-slate-600 text-xs font-bold border border-slate-200 group-hover:text-white group-hover:border-transparent transition-all flex items-center justify-center gap-2 ${activeView === 'rrhh' ? 'group-hover:bg-purple-600' : 'group-hover:bg-blue-600'}`}
-                                                >
-                                                    {activeView === 'rrhh' ? <Briefcase size={14}/> : <FileText size={14}/>} 
-                                                    {activeView === 'rrhh' ? 'Gestionar RRHH' : 'Gestionar Documentos'}
-                                                </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                /* --- VISTA LISTA (PARA SSOMA Y RRHH) --- */
+                                <div className="flex flex-col gap-2 pb-20" id="tour-docs-list">
+                                    {filteredWorkers.map((worker, index) => {
+                                        const isSelected = selectedGridIds.includes(worker.id);
+                                        const isRRHH = activeView === 'rrhh';
+                                        
+                                        return (
+                                            <div 
+                                                key={worker.id}
+                                                className={`group flex items-center justify-between p-4 bg-white rounded-xl border transition-all hover:shadow-md cursor-pointer ${isSelected ? 'border-blue-500 bg-blue-50/20' : 'border-slate-200 hover:border-blue-300'}`}
+                                                onClick={() => {
+                                                    if (activeView === 'documentos') setSelectedWorkerDocs(worker)
+                                                    else if (activeView === 'rrhh') setSelectedWorkerRRHH(worker)
+                                                }}
+                                            >
+                                                {/* Sección Izquierda: Datos */}
+                                                <div className="flex items-center gap-4 flex-1 min-w-0">
+                                                    {/* Checkbox */}
+                                                    <div onClick={(e) => { e.stopPropagation(); handleGridSelect(worker.id); }} className="text-slate-300 hover:text-blue-600 transition-colors p-2 -ml-2">
+                                                        {isSelected ? <CheckSquare size={20} className="text-blue-600"/> : <Square size={20}/>}
+                                                    </div>
+
+                                                    {/* Avatar */}
+                                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold border ${isRRHH ? 'bg-purple-50 text-purple-600 border-purple-100' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>
+                                                        {worker.nombres?.charAt(0)}{worker.apellido_paterno?.charAt(0)}
+                                                    </div>
+
+                                                    {/* Info Text */}
+                                                    <div className="min-w-0">
+                                                        <div className="flex items-baseline gap-2">
+                                                            <h4 className="font-bold text-slate-800 text-sm truncate uppercase group-hover:text-blue-700 transition-colors">
+                                                                {worker.apellido_paterno}, {worker.nombres}
+                                                            </h4>
+                                                            <span className="text-xs text-slate-400 font-mono hidden sm:inline">{worker.dni}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
+                                                            <HardHat size={12}/>
+                                                            <span className="truncate max-w-[150px]">{worker.cargo || 'Sin Cargo'}</span>
+                                                            <span className="text-slate-300 mx-1">|</span>
+                                                            <span>{worker.nombre_obra || 'Sin Obra'}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Sección Derecha: Botón de Acción */}
+                                                <div className="ml-4 shrink-0">
+                                                    <button 
+                                                        className={`px-4 py-2 rounded-lg text-xs font-bold border transition-colors flex items-center gap-2 ${isRRHH ? 'bg-purple-50 text-purple-700 border-purple-100 group-hover:bg-purple-600 group-hover:text-white group-hover:border-purple-600' : 'bg-blue-50 text-blue-700 border-blue-100 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600'}`}
+                                                    >
+                                                        {isRRHH ? <Briefcase size={14}/> : <FileText size={14}/>}
+                                                        <span className="hidden sm:inline">{isRRHH ? 'Gestionar RRHH' : 'Gestionar Docs'}</span>
+                                                    </button>
+                                                </div>
                                             </div>
-                                        )}
-                                    </div>
-                                )
-                            })}
-                        </div>
+                                        )
+                                    })}
+                                </div>
+                            )}
+                        </>
                     )}
                 </motion.div>
             )}
@@ -861,17 +917,181 @@ export default function AdminPage() {
   )
 }
 
-// ... SidebarItem, StatCard, AdminProfileSettings se mantienen igual ...
 function SidebarItem({ active, onClick, icon, label }: any) {
     return <button onClick={onClick} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-all duration-200 group relative ${active ? 'text-white' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>{active && (<motion.div layoutId="active-bg" className="absolute inset-0 bg-blue-600 rounded-xl shadow-lg shadow-blue-900/40" initial={false} transition={{type:'spring', stiffness: 500, damping: 30}} />)}<span className="relative z-10">{icon}</span><span className="relative z-10 tracking-wide">{label}</span>{!active && <ChevronRight size={14} className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity -translate-x-2 group-hover:translate-x-0"/>}</button>
 }
 function StatCard({title, value, desc, icon, bg, delay}: any) {
     return <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay }} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-lg transition-all"><div className="flex justify-between items-start"><div><p className="text-slate-500 text-sm font-medium mb-1">{title}</p><h3 className="text-3xl font-bold text-slate-800 tracking-tight">{value}</h3></div><div className={`p-3 rounded-2xl shadow-lg shadow-blue-900/10 ${bg}`}>{icon}</div></div><div className="mt-4 pt-4 border-t border-slate-50"><div className="text-xs font-bold text-slate-400 flex items-center gap-1.5"><TrendingUp size={14} className="text-emerald-500"/> <span className="text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">{desc}</span></div></div></motion.div>
 }
+
+// --- ACTUALIZADO: PERFIL CON MODAL DE REDIRECCIÓN A EMAIL ---
 function AdminProfileSettings({ userEmail, supabase }: any) {
-    const [email, setEmail] = useState(userEmail); const [password, setPassword] = useState(''); const [confirmPassword, setConfirmPassword] = useState(''); const [loading, setLoading] = useState(false);
-    const handleUpdate = async (e: React.FormEvent) => { e.preventDefault(); if (password && password !== confirmPassword) { toast.error("Las contraseñas no coinciden"); return }; if (password && password.length < 6) { toast.error("La contraseña debe tener al menos 6 caracteres"); return }; setLoading(true); const updates: any = { email }; if (password) updates.password = password; const { error } = await supabase.auth.updateUser(updates, { emailRedirectTo: `${window.location.origin}/dashboard` }); if (error) { toast.error("Error al actualizar: " + error.message) } else { if (email !== userEmail) { toast.success("Revisa tu nuevo correo para confirmar el cambio.") } else { toast.success("✅ Credenciales actualizadas correctamente.") } toast.info("Usa estos datos para tu próximo inicio de sesión."); setPassword(''); setConfirmPassword('') } setLoading(false) }
-    return <div className="bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden"><div className="p-8 border-b border-slate-100 text-center bg-gradient-to-b from-white to-slate-50/50"><div className="w-20 h-20 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-white shadow-lg"><UserCog size={36}/></div><h2 className="text-2xl font-bold text-slate-800">Cuenta de Administrador</h2><p className="text-slate-500 text-sm mt-1 max-w-xs mx-auto">Actualiza tus credenciales de acceso al sistema.</p></div><form onSubmit={handleUpdate} className="p-8 space-y-6"><div><label className="block text-xs font-bold text-slate-500 uppercase mb-2 pl-1">Correo Electrónico</label><div className="relative"><Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18}/><input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" placeholder="admin@empresa.com"/></div></div><div><label className="block text-xs font-bold text-slate-500 uppercase mb-2 pl-1">Nueva Contraseña</label><div className="relative"><Key className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18}/><input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" placeholder="••••••••"/></div></div><div><label className="block text-xs font-bold text-slate-500 uppercase mb-2 pl-1">Confirmar Contraseña</label><div className="relative"><Key className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18}/><input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" placeholder="Repite la contraseña"/></div></div><div className="pt-4"><button type="submit" disabled={loading} className="w-full py-4 bg-slate-900 text-white rounded-xl font-bold shadow-lg hover:bg-slate-800 disabled:opacity-70 flex items-center justify-center gap-2 transition-all active:scale-[0.98]">{loading ? <Loader2 className="animate-spin" size={20}/> : <Save size={20}/>}{loading ? 'Actualizando...' : 'Guardar Cambios'}</button></div></form></div>
+    const [email, setEmail] = useState(userEmail);
+    const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [loading, setLoading] = useState(false);
+    
+    // Estado para el modal de éxito
+    const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [actionType, setActionType] = useState<'email' | 'password' | 'both'>('password');
+
+    const handleUpdate = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (password && password !== confirmPassword) { toast.error("Las contraseñas no coinciden"); return };
+        if (password && password.length < 6) { toast.error("La contraseña debe tener al menos 6 caracteres"); return };
+        
+        setLoading(true);
+        
+        const updates: any = { email };
+        if (password) updates.password = password;
+
+        // Determinar tipo de acción para el mensaje
+        if (email !== userEmail && password) setActionType('both');
+        else if (email !== userEmail) setActionType('email');
+        else setActionType('password');
+
+        const { error } = await supabase.auth.updateUser(updates, { emailRedirectTo: `${window.location.origin}/dashboard` });
+        
+        setLoading(false);
+
+        if (error) { 
+            toast.error("Error al actualizar: " + error.message);
+        } else {
+            // En lugar de solo toast, abrimos el modal
+            setShowSuccessModal(true);
+            setPassword(''); 
+            setConfirmPassword('');
+        }
+    }
+
+    // Lógica para obtener el link del proveedor de correo
+    const getMailProviderConfig = (emailStr: string) => {
+        const domain = emailStr.split('@')[1] || '';
+        
+        if (domain.includes('gmail.com')) {
+            return {
+                name: 'Gmail',
+                url: 'https://mail.google.com/mail/u/0/#inbox',
+                color: 'bg-red-600 hover:bg-red-700',
+                text: 'Abrir Gmail'
+            };
+        } else if (domain.includes('ruag.pe') || domain.includes('outlook') || domain.includes('hotmail')) {
+            return {
+                name: 'Outlook',
+                url: 'https://outlook.office.com/mail/',
+                color: 'bg-blue-600 hover:bg-blue-700',
+                text: 'Abrir Outlook Corporativo'
+            };
+        } else {
+            return {
+                name: 'Bandeja de Entrada',
+                url: 'mailto:', // Fallback genérico
+                color: 'bg-slate-900 hover:bg-slate-800',
+                text: 'Abrir Correo'
+            };
+        }
+    };
+
+    const mailConfig = getMailProviderConfig(email);
+
+    return (
+        <>
+            <div className="bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden">
+                <div className="p-8 border-b border-slate-100 text-center bg-gradient-to-b from-white to-slate-50/50">
+                    <div className="w-20 h-20 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-white shadow-lg">
+                        <UserCog size={36}/>
+                    </div>
+                    <h2 className="text-2xl font-bold text-slate-800">Cuenta de Administrador</h2>
+                    <p className="text-slate-500 text-sm mt-1 max-w-xs mx-auto">Actualiza tus credenciales de acceso al sistema.</p>
+                </div>
+                
+                <form onSubmit={handleUpdate} className="p-8 space-y-6">
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2 pl-1">Correo Electrónico</label>
+                        <div className="relative">
+                            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
+                            <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" placeholder="admin@empresa.com"/>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2 pl-1">Nueva Contraseña</label>
+                        <div className="relative">
+                            <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
+                            <input type="password" value={password} onChange={e => setPassword(e.target.value)} className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" placeholder="••••••••"/>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-2 pl-1">Confirmar Contraseña</label>
+                        <div className="relative">
+                            <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
+                            <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all" placeholder="Repite la contraseña"/>
+                        </div>
+                    </div>
+                    
+                    <div className="pt-4">
+                        <button type="submit" disabled={loading} className="w-full py-4 bg-slate-900 text-white rounded-xl font-bold shadow-lg hover:bg-slate-800 disabled:opacity-70 flex items-center justify-center gap-2 transition-all active:scale-[0.98]">
+                            {loading ? <Loader2 className="animate-spin" size={20}/> : <Save size={20}/>}
+                            {loading ? 'Actualizando...' : 'Guardar Cambios'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            {/* MODAL DE REDIRECCIÓN A CORREO */}
+            <AnimatePresence>
+                {showSuccessModal && (
+                    <motion.div 
+                        initial={{ opacity: 0 }} 
+                        animate={{ opacity: 1 }} 
+                        exit={{ opacity: 0 }} 
+                        className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
+                        onClick={() => setShowSuccessModal(false)}
+                    >
+                        <motion.div 
+                            initial={{ scale: 0.9, y: 20 }} 
+                            animate={{ scale: 1, y: 0 }} 
+                            exit={{ scale: 0.9, y: 20 }} 
+                            className="bg-white w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden p-6 text-center"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
+                                <Mail size={32}/>
+                            </div>
+                            
+                            <h3 className="text-xl font-bold text-slate-800 mb-2">¡Solicitud Enviada!</h3>
+                            
+                            <p className="text-slate-500 text-sm mb-6 leading-relaxed">
+                                {actionType === 'email' || actionType === 'both' 
+                                    ? "Hemos enviado un enlace de confirmación a tu nuevo correo. Debes aceptarlo para finalizar el cambio." 
+                                    : "Tu contraseña ha sido actualizada. Te recomendamos revisar tu bandeja de entrada por seguridad."}
+                            </p>
+
+                            <div className="space-y-3">
+                                <a 
+                                    href={mailConfig.url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className={`w-full py-3.5 ${mailConfig.color} text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg transition-transform active:scale-95`}
+                                >
+                                    <ExternalLink size={18}/>
+                                    {mailConfig.text}
+                                </a>
+
+                                <button 
+                                    onClick={() => setShowSuccessModal(false)} 
+                                    className="w-full py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-colors"
+                                >
+                                    Entendido, cerrar
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </>
+    )
 }
 
 function BiometricModal({ worker, onClose, onUpdate }: any) {
@@ -890,7 +1110,6 @@ function AdminDocsDrawer({ worker, onClose, onUpdate }: any) {
     return (<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm z-50 flex justify-end" onClick={onClose}><motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }} className="w-full max-w-md bg-white h-full shadow-2xl flex flex-col border-l border-slate-100" onClick={e => e.stopPropagation()}><div id="drawer-header" className="h-20 px-6 border-b border-slate-100 flex justify-between items-center bg-white shrink-0"><div><h2 className="font-bold text-slate-900 text-xl tracking-tight">SSOMA</h2><div className="flex items-center gap-2 mt-1"><div className="w-2 h-2 bg-blue-500 rounded-full"></div><p className="text-xs text-slate-500 font-medium">{worker.nombres}</p></div></div><button id="drawer-close-btn" onClick={onClose} className="p-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full transition-colors"><X size={20}/></button></div><div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50/50"><div id="drawer-risst-btn" className="mb-6 bg-indigo-50 p-4 rounded-2xl border border-indigo-100 shadow-sm"><div className="flex items-start gap-3"><div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg"><FileText size={20}/></div><div><h4 className="font-bold text-indigo-900 text-sm">Reglamento Interno (RISST)</h4><p className="text-xs text-indigo-600/80 mt-1 leading-relaxed">Envía el documento PDF digital para que el obrero lo descargue obligatoriamente desde su panel.</p></div></div><button onClick={sendRisstPdfToWorker} className="mt-3 w-full py-2.5 bg-indigo-600 text-white text-xs font-bold rounded-xl hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-indigo-200 active:scale-95"><Send size={14}/> Enviar PDF al Obrero</button></div><div id="drawer-info-section"><div className="flex items-center justify-between mb-4"><p className="text-xs text-slate-500 uppercase font-bold tracking-wider">Estado de Documentos</p><span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-bold">{DIGITAL_DOCS.length} Docs</span></div>{DIGITAL_DOCS.map((doc) => { const status = docStates[doc.id]?.status || 'locked'; const isUnlocked = status === 'unlocked'; const isCompleted = status === 'completed'; return (<div key={doc.id} className={`p-4 rounded-2xl border flex items-center justify-between transition-all group ${isCompleted ? 'bg-emerald-50/50 border-emerald-200' : isUnlocked ? 'bg-white border-blue-200 shadow-md shadow-blue-100/50 ring-1 ring-blue-100' : 'bg-white border-slate-200 shadow-sm opacity-70 grayscale'}`}><div className="flex items-center gap-4"><div className={`p-2.5 rounded-xl ${isCompleted ? 'bg-emerald-100 text-emerald-600' : isUnlocked ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400'}`}>{isCompleted ? <CheckCircle size={20}/> : <FileText size={20}/>}</div><div><h4 className="font-bold text-sm text-slate-800">{doc.label}</h4><p className="text-[10px] font-bold mt-0.5 flex items-center gap-1.5"><span className={`w-1.5 h-1.5 rounded-full ${isCompleted ? 'bg-emerald-500' : isUnlocked ? 'bg-blue-500 animate-pulse' : 'bg-slate-400'}`}></span><span style={{color: isCompleted ? '#059669' : isUnlocked ? '#2563EB' : '#94A3B8'}}>{isCompleted ? 'FIRMADO' : isUnlocked ? 'DISPONIBLE' : 'BLOQUEADO'}</span></p></div></div><div className="flex items-center gap-2"><button onClick={() => resetDoc(doc.id)} className="p-2 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors" title="Reiniciar"><Trash2 size={16} /></button><button onClick={() => toggleLock(doc.id)} className={`p-2 rounded-lg transition-all shadow-sm ${isUnlocked ? 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-blue-200' : 'bg-white border border-slate-200 text-slate-500 hover:bg-slate-50'}`} title={isUnlocked ? "Bloquear" : "Habilitar"}>{isUnlocked ? <Unlock size={18} /> : <Lock size={18} />}</button></div></div>) })}</div></div><div className="p-6 border-t border-slate-200 bg-white"><button className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-colors shadow-lg shadow-slate-900/20" onClick={onClose}>Cerrar Panel</button></div></motion.div></motion.div>)
 }
 
-// --- NUEVO: COMPONENTE DRAWER RRHH CORREGIDO Y COMPLETO ---
 function AdminRRHHDrawer({ worker, onClose, onUpdate }: any) {
     const supabase = createClient()
     const [docStates, setDocStates] = useState<any>(worker.doc_states || {})
