@@ -8,80 +8,60 @@ import ChatSystem from '@/components/ChatSystem'
 import { 
   LogOut, Calendar, Bell, FileText, ChevronRight, Lock, 
   CheckCircle, Save, X, Loader2, AlertCircle, Eye, 
-  Menu, Home, UserCog, Key, Mail, ShieldCheck, Download, FileCheck
+  Menu, Home, UserCog, Key, Mail, ShieldCheck, Download, FileCheck, Briefcase, FileBadge
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 
-// --- IMPORTS DE DOCUMENTOS VISUALES (SSOMA) ---
+// --- IMPORTS DE DOCUMENTOS VISUALES (SSOMA + RRHH) ---
 import { CargoRisstPrintable } from '@/components/CargoRisstPrintable'  
 import { RegistroCapacitacionPrintable } from '@/components/RegistroCapacitacionPrintable'
 import { EntregaEppPrintable } from '@/components/EntregaEppPrintable'
 import { ActaEntregaIpercPrintable } from '@/components/ActaEntregaIpercPrintable'
 import { InduccionHombreNuevoPrintable } from '@/components/InduccionHombreNuevoPrintable'
 import { ActaDerechoSaberPrintable } from '@/components/ActaDerechoSaberPrintable'
+// RRHH
+import { CargoRitPrintable } from '@/components/CargoRitPrintable'
+import { CargoPoliticaPrevencionPrintable } from '@/components/CargoPoliticaPrevencionPrintable'
 
-// --- CONFIGURACIÓN DE CONTENIDO SSOMA ---
-const DOC_CONTENT_SSOMA: Record<string, string[]> = {
+// --- CONFIGURACIÓN DE CONTENIDO (TEXTO PARA CHECKLISTS) ---
+const DOC_CONTENT: Record<string, string[]> = {
+    // SSOMA
     risst: [], 
     capacitacion: [],
     epp: [],
     iperc: [],
     induccion: [
         "Política de Seguridad y Salud en el Trabajo.",
-        "Organización del sistema de gestión de la seguridad y salud.",
-        "Reglamento interno de Seguridad y Salud en el trabajo.",
-        "Derecho y obligaciones de los trabajadores y supervisores.",
-        "Conceptos básicos de la seguridad y salud en el trabajo.",
-        "Reglas de Tránsito (de ser aplicables a la obra).",
+        "Organización del sistema de gestión.",
+        "Reglamento interno de SST.",
+        "Derecho y obligaciones.",
+        "Conceptos básicos de SST.",
+        "Reglas de Tránsito.",
         "Trabajos de alto riesgo.",
-        "Código de Colores y Señalización.",
-        "Control de sustancias peligrosas.",
-        "Preparación y respuesta ante emergencias.",
-        "Equipos de protección personal."
+        "Código de Colores.",
+        "Sustancias peligrosas.",
+        "Respuesta ante emergencias.",
+        "EPPs."
     ],
     acta_derecho: [
-        "Ley de Accidentes del trabajo y Enfermedades profesionales; Ley 29783; RM 480-2008-SA",
+        "Ley de Accidentes 29783",
         "Reglamento Interno de Seguridad.",
-        "Políticas de Seguridad y Salud Ocupacional y Medio Ambiente.",
-        "Organización del sistema de gestión de la seguridad y salud en el trabajo en la obra.",
-        "Derechos y obligaciones de los/las trabajadores/as y supervisores/as.",
-        "Conceptos básicos de seguridad y salud en el trabajo.",
-        "Reglas de tránsito (de ser aplicable a la obra).",
-        "Conceptos básicos de seguridad y salud en el trabajo.",
-        "Plan de Seguridad y Salud Ocupacional, Plan de Prevención Ambiental",
-        "Reconocimiento del área de trabajo.",
-        "Elementos de protección personal, tipos requeridos, manejo correcto, Obligatoriedad y protecciones colectivas.",
-        "Control de Emergencias, Incendios, Uso de Extintores, Primeros Auxilios, Atención de lesionados.",
-        "Procedimiento Trabajo en Altura, Procedimientos de Trabajo Seguro, uso correcto de arnés de seguridad.",
-        "Superficies de Trabajo; andamios, escaleras, plataformas, elevadores de personas, etc.",
-        "Manejo de materiales; maniobras, trabajo con equipos de levante (Tirford, tecles, estrobos, etc.).",
-        "Riesgos eléctricos, equipos energizados.",
-        "Esmeril angular; uso seguro.",
-        "Oxicorte; uso, riesgos y medidas preventivas.",
-        "Cilindros de Gases Comprimidos; manejo, almacenamiento y transporte.",
-        "Trabajos de soldadura.",
-        "Excavaciones, Entibaciones, Fortificaciones y Taludes.",
-        "Vaciado de Concreto.",
-        "Housekeeping (Orden y Aseo).",
-        "Código de colores y señalización.",
-        "Exposición a Ruidos, polvo y vibraciones.",
-        "Desplazamientos por áreas de trabajo.",
-        "Higiene Personal, Recomendaciones.",
-        "Control, Manejo, uso y transporte de sustancias peligrosas.",
-        "Sistemas de bloqueos y uso de Tarjeta de Seguridad.",
-        "Procedimiento Operacional de Equipos, Maquinarias y Herramientas, uso de canastillo.",
-        "Combustibles; Manejo, Almacenamiento y Transporte.",
-        "Cambio de conducta, Autocuidado, Reconocimiento, Sanciones, Contacto Personal.",
-        "Prohibición de ingreso al Proyecto bajo la influencia de alcohol y/o drogas.",
-        "Identificación de Aspectos e Impactos Ambientales.",
-        "Sobre Riesgos Ambientales, Manejo de residuos.",
-        "Equipos Radioactivos.",
-        "Preparación y respuesta ante emergencias.",
-        "Trabajos de alto riesgo."
-    ]
+        "Políticas de SST.",
+        "Derechos y obligaciones.",
+        "Plan de SST.",
+        "IPERC.",
+        "Control de Emergencias.",
+        "Trabajo en Altura.",
+        "Riesgos eléctricos.",
+        "Código de colores."
+    ],
+    // RRHH (Los cargos suelen ser de lectura completa, no checklist, pero dejamos la estructura)
+    cargo_rit: [],
+    cargo_politica_prevencion: []
 }
 
+// --- ETIQUETAS DE DOCUMENTOS ---
 const DOC_LABELS_SSOMA: Record<string, string> = {
     risst: "Cargo RISST",
     capacitacion: "Registro Capacitación",
@@ -89,6 +69,21 @@ const DOC_LABELS_SSOMA: Record<string, string> = {
     epp: "Entrega de EPPs",
     acta_derecho: "Acta Derecho a Saber",
     iperc: "Entrega IPERC"
+}
+
+const DOC_LABELS_RRHH: Record<string, string> = {
+    cargo_rit: "Cargo Reglamento Interno (RIT)",
+    cargo_politica_prevencion: "Cargo Política Prevención",
+    // Nota: La declaración de beneficiarios es solo descarga, no tiene cargo digital aquí
+}
+
+// --- LISTA DE CLAVES DE DESCARGA OBLIGATORIA ---
+// Mapeamos la key de la BD al nombre del archivo real y etiqueta
+const MANDATORY_DOWNLOADS: Record<string, {file: string, label: string}> = {
+    'risst_pdf_download': { file: 'REGLAMENTO INTERNO DE SEGURIDAD.pdf', label: 'Reglamento Interno SST' }, // Ajusta nombre si es diferente
+    'rit_pdf_download': { file: 'REGLAMENTO INTERNO DE TRABAJO.pdf', label: 'Reglamento Interno de Trabajo' },
+    'hostigamiento_pdf_download': { file: 'POLITICA DE HOSTIGAMIENTO SEXUAL.pdf', label: 'Política de Hostigamiento' },
+    'beneficiarios_pdf_download': { file: 'DECLARACION DE BENEFICIARIOS_VIDA LEY_2019.pdf', label: 'Declaración Beneficiarios Vida Ley' }
 }
 
 interface NotificationItem {
@@ -119,23 +114,26 @@ export default function DashboardPage() {
   const [fichaStatus, setFichaStatus] = useState<string>('') 
   
   // MODALES
-  const [docToFill, setDocToFill] = useState<{id: string} | null>(null) 
+  const [docToFill, setDocToFill] = useState<{id: string, category: 'ssoma' | 'rrhh'} | null>(null) 
   const [notifications, setNotifications] = useState<NotificationItem[]>([])
   const [isNotifOpen, setIsNotifOpen] = useState(false)
 
-  // --- MODAL DE DESCARGA OBLIGATORIA ---
-  const [pendingDownload, setPendingDownload] = useState<{key: string, label: string, file: string} | null>(null)
+  // --- COLA DE DESCARGAS OBLIGATORIAS ---
+  // Ahora manejamos un array para que salgan uno tras otro
+  const [downloadQueue, setDownloadQueue] = useState<{key: string, label: string, file: string}[]>([])
 
-  // --- ESTADO DEL CHAT (CORREGIDO) ---
+  // --- ESTADO DEL CHAT ---
   const [isChatOpen, setIsChatOpen] = useState(false)
 
   // REFS PARA REALTIME
   const docStatesRef = useRef(docStates)
   const fichaStatusRef = useRef(fichaStatus)
+  const downloadQueueRef = useRef(downloadQueue) // Para evitar duplicados en realtime
   const isInitialLoad = useRef(true)
 
   useEffect(() => { docStatesRef.current = docStates }, [docStates])
   useEffect(() => { fichaStatusRef.current = fichaStatus }, [fichaStatus])
+  useEffect(() => { downloadQueueRef.current = downloadQueue }, [downloadQueue])
 
   const playNotificationSound = () => {
       const audio = new Audio('/notification2.mp3')
@@ -174,7 +172,7 @@ export default function DashboardPage() {
     }
     getUserData()
 
-    // --- REALTIME LISTENER (SSOMA) ---
+    // --- REALTIME LISTENER (SSOMA & RRHH) ---
     const channel = supabase.channel('worker-docs')
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'fichas' }, (payload: any) => {
             if (payload.new.user_id === userId) {
@@ -185,31 +183,38 @@ export default function DashboardPage() {
                 const newDocs = newData.doc_states || {}
                 const oldDocs = docStatesRef.current
                 
+                // Analizar cambios en documentos
                 Object.keys(newDocs).forEach(key => {
                     const oldStatus = oldDocs[key]?.status
                     const newStatus = newDocs[key]?.status
-                    const docName = DOC_LABELS_SSOMA[key] || key
+                    const docName = DOC_LABELS_SSOMA[key] || DOC_LABELS_RRHH[key] || key
 
+                    // Habilitación de firma
                     if (newStatus === 'unlocked' && oldStatus !== 'unlocked') {
                         addNotification(`Se ha habilitado el documento: ${docName}`)
                         toast.info(`📝 Habilitado: ${docName}`)
                         playNotificationSound()
                     }
+                    
+                    // Bloqueo
                     else if (newStatus === 'locked' && oldStatus === 'unlocked') {
                         addNotification(`El documento ha sido bloqueado: ${docName}`)
                         toast.warning(`🔒 Bloqueado: ${docName}`)
                     }
                     
-                    // DETECCIÓN DE DESCARGAS PENDIENTES (RISST)
+                    // DETECCIÓN DE DESCARGAS PENDIENTES (SSOMA + RRHH)
+                    // Si entra un nuevo documento obligatorio
                     if (newStatus === 'pending_download' && oldStatus !== 'pending_download') {
-                        const fileData = newDocs[key]
-                        setPendingDownload({
-                            key: key,
-                            label: fileData.label || 'Documento Importante',
-                            file: fileData.file || (key === 'risst_pdf_download' ? 'risst.pdf' : '')
-                        })
-                        playNotificationSound()
-                        toast.success(`Nuevo documento recibido: ${fileData.label}`)
+                        const config = MANDATORY_DOWNLOADS[key]
+                        if (config) {
+                            // Verificar si ya está en la cola para no duplicar
+                            const alreadyInQueue = downloadQueueRef.current.some(item => item.key === key)
+                            if (!alreadyInQueue) {
+                                setDownloadQueue(prev => [...prev, { key, label: config.label, file: config.file }])
+                                playNotificationSound()
+                                toast.success(`Documento obligatorio recibido: ${config.label}`)
+                            }
+                        }
                     }
                 })
 
@@ -217,7 +222,7 @@ export default function DashboardPage() {
                 const oldFichaState = fichaStatusRef.current
 
                 if (newFichaState === 'completado' && oldFichaState !== 'completado') {
-                    addNotification("¡Tu ficha ha sido validada por SSOMA!")
+                    addNotification("¡Tu ficha ha sido validada por la Administración!")
                     toast.success("✅ Ficha Validada Correctamente")
                     playNotificationSound()
                 }
@@ -238,10 +243,19 @@ export default function DashboardPage() {
           setDocStates(data.doc_states || {})
           setFichaStatus(data.estado || '')
 
-          // Comprobar descargas pendientes
+          // Comprobar descargas pendientes y llenar la cola
           const states = data.doc_states || {}
-          if (states.risst_pdf_download?.status === 'pending_download') {
-              setPendingDownload({key: 'risst_pdf_download', label: 'Reglamento Interno SST', file: 'risst.pdf'})
+          const newQueue: any[] = []
+          
+          Object.keys(MANDATORY_DOWNLOADS).forEach(key => {
+              if (states[key]?.status === 'pending_download') {
+                  const config = MANDATORY_DOWNLOADS[key]
+                  newQueue.push({ key, label: config.label, file: config.file })
+              }
+          })
+          
+          if (newQueue.length > 0) {
+              setDownloadQueue(newQueue)
           }
       }
   }
@@ -256,14 +270,16 @@ export default function DashboardPage() {
       setNotifications(prev => [newNotif, ...prev])
   }
 
-  // --- FUNCIÓN GENÉRICA DE DESCARGA ---
-  const handleDownload = async () => {
-      if (!pendingDownload) return
+  // --- FUNCIÓN GENÉRICA DE DESCARGA (PROCESA LA COLA) ---
+  const handleDownloadAndNext = async () => {
+      // Tomamos el primer elemento de la cola
+      const currentItem = downloadQueue[0]
+      if (!currentItem) return
 
       // 1. Iniciar descarga
       const link = document.createElement('a');
-      link.href = `/${pendingDownload.file}`; 
-      link.download = pendingDownload.file;
+      link.href = `/${currentItem.file}`; // Asume que están en /public
+      link.download = currentItem.file;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -275,19 +291,28 @@ export default function DashboardPage() {
           
           const newStates = { 
               ...currentStates, 
-              [pendingDownload.key]: { 
+              [currentItem.key]: { 
                   status: 'downloaded', 
                   downloaded_at: new Date().toISOString() 
               } 
           }
           
           await supabase.from('fichas').update({ doc_states: newStates }).eq('id', fichaId)
-          setPendingDownload(null)
-          toast.success("Descarga confirmada. Gracias.")
+          
+          // 3. Quitar de la cola visualmente
+          const updatedQueue = downloadQueue.slice(1) // Quitamos el primero
+          setDownloadQueue(updatedQueue)
+          
+          if (updatedQueue.length > 0) {
+              toast.success("Documento descargado. Siguiente...")
+          } else {
+              toast.success("¡Todo listo! Has descargado todos los documentos obligatorios.")
+          }
           
           setDocStates(newStates)
       } catch (e) {
           console.error("Error al confirmar descarga", e)
+          toast.error("Error de conexión. Intenta de nuevo.")
       }
   }
 
@@ -296,12 +321,17 @@ export default function DashboardPage() {
   const unreadCount = notifications.filter(n => !n.read).length
 
   // --- CÁLCULOS DEL DASHBOARD ---
-  const ssomaKeys = Object.keys(DOC_LABELS_SSOMA)
+  // Calculamos progreso combinando SSOMA y RRHH (solo los items de firma digital)
+  const allDocKeys = [...Object.keys(DOC_LABELS_SSOMA), ...Object.keys(DOC_LABELS_RRHH)]
+  const totalDocs = allDocKeys.length
   
-  const totalDocs = ssomaKeys.length
+  const completedDocs = allDocKeys.filter(key => docStates[key]?.status === 'completed').length
   
-  const completedDocs = [...ssomaKeys].filter(key => docStates[key]?.status === 'completed' || docStates[key]?.status === 'downloaded').length
-  const pendingDocs = [...ssomaKeys].filter(key => docStates[key]?.status === 'unlocked' || docStates[key]?.status === 'pending_download').length
+  // Pending Docs: Incluye los desbloqueados para firma + los que están en cola de descarga
+  const unlockedSignDocs = allDocKeys.filter(key => docStates[key]?.status === 'unlocked').length
+  const pendingDownloadsCount = downloadQueue.length
+  const totalPendingAction = unlockedSignDocs + pendingDownloadsCount
+  
   const progress = totalDocs > 0 ? Math.round((completedDocs / totalDocs) * 100) : 0
 
   return (
@@ -346,7 +376,7 @@ export default function DashboardPage() {
                 onClick={() => { setActiveTab('documents'); if(!isDesktop) setIsSidebarOpen(false) }} 
                 icon={<FileText size={20}/>} 
                 label="Mis Documentos" 
-                badge={pendingDocs > 0 ? pendingDocs : undefined}
+                badge={totalPendingAction > 0 ? totalPendingAction : undefined}
             />
             <div className="pt-4 pb-2 px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Mi Cuenta</div>
             <NavItem 
@@ -467,10 +497,34 @@ export default function DashboardPage() {
                                         state={docStates[docId]}
                                         onClick={() => {
                                             const state = docStates[docId] || {}
-                                            if (state.status === 'unlocked') setDocToFill({id: docId})
+                                            if (state.status === 'unlocked') setDocToFill({id: docId, category: 'ssoma'})
                                             else if (state.status !== 'completed') toast.error("Documento no disponible aún.")
                                         }}
                                         type="ssoma"
+                                    />
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* SECCIÓN RRHH (NUEVA) */}
+                        <div>
+                            <div className="flex items-center gap-2 mb-4 border-b border-slate-200 pb-2">
+                                <Briefcase className="text-purple-600" size={24}/>
+                                <h2 className="text-lg font-bold text-slate-800">Documentación RRHH</h2>
+                            </div>
+                            <div className="grid gap-4">
+                                {Object.entries(DOC_LABELS_RRHH).map(([docId, label]) => (
+                                    <DocItem 
+                                        key={docId}
+                                        id={docId}
+                                        label={label}
+                                        state={docStates[docId]}
+                                        onClick={() => {
+                                            const state = docStates[docId] || {}
+                                            if (state.status === 'unlocked') setDocToFill({id: docId, category: 'rrhh'})
+                                            else if (state.status !== 'completed') toast.error("Documento no disponible aún.")
+                                        }}
+                                        type="rrhh"
                                     />
                                 ))}
                             </div>
@@ -491,11 +545,12 @@ export default function DashboardPage() {
 
       </main>
 
-      {/* --- MODAL LLENADO DOCUMENTOS --- */}
+      {/* --- MODAL LLENADO DOCUMENTOS (VISUALIZACIÓN DE CARGOS Y CHECKLISTS) --- */}
       <AnimatePresence>
         {docToFill && (
             <DocumentFillingModal 
                 docId={docToFill.id}
+                category={docToFill.category}
                 fichaId={fichaId}
                 existingData={docStates[docToFill.id]?.data || {}}
                 fullFichaData={fullWorkerData}
@@ -505,25 +560,26 @@ export default function DashboardPage() {
         )}
       </AnimatePresence>
 
-      {/* --- MODAL DE DESCARGA OBLIGATORIA (RISST) --- */}
+      {/* --- MODAL DE DESCARGA OBLIGATORIA (COLA DE ESPERA) --- */}
       <AnimatePresence>
-        {pendingDownload && (
+        {downloadQueue.length > 0 && (
             <DownloadModal 
-                data={pendingDownload}
-                onDownload={handleDownload}
+                data={downloadQueue[0]} // Muestra siempre el primero
+                queueCount={downloadQueue.length}
+                onDownload={handleDownloadAndNext}
                 userName={userName}
             />
         )}
       </AnimatePresence>
 
-      {/* --- CHAT FLOTANTE (CORREGIDO PARA TIEMPO REAL) --- */}
+      {/* --- CHAT FLOTANTE --- */}
       {userId && (
           <ChatSystem 
               workerId={userId} 
               workerName={userName}
               currentUserId={userId}
               isAdmin={false}
-              isOpen={isChatOpen} // Controlado por el estado local
+              isOpen={isChatOpen} 
               onClose={() => setIsChatOpen(!isChatOpen)} 
           />
       )}
@@ -540,7 +596,8 @@ function DocItem({ id, label, state, onClick, type }: any) {
     const isCompleted = status === 'completed'
     const isLocked = !isUnlocked && !isCompleted
 
-    const activeColor = 'blue'
+    // Colores dinámicos según SSOMA (Azul) o RRHH (Morado)
+    const activeColor = type === 'rrhh' ? 'purple' : 'blue'
     const completedColor = 'emerald'
 
     return (
@@ -554,7 +611,7 @@ function DocItem({ id, label, state, onClick, type }: any) {
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${isCompleted ? `bg-${completedColor}-100 text-${completedColor}-600` : isUnlocked ? `bg-${activeColor}-100 text-${activeColor}-600` : 'bg-slate-100 text-slate-400'}`}>
-                        {isCompleted ? <CheckCircle size={24}/> : <FileText size={24}/>}
+                        {isCompleted ? <CheckCircle size={24}/> : (type === 'rrhh' ? <Briefcase size={24}/> : <FileText size={24}/>)}
                     </div>
                     <div>
                         <h3 className={`font-bold text-base ${isUnlocked ? `text-${activeColor}-900` : 'text-slate-700'}`}>{label}</h3>
@@ -672,7 +729,7 @@ function ProfileSettingsCard({ userEmail, supabase }: any) {
                     <button 
                         type="submit" 
                         disabled={loading}
-                        className="w-full py-4 bg-slate-900 text-white rounded-xl font-bold shadow-lg hover:bg-slate-800 disabled:opacity-70 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+                        className="w-full py-4 bg-slate-900 text-white rounded-xl font-bold shadow-lg hover:bg-slate-800 disabled:opacity-70 flex items-center justify-center gap-3 transition-all active:scale-[0.98]"
                     >
                         {loading ? <Loader2 className="animate-spin" size={20}/> : <Save size={20}/>}
                         {loading ? 'Actualizando...' : 'Guardar Cambios'}
@@ -683,12 +740,14 @@ function ProfileSettingsCard({ userEmail, supabase }: any) {
     )
 }
 
-function DocumentFillingModal({ docId, fichaId, existingData, fullFichaData, onClose, onSave }: any) {
+// --- MODAL DE LECTURA Y CONFIRMACIÓN DE DOCUMENTOS ---
+function DocumentFillingModal({ docId, category, fichaId, existingData, fullFichaData, onClose, onSave }: any) {
     const supabase = createClient()
     const [checks, setChecks] = useState<Record<string, boolean>>(existingData || {})
     const [saving, setSaving] = useState(false)
-    const content = DOC_CONTENT_SSOMA[docId] || []
+    const content = DOC_CONTENT[docId] || []
     
+    // Si tiene contenido (checklist), mostramos los checks. Si no, mostramos el PDF renderizado.
     const showChecklist = content.length > 0
     const isHorizontal = ['capacitacion', 'epp'].includes(docId)
     const [scale, setScale] = useState(1)
@@ -708,14 +767,18 @@ function DocumentFillingModal({ docId, fichaId, existingData, fullFichaData, onC
     }, [showChecklist])
 
     const renderPrintablePreview = () => {
-        const props = { ficha: fullFichaData, ref: null as any }
+        const props = { ficha: fullFichaData }
         switch (docId) {
+            // SSOMA
             case 'risst': return <CargoRisstPrintable {...props} />
             case 'capacitacion': return <RegistroCapacitacionPrintable {...props} />
             case 'epp': return <EntregaEppPrintable {...props} />
             case 'iperc': return <ActaEntregaIpercPrintable {...props} />
             case 'induccion': return <InduccionHombreNuevoPrintable {...props} /> 
             case 'acta_derecho': return <ActaDerechoSaberPrintable {...props} />
+            // RRHH
+            case 'cargo_rit': return <CargoRitPrintable {...props} />
+            case 'cargo_politica_prevencion': return <CargoPoliticaPrevencionPrintable {...props} />
             default: return null
         }
     }
@@ -735,6 +798,8 @@ function DocumentFillingModal({ docId, fichaId, existingData, fullFichaData, onC
         } catch (e) { toast.error("Error al guardar") } finally { setSaving(false) }
     }
 
+    const docLabel = category === 'rrhh' ? DOC_LABELS_RRHH[docId] : DOC_LABELS_SSOMA[docId]
+
     return (
         <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[60] flex items-center justify-center p-4">
             <motion.div 
@@ -743,9 +808,9 @@ function DocumentFillingModal({ docId, fichaId, existingData, fullFichaData, onC
             >
                 <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-white rounded-t-3xl shrink-0 z-20 relative shadow-sm">
                     <div>
-                        <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded uppercase tracking-wider mb-1 inline-block">SSOMA</span>
-                        <h3 className="font-bold text-lg text-slate-900">{DOC_LABELS_SSOMA[docId]}</h3>
-                        <p className="text-xs text-slate-500 mt-0.5">{showChecklist ? "Marca los puntos tratados." : "Lee atentamente el documento completo."}</p>
+                        <span className={`text-[10px] font-bold ${category === 'rrhh' ? 'text-purple-600 bg-purple-50' : 'text-blue-600 bg-blue-50'} px-2 py-1 rounded uppercase tracking-wider mb-1 inline-block`}>{category.toUpperCase()}</span>
+                        <h3 className="font-bold text-lg text-slate-900">{docLabel}</h3>
+                        <p className="text-xs text-slate-500 mt-0.5">{showChecklist ? "Marca los puntos tratados." : "Lee atentamente el documento antes de firmar."}</p>
                     </div>
                     <button onClick={onClose} className="p-2 bg-slate-50 hover:bg-slate-100 text-slate-500 rounded-full transition-colors"><X size={20}/></button>
                 </div>
@@ -791,8 +856,8 @@ function DocumentFillingModal({ docId, fichaId, existingData, fullFichaData, onC
     )
 }
 
-// --- MODAL DE DESCARGA GENÉRICO (RISST) ---
-function DownloadModal({ data, onDownload, userName }: any) {
+// --- MODAL DE DESCARGA OBLIGATORIA (RISST) ---
+function DownloadModal({ data, queueCount, onDownload, userName }: any) {
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
             <motion.div 
@@ -812,6 +877,7 @@ function DownloadModal({ data, onDownload, userName }: any) {
                     </div>
                     <h2 className="text-2xl font-bold text-white relative z-10">Documento Importante</h2>
                     <p className="text-blue-100 text-sm mt-1 relative z-10">Acción requerida inmediata</p>
+                    {queueCount > 1 && <span className="absolute top-4 right-4 bg-white/20 px-2 py-0.5 rounded-lg text-white text-xs font-bold border border-white/30">Faltan {queueCount}</span>}
                 </div>
 
                 <div className="p-8 text-center space-y-6">
@@ -824,7 +890,7 @@ function DownloadModal({ data, onDownload, userName }: any) {
                         <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm text-red-500 shrink-0"><FileText size={24} /></div>
                         <div>
                             <p className="font-bold text-slate-800 text-sm">{data.label}</p>
-                            <p className="text-xs text-slate-500">{data.file}</p>
+                            <p className="text-xs text-slate-500 truncate w-48">{data.file}</p>
                         </div>
                     </div>
 
