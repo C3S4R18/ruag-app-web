@@ -9,7 +9,7 @@ import jsPDF from 'jspdf'
 import { 
   User, CheckCircle, ChevronRight, ChevronLeft,
   Camera, Loader2, HeartPulse, GraduationCap, Wallet,
-  HardHat, ShieldCheck, PenTool, Eraser, Users, FileBadge, Plus, Trash2, Lock, Hammer, FileText, Download, Image as ImageIcon, UploadCloud, RefreshCw, X, Maximize
+  HardHat, ShieldCheck, PenTool, Eraser, Users, FileBadge, Plus, Trash2, Lock, Hammer, FileText, Download, Image as ImageIcon, UploadCloud, RefreshCw, X, Calendar
 } from 'lucide-react'
 
 // --- ESTRUCTURA DE PASOS ---
@@ -108,6 +108,7 @@ export default function FichaForm() {
                 doc_hijos_nacimiento: ficha.url_hijos_nacimiento,
                 doc_hijos_dni: ficha.url_hijos_dni, 
                 doc_hijos_estudios: ficha.url_constancia_estudios,
+                url_firma: ficha.url_firma
             })
             
             if (ficha.estado === 'completado') setIsCompleted(true)
@@ -136,18 +137,30 @@ export default function FichaForm() {
   
   // Handlers
   const handleEsposaChange = (field: string, val: string) => setFormData((prev:any) => ({ ...prev, esposa_datos: { ...prev.esposa_datos, [field]: val } }))
-  const addHijo = () => setFormData((prev:any) => ({ ...prev, hijos_datos: [...prev.hijos_datos, { paterno: '', materno: '', nombres: '' }] }))
+  
+  // Añadido campo fecha_nacimiento
+  const addHijo = () => setFormData((prev:any) => ({ ...prev, hijos_datos: [...prev.hijos_datos, { paterno: '', materno: '', nombres: '', fecha_nacimiento: '' }] }))
   const removeHijo = (idx: number) => setFormData((prev:any) => ({ ...prev, hijos_datos: prev.hijos_datos.filter((_:any, i:number) => i !== idx) }))
   const handleHijoChange = (idx: number, field: string, val: string) => {
       const newHijos = [...formData.hijos_datos]; newHijos[idx] = { ...newHijos[idx], [field]: val }
       setFormData((prev:any) => ({ ...prev, hijos_datos: newHijos }))
   }
-  const handleSignatureEnd = () => { if (sigPad.current) setFormData((prev:any) => ({ ...prev, url_firma: sigPad.current.getTrimmedCanvas().toDataURL('image/png') })) }
-  const clearSignature = () => { sigPad.current?.clear(); setFormData((prev:any) => ({ ...prev, url_firma: '' })) }
+
+  // --- LÓGICA DE FIRMA CORREGIDA: No actualiza estado al levantar el dedo ---
+  const handleSignatureEnd = () => { 
+      // NO hacemos setFormData aquí para evitar re-renderizados que bloqueen el canvas.
+      // La firma se extraerá al momento de guardar.
+  }
   
-  // --- LÓGICA DE VALIDACIÓN ESTRICTA ---
+  const clearSignature = () => { 
+      if (sigPad.current) {
+        sigPad.current.clear(); 
+      }
+      setFormData((prev:any) => ({ ...prev, url_firma: '' })) 
+  }
+  
+  // --- LÓGICA DE VALIDACIÓN ---
   const validateCurrentStep = () => {
-    // Paso 1: Personal y Banco
     if (currentStep === 1) {
         if (!formData.apellido_paterno || !formData.apellido_materno || !formData.nombres || 
             !formData.fecha_nacimiento || !formData.dni || !formData.celular || 
@@ -162,12 +175,6 @@ export default function FichaForm() {
         }
     }
 
-    // Paso 2: Familia (Opcional, siempre pasa)
-    if (currentStep === 2) {
-        return true
-    }
-
-    // Paso 3: Laboral
     if (currentStep === 3) {
         if (!formData.cargo || !formData.nombre_obra || !formData.categoria || 
             !formData.nivel_educativo || !formData.carrera || !formData.centro_formacion) {
@@ -176,20 +183,17 @@ export default function FichaForm() {
         }
     }
 
-    // Paso 4: Documentos y Emergencia
     if (currentStep === 4) {
         if (!formData.emergencia_nombre || !formData.emergencia_parentesco || !formData.emergencia_telefono) {
             toast.error("Los datos de contacto de emergencia son obligatorios.")
             return false
         }
-        // Validar documentos mínimos (DNI es crucial)
         if (!formData.doc_dni_trabajador || !formData.doc_dni_reverso) {
              toast.error("Es obligatorio subir la foto frontal y posterior del DNI.")
              return false
         }
     }
 
-    // Paso 5: Validación final en el envío
     return true
   }
 
@@ -202,6 +206,14 @@ export default function FichaForm() {
 
   const guardarProgreso = async (complete: boolean = false) => {
     if (!user) return
+
+    // Extraer firma del canvas si existe
+    let currentSignature = formData.url_firma;
+    if (sigPad.current && !sigPad.current.isEmpty()) {
+        currentSignature = sigPad.current.getTrimmedCanvas().toDataURL('image/png');
+        setFormData((prev:any) => ({...prev, url_firma: currentSignature}))
+    }
+
     const payload = {
         nombres: formData.nombres, apellido_paterno: formData.apellido_paterno, apellido_materno: formData.apellido_materno,
         dni: formData.dni, fecha_nacimiento: formData.fecha_nacimiento, direccion: formData.direccion, distrito: formData.distrito, provincia: formData.provincia, departamento: formData.departamento, celular: formData.celular,
@@ -220,9 +232,9 @@ export default function FichaForm() {
         url_esposa_dni: formData.doc_esposa_dni, 
         url_hijos_nacimiento: formData.doc_hijos_nacimiento, url_hijos_dni: formData.doc_hijos_dni, url_constancia_estudios: formData.doc_hijos_estudios,
         
-        url_firma: formData.url_firma, updated_at: new Date().toISOString(), estado: complete ? 'completado' : 'pendiente'
+        url_firma: currentSignature, updated_at: new Date().toISOString(), estado: complete ? 'completado' : 'pendiente'
     }
-    // Limpieza de nulos
+    
     Object.keys(payload).forEach((key:any) => { if ((payload as any)[key] === '') (payload as any)[key] = null });
     
     const { data, error } = await supabase
@@ -236,11 +248,14 @@ export default function FichaForm() {
   }
 
   const finalizarFicha = async () => {
-    // Validar firma y checkbox
-    if (!formData.url_firma) { toast.error("Debes firmar en el recuadro para continuar."); return }
+    let hasSignature = !!formData.url_firma;
+    if (sigPad.current && !sigPad.current.isEmpty()) {
+        hasSignature = true;
+    }
+
+    if (!hasSignature) { toast.error("Debes firmar en el recuadro para continuar."); return }
     if (!declaracionAceptada) { toast.error("Debes aceptar la declaración jurada."); return }
     
-    // Validar todo de nuevo por seguridad
     if (!validateCurrentStep()) return
 
     setSending(true)
@@ -252,7 +267,7 @@ export default function FichaForm() {
 
   if (isLoadingData) return <div className="h-screen flex items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-slate-800" size={40}/></div>
 
-  // VISTA LECTURA
+  // VISTA LECTURA (COMPLETA)
   if (isCompleted) {
     return (
         <div className="min-h-screen bg-slate-100 py-10 px-4 flex justify-center pb-20">
@@ -269,37 +284,94 @@ export default function FichaForm() {
                 </div>
 
                 <div className="p-8 bg-slate-50/50">
-                    <div className="flex items-center gap-2 mb-6 text-slate-400 font-bold uppercase text-xs tracking-widest border-b pb-2"><FileText size={14}/> Resumen de tu Legajo</div>
+                    <div className="flex items-center gap-2 mb-6 text-slate-400 font-bold uppercase text-xs tracking-widest border-b pb-2"><FileText size={14}/> Ficha de Datos Completa</div>
                     <div className="space-y-8">
+                        {/* 1. PERSONAL */}
                         <SectionRead title="1. Datos Personales" icon={<User size={16}/>}>
                             <GridRead>
                                 <FieldRead label="Apellidos y Nombres" val={`${formData.apellido_paterno} ${formData.apellido_materno}, ${formData.nombres}`} full />
                                 <FieldRead label="DNI" val={formData.dni} highlight />
+                                <FieldRead label="Fecha Nacimiento" val={formData.fecha_nacimiento} />
                                 <FieldRead label="Celular" val={formData.celular} />
+                                <FieldRead label="Correo" val={formData.correo} />
                                 <FieldRead label="Dirección" val={formData.direccion} full />
+                                <FieldRead label="Distrito/Prov/Dep" val={`${formData.distrito} - ${formData.provincia} - ${formData.departamento}`} full />
                             </GridRead>
                         </SectionRead>
-                        <SectionRead title="2. Datos Bancarios" icon={<Wallet size={16}/>}>
+
+                        {/* 2. FAMILIA (SI EXISTE) */}
+                        <SectionRead title="2. Datos Familiares" icon={<Users size={16}/>}>
+                            {formData.esposa_datos.nombres ? (
+                                <div className="mb-4 pb-4 border-b border-slate-100">
+                                    <h5 className="font-bold text-xs text-slate-500 mb-2">ESPOSA / CONVIVIENTE</h5>
+                                    <GridRead>
+                                        <FieldRead label="Nombre Completo" val={`${formData.esposa_datos.nombres} ${formData.esposa_datos.paterno} ${formData.esposa_datos.materno}`} full/>
+                                        <FieldRead label="DNI" val={formData.esposa_datos.dni}/>
+                                    </GridRead>
+                                </div>
+                            ) : <p className="text-sm text-slate-400 italic">Sin cónyuge registrado</p>}
+                            
+                            {formData.hijos_datos.length > 0 ? (
+                                <div>
+                                    <h5 className="font-bold text-xs text-slate-500 mb-2">HIJOS ({formData.hijos_datos.length})</h5>
+                                    {formData.hijos_datos.map((h:any, i:number) => (
+                                        <div key={i} className="mb-2 p-3 bg-slate-50 rounded-lg text-sm border border-slate-200">
+                                            <span className="font-bold text-slate-800">{h.nombres} {h.paterno} {h.materno}</span> 
+                                            <span className="text-slate-500 text-xs ml-2"> (Nac: {h.fecha_nacimiento || 'No registrada'})</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : <p className="text-sm text-slate-400 italic">Sin hijos registrados</p>}
+                        </SectionRead>
+
+                        {/* 3. BANCARIOS */}
+                        <SectionRead title="3. Datos Bancarios" icon={<Wallet size={16}/>}>
                             <GridRead>
                                 <FieldRead label="Banco" val={formData.banco} />
                                 <FieldRead label="N° Cuenta" val={formData.cuenta_ahorros} highlight />
-                                <FieldRead label="AFP/ONP" val={formData.sistema_pension} />
+                                <FieldRead label="CCI" val={formData.cci} />
+                                <FieldRead label="AFP/ONP" val={`${formData.sistema_pension} ${formData.afp_nombre ? '- ' + formData.afp_nombre : ''}`} />
+                                <FieldRead label="CUSPP" val={formData.cuspp} />
                             </GridRead>
                         </SectionRead>
-                        <SectionRead title="3. Laboral" icon={<HardHat size={16}/>}>
+
+                        {/* 4. LABORAL */}
+                        <SectionRead title="4. Información Laboral" icon={<HardHat size={16}/>}>
                             <GridRead>
                                 <FieldRead label="Cargo" val={formData.cargo} highlight />
+                                <FieldRead label="Categoría" val={formData.categoria} />
                                 <FieldRead label="Obra" val={formData.nombre_obra} highlight />
+                                <FieldRead label="Fecha Ingreso" val={formData.fecha_ingreso} />
+                                <FieldRead label="Nivel Educativo" val={formData.nivel_educativo} />
+                                <FieldRead label="Carrera/Oficio" val={formData.carrera} />
+                                <FieldRead label="Institución" val={formData.centro_formacion} />
                             </GridRead>
                         </SectionRead>
-                        <SectionRead title="4. Documentos" icon={<FileBadge size={16}/>}>
+
+                         {/* 5. EMERGENCIA */}
+                         <SectionRead title="5. Contacto Emergencia" icon={<HeartPulse size={16}/>}>
+                            <GridRead>
+                                <FieldRead label="Nombre" val={formData.emergencia_nombre} />
+                                <FieldRead label="Parentesco" val={formData.emergencia_parentesco} />
+                                <FieldRead label="Teléfono" val={formData.emergencia_telefono} highlight />
+                            </GridRead>
+                        </SectionRead>
+
+                        {/* 6. DOCUMENTOS */}
+                        <SectionRead title="6. Documentos Adjuntos" icon={<FileBadge size={16}/>}>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                 <DocRead label="DNI (Frontal)" url={formData.doc_dni_trabajador} />
                                 <DocRead label="DNI (Reverso)" url={formData.doc_dni_reverso} />
                                 <DocRead label="Antecedentes" url={formData.doc_certiadulto} />
                                 <DocRead label="Carnet RETCC" url={formData.doc_carnet_retcc} />
+                                <DocRead label="Ant. Policiales" url={formData.doc_policiales} />
+                                <DocRead label="Ant. Penales" url={formData.doc_penales} />
+                                {formData.doc_esposa_matrimonio && <DocRead label="Acta Matrimonio" url={formData.doc_esposa_matrimonio} />}
+                                {formData.doc_esposa_dni && <DocRead label="DNI Esposa" url={formData.doc_esposa_dni} />}
+                                {formData.doc_hijos_dni && <DocRead label="DNI Hijos" url={formData.doc_hijos_dni} />}
                             </div>
                         </SectionRead>
+
                         <div className="pt-8 border-t border-slate-200 text-center">
                             <p className="text-xs font-bold text-slate-400 uppercase mb-4">Firma Digital Registrada</p>
                             {formData.url_firma && <img src={formData.url_firma} className="h-24 mx-auto object-contain border border-dashed border-slate-300 bg-white p-2 rounded-lg" />}
@@ -313,12 +385,12 @@ export default function FichaForm() {
 
   if (!hasStarted) return <WelcomeScreen onStart={() => setHasStarted(true)} />
 
-  // --- WIZARD EDITABLE (MEJORADO) ---
+  // --- WIZARD EDITABLE ---
   return (
     <div className="min-h-screen bg-slate-50 py-6 px-4 font-sans pb-32">
       <div className="max-w-4xl mx-auto">
         
-        {/* Header de Pasos Mejorado */}
+        {/* Header de Pasos */}
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-6 sticky top-2 z-20">
             <div className="flex justify-between items-center mb-2">
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Paso {currentStep} de 5</span>
@@ -395,7 +467,14 @@ export default function FichaForm() {
                                 {formData.hijos_datos.map((hijo:any, idx:number) => (
                                     <div key={idx} className="bg-slate-50 p-4 rounded-xl border border-slate-200 relative group">
                                             <button onClick={()=>removeHijo(idx)} className="absolute top-2 right-2 text-slate-400 hover:text-red-500 bg-white p-1 rounded shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={14}/></button>
-                                            <div className="grid grid-cols-1 gap-3"><Input label="Nombres" val={hijo.nombres} onChange={(e:any)=>handleHijoChange(idx, 'nombres', e.target.value)} /><div className="grid grid-cols-2 gap-3"><Input label="Paterno" val={hijo.paterno} onChange={(e:any)=>handleHijoChange(idx, 'paterno', e.target.value)} /><Input label="Materno" val={hijo.materno} onChange={(e:any)=>handleHijoChange(idx, 'materno', e.target.value)} /></div></div>
+                                            <div className="grid grid-cols-1 gap-3">
+                                                <Input label="Nombres" val={hijo.nombres} onChange={(e:any)=>handleHijoChange(idx, 'nombres', e.target.value)} />
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <Input label="Paterno" val={hijo.paterno} onChange={(e:any)=>handleHijoChange(idx, 'paterno', e.target.value)} />
+                                                    <Input label="Materno" val={hijo.materno} onChange={(e:any)=>handleHijoChange(idx, 'materno', e.target.value)} />
+                                                </div>
+                                                <Input label="Fecha Nacimiento" type="date" val={hijo.fecha_nacimiento} onChange={(e:any)=>handleHijoChange(idx, 'fecha_nacimiento', e.target.value)} />
+                                            </div>
                                     </div>
                                 ))}
                             </div>
@@ -433,26 +512,26 @@ export default function FichaForm() {
                     </p>
                     
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                        <ImageUpload label="DNI (Frontal o PDF)" bucket="documentos" currentUrl={formData.doc_dni_trabajador} onUpload={(u:any)=>setFormData({...formData, doc_dni_trabajador:u})} />
+                        <ImageUpload label="DNI (Frontal o PDF)" bucket="documentos" currentUrl={formData.doc_dni_trabajador} onUpload={(u:any)=>setFormData((prev: any) => ({...prev, doc_dni_trabajador:u}))} />
                         
                         {!isDniPdf && (
                             <motion.div initial={{opacity:0, scale:0.9}} animate={{opacity:1, scale:1}}>
-                                <ImageUpload label="DNI (Reverso)" bucket="documentos" currentUrl={formData.doc_dni_reverso} onUpload={(u:any)=>setFormData({...formData, doc_dni_reverso:u})} />
+                                <ImageUpload label="DNI (Reverso)" bucket="documentos" currentUrl={formData.doc_dni_reverso} onUpload={(u:any)=>setFormData((prev: any) => ({...prev, doc_dni_reverso:u}))} />
                             </motion.div>
                         )}
                         
-                        <ImageUpload label="Certiadulto (Antecedentes)" bucket="documentos" currentUrl={formData.doc_certiadulto} onUpload={(u:any)=>setFormData({...formData, doc_certiadulto:u})} />
-                        <ImageUpload label="Carnet RETCC" bucket="documentos" currentUrl={formData.doc_carnet_retcc} onUpload={(u:any)=>setFormData({...formData, doc_carnet_retcc:u})} />
-                        <ImageUpload label="Ant. Policiales" bucket="documentos" currentUrl={formData.doc_policiales} onUpload={(u:any)=>setFormData({...formData, doc_policiales:u})} />
-                        <ImageUpload label="Ant. Penales" bucket="documentos" currentUrl={formData.doc_penales} onUpload={(u:any)=>setFormData({...formData, doc_penales:u})} />
+                        <ImageUpload label="Certiadulto (Antecedentes)" bucket="documentos" currentUrl={formData.doc_certiadulto} onUpload={(u:any)=>setFormData((prev: any) => ({...prev, doc_certiadulto:u}))} />
+                        <ImageUpload label="Carnet RETCC" bucket="documentos" currentUrl={formData.doc_carnet_retcc} onUpload={(u:any)=>setFormData((prev: any) => ({...prev, doc_carnet_retcc:u}))} />
+                        <ImageUpload label="Ant. Policiales" bucket="documentos" currentUrl={formData.doc_policiales} onUpload={(u:any)=>setFormData((prev: any) => ({...prev, doc_policiales:u}))} />
+                        <ImageUpload label="Ant. Penales" bucket="documentos" currentUrl={formData.doc_penales} onUpload={(u:any)=>setFormData((prev: any) => ({...prev, doc_penales:u}))} />
                     </div>
 
                     <SectionTitle title="Documentos Familiares" icon={<Users/>} />
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                        <ImageUpload label="Acta Matrimonio" bucket="documentos" currentUrl={formData.doc_esposa_matrimonio} onUpload={(u:any)=>setFormData({...formData, doc_esposa_matrimonio:u})} />
-                        <ImageUpload label="DNI Esposa" bucket="documentos" currentUrl={formData.doc_esposa_dni} onUpload={(u:any)=>setFormData({...formData, doc_esposa_dni:u})} />
-                        <ImageUpload label="DNI Hijos" bucket="documentos" currentUrl={formData.doc_hijos_dni} onUpload={(u:any)=>setFormData({...formData, doc_hijos_dni:u})} />
-                        <ImageUpload label="Estudios Hijos" bucket="documentos" currentUrl={formData.doc_hijos_estudios} onUpload={(u:any)=>setFormData({...formData, doc_hijos_estudios:u})} />
+                        <ImageUpload label="Acta Matrimonio" bucket="documentos" currentUrl={formData.doc_esposa_matrimonio} onUpload={(u:any)=>setFormData((prev: any) => ({...prev, doc_esposa_matrimonio:u}))} />
+                        <ImageUpload label="DNI Esposa" bucket="documentos" currentUrl={formData.doc_esposa_dni} onUpload={(u:any)=>setFormData((prev: any) => ({...prev, doc_esposa_dni:u}))} />
+                        <ImageUpload label="DNI Hijos" bucket="documentos" currentUrl={formData.doc_hijos_dni} onUpload={(u:any)=>setFormData((prev: any) => ({...prev, doc_hijos_dni:u}))} />
+                        <ImageUpload label="Estudios Hijos" bucket="documentos" currentUrl={formData.doc_hijos_estudios} onUpload={(u:any)=>setFormData((prev: any) => ({...prev, doc_hijos_estudios:u}))} />
                     </div>
                 </StepWrapper>}
 
@@ -461,11 +540,23 @@ export default function FichaForm() {
                             <h3 className="text-2xl font-bold text-slate-900">Firma de Conformidad</h3>
                             <p className="text-slate-500">Dibuja tu firma en el recuadro para validar la ficha.</p>
                     </div>
+                    {/* -- FIRMA CORREGIDA: No se bloquea al levantar el dedo -- */}
                     <div className="border-2 border-slate-200 border-dashed rounded-2xl bg-slate-50 relative overflow-hidden h-56 mx-auto max-w-xl touch-none mb-8 shadow-inner hover:border-slate-300 transition-colors">
-                        {formData.url_firma ? <img src={formData.url_firma} className="w-full h-full object-contain p-4" /> : <SignatureCanvas ref={sigPad} penColor="black" canvasProps={{className: 'w-full h-full cursor-crosshair'}} onEnd={handleSignatureEnd} />}
-                        {formData.url_firma && <button onClick={clearSignature} className="absolute top-4 right-4 bg-white text-slate-700 hover:text-red-600 p-2 rounded-lg shadow-md border border-slate-100 transition-colors"><Eraser size={20}/></button>}
-                        {!formData.url_firma && <div className="absolute bottom-2 left-0 w-full text-center text-xs text-slate-400 pointer-events-none">Firma dentro del recuadro</div>}
+                        {/* Si ya existe firma guardada y no estamos editando (isCompleted), muestra imagen. Si no, muestra canvas */}
+                        {isCompleted && formData.url_firma ? (
+                             <img src={formData.url_firma} className="w-full h-full object-contain p-4" />
+                        ) : (
+                             <SignatureCanvas ref={sigPad} penColor="black" canvasProps={{className: 'w-full h-full cursor-crosshair'}} />
+                        )}
+                        
+                        {!isCompleted && (
+                            <>
+                                <button onClick={clearSignature} className="absolute top-4 right-4 bg-white text-slate-700 hover:text-red-600 p-2 rounded-lg shadow-md border border-slate-100 transition-colors"><Eraser size={20}/></button>
+                                <div className="absolute bottom-2 left-0 w-full text-center text-xs text-slate-400 pointer-events-none">Firma dentro del recuadro (puedes levantar el dedo)</div>
+                            </>
+                        )}
                     </div>
+
                     <label className={`flex items-center gap-4 p-5 rounded-xl border cursor-pointer transition-all max-w-xl mx-auto ${declaracionAceptada ? 'bg-slate-900 text-white border-slate-900 ring-2 ring-slate-900 ring-offset-2' : 'bg-white border-slate-200 hover:border-slate-300'}`}>
                         <input type="checkbox" checked={declaracionAceptada} onChange={(e) => setDeclaracionAceptada(e.target.checked)} className="w-6 h-6 accent-emerald-500" />
                         <div><span className="font-bold block text-sm">Declaración Jurada</span><span className={`text-xs ${declaracionAceptada ? 'text-slate-300' : 'text-slate-500'}`}>Declaro bajo juramento que toda la información consignada es verdadera.</span></div>
@@ -495,21 +586,17 @@ function ImageUpload({label, bucket, onUpload, currentUrl}: any) {
     const [showCamera, setShowCamera] = useState(false);
     const supabase = createClient(); 
     
-    // Detectar si ya es un PDF (por si viene de BD)
     const isPdf = currentUrl?.toLowerCase().includes('.pdf');
     
-    // Determinar el formato de captura basado en el nombre del documento
     const captureFormat = (label.toLowerCase().includes('dni') || label.toLowerCase().includes('carnet')) 
         ? 'id-card' 
         : 'a4';
 
-    // Subida Normal de Archivos
     const handleFile = async (e:any) => { 
         if(!e.target.files?.length) return; 
         processUpload(e.target.files[0]);
     }; 
     
-    // Subida desde Cámara (Recibe un File que YA ES PDF gracias al modal)
     const handleCameraCapture = (file: File) => {
         setShowCamera(false);
         processUpload(file);
@@ -517,12 +604,11 @@ function ImageUpload({label, bucket, onUpload, currentUrl}: any) {
 
     const processUpload = async (file: File) => {
         setUploading(true);
-        // Generar nombre único
         const fileExt = file.name.split('.').pop() || 'pdf'; 
         const fileName = `${Math.random().toString(36).substring(7)}_${Date.now()}.${fileExt}`;
         
         const { error } = await supabase.storage.from(bucket).upload(fileName, file, {
-            contentType: file.type // Aseguramos que se suba con el tipo correcto (pdf o img)
+            contentType: file.type 
         }); 
         
         if(error) {
@@ -530,6 +616,7 @@ function ImageUpload({label, bucket, onUpload, currentUrl}: any) {
             console.error(error);
         } else { 
             const { data } = supabase.storage.from(bucket).getPublicUrl(fileName); 
+            // CORRECCIÓN: Prev explícito para evitar error TS
             onUpload(data.publicUrl); 
             toast.success("Documento cargado correctamente"); 
         } 
@@ -565,19 +652,17 @@ function ImageUpload({label, bucket, onUpload, currentUrl}: any) {
                 {currentUrl && isPdf && <div className="absolute inset-0 z-0 opacity-10 flex items-center justify-center"><FileText size={60} className="text-red-500"/></div>}
             </div> 
 
-            {/* Modal de Cámara Inteligente */}
             {showCamera && (
                 <CameraCaptureModal 
                     onClose={() => setShowCamera(false)} 
                     onCapture={handleCameraCapture} 
-                    format={captureFormat} // Pasamos el formato detectado
+                    format={captureFormat} 
                 />
             )}
         </>
     )
 }
 
-// --- MODAL DE CÁMARA MEJORADO (CON GENERACIÓN DE PDF) ---
 function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => void, onCapture: (file: File) => void, format: 'id-card' | 'a4' }) {
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -585,22 +670,17 @@ function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => voi
     const [image, setImage] = useState<string | null>(null);
     const [processing, setProcessing] = useState(false);
 
-    // Configuración según formato
     const isLandscape = format === 'id-card';
     const guideText = isLandscape ? "Ubica el DNI dentro del recuadro" : "Ubica el documento completo";
     
     const frameClasses = isLandscape 
-        ? "w-[90%] aspect-[1.58] max-w-md"  // Horizontal
-        : "h-[80%] aspect-[0.70] max-h-[600px]"; // Vertical
+        ? "w-[90%] aspect-[1.58] max-w-md" 
+        : "h-[80%] aspect-[0.70] max-h-[600px]";
 
     const startCamera = async () => {
         try {
             const mediaStream = await navigator.mediaDevices.getUserMedia({ 
-                video: { 
-                    facingMode: 'environment',
-                    width: { ideal: 1920 },
-                    height: { ideal: 1080 }
-                } 
+                video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } } 
             });
             setStream(mediaStream);
             if (videoRef.current) videoRef.current.srcObject = mediaStream;

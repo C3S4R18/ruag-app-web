@@ -31,7 +31,8 @@ import {
   ChevronLeft, ChevronRight, User, Wallet, HardHat, 
   CheckSquare, Square, Unlock, Lock, FileBadge, BellRing, BellOff, Bell,
   PenTool, Fingerprint, Share2, MoreHorizontal, Edit3,
-  FileCheck, MessageSquare, Filter, ScanFace, Briefcase
+  FileCheck, MessageSquare, Filter, ScanFace, Briefcase, 
+  HeartPulse, GraduationCap, UploadCloud, Plus, Users, Zap
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -120,7 +121,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
 
     fetchFichas()
     
-    // Listener de Fichas
+    // Listener de Fichas (Cambios en DB)
     const fichasChannel = supabase.channel('realtime-fichas').on('postgres_changes', { event: '*', schema: 'public', table: 'fichas' }, (payload: any) => {
           if (payload.eventType === 'INSERT') {
              setFichas((prev) => [payload.new, ...prev])
@@ -148,6 +149,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                 setNotifications(prev => [
                     { 
                         id: newMsg.id, 
+                        type: 'chat',
                         worker_id: newMsg.worker_id,
                         msg: newMsg.content || 'Adjunto enviado',
                         time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
@@ -158,9 +160,29 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
         })
         .subscribe()
 
+    // --- NUEVO: Listener de Actividad de Administradores (Google Sheets Style) ---
+    const adminActivityChannel = supabase.channel('admin_room')
+        .on('broadcast', { event: 'admin_action' }, ({ payload }) => {
+            // Agregamos la acción al historial de notificaciones
+            const newLog = {
+                id: Date.now().toString(),
+                type: 'action',
+                user: payload.user, // Nombre del admin que hizo el cambio
+                msg: `${payload.action}`,
+                details: payload.details,
+                time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+            }
+            setNotifications(prev => [newLog, ...prev])
+            
+            // Opcional: Sonido sutil para cambios
+            // playSystemSound() 
+        })
+        .subscribe()
+
     return () => { 
         supabase.removeChannel(fichasChannel) 
         supabase.removeChannel(chatChannel)
+        supabase.removeChannel(adminActivityChannel)
     }
   }, [])
 
@@ -212,13 +234,20 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
   }
 
   const handleNotificationClick = (notif: any) => {
-      const worker = fichas.find(f => f.user_id === notif.worker_id)
-      if (worker) {
-          handleChatClick(worker)
-          setShowNotifDropdown(false)
-          setNotifications(prev => prev.filter(n => n.id !== notif.id))
-      } else {
-          toast.error("El trabajador no se encuentra en la lista actual.")
+      // Si es chat, abrimos el chat
+      if (notif.type === 'chat') {
+          const worker = fichas.find(f => f.user_id === notif.worker_id)
+          if (worker) {
+              handleChatClick(worker)
+              setShowNotifDropdown(false)
+              setNotifications(prev => prev.filter(n => n.id !== notif.id))
+          } else {
+              toast.error("El trabajador no se encuentra en la lista actual.")
+          }
+      } 
+      // Si es acción de admin, solo la marcamos como leída o borramos
+      else if (notif.type === 'action') {
+          // No hacemos nada especial, solo cerrar o borrar si se quiere
       }
   }
 
@@ -298,22 +327,25 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
               
               for (let i = 0; i < elements.length; i++) {
                   const element = elements[i]
-                  // --- FIX ERROR "lab color" ---
-                  // Forzamos el background en blanco hexadecimal puro para que html2canvas no se confunda
+
+                  // --- CORRECCIÓN CRÍTICA DE COLORES 'LAB' ---
                   const canvas = await html2canvas(element, { 
                       scale: 2, 
                       useCORS: true, 
                       allowTaint: true, 
-                      backgroundColor: '#ffffff', // Forzar HEX
+                      backgroundColor: '#ffffff', 
                       onclone: (clonedDoc) => {
                           const all = clonedDoc.querySelectorAll('*')
-                          // Forzar colores hexadecimales en todo para evitar "lab()"
                           all.forEach((el: any) => { 
                               el.style.color = '#000000'; 
-                              el.style.borderColor = '#000000';
+                              if (getComputedStyle(el).borderColor !== 'rgba(0, 0, 0, 0)') {
+                                  el.style.borderColor = '#000000';
+                              }
+                              el.style.removeProperty('color-scheme');
                           })
                       }
                   });
+
                   const imgData = canvas.toDataURL('image/png')
                   const imgProps = pdfDoc.getImageProperties(imgData)
                   const orientation = imgProps.width > imgProps.height ? 'l' : 'p'
@@ -334,7 +366,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
 
           } catch (error: any) {
               console.error("Error PDF:", error)
-              toast.error("Error: " + error.message)
+              toast.error("Error al generar PDF: Intente nuevamente")
           } finally {
               setPreparingDoc(false)
           }
@@ -412,7 +444,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                         {showNotifDropdown && (
                             <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }} className="absolute right-0 top-full mt-3 w-80 bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden z-50 origin-top-right">
                                 <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-                                    <h4 className="font-bold text-slate-800 text-sm">Notificaciones</h4>
+                                    <h4 className="font-bold text-slate-800 text-sm">Actividad y Alertas</h4>
                                     <button onClick={() => setNotifications([])} className="text-xs text-blue-600 font-bold hover:underline">Borrar todo</button>
                                 </div>
                                 <div className="max-h-60 overflow-y-auto">
@@ -420,8 +452,26 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                                         <div className="p-8 text-center text-slate-400"><Bell size={24} className="mx-auto mb-2 opacity-20"/><p className="text-xs font-medium">Sin novedades</p></div>
                                     ) : (
                                         notifications.map((notif) => {
-                                            const w = fichas.find(f => f.user_id === notif.worker_id); const name = w ? w.nombres.split(' ')[0] : 'Obrero'
-                                            return <div key={notif.id} onClick={() => handleNotificationClick(notif)} className="p-4 hover:bg-blue-50 transition-colors border-b border-slate-50 last:border-0 cursor-pointer group"><div className="flex items-start gap-3"><div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold shrink-0">{name.charAt(0)}</div><div><p className="text-sm font-bold text-slate-800 group-hover:text-blue-700 transition-colors">{name}</p><p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{notif.msg}</p><p className="text-[10px] text-slate-400 mt-1">{notif.time}</p></div></div></div>
+                                            if (notif.type === 'chat') {
+                                                const w = fichas.find(f => f.user_id === notif.worker_id); const name = w ? w.nombres.split(' ')[0] : 'Obrero'
+                                                return <div key={notif.id} onClick={() => handleNotificationClick(notif)} className="p-4 hover:bg-blue-50 transition-colors border-b border-slate-50 last:border-0 cursor-pointer group"><div className="flex items-start gap-3"><div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold shrink-0">{name.charAt(0)}</div><div><p className="text-sm font-bold text-slate-800 group-hover:text-blue-700 transition-colors">{name}</p><p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{notif.msg}</p><p className="text-[10px] text-slate-400 mt-1">{notif.time}</p></div></div></div>
+                                            } else {
+                                                // TIPO ACCIÓN ADMIN
+                                                return (
+                                                    <div key={notif.id} className="p-4 bg-slate-50/50 hover:bg-slate-100 transition-colors border-b border-slate-100 last:border-0 cursor-default">
+                                                        <div className="flex items-start gap-3">
+                                                            <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center text-xs font-bold shrink-0">
+                                                                <Zap size={14}/>
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-sm font-bold text-slate-800"><span className="text-amber-600">{notif.user}</span> {notif.msg}</p>
+                                                                <p className="text-xs text-slate-500 mt-0.5 italic">"{notif.details}"</p>
+                                                                <p className="text-[10px] text-slate-400 mt-1">{notif.time}</p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )
+                                            }
                                         })
                                     )}
                                 </div>
@@ -578,12 +628,286 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
   )
 }
 
-// ... Subcomponentes iguales (FichaDrawer, PdfPreviewModal, etc. están aquí abajo) ...
+// ... SUBCOMPONENTES (Drawer, etc) ...
 
-function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloading, onPrintPreview, onNotifyChange }: FichaDrawerProps & { onNotifyChange?: (a:string, d:string)=>void }) { const [isEditing, setIsEditing] = useState(false); const [formData, setFormData] = useState<any>(ficha); const [saving, setSaving] = useState(false); const [loadingAction, setLoadingAction] = useState(false); const supabase = createClient(); useEffect(() => { let esposaObj = { paterno: '', materno: '', nombres: '', dni: '' }; let hijosArr: any[] = []; try { esposaObj = ficha.esposa ? JSON.parse(ficha.esposa) : esposaObj } catch(e) {}; try { hijosArr = ficha.hijos ? JSON.parse(ficha.hijos) : [] } catch(e) {}; setFormData({ ...ficha, esposa_datos: esposaObj, hijos_datos: hijosArr }) }, [ficha]); const handleSave = async () => { setSaving(true); const payload = { ...formData, esposa: JSON.stringify(formData.esposa_datos), hijos: JSON.stringify(formData.hijos_datos) }; delete payload.esposa_datos; delete payload.hijos_datos; const cleaned = { ...payload }; delete cleaned.profiles; Object.keys(cleaned).forEach(k => { if(cleaned[k] === '') cleaned[k] = null }); const { error } = await supabase.from('fichas').update(cleaned).eq('id', ficha.id); setSaving(false); if (error) toast.error("Error al guardar: " + error.message); else { toast.success("Datos actualizados"); if(onNotifyChange) onNotifyChange("editó", `Datos de ${ficha.nombres}`); setIsEditing(false); onUpdate() } }; const handleChangeStatus = async (newStatus: 'pendiente' | 'completado') => { setLoadingAction(true); try { const { error } = await supabase.from('fichas').update({ estado: newStatus }).eq('id', ficha.id); if (error) throw error; if(newStatus === 'pendiente') toast.success("Ficha ABIERTA para edición"); else toast.success("Ficha CERRADA y Validada"); if(onNotifyChange) onNotifyChange(newStatus === 'completado' ? 'validó' : 'reabrió', `Ficha de ${ficha.nombres}`); onUpdate(); onClose() } catch (error: any) { toast.error("Error: " + error.message) } finally { setLoadingAction(false) } }; const handleDeleteDoc = async (field: string) => { if (!confirm("¿Eliminar este documento?")) return; const { error } = await supabase.from('fichas').update({ [field]: null }).eq('id', ficha.id); if (error) toast.error("Error al eliminar"); else { toast.success("Documento eliminado"); setFormData((prev: any) => ({ ...prev, [field]: null })); onUpdate() } }; return (<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex justify-end" onClick={onClose}><motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", damping: 30, stiffness: 300 }} className="w-full max-w-2xl bg-white h-full shadow-2xl flex flex-col border-l border-white/20" onClick={e => e.stopPropagation()}><div id="drawer-header" className="h-24 px-8 border-b border-slate-100 flex justify-between items-center bg-white z-10 shrink-0 relative overflow-hidden"><div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none"><ShieldCheck size={120} /></div><div className="flex items-center gap-5 relative z-10"><div className="w-14 h-14 rounded-2xl bg-slate-900 text-white flex items-center justify-center font-bold text-xl shadow-lg shadow-slate-900/20 uppercase">{ficha.nombres.charAt(0)}{ficha.apellido_paterno.charAt(0)}</div><div><h2 className="font-bold text-slate-900 text-2xl leading-none tracking-tight">{ficha.nombres}</h2><p className="font-medium text-slate-500 text-lg">{ficha.apellido_paterno}</p><span className="inline-block mt-1 px-2 py-0.5 bg-slate-100 rounded text-[10px] font-mono text-slate-500">{ficha.dni}</span></div></div><button id="drawer-close-btn" onClick={onClose} className="p-2.5 bg-slate-50 hover:bg-slate-100 rounded-full transition-colors relative z-10 text-slate-500"><X size={20}/></button></div><div className="flex-1 overflow-y-auto p-8 space-y-8 bg-slate-50 scroll-smooth"><div id="drawer-actions-top" className="flex gap-3 sticky top-0 z-10 pb-4 bg-slate-50/95 backdrop-blur-sm pt-2"><button onClick={onDownload} disabled={downloading} className="flex-1 flex items-center justify-center gap-2 bg-white border border-slate-200 text-slate-700 py-3.5 rounded-xl text-sm font-bold shadow-sm hover:border-blue-300 hover:text-blue-600 transition-all disabled:opacity-50 active:scale-95">{downloading ? <Loader2 className="animate-spin" size={16}/> : <><Download size={16}/> Descargar PDF</>}</button><button onClick={() => setIsEditing(!isEditing)} className={`flex-1 flex items-center justify-center gap-2 border py-3.5 rounded-xl text-sm font-bold shadow-sm transition-all active:scale-95 ${isEditing ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:bg-white hover:border-slate-300'}`}>{isEditing ? 'Cancelar Edición' : 'Editar Datos'}</button></div><div id="drawer-info-section"><Section title="Información Personal" icon={<User size={18}/>}><Grid><Field label="Apellido Paterno" name="apellido_paterno" val={formData.apellido_paterno} edit={isEditing} set={setFormData}/><Field label="Apellido Materno" name="apellido_materno" val={formData.apellido_materno} edit={isEditing} set={setFormData}/><Field label="Nombres" name="nombres" val={formData.nombres} edit={isEditing} set={setFormData}/><Field label="F. Nacimiento" name="fecha_nacimiento" val={formData.fecha_nacimiento} edit={isEditing} set={setFormData} type="date"/><Field label="DNI" name="dni" val={formData.dni} edit={isEditing} set={setFormData}/><Field label="Dirección" name="direccion" val={formData.direccion} edit={isEditing} set={setFormData} full/><Field label="Distrito" name="distrito" val={formData.distrito} edit={isEditing} set={setFormData}/><Field label="Provincia" name="provincia" val={formData.provincia} edit={isEditing} set={setFormData}/><Field label="Correo Electrónico" name="correo" val={formData.correo} edit={isEditing} set={setFormData}/><Field label="Celular" name="celular" val={formData.celular} edit={isEditing} set={setFormData}/></Grid></Section><Section title="Sistema de Pensiones" icon={<ShieldCheck size={18}/>}><Grid><Field label="Régimen" name="sistema_pension" val={formData.sistema_pension} edit={isEditing} set={setFormData}/><Field label="Nombre AFP" name="afp_nombre" val={formData.afp_nombre} edit={isEditing} set={setFormData}/></Grid></Section><Section title="Datos Bancarios" icon={<Wallet size={18}/>}><Grid><Field label="Banco" name="banco" val={formData.banco} edit={isEditing} set={setFormData}/><Field label="N° Cuenta" name="numero_cuenta" val={formData.numero_cuenta} edit={isEditing} set={setFormData}/></Grid></Section><Section title="Información Laboral" icon={<HardHat size={18}/>}><Grid><Field label="Categoría" name="categoria" val={formData.categoria} edit={isEditing} set={setFormData}/><Field label="Cargo" name="cargo" val={formData.cargo} edit={isEditing} set={setFormData}/><Field label="Nivel Educativo" name="nivel_educacion" val={formData.nivel_educacion} edit={isEditing} set={setFormData}/><Field label="Carrera/Profesión" name="carrera" val={formData.carrera} edit={isEditing} set={setFormData}/></Grid></Section><Section title="Documentos Adjuntos" icon={<FileBadge size={18}/>}><div className="grid grid-cols-2 gap-4"><DocCard label="DNI (Frontal)" url={formData.url_dni_frontal} onDelete={() => handleDeleteDoc('url_dni_frontal')} /><DocCard label="DNI (Reverso)" url={formData.url_dni_reverso} onDelete={() => handleDeleteDoc('url_dni_reverso')} /><DocCard label="Carnet RETCC" url={formData.url_carnet} onDelete={() => handleDeleteDoc('url_carnet')} /><DocCard label="Antecedentes" url={formData.url_antecedentes} onDelete={() => handleDeleteDoc('url_antecedentes')} /><DocCard label="Ant. Policiales" url={formData.url_policiales} onDelete={() => handleDeleteDoc('url_policiales')} /><DocCard label="Ant. Penales" url={formData.url_penales} onDelete={() => handleDeleteDoc('url_penales')} /><DocCard label="Acta Matrimonio" url={formData.url_acta_matrimonio} onDelete={() => handleDeleteDoc('url_acta_matrimonio')} /><DocCard label="DNI Esposa" url={formData.url_esposa_dni} onDelete={() => handleDeleteDoc('url_esposa_dni')} /><DocCard label="DNI Hijos" url={formData.url_hijos_dni} onDelete={() => handleDeleteDoc('url_hijos_dni')} /><DocCard label="Partida Nac. Hijos" url={formData.url_hijos_nacimiento} onDelete={() => handleDeleteDoc('url_hijos_nacimiento')} /><DocCard label="Estudios Hijos" url={formData.url_constancia_estudios} onDelete={() => handleDeleteDoc('url_constancia_estudios')} /></div></Section></div></div><div className="p-6 border-t border-slate-200 bg-white flex justify-between items-center gap-4 shrink-0 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-20">{ficha.estado === 'completado' ? (<button onClick={() => handleChangeStatus('pendiente')} disabled={loadingAction} className="flex-1 bg-amber-50 text-amber-700 border border-amber-200 py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-amber-100 transition-colors active:scale-95">{loadingAction ? <Loader2 className="animate-spin" size={18}/> : <><Unlock size={18}/> REABRIR FICHA</>}</button>) : (<button onClick={() => handleChangeStatus('completado')} disabled={loadingAction} className="flex-1 bg-slate-900 text-white py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-slate-800 transition-colors shadow-lg active:scale-95">{loadingAction ? <Loader2 className="animate-spin" size={18}/> : <><Lock size={18}/> VALIDAR Y CERRAR</>}</button>)}{isEditing && (<button onClick={handleSave} className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 shadow-lg transition-colors active:scale-95">{saving ? <Loader2 className="animate-spin" size={18}/> : <><Save size={18}/> GUARDAR CAMBIOS</>}</button>)}</div></motion.div></motion.div>) }
-function PdfPreviewModal({ pdfUrl, pdfFile, workerName, onClose }: { pdfUrl: string, pdfFile: File | null, workerName: string, onClose: () => void }) { const handleShareWhatsApp = async () => { if (!pdfFile) return; const userAgent = window.navigator.userAgent.toLowerCase(); const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent); if (isMobile && navigator.share && navigator.canShare && navigator.canShare({ files: [pdfFile] })) { try { await navigator.share({ files: [pdfFile], title: 'Documentos SSOMA', text: `Adjunto documentos de ${workerName}.` }); return } catch (e) { console.warn(e) } } const link = document.createElement('a'); link.href = pdfUrl; link.download = pdfFile.name; link.target = "_blank"; document.body.appendChild(link); link.click(); document.body.removeChild(link); toast.success("✅ Descargado. Abriendo WhatsApp..."); setTimeout(() => { window.open(`https://wa.me/?text=${encodeURIComponent(`Hola, adjunto los documentos firmados de *${workerName}*.`)}`, '_blank') }, 1000) }; return (<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/90 z-[100] flex items-center justify-center p-4" onClick={onClose}><motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-white rounded-3xl overflow-hidden shadow-2xl max-w-4xl w-full flex flex-col h-[90vh]" onClick={e => e.stopPropagation()}><div className="p-5 border-b flex justify-between items-center bg-white shrink-0"><h3 className="font-bold text-slate-800 text-lg flex items-center gap-2"><FileCheck size={24} className="text-emerald-500"/> Vista Previa</h3><button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={24}/></button></div><div className="flex-1 bg-slate-100 relative"><iframe src={pdfUrl} className="w-full h-full" title="PDF Preview" /></div><div className="p-5 border-t bg-white flex flex-col sm:flex-row gap-4 shrink-0"><button onClick={onClose} className="flex-1 py-3.5 rounded-xl font-bold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">Cerrar</button><button onClick={handleShareWhatsApp} className="flex-1 py-3.5 rounded-xl font-bold bg-green-500 text-white hover:bg-green-600 shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95"><Share2 size={20}/> Compartir por WhatsApp</button></div></motion.div></motion.div>) }
-function PrintPreviewModal({ image, onClose }: { image: string, onClose: () => void }) { const handlePrint = () => { const iframe = document.createElement('iframe'); iframe.style.position = 'absolute'; iframe.width='0'; iframe.height='0'; iframe.style.border='none'; document.body.appendChild(iframe); const doc = iframe.contentWindow?.document; if (doc) { doc.open(); doc.write(`<html><body onload="window.print()"><img src="${image}" style="width:100%"/></body></html>`); doc.close(); setTimeout(() => document.body.removeChild(iframe), 5000); } }; return (<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={onClose}><motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-white rounded-3xl overflow-hidden shadow-2xl max-w-lg w-full flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}><div className="p-5 border-b flex justify-between items-center bg-white"><h3 className="font-bold text-slate-800 flex items-center gap-2"><Printer size={20} className="text-blue-600"/> Vista Previa</h3><button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20}/></button></div><div className="flex-1 overflow-y-auto p-8 bg-slate-50 flex justify-center"><div className="bg-white shadow-xl p-2 rounded-lg border border-slate-100"><img src={image} className="w-full h-auto max-w-[300px] object-contain" /></div></div><div className="p-5 border-t bg-white flex gap-3"><button onClick={onClose} className="flex-1 py-3.5 rounded-xl font-bold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">Cancelar</button><button onClick={handlePrint} className="flex-1 py-3.5 rounded-xl font-bold bg-slate-900 text-white hover:bg-slate-800 shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95"><Printer size={18}/> Imprimir</button></div></motion.div></motion.div>) }
+function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloading, onPrintPreview, onNotifyChange }: FichaDrawerProps & { onNotifyChange?: (a:string, d:string)=>void }) {
+    const [isEditing, setIsEditing] = useState(false)
+    const supabase = createClient()
+    
+    // CORRECCIÓN: Inicialización segura de estado para evitar el error "undefined"
+    const [formData, setFormData] = useState<any>(() => ({
+        ...ficha,
+        esposa_datos: ficha.esposa ? JSON.parse(ficha.esposa) : { paterno: '', materno: '', nombres: '', dni: '' },
+        hijos_datos: ficha.hijos ? JSON.parse(ficha.hijos) : []
+    }))
+    
+    const [saving, setSaving] = useState(false)
+    const [loadingAction, setLoadingAction] = useState(false)
+
+    // Se mantiene el useEffect para actualizaciones externas
+    useEffect(() => {
+        let esposaObj = { paterno: '', materno: '', nombres: '', dni: '' }
+        let hijosArr: any[] = []
+        try { esposaObj = ficha.esposa ? JSON.parse(ficha.esposa) : esposaObj } catch(e) {}
+        try { hijosArr = ficha.hijos ? JSON.parse(ficha.hijos) : [] } catch(e) {}
+        setFormData({ ...ficha, esposa_datos: esposaObj, hijos_datos: hijosArr })
+    }, [ficha])
+
+    const handleSave = async () => {
+        setSaving(true)
+        const payload = { ...formData, esposa: JSON.stringify(formData.esposa_datos), hijos: JSON.stringify(formData.hijos_datos) }
+        delete payload.esposa_datos; delete payload.hijos_datos; const cleaned = { ...payload }; delete cleaned.profiles 
+        Object.keys(cleaned).forEach(k => { if(cleaned[k] === '') cleaned[k] = null })
+        const { error } = await supabase.from('fichas').update(cleaned).eq('id', ficha.id)
+        setSaving(false)
+        if (error) toast.error("Error al guardar: " + error.message)
+        else { 
+            toast.success("Datos actualizados")
+            if(onNotifyChange) onNotifyChange("editó", `Datos de ${ficha.nombres}`)
+            setIsEditing(false)
+            onUpdate() 
+        }
+    }
+
+    const handleChangeStatus = async (newStatus: 'pendiente' | 'completado') => {
+        setLoadingAction(true)
+        try {
+            const { error } = await supabase.from('fichas').update({ estado: newStatus }).eq('id', ficha.id)
+            if (error) throw error
+            if(newStatus === 'pendiente') toast.success("Ficha ABIERTA para edición")
+            else toast.success("Ficha CERRADA y Validada")
+            if(onNotifyChange) onNotifyChange(newStatus === 'completado' ? 'validó' : 'reabrió', `Ficha de ${ficha.nombres}`)
+            onUpdate(); onClose()
+        } catch (error: any) { toast.error("Error: " + error.message) } finally { setLoadingAction(false) }
+    }
+
+    const handleDeleteDoc = async (field: string) => {
+        if (!confirm("¿Eliminar este documento?")) return
+        const { error } = await supabase.from('fichas').update({ [field]: null }).eq('id', ficha.id)
+        if (error) toast.error("Error al eliminar")
+        else {
+            toast.success("Documento eliminado")
+            setFormData((prev: any) => ({ ...prev, [field]: null }))
+            onUpdate() 
+        }
+    }
+
+    // Funciones para gestionar familia
+    const handleEsposaChange = (field: string, val: string) => setFormData((prev:any) => ({ ...prev, esposa_datos: { ...prev.esposa_datos, [field]: val } }))
+    const addHijo = () => setFormData((prev:any) => ({ ...prev, hijos_datos: [...prev.hijos_datos, { paterno: '', materno: '', nombres: '', fecha_nacimiento: '' }] }))
+    const removeHijo = (idx: number) => setFormData((prev:any) => ({ ...prev, hijos_datos: prev.hijos_datos.filter((_:any, i:number) => i !== idx) }))
+    const handleHijoChange = (idx: number, field: string, val: string) => {
+        const newHijos = [...formData.hijos_datos]; newHijos[idx] = { ...newHijos[idx], [field]: val }
+        setFormData((prev:any) => ({ ...prev, hijos_datos: newHijos }))
+    }
+
+    // Función para subida rápida de documentos por admin
+    const handleAdminDocUpload = async (file: File, fieldName: string) => {
+        if (!file) return
+        const toastId = toast.loading("Subiendo documento...")
+        try {
+            const fileExt = file.name.split('.').pop() || 'pdf'
+            const fileName = `admin_upload_${Date.now()}.${fileExt}`
+            const { error: uploadError } = await supabase.storage.from('documentos').upload(fileName, file)
+            if(uploadError) throw uploadError
+            
+            const { data } = supabase.storage.from('documentos').getPublicUrl(fileName)
+            setFormData((prev: any) => ({ ...prev, [fieldName]: data.publicUrl }))
+            toast.success("Documento subido (Guardar cambios para confirmar)", { id: toastId })
+        } catch(e) {
+            toast.error("Error al subir", { id: toastId })
+        }
+    }
+
+    return (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex justify-end" onClick={onClose}>
+            <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", damping: 30, stiffness: 300 }} className="w-full max-w-2xl bg-white h-full shadow-2xl flex flex-col border-l border-white/20" onClick={e => e.stopPropagation()}>
+                
+                <div id="drawer-header" className="h-24 px-8 border-b border-slate-100 flex justify-between items-center bg-white z-10 shrink-0 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none"><ShieldCheck size={120} /></div>
+                    <div className="flex items-center gap-5 relative z-10">
+                        <div className="w-14 h-14 rounded-2xl bg-slate-900 text-white flex items-center justify-center font-bold text-xl shadow-lg shadow-slate-900/20 uppercase">
+                            {ficha.nombres.charAt(0)}{ficha.apellido_paterno.charAt(0)}
+                        </div>
+                        <div>
+                            <h2 className="font-bold text-slate-900 text-2xl leading-none tracking-tight">{ficha.nombres}</h2>
+                            <p className="font-medium text-slate-500 text-lg">{ficha.apellido_paterno}</p>
+                            <span className="inline-block mt-1 px-2 py-0.5 bg-slate-100 rounded text-[10px] font-mono text-slate-500">{ficha.dni}</span>
+                        </div>
+                    </div>
+                    <button id="drawer-close-btn" onClick={onClose} className="p-2.5 bg-slate-50 hover:bg-slate-100 rounded-full transition-colors relative z-10 text-slate-500"><X size={20}/></button>
+                </div>
+                
+                <div className="flex-1 overflow-y-auto p-8 space-y-8 bg-slate-50 scroll-smooth">
+                    <div id="drawer-actions-top" className="flex gap-3 sticky top-0 z-10 pb-4 bg-slate-50/95 backdrop-blur-sm pt-2">
+                        <button onClick={onDownload} disabled={downloading} className="flex-1 flex items-center justify-center gap-2 bg-white border border-slate-200 text-slate-700 py-3.5 rounded-xl text-sm font-bold shadow-sm hover:border-blue-300 hover:text-blue-600 transition-all disabled:opacity-50 active:scale-95">{downloading ? <Loader2 className="animate-spin" size={16}/> : <><Download size={16}/> Descargar PDF</>}</button>
+                        <button onClick={() => setIsEditing(!isEditing)} className={`flex-1 flex items-center justify-center gap-2 border py-3.5 rounded-xl text-sm font-bold shadow-sm transition-all active:scale-95 ${isEditing ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:bg-white hover:border-slate-300'}`}>{isEditing ? 'Cancelar Edición' : 'Editar Datos'}</button>
+                    </div>
+
+                    <div id="drawer-info-section">
+                        <Section title="Información Personal" icon={<User size={18}/>}>
+                            <Grid>
+                                <Field label="Apellido Paterno" name="apellido_paterno" val={formData.apellido_paterno} edit={isEditing} set={setFormData}/>
+                                <Field label="Apellido Materno" name="apellido_materno" val={formData.apellido_materno} edit={isEditing} set={setFormData}/>
+                                <Field label="Nombres" name="nombres" val={formData.nombres} edit={isEditing} set={setFormData}/>
+                                <Field label="F. Nacimiento" name="fecha_nacimiento" val={formData.fecha_nacimiento} edit={isEditing} set={setFormData} type="date"/>
+                                <Field label="DNI" name="dni" val={formData.dni} edit={isEditing} set={setFormData}/>
+                                <Field label="Dirección" name="direccion" val={formData.direccion} edit={isEditing} set={setFormData} full/>
+                                <Field label="Distrito" name="distrito" val={formData.distrito} edit={isEditing} set={setFormData}/>
+                                <Field label="Provincia" name="provincia" val={formData.provincia} edit={isEditing} set={setFormData}/>
+                                <Field label="Correo Electrónico" name="correo" val={formData.correo} edit={isEditing} set={setFormData}/>
+                                <Field label="Celular" name="celular" val={formData.celular} edit={isEditing} set={setFormData}/>
+                            </Grid>
+                        </Section>
+
+                        <Section title="Familia" icon={<Users size={18}/>}>
+                             {/* Esposa (Con Optional Chaining para seguridad) */}
+                             <div className="mb-4 pb-4 border-b border-slate-200">
+                                <h4 className="text-xs font-bold text-slate-500 mb-2">ESPOSA / CONVIVIENTE</h4>
+                                <Grid>
+                                    <Field label="Nombres" val={formData.esposa_datos?.nombres || ''} edit={isEditing} customChange={(v:any)=>handleEsposaChange('nombres', v)} />
+                                    <Field label="DNI" val={formData.esposa_datos?.dni || ''} edit={isEditing} customChange={(v:any)=>handleEsposaChange('dni', v)} />
+                                    <Field label="Ap. Paterno" val={formData.esposa_datos?.paterno || ''} edit={isEditing} customChange={(v:any)=>handleEsposaChange('paterno', v)} />
+                                    <Field label="Ap. Materno" val={formData.esposa_datos?.materno || ''} edit={isEditing} customChange={(v:any)=>handleEsposaChange('materno', v)} />
+                                </Grid>
+                             </div>
+                             
+                             {/* Hijos */}
+                             <div>
+                                <div className="flex justify-between items-center mb-2">
+                                    <h4 className="text-xs font-bold text-slate-500">HIJOS ({formData.hijos_datos?.length || 0})</h4>
+                                    {isEditing && <button onClick={addHijo} className="text-[10px] bg-slate-900 text-white px-2 py-1 rounded flex items-center gap-1"><Plus size={10}/> Add</button>}
+                                </div>
+                                {formData.hijos_datos?.map((h:any, i:number) => (
+                                    <div key={i} className="mb-3 p-3 bg-slate-100 rounded-lg relative group">
+                                        {isEditing && <button onClick={()=>removeHijo(i)} className="absolute top-1 right-1 text-slate-400 hover:text-red-500"><X size={14}/></button>}
+                                        <Grid>
+                                            <Field label="Nombres" val={h.nombres} edit={isEditing} customChange={(v:any)=>handleHijoChange(i, 'nombres', v)} />
+                                            <Field label="F. Nacimiento" val={h.fecha_nacimiento} edit={isEditing} type="date" customChange={(v:any)=>handleHijoChange(i, 'fecha_nacimiento', v)} />
+                                            <Field label="Ap. Paterno" val={h.paterno} edit={isEditing} customChange={(v:any)=>handleHijoChange(i, 'paterno', v)} />
+                                            <Field label="Ap. Materno" val={h.materno} edit={isEditing} customChange={(v:any)=>handleHijoChange(i, 'materno', v)} />
+                                        </Grid>
+                                    </div>
+                                ))}
+                             </div>
+                        </Section>
+
+                        <Section title="Sistema de Pensiones" icon={<ShieldCheck size={18}/>}>
+                            <Grid>
+                                <Field label="Régimen" name="sistema_pension" val={formData.sistema_pension} edit={isEditing} set={setFormData}/>
+                                <Field label="Nombre AFP" name="afp_nombre" val={formData.afp_nombre} edit={isEditing} set={setFormData}/>
+                                <Field label="CUSPP" name="cuspp" val={formData.cuspp} edit={isEditing} set={setFormData}/>
+                            </Grid>
+                        </Section>
+
+                        <Section title="Datos Bancarios" icon={<Wallet size={18}/>}>
+                            <Grid>
+                                <Field label="Banco" name="banco" val={formData.banco} edit={isEditing} set={setFormData}/>
+                                <Field label="N° Cuenta" name="numero_cuenta" val={formData.numero_cuenta} edit={isEditing} set={setFormData}/>
+                                <Field label="CCI" name="cci" val={formData.cci} edit={isEditing} set={setFormData}/>
+                            </Grid>
+                        </Section>
+
+                        <Section title="Información Laboral" icon={<HardHat size={18}/>}>
+                            <Grid>
+                                <Field label="Categoría" name="categoria" val={formData.categoria} edit={isEditing} set={setFormData}/>
+                                <Field label="Cargo" name="cargo" val={formData.cargo} edit={isEditing} set={setFormData}/>
+                                <Field label="Fecha Ingreso" name="fecha_ingreso" val={formData.fecha_ingreso} edit={isEditing} set={setFormData} type="date"/>
+                                <Field label="Obra" name="nombre_obra" val={formData.nombre_obra} edit={isEditing} set={setFormData}/>
+                            </Grid>
+                        </Section>
+
+                        <Section title="Educación" icon={<GraduationCap size={18}/>}>
+                            <Grid>
+                                <Field label="Nivel" name="nivel_educacion" val={formData.nivel_educacion} edit={isEditing} set={setFormData}/>
+                                <Field label="Carrera" name="carrera" val={formData.carrera} edit={isEditing} set={setFormData}/>
+                                <Field label="Institución" name="universidad" val={formData.universidad} edit={isEditing} set={setFormData} full/>
+                            </Grid>
+                        </Section>
+
+                        <Section title="Emergencia" icon={<HeartPulse size={18}/>}>
+                            <Grid>
+                                <Field label="Nombre Contacto" name="emergencia_nombre" val={formData.emergencia_nombre} edit={isEditing} set={setFormData}/>
+                                <Field label="Parentesco" name="emergencia_relacion" val={formData.emergencia_relacion} edit={isEditing} set={setFormData}/>
+                                <Field label="Teléfono" name="emergencia_celular" val={formData.emergencia_celular} edit={isEditing} set={setFormData}/>
+                            </Grid>
+                        </Section>
+
+                        <Section title="Documentos Adjuntos" icon={<FileBadge size={18}/>}>
+                            <div className="grid grid-cols-2 gap-4">
+                                <DocCard label="DNI (Frontal)" url={formData.url_dni_frontal} onDelete={() => handleDeleteDoc('url_dni_frontal')} isEditing={isEditing} onUpload={(f:File)=>handleAdminDocUpload(f, 'url_dni_frontal')} />
+                                <DocCard label="DNI (Reverso)" url={formData.url_dni_reverso} onDelete={() => handleDeleteDoc('url_dni_reverso')} isEditing={isEditing} onUpload={(f:File)=>handleAdminDocUpload(f, 'url_dni_reverso')} />
+                                <DocCard label="Carnet RETCC" url={formData.url_carnet} onDelete={() => handleDeleteDoc('url_carnet')} isEditing={isEditing} onUpload={(f:File)=>handleAdminDocUpload(f, 'url_carnet')} />
+                                <DocCard label="Antecedentes" url={formData.url_antecedentes} onDelete={() => handleDeleteDoc('url_antecedentes')} isEditing={isEditing} onUpload={(f:File)=>handleAdminDocUpload(f, 'url_antecedentes')} />
+                                <DocCard label="Ant. Policiales" url={formData.url_policiales} onDelete={() => handleDeleteDoc('url_policiales')} isEditing={isEditing} onUpload={(f:File)=>handleAdminDocUpload(f, 'url_policiales')} />
+                                <DocCard label="Ant. Penales" url={formData.url_penales} onDelete={() => handleDeleteDoc('url_penales')} isEditing={isEditing} onUpload={(f:File)=>handleAdminDocUpload(f, 'url_penales')} />
+                                <DocCard label="Acta Matrimonio" url={formData.url_acta_matrimonio} onDelete={() => handleDeleteDoc('url_acta_matrimonio')} isEditing={isEditing} onUpload={(f:File)=>handleAdminDocUpload(f, 'url_acta_matrimonio')} />
+                                <DocCard label="DNI Esposa" url={formData.url_esposa_dni} onDelete={() => handleDeleteDoc('url_esposa_dni')} isEditing={isEditing} onUpload={(f:File)=>handleAdminDocUpload(f, 'url_esposa_dni')} />
+                                <DocCard label="DNI Hijos" url={formData.url_hijos_dni} onDelete={() => handleDeleteDoc('url_hijos_dni')} isEditing={isEditing} onUpload={(f:File)=>handleAdminDocUpload(f, 'url_hijos_dni')} />
+                                <DocCard label="Partida Nac. Hijos" url={formData.url_hijos_nacimiento} onDelete={() => handleDeleteDoc('url_hijos_nacimiento')} isEditing={isEditing} onUpload={(f:File)=>handleAdminDocUpload(f, 'url_hijos_nacimiento')} />
+                                <DocCard label="Estudios Hijos" url={formData.url_constancia_estudios} onDelete={() => handleDeleteDoc('url_constancia_estudios')} isEditing={isEditing} onUpload={(f:File)=>handleAdminDocUpload(f, 'url_constancia_estudios')} />
+                            </div>
+                        </Section>
+
+                        <Section title="Firma Registrada" icon={<PenTool size={18}/>}>
+                             <div className="border border-dashed border-slate-300 rounded-lg p-4 bg-slate-50 flex justify-center">
+                                {formData.url_firma ? (
+                                    <img src={formData.url_firma} alt="Firma" className="max-h-24 object-contain" />
+                                ) : <span className="text-slate-400 text-xs">Sin firma registrada</span>}
+                             </div>
+                        </Section>
+                    </div>
+                </div>
+
+                <div className="p-6 border-t border-slate-200 bg-white flex justify-between items-center gap-4 shrink-0 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-20">
+                    {ficha.estado === 'completado' ? (
+                        <button onClick={() => handleChangeStatus('pendiente')} disabled={loadingAction} className="flex-1 bg-amber-50 text-amber-700 border border-amber-200 py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-amber-100 transition-colors active:scale-95">
+                            {loadingAction ? <Loader2 className="animate-spin" size={18}/> : <><Unlock size={18}/> REABRIR FICHA</>}
+                        </button>
+                    ) : (
+                        <button onClick={() => handleChangeStatus('completado')} disabled={loadingAction} className="flex-1 bg-slate-900 text-white py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-slate-800 transition-colors shadow-lg active:scale-95">
+                            {loadingAction ? <Loader2 className="animate-spin" size={18}/> : <><Lock size={18}/> VALIDAR Y CERRAR</>}</button>
+                    )}
+                    {isEditing && (
+                        <button onClick={handleSave} className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 shadow-lg transition-colors active:scale-95">
+                            {saving ? <Loader2 className="animate-spin" size={18}/> : <><Save size={18}/> GUARDAR CAMBIOS</>}</button>
+                    )}
+                </div>
+            </motion.div>
+        </motion.div>
+    )
+}
+
+function PdfPreviewModal({ pdfUrl, pdfFile, workerName, onClose }: { pdfUrl: string, pdfFile: File | null, workerName: string, onClose: () => void }) {
+    const handleShareWhatsApp = async () => {
+        if (!pdfFile) return
+        const userAgent = window.navigator.userAgent.toLowerCase();
+        const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
+
+        if (isMobile && navigator.share && navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+            try { await navigator.share({ files: [pdfFile], title: 'Documentos SSOMA', text: `Adjunto documentos de ${workerName}.` }); return } catch (e) { console.warn(e) }
+        }
+        const link = document.createElement('a'); link.href = pdfUrl; link.download = pdfFile.name; link.target = "_blank"; document.body.appendChild(link); link.click(); document.body.removeChild(link);
+        toast.success("✅ Descargado. Abriendo WhatsApp...");
+        setTimeout(() => { window.open(`https://wa.me/?text=${encodeURIComponent(`Hola, adjunto los documentos firmados de *${workerName}*.`)}`, '_blank') }, 1000)
+    }
+    return (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/90 z-[100] flex items-center justify-center p-4" onClick={onClose}>
+            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-white rounded-3xl overflow-hidden shadow-2xl max-w-4xl w-full flex flex-col h-[90vh]" onClick={e => e.stopPropagation()}>
+                <div className="p-5 border-b flex justify-between items-center bg-white shrink-0"><h3 className="font-bold text-slate-800 text-lg flex items-center gap-2"><FileCheck size={24} className="text-emerald-500"/> Vista Previa</h3><button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={24}/></button></div>
+                <div className="flex-1 bg-slate-100 relative"><iframe src={pdfUrl} className="w-full h-full" title="PDF Preview" /></div>
+                <div className="p-5 border-t bg-white flex flex-col sm:flex-row gap-4 shrink-0"><button onClick={onClose} className="flex-1 py-3.5 rounded-xl font-bold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">Cerrar</button><button onClick={handleShareWhatsApp} className="flex-1 py-3.5 rounded-xl font-bold bg-green-500 text-white hover:bg-green-600 shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95"><Share2 size={20}/> Compartir por WhatsApp</button></div>
+            </motion.div>
+        </motion.div>
+    )
+}
+
+function PrintPreviewModal({ image, onClose }: { image: string, onClose: () => void }) {
+    const handlePrint = () => { const iframe = document.createElement('iframe'); iframe.style.position = 'absolute'; iframe.width='0'; iframe.height='0'; iframe.style.border='none'; document.body.appendChild(iframe); const doc = iframe.contentWindow?.document; if (doc) { doc.open(); doc.write(`<html><body onload="window.print()"><img src="${image}" style="width:100%"/></body></html>`); doc.close(); setTimeout(() => document.body.removeChild(iframe), 5000); } };
+    return (<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={onClose}><motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-white rounded-3xl overflow-hidden shadow-2xl max-w-lg w-full flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}><div className="p-5 border-b flex justify-between items-center bg-white"><h3 className="font-bold text-slate-800 flex items-center gap-2"><Printer size={20} className="text-blue-600"/> Vista Previa</h3><button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20}/></button></div><div className="flex-1 overflow-y-auto p-8 bg-slate-50 flex justify-center"><div className="bg-white shadow-xl p-2 rounded-lg border border-slate-100"><img src={image} className="w-full h-auto max-w-[300px] object-contain" /></div></div><div className="p-5 border-t bg-white flex gap-3"><button onClick={onClose} className="flex-1 py-3.5 rounded-xl font-bold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">Cancelar</button><button onClick={handlePrint} className="flex-1 py-3.5 rounded-xl font-bold bg-slate-900 text-white hover:bg-slate-800 shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95"><Printer size={18}/> Imprimir</button></div></motion.div></motion.div>)
+}
+
 function Section({title, icon, children}: any) { return <div className="space-y-4 pt-2 bg-white p-5 rounded-2xl border border-slate-100 shadow-sm"><h3 className="font-bold text-xs text-slate-800 uppercase tracking-wider flex items-center gap-2 mb-4 pb-2 border-b border-slate-50"><span className="p-1.5 bg-blue-50 text-blue-600 rounded-lg">{icon}</span> {title}</h3><div className="">{children}</div></div> }
 function Grid({children}: any) { return <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6">{children}</div> }
-function Field({label, name, val, edit, set, full, type="text"}: any) { return <div className={full ? 'md:col-span-2' : ''}><label className="block text-[10px] font-bold text-slate-400 uppercase mb-2 tracking-wide ml-1">{label}</label>{edit ? <input type={type} value={val||''} onChange={e=>set((p:any)=>({...p,[name]:e.target.value}))} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all shadow-sm font-medium text-slate-700"/> : <div className="font-medium text-slate-800 text-sm border-b border-slate-100 py-1.5 px-1 truncate min-h-[32px]">{val||<span className="text-slate-300 italic">Sin datos</span>}</div>}</div>}
-function DocCard({label, url, onDelete}: any) { if(!url) return <div className="flex items-center gap-3 p-4 bg-slate-50 border border-slate-100 rounded-xl opacity-60"><div className="w-10 h-10 rounded-xl bg-slate-200 text-slate-400 flex items-center justify-center"><FileText size={18}/></div><span className="text-xs font-bold text-slate-400">Sin archivo</span></div>; return (<div className="relative group"><a href={url} target="_blank" className="flex items-center gap-3 p-4 bg-white border border-slate-200 rounded-xl hover:border-blue-400 hover:shadow-md transition-all group cursor-pointer active:scale-95"><div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors shadow-sm"><FileText size={20}/></div><span className="text-xs font-bold text-slate-700 truncate group-hover:text-blue-700 pr-6">{label}</span></a>{onDelete && (<button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(); }} className="absolute top-2 right-2 p-1.5 bg-white border border-red-100 text-red-500 rounded-lg shadow-sm opacity-0 group-hover:opacity-100 transition-all hover:bg-red-50 z-10" title="Eliminar documento"><Trash2 size={14}/></button>)}</div>) }
+function Field({label, name, val, edit, set, full, customChange, type="text"}: any) { return <div className={full ? 'md:col-span-2' : ''}><label className="block text-[10px] font-bold text-slate-400 uppercase mb-2 tracking-wide ml-1">{label}</label>{edit ? <input type={type} value={val||''} onChange={customChange ? (e)=>customChange(e.target.value) : (e)=>set((p:any)=>({...p,[name]:e.target.value}))} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all shadow-sm font-medium text-slate-700"/> : <div className="font-medium text-slate-800 text-sm border-b border-slate-100 py-1.5 px-1 truncate min-h-[32px]">{val||<span className="text-slate-300 italic">Sin datos</span>}</div>}</div>}
+function DocCard({label, url, onDelete, isEditing, onUpload}: any) { const fileRef = useRef<HTMLInputElement>(null); if(!url && !isEditing) return <div className="flex items-center gap-3 p-4 bg-slate-50 border border-slate-100 rounded-xl opacity-60"><div className="w-10 h-10 rounded-xl bg-slate-200 text-slate-400 flex items-center justify-center"><FileText size={18}/></div><span className="text-xs font-bold text-slate-400">Sin archivo</span></div>; return (<div className="relative group">{url ? (<a href={url} target="_blank" className="flex items-center gap-3 p-4 bg-white border border-slate-200 rounded-xl hover:border-blue-400 hover:shadow-md transition-all group cursor-pointer active:scale-95"><div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors shadow-sm"><FileText size={20}/></div><span className="text-xs font-bold text-slate-700 truncate group-hover:text-blue-700 pr-6">{label}</span></a>) : (<div className="flex items-center gap-3 p-4 bg-slate-50 border border-slate-200 rounded-xl border-dashed"><span className="text-xs font-bold text-slate-400">{label} (Vacío)</span></div>)}<div className="absolute top-2 right-2 flex gap-1">{isEditing && (<><input type="file" ref={fileRef} className="hidden" onChange={(e) => e.target.files?.[0] && onUpload(e.target.files[0])} /><button onClick={(e) => { e.stopPropagation(); fileRef.current?.click() }} className="p-1.5 bg-white border border-blue-200 text-blue-600 rounded-lg shadow-sm hover:bg-blue-50 transition-all z-10" title="Subir/Cambiar Archivo"><UploadCloud size={14}/></button></>)}{onDelete && isEditing && url && (<button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(); }} className="p-1.5 bg-white border border-red-100 text-red-500 rounded-lg shadow-sm hover:bg-red-50 transition-all z-10" title="Eliminar documento"><Trash2 size={14}/></button>)}</div></div>) }
