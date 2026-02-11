@@ -9,30 +9,33 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-// --- CREDENCIALES DE WEBMAIL (CPANEL) ---
+// --- CREDENCIALES CPANEL (MODO COMPATIBLE VERCEL) ---
 const EMAIL_USER = 'ruagsrl@ruag.pe';
 const EMAIL_PASS = 'Rg2022//@@'; 
-const EMAIL_HOST = 'mail.ruag.pe'; // Servidor estándar de cPanel
+const EMAIL_HOST = 'mail.ruag.pe'; 
 
 const transporter = nodemailer.createTransport({
   host: EMAIL_HOST,
-  port: 465, // Puerto seguro SSL para cPanel
-  secure: true, 
+  port: 587, // CAMBIO CLAVE: Puerto 587 es más estable en Vercel
+  secure: false, // false es obligatorio para puerto 587 (usa STARTTLS)
   auth: { 
     user: EMAIL_USER, 
     pass: EMAIL_PASS 
   },
-  // Esto ayuda si el certificado SSL del hosting es antiguo
   tls: { 
+    // Esto es vital para cPanel: ignora si el certificado SSL es compartido
     rejectUnauthorized: false 
-  }
+  },
+  // Aumentamos tiempos de espera para evitar el error EBUSY
+  connectionTimeout: 10000, 
+  greetingTimeout: 10000 
 })
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const id = searchParams.get('id')
   
-  // Aquí llega el correo tuyo (cesarneyra18@...) para recibir la respuesta
+  // Aquí llega el correo tuyo (cesarneyra18@...)
   const adminEmail = decodeURIComponent(searchParams.get('admin_email') || '')
 
   if (!id) return NextResponse.json({ error: 'Link inválido' }, { status: 400 })
@@ -41,22 +44,22 @@ export async function GET(request: Request) {
   let debugError = '';
 
   try {
-    // 1. MARCAR EN BASE DE DATOS (Check Verde)
+    // 1. MARCAR EN BASE DE DATOS
     await supabase.from('fichas').update({ email_confirmed_at: new Date().toISOString() }).eq('id', id)
     
-    // 2. OBTENER DATOS DEL OBRERO
+    // 2. OBTENER DATOS
     const { data: worker } = await supabase.from('fichas').select('nombres, apellido_paterno').eq('id', id).single()
     const workerName = worker ? `${worker.nombres} ${worker.apellido_paterno}` : 'Colaborador'
     const fecha = new Date().toLocaleString('es-PE', { timeZone: 'America/Lima' })
 
-    // 3. ENVIAR CORREO (AUTOMÁTICO)
+    // 3. ENVIAR CORREO (USANDO PUERTO 587)
     if (adminEmail && adminEmail.includes('@')) {
       try {
-        await transporter.verify(); // Verificar conexión con cPanel
+        await transporter.verify(); // Verificar antes de enviar
 
         await transporter.sendMail({
           from: `"Sistema RUAG" <${EMAIL_USER}>`, 
-          to: adminEmail, // Se envía a: cesarneyra18@hotmail.com
+          to: adminEmail, 
           subject: `✅ Confirmación: ${workerName}`,
           html: `
             <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
@@ -81,7 +84,7 @@ export async function GET(request: Request) {
       }
     } else {
         emailStatus = 'failed';
-        debugError = 'No se encontró el correo de destino en el enlace.';
+        debugError = 'No se encontró el correo de destino.';
     }
 
     // 4. PANTALLA
@@ -90,7 +93,7 @@ export async function GET(request: Request) {
       <html lang="es">
       <head>
         <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Confirmación Exitosa</title>
+        <title>Confirmación</title>
         <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
         <style>
           body { margin: 0; padding: 20px; font-family: 'Outfit', sans-serif; background: #f0fdf4; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
