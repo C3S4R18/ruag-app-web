@@ -33,7 +33,7 @@ import {
   PenTool, Fingerprint, Share2, MoreHorizontal, Edit3,
   FileCheck, MessageSquare, Filter, ScanFace, Briefcase, 
   HeartPulse, GraduationCap, UploadCloud, Plus, Users, Zap, Mail,
-  MailCheck, Clock, AlertCircle, RotateCcw, Monitor, Laptop
+  MailCheck, Clock, AlertCircle, RotateCcw, Monitor
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -120,7 +120,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
 
     fetchFichas()
     
-    // Listener de Fichas (Cambios en DB)
+    // Listener de Fichas
     const fichasChannel = supabase.channel('realtime-fichas').on('postgres_changes', { event: '*', schema: 'public', table: 'fichas' }, (payload: any) => {
           if (payload.eventType === 'INSERT') {
              setFichas((prev) => [payload.new, ...prev])
@@ -167,6 +167,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
         })
         .subscribe()
 
+    // Listener de Actividad de Admins
     const adminActivityChannel = supabase.channel('admin_room')
         .on('broadcast', { event: 'admin_action' }, ({ payload }) => {
             const newLog = {
@@ -976,30 +977,28 @@ function PdfPreviewModal({ pdfUrl, pdfFile, workerName, workerId, onClose }: { p
             // 4. Crear Link de Confirmación (Inyectando el correo del admin)
             const confirmLink = `${window.location.origin}/api/confirm-receipt?id=${workerId}&doc=legajo&admin_email=${encodeURIComponent(currentAdminEmail)}`;
 
-            // 5. Redactar Asunto y Cuerpo
+            // 5. Redactar Asunto y Cuerpo (ACORTADO para evitar límites)
             const subject = `Documentación Laboral - ${workerName}`;
             const body = 
 `Estimado(a) colaborador(a):
 
-Se adjunta el enlace para descargar su documentación laboral (Legajo SSOMA/RRHH).
+Se adjunta su legajo SSOMA/RRHH.
 
-DESCARGAR DOCUMENTOS:
+1. DESCARGAR DOCUMENTOS:
 ${publicUrl}
 
---------------------------------------------------
-IMPORTANTE:
-Por favor, confirme la recepción de estos documentos haciendo clic en el siguiente enlace:
-
-CONFIRMAR RECEPCIÓN:
+2. CONFIRMAR RECEPCIÓN (Click aquí):
 ${confirmLink}
---------------------------------------------------
 
 Atentamente,
-Departamento de RRHH / SSOMA
 RUAG System`;
 
             // 6. ABRIR CLIENTE DE CORREO PREDETERMINADO (Outlook de Escritorio)
-            window.location.href = `mailto:${recipientEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+            // Usamos un elemento <a> oculto para forzar mejor la apertura en Windows
+            const mailtoLink = `mailto:${recipientEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+            const link = document.createElement('a');
+            link.href = mailtoLink;
+            link.click();
             
             toast.success("Abriendo tu correo...", { id: toastId });
             setSendingEmail(false);
