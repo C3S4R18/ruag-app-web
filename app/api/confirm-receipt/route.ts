@@ -7,132 +7,115 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-// 1. CONFIGURACIÓN DEL ROBOT DE CORREO
+// CONFIGURACIÓN DEL ROBOT DE CORREO
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.office365.com',
   port: Number(process.env.SMTP_PORT) || 587,
-  secure: false, 
+  secure: false, // Outlook requiere false para puerto 587
   auth: { 
-    user: process.env.SMTP_USER, 
-    pass: process.env.SMTP_PASS  
+    user: process.env.SMTP_USER, // katherinetomaylla@ruagsrl.onmicrosoft.com
+    pass: process.env.SMTP_PASS  // Kt2026//
   },
   tls: { ciphers: 'SSLv3', rejectUnauthorized: false }
 })
 
-// GET: Se ejecuta cuando el obrero abre el enlace
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const id = searchParams.get('id')
+  const adminEmail = searchParams.get('admin_email') // El correo del Admin (Neyra, etc.)
   
   if (!id) return NextResponse.json({ error: 'ID faltante' }, { status: 400 })
 
-  // A. Marcar en BD
-  await supabase.from('fichas').update({ email_confirmed_at: new Date().toISOString() }).eq('id', id)
-  
-  // B. Obtener datos
-  const { data } = await supabase.from('fichas').select('nombres, apellido_paterno').eq('id', id).single()
-  const workerName = data ? `${data.nombres} ${data.apellido_paterno}` : 'Colaborador'
-
-  // C. Pantalla HTML
-  return new NextResponse(`
-    <!DOCTYPE html>
-    <html lang="es">
-    <head>
-      <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Recepción Confirmada | RUAG</title>
-      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-      <style>
-        :root { --primary: #2563eb; --primary-dark: #1d4ed8; --success: #16a34a; --bg: #f3f4f6; --text: #1f2937; }
-        body { margin: 0; padding: 0; font-family: 'Inter', system-ui, sans-serif; background-color: var(--bg); display: flex; align-items: center; justify-content: center; min-height: 100vh; color: var(--text); }
-        .card { background: white; width: 90%; max-width: 420px; padding: 48px 32px; border-radius: 24px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1); text-align: center; border: 1px solid #e5e7eb; animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
-        .icon-box { width: 80px; height: 80px; background: #dcfce7; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.3s forwards; }
-        .icon-check { color: #15803d; font-size: 40px; line-height: 1; }
-        h1 { margin: 0 0 12px; font-size: 26px; font-weight: 800; letter-spacing: -0.5px; color: #111827; }
-        p { color: #6b7280; font-size: 15px; line-height: 1.6; margin: 0 0 8px; }
-        .highlight { color: #111827; font-weight: 600; }
-        .divider { height: 1px; background: #e5e7eb; margin: 32px 0; width: 100%; }
-        .btn { display: flex; align-items: center; justify-content: center; width: 100%; padding: 16px; border-radius: 16px; border: none; background: var(--primary); color: white; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2); text-decoration: none; }
-        .btn:hover { background: var(--primary-dark); transform: translateY(-2px); }
-        .btn:disabled { background: #9ca3af; cursor: not-allowed; transform: none; }
-        .status-msg { margin-top: 16px; font-size: 13px; font-weight: 500; min-height: 20px; }
-        .brand { font-size: 11px; color: #9ca3af; margin-top: 32px; letter-spacing: 1px; text-transform: uppercase; font-weight: 600; }
-        @keyframes slideUp { to { opacity: 1; transform: translateY(0); } }
-        @keyframes popIn { to { transform: scale(1); } }
-      </style>
-    </head>
-    <body>
-      <div class="card">
-        <div class="icon-box"><div class="icon-check">✓</div></div>
-        <h1>¡Recepción Confirmada!</h1>
-        <p>Hola <span class="highlight">${workerName}</span>,</p>
-        <p>Hemos registrado correctamente tu confirmación.</p>
-        <div class="divider"></div>
-        <p style="font-size: 13px; margin-bottom: 20px; color: #4b5563;">Por favor, presiona el botón para notificar a la oficina:</p>
-        <button id="notifyBtn" class="btn" onclick="triggerNotification()">NOTIFICAR A ADMINISTRACIÓN</button>
-        <div id="status" class="status-msg"></div>
-        <div class="brand">RUAG System &bull; RRHH/SSOMA</div>
-      </div>
-      <script>
-        async function triggerNotification() {
-          const btn = document.getElementById('notifyBtn');
-          const status = document.getElementById('status');
-          btn.disabled = true;
-          btn.innerText = "Enviando aviso...";
-          status.innerText = "";
-          try {
-            const res = await fetch(window.location.href, { method: 'POST' });
-            if(res.ok) { 
-               btn.style.background = '#16a34a'; btn.innerText = "✅ AVISO ENVIADO"; 
-               status.style.color = '#16a34a'; status.innerText = "La administración ha sido notificada."; 
-            } else { throw new Error(); }
-          } catch(e) { 
-             btn.style.background = '#dc2626'; btn.innerText = "⚠️ Error de conexión"; 
-             status.style.color = '#dc2626'; status.innerText = "No se pudo enviar el correo."; 
-             setTimeout(() => { btn.disabled = false; btn.style.background = '#2563eb'; btn.innerText = "Reintentar Notificación"; }, 3000);
-          }
-        }
-      </script>
-    </body>
-    </html>
-  `, { headers: { 'Content-Type': 'text/html; charset=utf-8' } })
-}
-
-// POST: Se ejecuta al presionar el botón "NOTIFICAR"
-export async function POST(request: Request) {
-  const { searchParams } = new URL(request.url)
-  const id = searchParams.get('id')
-  const adminEmail = searchParams.get('admin_email') 
-
-  if (!adminEmail) return NextResponse.json({ error: 'Falta admin' }, { status: 400 })
-
-  const { data } = await supabase.from('fichas').select('nombres, apellido_paterno').eq('id', id).single()
-  const name = data ? `${data.nombres} ${data.apellido_paterno}` : 'Colaborador'
-  const fecha = new Date().toLocaleString('es-PE', { timeZone: 'America/Lima' })
+  let emailStatus = 'no_sent';
 
   try {
-    await transporter.sendMail({
-      // CORRECCIÓN PARA ERROR 500: Usamos el mismo usuario que las credenciales
-      from: `"Sistema RUAG" <${process.env.SMTP_USER}>`, 
-      to: adminEmail,
-      subject: `✅ Confirmación Recibida - ${name}`,
-      text: `El trabajador ${name} confirmó la recepción el ${fecha}.`,
-      html: `
-        <div style="font-family: Arial, sans-serif; padding: 24px; border: 1px solid #e5e7eb; border-radius: 12px; background-color: #ffffff; max-width: 600px;">
-          <h2 style="color: #15803d; margin-top: 0; font-size: 20px;">Confirmación de Recepción</h2>
-          <p style="color: #374151; font-size: 16px; line-height: 1.5;">El colaborador <strong>${name}</strong> ha confirmado digitalmente la recepción.</p>
-          <div style="background-color: #f9fafb; padding: 16px; border-radius: 8px; margin: 20px 0; border: 1px solid #f3f4f6;">
-            <ul style="margin: 0; padding-left: 20px; color: #4b5563;">
-              <li style="margin-bottom: 8px;"><strong>Fecha:</strong> ${fecha}</li>
-              <li><strong>Estado:</strong> ✅ Confirmado en sistema</li>
-            </ul>
-          </div>
-          <p style="font-size: 12px; color: #9ca3af; margin-top: 24px; border-top: 1px solid #e5e7eb; padding-top: 12px;">Enviado por RUAG System.</p>
+    // 1. ACTUALIZAR BASE DE DATOS (Icono Verde)
+    // Lo hacemos primero para asegurar que el registro quede guardado sí o sí
+    const { error: dbError } = await supabase
+        .from('fichas')
+        .update({ email_confirmed_at: new Date().toISOString() })
+        .eq('id', id)
+
+    if (dbError) throw new Error('Error DB: ' + dbError.message);
+
+    // 2. OBTENER DATOS DEL TRABAJADOR
+    const { data: worker } = await supabase
+        .from('fichas')
+        .select('nombres, apellido_paterno')
+        .eq('id', id)
+        .single()
+    
+    const workerName = worker ? `${worker.nombres} ${worker.apellido_paterno}` : 'Colaborador';
+    const fecha = new Date().toLocaleString('es-PE', { timeZone: 'America/Lima' });
+
+    // 3. ENVIAR CORREO AUTOMÁTICAMENTE (Lado del Servidor)
+    // No esperamos a que el usuario presione nada. Lo hacemos aquí mismo.
+    if (adminEmail) {
+        try {
+            await transporter.sendMail({
+                // OJO: El 'from' DEBE ser idéntico al usuario de credenciales para evitar Error 500
+                from: process.env.SMTP_USER, 
+                to: adminEmail,
+                subject: `✅ Confirmación Recibida: ${workerName}`,
+                html: `
+                  <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #e5e7eb; border-radius: 8px;">
+                    <h2 style="color: #15803d; margin-top: 0;">Confirmación Automática</h2>
+                    <p style="color: #374151;">El colaborador <strong>${workerName}</strong> ha confirmado la recepción de documentos.</p>
+                    <ul style="color: #4b5563;">
+                        <li><strong>Fecha:</strong> ${fecha}</li>
+                        <li><strong>Estado:</strong> ✅ Confirmado en sistema</li>
+                    </ul>
+                    <p style="font-size: 12px; color: #9ca3af; margin-top: 20px;">RUAG System</p>
+                  </div>
+                `
+            });
+            emailStatus = 'success';
+            console.log("✅ Correo enviado a " + adminEmail);
+        } catch (mailError: any) {
+            console.error("❌ Fallo SMTP:", mailError);
+            emailStatus = 'failed';
+        }
+    }
+
+    // 4. MOSTRAR PANTALLA DE ÉXITO AL OBRERO
+    // Le mostramos un mensaje diferente dependiendo si el correo salió o no
+    return new NextResponse(`
+      <!DOCTYPE html>
+      <html lang="es">
+      <head>
+        <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Confirmación | RUAG</title>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+        <style>
+          body { font-family: 'Inter', sans-serif; background-color: #f0fdf4; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; }
+          .card { background: white; width: 100%; max-width: 400px; padding: 40px 30px; border-radius: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); text-align: center; }
+          .icon { font-size: 50px; color: #16a34a; margin-bottom: 20px; display: block; animation: pop 0.5s ease; }
+          h1 { color: #111827; margin: 0 0 10px; font-size: 24px; font-weight: 800; }
+          p { color: #4b5563; font-size: 15px; line-height: 1.5; }
+          .badge { display: inline-block; background: #dcfce7; color: #166534; padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; margin-top: 15px; }
+          .error-badge { background: #fee2e2; color: #991b1b; }
+          @keyframes pop { 0% { transform: scale(0); } 80% { transform: scale(1.1); } 100% { transform: scale(1); } }
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <span class="icon">✅</span>
+          <h1>¡Todo Listo!</h1>
+          <p>Hola <strong>${workerName}</strong>, hemos registrado tu firma correctamente.</p>
+          <p>Ya puedes cerrar esta ventana.</p>
+          
+          ${emailStatus === 'success' 
+            ? '<div class="badge">OFICINA NOTIFICADA CORRECTAMENTE</div>' 
+            : '<div class="badge error-badge">REGISTRO GUARDADO (Sin notificación email)</div>'}
+            
+          <p style="margin-top: 30px; font-size: 11px; color: #ccc;">RUAG SYSTEM</p>
         </div>
-      `
-    })
-    return NextResponse.json({ success: true })
-  } catch (error) {
-    console.error("Error SMTP POST:", error)
-    return NextResponse.json({ error: 'Fallo envio' }, { status: 500 })
+      </body>
+      </html>
+    `, { headers: { 'Content-Type': 'text/html; charset=utf-8' } })
+
+  } catch (error: any) {
+    console.error("Error General:", error);
+    return NextResponse.json({ error: 'Error del servidor' }, { status: 500 })
   }
 }
