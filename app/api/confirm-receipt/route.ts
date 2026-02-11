@@ -9,33 +9,33 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-// --- CREDENCIALES CPANEL (MODO COMPATIBLE VERCEL) ---
+// --- CREDENCIALES DIRECTAS (WEBMAIL) ---
 const EMAIL_USER = 'ruagsrl@ruag.pe';
 const EMAIL_PASS = 'Rg2022//@@'; 
-const EMAIL_HOST = 'mail.ruag.pe'; 
+
+// CAMBIO: Probamos con el dominio principal directamente
+const EMAIL_HOST = 'ruag.pe'; 
 
 const transporter = nodemailer.createTransport({
   host: EMAIL_HOST,
-  port: 587, // CAMBIO CLAVE: Puerto 587 es más estable en Vercel
-  secure: false, // false es obligatorio para puerto 587 (usa STARTTLS)
+  port: 465, // Puerto seguro SSL (Estándar en cPanel)
+  secure: true, 
   auth: { 
     user: EMAIL_USER, 
     pass: EMAIL_PASS 
   },
   tls: { 
-    // Esto es vital para cPanel: ignora si el certificado SSL es compartido
     rejectUnauthorized: false 
   },
-  // Aumentamos tiempos de espera para evitar el error EBUSY
-  connectionTimeout: 10000, 
-  greetingTimeout: 10000 
+  // Tiempos de espera extendidos para Vercel
+  connectionTimeout: 20000, 
+  greetingTimeout: 20000,
+  socketTimeout: 20000
 })
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const id = searchParams.get('id')
-  
-  // Aquí llega el correo tuyo (cesarneyra18@...)
   const adminEmail = decodeURIComponent(searchParams.get('admin_email') || '')
 
   if (!id) return NextResponse.json({ error: 'Link inválido' }, { status: 400 })
@@ -44,35 +44,31 @@ export async function GET(request: Request) {
   let debugError = '';
 
   try {
-    // 1. MARCAR EN BASE DE DATOS
+    // 1. DATABASE
     await supabase.from('fichas').update({ email_confirmed_at: new Date().toISOString() }).eq('id', id)
     
-    // 2. OBTENER DATOS
+    // 2. DATOS
     const { data: worker } = await supabase.from('fichas').select('nombres, apellido_paterno').eq('id', id).single()
     const workerName = worker ? `${worker.nombres} ${worker.apellido_paterno}` : 'Colaborador'
     const fecha = new Date().toLocaleString('es-PE', { timeZone: 'America/Lima' })
 
-    // 3. ENVIAR CORREO (USANDO PUERTO 587)
+    // 3. ENVÍO
     if (adminEmail && adminEmail.includes('@')) {
       try {
-        await transporter.verify(); // Verificar antes de enviar
+        console.log(`Conectando a ${EMAIL_HOST}...`);
+        await transporter.verify(); 
 
         await transporter.sendMail({
           from: `"Sistema RUAG" <${EMAIL_USER}>`, 
           to: adminEmail, 
           subject: `✅ Confirmación: ${workerName}`,
           html: `
-            <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
-              <h2 style="color: #166534; margin-top: 0;">Recepción Confirmada</h2>
-              <p style="color: #333;">El colaborador <strong>${workerName}</strong> ha confirmado la recepción de sus documentos.</p>
-              
-              <div style="background-color: #f0fdf4; padding: 15px; border-radius: 5px; margin: 20px 0; border: 1px solid #bbf7d0;">
-                <ul style="margin: 0; padding-left: 20px; color: #166534;">
-                  <li><strong>Fecha:</strong> ${fecha}</li>
-                  <li><strong>Estado:</strong> ✅ Confirmado</li>
-                </ul>
-              </div>
-              <p style="font-size: 12px; color: #888; margin-top: 20px;">Enviado desde Webmail RUAG</p>
+            <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ccc; border-radius: 8px;">
+              <h2 style="color: #166534;">Recepción Confirmada</h2>
+              <p>El colaborador <strong>${workerName}</strong> ha confirmado la recepción.</p>
+              <p><strong>Fecha:</strong> ${fecha}</p>
+              <hr>
+              <p style="font-size: 12px; color: #888;">Sistema RUAG</p>
             </div>
           `
         })
@@ -93,31 +89,23 @@ export async function GET(request: Request) {
       <html lang="es">
       <head>
         <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Confirmación</title>
+        <title>Estado</title>
         <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
         <style>
           body { margin: 0; padding: 20px; font-family: 'Outfit', sans-serif; background: #f0fdf4; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
-          .card { background: white; width: 100%; max-width: 380px; padding: 50px 30px; border-radius: 30px; box-shadow: 0 20px 40px -10px rgba(22, 163, 74, 0.15); text-align: center; }
-          .icon-circle { width: 80px; height: 80px; background: #22c55e; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 25px; color: white; font-size: 40px; font-weight: bold; }
+          .card { background: white; width: 100%; max-width: 380px; padding: 50px 30px; border-radius: 30px; box-shadow: 0 20px 40px -10px rgba(0,0,0,0.1); text-align: center; }
+          .icon { font-size: 50px; display: block; margin-bottom: 20px; }
           h1 { color: #14532d; margin: 0 0 10px; font-size: 26px; }
-          p { color: #4b5563; font-size: 15px; margin-bottom: 25px; }
-          .badge-success { background: #dcfce7; color: #15803d; padding: 10px 20px; border-radius: 50px; font-weight: bold; font-size: 13px; display: inline-block; border: 1px solid #86efac; }
-          .badge-error { background: #fee2e2; color: #991b1b; padding: 15px; border-radius: 10px; font-size: 11px; margin-top: 15px; border: 1px solid #fecaca; text-align: left; }
+          .badge-error { background: #fee2e2; color: #991b1b; padding: 15px; border-radius: 10px; font-size: 11px; margin-top: 15px; border: 1px solid #fecaca; text-align: left; word-break: break-all;}
+          .badge-success { background: #dcfce7; color: #15803d; padding: 10px; border-radius: 50px; font-weight: bold; font-size: 13px; margin-top: 15px; border: 1px solid #86efac; }
         </style>
       </head>
       <body>
         <div class="card">
           ${emailStatus === 'success' 
-            ? `<div class="icon-circle">✓</div>
-               <h1>¡Todo Listo!</h1>
-               <p>Hola <strong>${workerName}</strong>, se ha confirmado tu recepción.</p>
-               <div class="badge-success">📨 OFICINA NOTIFICADA</div>`
-            : `<div style="font-size: 50px; margin-bottom: 20px;">⚠️</div>
-               <h1>Registrado</h1>
-               <p>Guardado en sistema, pero el correo falló.</p>
-               <div class="badge-error"><strong>Error Técnico:</strong> ${debugError}</div>`
+            ? `<span class="icon">✅</span><h1>¡Todo Listo!</h1><p>Correo enviado a ${adminEmail}</p><div class="badge-success">ÉXITO</div>`
+            : `<span class="icon">⚠️</span><h1>Registrado</h1><p>Fallo al enviar correo.</p><div class="badge-error"><strong>Error:</strong> ${debugError}</div>`
           }
-          <div style="margin-top: 40px; font-size: 11px; color: #cbd5e1; font-weight: bold;">PUEDES CERRAR ESTA VENTANA</div>
         </div>
       </body>
       </html>
