@@ -2,231 +2,182 @@ import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import nodemailer from 'nodemailer'
 
-// Cliente de Supabase con permisos de Admin
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-// Configuración de transporte (Robot de envíos)
+// Configuración del Robot de Correo (Katherine)
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.office365.com',
   port: Number(process.env.SMTP_PORT) || 587,
-  secure: false, // Office 365 usa STARTTLS (false en puerto 587)
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-  tls: {
-    ciphers: 'SSLv3',
-    rejectUnauthorized: false // Ayuda a evitar errores de certificados estrictos
-  }
+  secure: false, // Outlook requiere false en puerto 587
+  auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+  tls: { ciphers: 'SSLv3', rejectUnauthorized: false }
 })
 
+// ----------------------------------------------------------------------
+// 1. GET: Se carga cuando el obrero hace clic en el enlace
+// ----------------------------------------------------------------------
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
-  const id = searchParams.get('id') 
-  const docType = searchParams.get('doc') || 'Documento Laboral'
-  const adminEmail = searchParams.get('admin_email') // El correo al que avisaremos
+  const id = searchParams.get('id')
+  
+  if (!id) return NextResponse.json({ error: 'Enlace inválido' }, { status: 400 })
 
-  if (!id) return NextResponse.json({ error: 'ID faltante' }, { status: 400 })
+  // A. Actualizar Base de Datos (Esto pone el icono VERDE en tu panel)
+  await supabase.from('fichas').update({ email_confirmed_at: new Date().toISOString() }).eq('id', id)
+  
+  // B. Obtener datos para mostrar en la pantalla
+  const { data: worker } = await supabase.from('fichas').select('nombres, apellido_paterno, dni').eq('id', id).single()
+  const workerName = worker ? `${worker.nombres} ${worker.apellido_paterno}` : 'Colaborador'
+
+  // C. Retornar la Pantalla Moderna HTML
+  return new NextResponse(`
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Recepción Confirmada | RUAG</title>
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+      <style>
+        /* ESTILOS Y ANIMACIONES */
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 20px; color: #1f2937; }
+        
+        .card { background: white; width: 100%; max-width: 420px; padding: 40px 30px; border-radius: 24px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04); text-align: center; border: 1px solid #e5e7eb; animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
+        
+        .icon-box { position: relative; width: 80px; height: 80px; background: #dcfce7; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; animation: scaleIn 0.5s ease-out 0.3s both; }
+        .icon-check { color: #166534; font-size: 40px; font-weight: bold; line-height: 1; }
+        
+        h1 { color: #111827; margin: 0 0 12px; font-size: 24px; font-weight: 800; letter-spacing: -0.025em; }
+        p { color: #4b5563; font-size: 15px; line-height: 1.6; margin-bottom: 20px; }
+        .worker-name { font-weight: 700; color: #1f2937; }
+        
+        .divider { height: 1px; background: #f3f4f6; margin: 24px 0; }
+        
+        /* BOTÓN DE NOTIFICACIÓN */
+        .btn-notify { 
+          display: flex; align-items: center; justify-content: center; gap: 8px;
+          width: 100%; padding: 14px; background: #2563eb; color: white; border: none; border-radius: 12px; 
+          font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; 
+          box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2); 
+          text-decoration: none;
+        }
+        .btn-notify:hover { background: #1d4ed8; transform: translateY(-1px); box-shadow: 0 6px 8px -1px rgba(37, 99, 235, 0.3); }
+        .btn-notify:active { transform: translateY(0); }
+        .btn-notify:disabled { background: #94a3b8; cursor: not-allowed; transform: none; box-shadow: none; }
+        
+        .status-msg { margin-top: 15px; font-size: 13px; font-weight: 500; min-height: 20px; }
+        .brand { font-size: 11px; color: #9ca3af; margin-top: 32px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; }
+
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes scaleIn { from { transform: scale(0); } to { transform: scale(1); } }
+      </style>
+    </head>
+    <body>
+      <div class="card">
+        <div class="icon-box">
+          <div class="icon-check">✓</div>
+        </div>
+        
+        <h1>¡Recepción Confirmada!</h1>
+        <p>Hola <span class="worker-name">${workerName}</span>,<br>hemos registrado correctamente que recibiste tus documentos.</p>
+        
+        <div class="divider"></div>
+        
+        <p style="font-size: 13px; color: #6b7280; margin-bottom: 16px;">
+          Para finalizar, por favor notifica a la oficina presionando el botón:
+        </p>
+        
+        <button id="notifyBtn" class="btn-notify" onclick="sendNotification()">
+          <span>📢 NOTIFICAR A ADMINISTRACIÓN</span>
+        </button>
+        
+        <div id="statusMsg" class="status-msg"></div>
+
+        <div class="brand">RUAG System &bull; RRHH/SSOMA</div>
+      </div>
+
+      <script>
+        async function sendNotification() {
+          const btn = document.getElementById('notifyBtn');
+          const msg = document.getElementById('statusMsg');
+          
+          // Efecto de carga
+          btn.disabled = true;
+          btn.innerHTML = '<span>⏳ Enviando aviso...</span>';
+          msg.style.color = '#6b7280';
+          msg.innerText = '';
+
+          try {
+            // Hacemos una petición POST a este mismo archivo para enviar el correo real
+            const res = await fetch(window.location.href, { method: 'POST' });
+            
+            if (res.ok) {
+              btn.style.background = '#059669'; // Verde éxito
+              btn.innerHTML = '<span>✅ AVISO ENVIADO</span>';
+              msg.style.color = '#059669';
+              msg.innerText = "La administración ha sido notificada exitosamente.";
+            } else {
+              throw new Error('Error del servidor');
+            }
+          } catch (e) {
+            btn.style.background = '#dc2626'; // Rojo error
+            btn.innerHTML = '<span>⚠️ Error de conexión</span>';
+            btn.disabled = false; // Permitir reintentar
+            msg.style.color = '#dc2626';
+            msg.innerText = "No se pudo enviar el correo. Intenta de nuevo.";
+          }
+        }
+      </script>
+    </body>
+    </html>
+  `, { headers: { 'Content-Type': 'text/html; charset=utf-8' } })
+}
+
+// ----------------------------------------------------------------------
+// 2. POST: Se ejecuta cuando presionan el botón azul en la pantalla
+// ----------------------------------------------------------------------
+export async function POST(request: Request) {
+  const { searchParams } = new URL(request.url)
+  const id = searchParams.get('id')
+  const adminEmail = searchParams.get('admin_email') // El admin al que le llegará el aviso
+
+  if (!adminEmail) return NextResponse.json({ error: 'No se especificó admin' }, { status: 400 })
 
   try {
-    // 1. Obtener datos del trabajador
-    const { data: worker, error: fetchError } = await supabase
-      .from('fichas')
-      .select('nombres, apellido_paterno, email_confirmed_at')
-      .eq('id', id)
-      .single()
+    // Buscar nombre del obrero
+    const { data } = await supabase.from('fichas').select('nombres, apellido_paterno').eq('id', id).single()
+    const name = data ? `${data.nombres} ${data.apellido_paterno}` : 'Un colaborador'
+    const fecha = new Date().toLocaleString('es-PE', { timeZone: 'America/Lima' })
 
-    if (fetchError || !worker) {
-      return NextResponse.json({ error: 'Trabajador no encontrado' }, { status: 404 })
-    }
-
-    const workerName = `${worker.nombres} ${worker.apellido_paterno}`
-    
-    // Obtener fecha en formato Perú
-    const fechaObj = new Date();
-    const fechaPeru = fechaObj.toLocaleString('es-PE', { timeZone: 'America/Lima', dateStyle: 'full', timeStyle: 'medium' });
-    const fechaISO = fechaObj.toISOString();
-
-    // 2. Solo actuamos si NO ha confirmado antes (o si quieres permitir re-confirmaciones, quita el if)
-    if (!worker.email_confirmed_at) {
-      
-      // A. Actualizar Base de Datos
-      const { error: updateError } = await supabase
-        .from('fichas')
-        .update({ email_confirmed_at: fechaISO })
-        .eq('id', id)
-
-      if (updateError) throw updateError
-
-      // B. ENVIAR CORREO DE RESPALDO AL ADMIN
-      if (adminEmail) {
-        console.log(`Intentando enviar correo a: ${adminEmail} desde ${process.env.SMTP_USER}...`);
-        
-        try {
-          await transporter.sendMail({
-            from: `"Sistema RUAG" <${process.env.SMTP_USER}>`, 
-            to: adminEmail, 
-            subject: `✅ Confirmación: ${workerName}`,
-            text: `El trabajador ${workerName} confirmó la recepción el ${fechaPeru}.`,
-            html: `
-              <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f9fafb; padding: 40px 0;">
-                <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); overflow: hidden; border: 1px solid #e5e7eb;">
-                  
-                  <div style="background-color: #0f172a; padding: 24px; text-align: center;">
-                    <h1 style="color: #ffffff; margin: 0; font-size: 20px; letter-spacing: 1px;">SISTEMA RUAG</h1>
-                  </div>
-
-                  <div style="padding: 32px;">
-                    <h2 style="color: #166534; margin-top: 0; font-size: 22px;">Confirmación de Recepción</h2>
-                    <p style="color: #4b5563; font-size: 16px; line-height: 1.6;">
-                      El sistema ha registrado exitosamente la confirmación digital del siguiente colaborador:
-                    </p>
-
-                    <div style="background-color: #f3f4f6; border-radius: 8px; padding: 20px; margin: 24px 0;">
-                      <table style="width: 100%; border-collapse: collapse;">
-                        <tr>
-                          <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Colaborador:</td>
-                          <td style="padding: 8px 0; color: #111827; font-weight: 600; font-size: 14px; text-align: right;">${workerName}</td>
-                        </tr>
-                        <tr>
-                          <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Documento:</td>
-                          <td style="padding: 8px 0; color: #111827; font-weight: 600; font-size: 14px; text-align: right;">${docType}</td>
-                        </tr>
-                        <tr>
-                          <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Fecha:</td>
-                          <td style="padding: 8px 0; color: #111827; font-weight: 600; font-size: 14px; text-align: right;">${fechaPeru}</td>
-                        </tr>
-                      </table>
-                    </div>
-
-                    <p style="color: #9ca3af; font-size: 13px; text-align: center; margin-top: 30px;">
-                      Este es un mensaje automático de respaldo. No es necesario responder.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            `
-          })
-          console.log("✅ Correo enviado correctamente al admin.");
-        } catch (mailError: any) {
-          console.error("❌ ERROR CRÍTICO ENVIANDO CORREO:", mailError);
-          // Importante: No detenemos el proceso si falla el correo, para que al obrero le salga confirmado igual.
-        }
-      } else {
-        console.log("⚠️ No se proporcionó 'admin_email' en la URL, no se envió notificación.");
-      }
-    }
-
-    // 3. PANTALLA DE ÉXITO MODERNA (HTML MEJORADO)
-    // El 'charset=utf-8' en el header soluciona los símbolos raros
-    return new NextResponse(`
-      <!DOCTYPE html>
-      <html lang="es">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Confirmación Exitosa | RUAG</title>
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-        <style>
-          body {
-            font-family: 'Inter', system-ui, -apple-system, sans-serif;
-            background-color: #f3f4f6;
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            color: #1f2937;
-          }
-          .card {
-            background: white;
-            padding: 48px 32px;
-            border-radius: 24px;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-            text-align: center;
-            max-width: 420px;
-            width: 100%;
-            border: 1px solid #e5e7eb;
-          }
-          .icon-container {
-            width: 80px;
-            height: 80px;
-            background-color: #dcfce7;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 24px auto;
-          }
-          .icon {
-            color: #166534;
-            font-size: 40px;
-          }
-          h1 {
-            color: #111827;
-            font-size: 24px;
-            font-weight: 800;
-            margin-bottom: 12px;
-            letter-spacing: -0.5px;
-          }
-          p {
-            color: #4b5563;
-            font-size: 15px;
-            line-height: 1.6;
-            margin-bottom: 8px;
-          }
-          .highlight {
-            color: #166534;
-            font-weight: 600;
-            background-color: #f0fdf4;
-            padding: 2px 8px;
-            border-radius: 6px;
-          }
-          .footer {
-            margin-top: 32px;
-            padding-top: 24px;
-            border-top: 1px solid #f3f4f6;
-            font-size: 12px;
-            color: #9ca3af;
-            font-weight: 500;
-          }
-          .brand {
-            font-weight: 800;
-            color: #0f172a;
-            letter-spacing: 1px;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="card">
-          <div class="icon-container">
-            <span class="icon">✓</span>
+    // Enviar correo REAL usando la cuenta de Katherine
+    await transporter.sendMail({
+      from: `"Sistema RUAG" <${process.env.SMTP_USER}>`,
+      to: adminEmail, // Le llega al Admin que creó el link
+      subject: `✅ Confirmación Recibida: ${name}`,
+      text: `El trabajador ${name} confirmó la recepción el ${fecha}.`,
+      html: `
+        <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #e5e7eb; border-radius: 10px; max-width: 600px;">
+          <h2 style="color: #166534; margin-top:0;">Confirmación de Recepción</h2>
+          <p style="color: #374151; font-size: 16px;">
+            El colaborador <strong>${name}</strong> ha confirmado la recepción de sus documentos laborales.
+          </p>
+          <div style="background: #f9fafb; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <ul style="margin: 0; padding-left: 20px; color: #4b5563;">
+              <li><strong>Fecha:</strong> ${fecha}</li>
+              <li><strong>Estado:</strong> Confirmado en sistema</li>
+            </ul>
           </div>
-          <h1>¡Recepción Confirmada!</h1>
-          
-          <p>Hola, <strong>${workerName}</strong></p>
-          <p>Hemos registrado correctamente tu confirmación en nuestro sistema.</p>
-          <p>Fecha: <span class="highlight">${fechaPeru}</span></p>
-
-          <div class="footer">
-            <span class="brand">RUAG</span> &bull; SISTEMA INTEGRADO DE GESTIÓN
-          </div>
+          <p style="color: #9ca3af; font-size: 12px;">Sistema Automático RUAG</p>
         </div>
-      </body>
-      </html>
-    `, { 
-      status: 200, 
-      headers: { 
-        'Content-Type': 'text/html; charset=utf-8' // <--- ESTO ARREGLA LOS SÍMBOLOS RAROS
-      } 
+      `
     })
 
-  } catch (error: any) {
-    console.error("Error general:", error)
-    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 })
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error("Error enviando email POST:", error)
+    return NextResponse.json({ error: 'Fallo al enviar correo' }, { status: 500 })
   }
 }
