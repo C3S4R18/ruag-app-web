@@ -33,7 +33,7 @@ import {
   PenTool, Fingerprint, Share2, MoreHorizontal, Edit3,
   FileCheck, MessageSquare, Filter, ScanFace, Briefcase, 
   HeartPulse, GraduationCap, UploadCloud, Plus, Users, Zap, Mail,
-  MailCheck, Clock, AlertCircle, RotateCcw, Monitor
+  MailCheck, Clock, AlertCircle, RotateCcw, Monitor, ArrowUpDown
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -92,6 +92,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
   const [searchTerm, setSearchTerm] = useState('')
   const [filterObra, setFilterObra] = useState('Todas')
   const [filterEstado, setFilterEstado] = useState('Todos')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 10 
   const [loading, setLoading] = useState(true)
@@ -120,7 +121,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
 
     fetchFichas()
     
-    // Listener de Fichas
+    // Listener de Fichas (Cambios en DB)
     const fichasChannel = supabase.channel('realtime-fichas').on('postgres_changes', { event: '*', schema: 'public', table: 'fichas' }, (payload: any) => {
           if (payload.eventType === 'INSERT') {
              setFichas((prev) => [payload.new, ...prev])
@@ -167,7 +168,6 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
         })
         .subscribe()
 
-    // Listener de Actividad de Admins
     const adminActivityChannel = supabase.channel('admin_room')
         .on('broadcast', { event: 'admin_action' }, ({ payload }) => {
             const newLog = {
@@ -391,7 +391,13 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
       return (f.nombres?.toLowerCase().includes(s) || f.apellido_paterno?.toLowerCase().includes(s) || f.dni?.includes(s)) &&
              (filterObra === 'Todas' || f.nombre_obra === filterObra) &&
              (filterEstado === 'Todos' || (filterEstado === 'Completado' ? f.estado === 'completado' : f.estado !== 'completado'))
-  }).sort((a, b) => (a.apellido_paterno || '').localeCompare(b.apellido_paterno || ''))
+  }).sort((a, b) => {
+      const nameA = `${a.apellido_paterno} ${a.nombres}`.toLowerCase();
+      const nameB = `${b.apellido_paterno} ${b.nombres}`.toLowerCase();
+      
+      if (sortOrder === 'asc') return nameA.localeCompare(nameB);
+      else return nameB.localeCompare(nameA);
+  });
 
   const totalPages = Math.ceil(filteredAndSorted.length / itemsPerPage)
   const paginatedData = filteredAndSorted.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
@@ -920,22 +926,20 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
 }
 
 // --------------------------------------------------------------------------------------
-// COMPONENTE: MODAL DE VISTA PREVIA Y ENVÍO
+// MODIFICADO: SOLUCIÓN DEFINITIVA OUTLOOK (ARCHIVO .EML)
 // --------------------------------------------------------------------------------------
 function PdfPreviewModal({ pdfUrl, pdfFile, workerName, workerId, onClose }: { pdfUrl: string, pdfFile: File | null, workerName: string, workerId?: string, onClose: () => void }) {
     const supabase = createClient()
     const [recipientEmail, setRecipientEmail] = useState('')
-    
-    // Estados para controlar el flujo
     const [status, setStatus] = useState<'idle' | 'uploading' | 'ready'>('idle')
-    const [mailData, setMailData] = useState<{ subject: string, body: string } | null>(null)
+    const [emlUrl, setEmlUrl] = useState<string | null>(null)
 
-    // --- 1. WHATSAPP (Igual que antes) ---
+    // --- WHATSAPP ---
     const handleShareWhatsApp = async () => {
         if (!pdfFile) return
         const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent.toLowerCase());
 
-        if (isMobile && navigator.share && navigator.canShare({ files: [pdfFile] })) {
+        if (isMobile && navigator.share && navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
             try { await navigator.share({ files: [pdfFile], title: 'Documentos SSOMA' }); return } catch (e) { console.warn(e) }
         }
         const link = document.createElement('a'); link.href = pdfUrl; link.download = pdfFile.name; link.target = "_blank"; document.body.appendChild(link); link.click(); document.body.removeChild(link);
@@ -943,16 +947,16 @@ function PdfPreviewModal({ pdfUrl, pdfFile, workerName, workerId, onClose }: { p
         setTimeout(() => { window.open(`https://wa.me/?text=${encodeURIComponent(`Hola, adjunto los documentos de *${workerName}*.`)}`, '_blank') }, 1000)
     }
 
-    // --- 2. PREPARAR DATOS (SUBIR ARCHIVO Y GENERAR LINKS) ---
+    // --- PREPARAR DATOS (SUBIR + GENERAR EML) ---
     const prepareOutlookData = async () => {
         if (!recipientEmail || !recipientEmail.includes('@')) { toast.error("Ingresa un correo válido."); return; }
         if (!pdfFile) return;
 
         setStatus('uploading');
-        const toastId = toast.loading("Subiendo documento y generando enlaces...");
+        const toastId = toast.loading("Generando archivo de correo...");
 
         try {
-            // A. Obtener Admin
+            // A. Obtener Admin (Crucial para el correo de confirmación)
             const { data: { user } } = await supabase.auth.getUser();
             const currentAdminEmail = user?.email;
             if (!currentAdminEmail) throw new Error("No se identificó tu correo de admin.");
@@ -968,26 +972,42 @@ function PdfPreviewModal({ pdfUrl, pdfFile, workerName, workerId, onClose }: { p
             // D. Crear Link Confirmación
             const confirmLink = `${window.location.origin}/api/confirm-receipt?id=${workerId}&doc=legajo&admin_email=${encodeURIComponent(currentAdminEmail)}`;
 
-            // E. Crear Cuerpo del Correo
+            // E. Crear Cuerpo del Correo (Texto Plano para EML)
             const subject = `Documentación Laboral - ${workerName}`;
             const body = 
 `Estimado(a) colaborador(a):
 
-Se adjunta su legajo SSOMA/RRHH.
+Se adjunta el enlace para descargar su documentación laboral (Legajo SSOMA/RRHH).
 
 1. DESCARGAR DOCUMENTOS:
 ${publicUrl}
 
+--------------------------------------------------
+IMPORTANTE:
+Por favor, confirme la recepción de estos documentos haciendo clic en el siguiente enlace:
+
 2. CONFIRMAR RECEPCIÓN:
 ${confirmLink}
+--------------------------------------------------
 
 Atentamente,
 RUAG System`;
 
-            setMailData({ subject, body });
-            setStatus('ready'); // ¡Listo para enviar!
+            // F. Generar archivo .eml (Esto fuerza a Outlook a abrirse con todo lleno)
+            const emlContent = `To: ${recipientEmail}
+Subject: ${subject}
+X-Unsent: 1
+Content-Type: text/plain; charset=UTF-8
+
+${body}`;
+            
+            const blob = new Blob([emlContent], { type: 'message/rfc822' });
+            const url = URL.createObjectURL(blob);
+            setEmlUrl(url);
+
+            setStatus('ready'); // ¡Listo para descargar!
             toast.dismiss(toastId);
-            toast.success("¡Enlaces generados! Ahora abre Outlook.");
+            toast.success("¡Listo! Descarga el archivo para abrir Outlook.");
 
         } catch (error: any) {
             console.error(error);
@@ -996,19 +1016,15 @@ RUAG System`;
         }
     }
 
-    // --- 3. ABRIR OUTLOOK (CLICK DIRECTO = SIN BLOQUEO) ---
-    const launchOutlook = () => {
-        if (!mailData) return;
-        // Usamos target _self o window.location para forzar la app de escritorio
-        window.location.href = `mailto:${recipientEmail}?subject=${encodeURIComponent(mailData.subject)}&body=${encodeURIComponent(mailData.body)}`;
-    }
-
-    // --- 4. COPIAR AL PORTAPAPELES (PLAN B) ---
-    const copyToClipboard = () => {
-        if (!mailData) return;
-        const fullText = `PARA: ${recipientEmail}\nASUNTO: ${mailData.subject}\n\n${mailData.body}`;
-        navigator.clipboard.writeText(fullText);
-        toast.success("Copiado al portapapeles. Pégalo en tu Outlook.");
+    // --- DESCARGAR Y ABRIR OUTLOOK ---
+    const downloadAndOpenOutlook = () => {
+        if (!emlUrl) return;
+        const link = document.createElement('a');
+        link.href = emlUrl;
+        link.download = `Enviar_a_${workerName.split(' ')[0]}.eml`; // Nombre del archivo
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     }
 
     return (
@@ -1037,7 +1053,7 @@ RUAG System`;
                                 className="flex-1 bg-transparent outline-none text-sm text-slate-700 font-medium placeholder:text-slate-400" 
                                 value={recipientEmail} 
                                 onChange={(e) => setRecipientEmail(e.target.value)}
-                                disabled={status !== 'idle'} // Bloquear mientras carga
+                                disabled={status !== 'idle'}
                             />
                         </div>
                     </div>
@@ -1049,34 +1065,33 @@ RUAG System`;
                             <Share2 size={20}/> WhatsApp
                         </button>
 
-                        {/* --- BOTÓN INTELIGENTE OUTLOOK --- */}
+                        {/* --- BOTÓN LÓGICA EML --- */}
                         {status === 'idle' && (
                             <button 
                                 onClick={prepareOutlookData} 
                                 disabled={!recipientEmail} 
                                 className="flex-1 py-3.5 rounded-xl font-bold bg-blue-600 text-white hover:bg-blue-700 shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95 disabled:opacity-50"
                             >
-                                <Monitor size={20}/> Preparar Correo
+                                <Monitor size={20}/> Preparar Outlook
                             </button>
                         )}
 
                         {status === 'uploading' && (
                             <button disabled className="flex-1 py-3.5 rounded-xl font-bold bg-blue-400 text-white flex items-center justify-center gap-2 cursor-wait">
-                                <Loader2 className="animate-spin" size={20}/> Generando Enlaces...
+                                <Loader2 className="animate-spin" size={20}/> Generando...
                             </button>
                         )}
 
                         {status === 'ready' && (
-                            <div className="flex-1 flex gap-2">
-                                <button onClick={launchOutlook} className="flex-1 py-3.5 rounded-xl font-bold bg-blue-700 text-white hover:bg-blue-800 shadow-lg flex items-center justify-center gap-2 animate-pulse">
-                                    <Monitor size={20}/> ABRIR OUTLOOK
-                                </button>
-                                <button onClick={copyToClipboard} className="px-4 py-3.5 rounded-xl font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-300" title="Copiar texto por si Outlook falla">
-                                    Copiar
-                                </button>
-                            </div>
+                            <button 
+                                onClick={downloadAndOpenOutlook} 
+                                className="flex-1 py-3.5 rounded-xl font-bold bg-blue-700 text-white hover:bg-blue-800 shadow-lg flex items-center justify-center gap-2 animate-pulse"
+                            >
+                                <Download size={20}/> DESCARGAR Y ABRIR OUTLOOK
+                            </button>
                         )}
                     </div>
+                    {status === 'ready' && <p className="text-[10px] text-center text-slate-400">Si no abre automático, haz doble clic en el archivo descargado.</p>}
                 </div>
 
             </motion.div>
@@ -1084,12 +1099,12 @@ RUAG System`;
     )
 }
 
-function PrintPreviewModal({ image, onClose }: { image: string, onClose: () => void }) {
-    const handlePrint = () => { const iframe = document.createElement('iframe'); iframe.style.position = 'absolute'; iframe.width='0'; iframe.height='0'; iframe.style.border='none'; document.body.appendChild(iframe); const doc = iframe.contentWindow?.document; if (doc) { doc.open(); doc.write(`<html><body onload="window.print()"><img src="${image}" style="width:100%"/></body></html>`); doc.close(); setTimeout(() => document.body.removeChild(iframe), 5000); } };
-    return (<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={onClose}><motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-white rounded-3xl overflow-hidden shadow-2xl max-w-lg w-full flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}><div className="p-5 border-b flex justify-between items-center bg-white"><h3 className="font-bold text-slate-800 flex items-center gap-2"><Printer size={20} className="text-blue-600"/> Vista Previa</h3><button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20}/></button></div><div className="flex-1 overflow-y-auto p-8 bg-slate-50 flex justify-center"><div className="bg-white shadow-xl p-2 rounded-lg border border-slate-100"><img src={image} className="w-full h-auto max-w-[300px] object-contain" /></div></div><div className="p-5 border-t bg-white flex gap-3"><button onClick={onClose} className="flex-1 py-3.5 rounded-xl font-bold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">Cancelar</button><button onClick={handlePrint} className="flex-1 py-3.5 rounded-xl font-bold bg-slate-900 text-white hover:bg-slate-800 shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95"><Printer size={18}/> Imprimir</button></div></motion.div></motion.div>)
-}
-
 function Section({title, icon, children}: any) { return <div className="space-y-4 pt-2 bg-white p-5 rounded-2xl border border-slate-100 shadow-sm"><h3 className="font-bold text-xs text-slate-800 uppercase tracking-wider flex items-center gap-2 mb-4 pb-2 border-b border-slate-50"><span className="p-1.5 bg-blue-50 text-blue-600 rounded-lg">{icon}</span> {title}</h3><div className="">{children}</div></div> }
 function Grid({children}: any) { return <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6">{children}</div> }
 function Field({label, name, val, edit, set, full, customChange, type="text"}: any) { return <div className={full ? 'md:col-span-2' : ''}><label className="block text-[10px] font-bold text-slate-400 uppercase mb-2 tracking-wide ml-1">{label}</label>{edit ? <input type={type} value={val||''} onChange={customChange ? (e)=>customChange(e.target.value) : (e)=>set((p:any)=>({...p,[name]:e.target.value}))} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all shadow-sm font-medium text-slate-700"/> : <div className="font-medium text-slate-800 text-sm border-b border-slate-100 py-1.5 px-1 truncate min-h-[32px]">{val||<span className="text-slate-300 italic">Sin datos</span>}</div>}</div>}
 function DocCard({label, url, onDelete, isEditing, onUpload}: any) { const fileRef = useRef<HTMLInputElement>(null); if(!url && !isEditing) return <div className="flex items-center gap-3 p-4 bg-slate-50 border border-slate-100 rounded-xl opacity-60"><div className="w-10 h-10 rounded-xl bg-slate-200 text-slate-400 flex items-center justify-center"><FileText size={18}/></div><span className="text-xs font-bold text-slate-400">Sin archivo</span></div>; return (<div className="relative group">{url ? (<a href={url} target="_blank" className="flex items-center gap-3 p-4 bg-white border border-slate-200 rounded-xl hover:border-blue-400 hover:shadow-md transition-all group cursor-pointer active:scale-95"><div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors shadow-sm"><FileText size={20}/></div><span className="text-xs font-bold text-slate-700 truncate group-hover:text-blue-700 pr-6">{label}</span></a>) : (<div className="flex items-center gap-3 p-4 bg-slate-50 border border-slate-200 rounded-xl border-dashed"><span className="text-xs font-bold text-slate-400">{label} (Vacío)</span></div>)}<div className="absolute top-2 right-2 flex gap-1">{isEditing && (<><input type="file" ref={fileRef} className="hidden" onChange={(e) => e.target.files?.[0] && onUpload(e.target.files[0])} /><button onClick={(e) => { e.stopPropagation(); fileRef.current?.click() }} className="p-1.5 bg-white border border-blue-200 text-blue-600 rounded-lg shadow-sm hover:bg-blue-50 transition-all z-10" title="Subir/Cambiar Archivo"><UploadCloud size={14}/></button></>)}{onDelete && isEditing && url && (<button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(); }} className="p-1.5 bg-white border border-red-100 text-red-500 rounded-lg shadow-sm hover:bg-red-50 transition-all z-10" title="Eliminar documento"><Trash2 size={14}/></button>)}</div></div>) }
+
+function PrintPreviewModal({ image, onClose }: { image: string, onClose: () => void }) {
+    const handlePrint = () => { const iframe = document.createElement('iframe'); iframe.style.position = 'absolute'; iframe.width='0'; iframe.height='0'; iframe.style.border='none'; document.body.appendChild(iframe); const doc = iframe.contentWindow?.document; if (doc) { doc.open(); doc.write(`<html><body onload="window.print()"><img src="${image}" style="width:100%"/></body></html>`); doc.close(); setTimeout(() => document.body.removeChild(iframe), 5000); } };
+    return (<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={onClose}><motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-white rounded-3xl overflow-hidden shadow-2xl max-w-lg w-full flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}><div className="p-5 border-b flex justify-between items-center bg-white"><h3 className="font-bold text-slate-800 flex items-center gap-2"><Printer size={20} className="text-blue-600"/> Vista Previa</h3><button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20}/></button></div><div className="flex-1 overflow-y-auto p-8 bg-slate-50 flex justify-center"><div className="bg-white shadow-xl p-2 rounded-lg border border-slate-100"><img src={image} className="w-full h-auto max-w-[300px] object-contain" /></div></div><div className="p-5 border-t bg-white flex gap-3"><button onClick={onClose} className="flex-1 py-3.5 rounded-xl font-bold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">Cancelar</button><button onClick={handlePrint} className="flex-1 py-3.5 rounded-xl font-bold bg-slate-900 text-white hover:bg-slate-800 shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95"><Printer size={18}/> Imprimir</button></div></motion.div></motion.div>)
+}
