@@ -341,8 +341,9 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
               
               for (let i = 0; i < elements.length; i++) {
                   const element = elements[i]
+                  // CAMBIO 1: Agregamos scale: 1.5 en lugar de 2 (reduce tamaño a la mitad)
                   const canvas = await html2canvas(element, { 
-                      scale: 2, 
+                      scale: 1.5, 
                       useCORS: true, 
                       allowTaint: true, 
                       backgroundColor: '#ffffff', 
@@ -358,18 +359,27 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                       }
                   });
 
-                  const imgData = canvas.toDataURL('image/png')
+                  // CAMBIO 2: Usamos 'image/jpeg' y calidad 0.7 (reduce tamaño un 80%)
+                  const imgData = canvas.toDataURL('image/jpeg', 0.7)
                   const imgProps = pdfDoc.getImageProperties(imgData)
                   const orientation = imgProps.width > imgProps.height ? 'l' : 'p'
                   const pdfWidth = orientation === 'p' ? 210 : 297
                   const pdfHeight = orientation === 'p' ? 297 : 210
                   
                   pdfDoc.addPage('a4', orientation)
-                  pdfDoc.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight)
+                  pdfDoc.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST')
               }
 
               const nombreArchivo = `Legajo_${workerToPrint?.dni}.pdf`
               const pdfBlob = pdfDoc.output('blob')
+              
+              // Validación de seguridad para que sepas si te pasaste
+              if (pdfBlob.size > 48 * 1024 * 1024) {
+                  toast.error("El archivo sigue siendo muy pesado. Intenta seleccionar menos documentos.")
+                  setPreparingDoc(false)
+                  return
+              }
+
               const pdfUrl = URL.createObjectURL(pdfBlob)
               const file = new File([pdfBlob], nombreArchivo, { type: 'application/pdf' })
 
@@ -378,7 +388,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
 
           } catch (error: any) {
               console.error("Error PDF:", error)
-              toast.error("Error al generar PDF: Intente nuevamente")
+              toast.error("Error al generar PDF: " + error.message)
           } finally {
               setPreparingDoc(false)
           }
