@@ -10,14 +10,14 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-// 1. CONFIGURACIÓN DEL CORREO
+// 1. CONFIGURACIÓN DEL ROBOT DE CORREO
 const transporter = nodemailer.createTransport({
   host: 'smtp.office365.com',
   port: 587,
   secure: false, // STARTTLS
   auth: { 
-    user: process.env.SMTP_USER, 
-    pass: process.env.SMTP_PASS  
+    user: process.env.SMTP_USER, // katherinetomaylla@ruagsrl.onmicrosoft.com
+    pass: process.env.SMTP_PASS  // Kt2026//
   },
   tls: { 
     ciphers: 'SSLv3',
@@ -28,12 +28,12 @@ const transporter = nodemailer.createTransport({
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const id = searchParams.get('id')
-  // Recuperamos tu correo para responderte ahí
+  
+  // AQUÍ RECIBE EL CORREO QUE TÚ ESCRIBISTE EN EL PANEL
   const adminEmail = decodeURIComponent(searchParams.get('admin_email') || '')
 
   if (!id) return NextResponse.json({ error: 'Link inválido' }, { status: 400 })
 
-  // CORRECCIÓN AQUÍ: Declaramos la variable con el nombre correcto
   let emailStatus = 'pending';
 
   try {
@@ -45,12 +45,13 @@ export async function GET(request: Request) {
     const workerName = worker ? `${worker.nombres} ${worker.apellido_paterno}` : 'Colaborador'
     const fecha = new Date().toLocaleString('es-PE', { timeZone: 'America/Lima' })
 
-    // C. RESPONDERTE EL CORREO A TI (AUTOMÁTICAMENTE)
+    // C. ENVIARTE EL CORREO A TI (AUTOMÁTICAMENTE)
     if (adminEmail && adminEmail.includes('@')) {
       try {
         await transporter.sendMail({
+          // CRÍTICO: Usamos process.env.SMTP_USER para que Microsoft NO bloquee el envío
           from: process.env.SMTP_USER, 
-          to: adminEmail, // Aquí es donde te llega la "respuesta"
+          to: adminEmail, // SE ENVÍA A: cesarneyra18@hotmail.com (o lo que hayas escrito)
           subject: `✅ Confirmación: ${workerName}`,
           html: `
             <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
@@ -74,13 +75,12 @@ export async function GET(request: Request) {
       }
     }
 
-    // D. MOSTRAR PANTALLA MODERNA
+    // D. MOSTRAR PANTALLA MODERNA (Check Verde Grande)
     return new NextResponse(`
       <!DOCTYPE html>
       <html lang="es">
       <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Confirmación Exitosa</title>
         <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
         <style>

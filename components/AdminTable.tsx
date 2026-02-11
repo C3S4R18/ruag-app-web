@@ -936,53 +936,59 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
 }
 
 // --------------------------------------------------------------------------------------
-// MODIFICADO: SOLUCIÓN DEFINITIVA OUTLOOK (ARCHIVO .EML)
+// MODAL DE VISTA PREVIA (CON CAMPO PARA ELEGIR DÓNDE RECIBIR LA CONFIRMACIÓN)
 // --------------------------------------------------------------------------------------
 function PdfPreviewModal({ pdfUrl, pdfFile, workerName, workerId, onClose }: { pdfUrl: string, pdfFile: File | null, workerName: string, workerId?: string, onClose: () => void }) {
     const supabase = createClient()
+    
+    // Correo del Obrero (Para enviarle)
     const [recipientEmail, setRecipientEmail] = useState('')
+    
+    // Correo del Admin (Donde TÚ quieres recibir la respuesta)
+    const [myEmail, setMyEmail] = useState('')
+
     const [status, setStatus] = useState<'idle' | 'uploading' | 'ready'>('idle')
     const [emlUrl, setEmlUrl] = useState<string | null>(null)
+
+    // Cargar tu correo automáticamente al abrir
+    useEffect(() => {
+        const loadMyEmail = async () => {
+            const { data: { user } } = await supabase.auth.getUser()
+            if (user?.email) setMyEmail(user.email)
+        }
+        loadMyEmail()
+    }, [])
 
     // --- WHATSAPP ---
     const handleShareWhatsApp = async () => {
         if (!pdfFile) return
         const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent.toLowerCase());
-
-        if (isMobile && navigator.share && navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
-            try { await navigator.share({ files: [pdfFile], title: 'Documentos SSOMA' }); return } catch (e) { console.warn(e) }
-        }
+        if (isMobile && navigator.share && navigator.canShare && navigator.canShare({ files: [pdfFile] })) { try { await navigator.share({ files: [pdfFile], title: 'Documentos SSOMA' }); return } catch (e) { console.warn(e) } }
         const link = document.createElement('a'); link.href = pdfUrl; link.download = pdfFile.name; link.target = "_blank"; document.body.appendChild(link); link.click(); document.body.removeChild(link);
-        toast.success("Descargado. Abriendo WhatsApp...");
         setTimeout(() => { window.open(`https://wa.me/?text=${encodeURIComponent(`Hola, adjunto los documentos de *${workerName}*.`)}`, '_blank') }, 1000)
     }
 
     // --- PREPARAR DATOS (SUBIR + GENERAR EML) ---
     const prepareOutlookData = async () => {
-        if (!recipientEmail || !recipientEmail.includes('@')) { toast.error("Ingresa un correo válido."); return; }
-        if (!pdfFile) return;
-
+        if (!recipientEmail || !recipientEmail.includes('@')) { toast.error("Ingresa el correo del obrero."); return; }
+        if (!myEmail || !myEmail.includes('@')) { toast.error("Revisa tu correo de confirmación."); return; }
+        
         setStatus('uploading');
-        const toastId = toast.loading("Generando archivo de correo...");
+        const toastId = toast.loading("Preparando todo...");
 
         try {
-            // A. Obtener Admin (Crucial para el correo de confirmación)
-            const { data: { user } } = await supabase.auth.getUser();
-            const currentAdminEmail = user?.email;
-            if (!currentAdminEmail) throw new Error("No se identificó tu correo de admin.");
-
-            // B. Subir PDF
+            // 1. Subir PDF
             const fileName = `legajo_${workerId || 'temp'}_${Date.now()}.pdf`;
-            const { error: uploadError } = await supabase.storage.from('documentos_temporales').upload(fileName, pdfFile);
+            const { error: uploadError } = await supabase.storage.from('documentos_temporales').upload(fileName, pdfFile as File);
             if (uploadError) throw uploadError;
 
-            // C. Obtener URL Pública
+            // 2. Obtener URL Pública
             const { data: { publicUrl } } = supabase.storage.from('documentos_temporales').getPublicUrl(fileName);
 
-            // D. Crear Link Confirmación
-            const confirmLink = `${window.location.origin}/api/confirm-receipt?id=${workerId}&doc=legajo&admin_email=${encodeURIComponent(currentAdminEmail)}`;
+            // 3. Crear Link Confirmación (USANDO EL CORREO QUE TÚ ESCRIBISTE)
+            const confirmLink = `${window.location.origin}/api/confirm-receipt?id=${workerId}&doc=legajo&admin_email=${encodeURIComponent(myEmail)}`;
 
-            // E. Crear Cuerpo del Correo (Texto Plano para EML)
+            // 4. Crear Cuerpo del Correo
             const subject = `Documentación Laboral - ${workerName}`;
             const body = 
 `Estimado(a) colaborador(a):
@@ -1003,7 +1009,7 @@ ${confirmLink}
 Atentamente,
 RUAG System`;
 
-            // F. Generar archivo .eml (Esto fuerza a Outlook a abrirse con todo lleno)
+            // 5. Generar archivo .eml
             const emlContent = `To: ${recipientEmail}
 Subject: ${subject}
 X-Unsent: 1
@@ -1015,9 +1021,9 @@ ${body}`;
             const url = URL.createObjectURL(blob);
             setEmlUrl(url);
 
-            setStatus('ready'); // ¡Listo para descargar!
+            setStatus('ready');
             toast.dismiss(toastId);
-            toast.success("¡Listo! Descarga el archivo para abrir Outlook.");
+            toast.success("Listo. Abre Outlook.");
 
         } catch (error: any) {
             console.error(error);
@@ -1031,7 +1037,7 @@ ${body}`;
         if (!emlUrl) return;
         const link = document.createElement('a');
         link.href = emlUrl;
-        link.download = `Enviar_a_${workerName.split(' ')[0]}.eml`; // Nombre del archivo
+        link.download = `Enviar_a_${workerName.split(' ')[0]}.eml`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -1052,23 +1058,41 @@ ${body}`;
                 
                 <div className="p-5 border-t bg-white flex flex-col gap-4 shrink-0">
                     
-                    {/* Input Correo */}
-                    <div className="flex flex-col gap-2">
-                        <label className="text-xs font-bold text-slate-500 uppercase ml-1">Correo del Destinatario (Obrero)</label>
-                        <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
-                            <Mail className="text-slate-400 ml-2" size={20}/>
-                            <input 
-                                type="email" 
-                                placeholder="ejemplo@correo.com" 
-                                className="flex-1 bg-transparent outline-none text-sm text-slate-700 font-medium placeholder:text-slate-400" 
-                                value={recipientEmail} 
-                                onChange={(e) => setRecipientEmail(e.target.value)}
-                                disabled={status !== 'idle'}
-                            />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* 1. CORREO DEL OBRERO */}
+                        <div className="flex flex-col gap-2">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Para (Obrero):</label>
+                            <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200 focus-within:ring-2 focus-within:ring-blue-100">
+                                <Mail className="text-slate-400 ml-2" size={18}/>
+                                <input 
+                                    type="email" 
+                                    placeholder="obrero@correo.com" 
+                                    className="flex-1 bg-transparent outline-none text-sm text-slate-700 font-medium" 
+                                    value={recipientEmail} 
+                                    onChange={(e) => setRecipientEmail(e.target.value)}
+                                    disabled={status !== 'idle'}
+                                />
+                            </div>
+                        </div>
+
+                        {/* 2. TU CORREO (AQUÍ PUEDES CAMBIARLO) */}
+                        <div className="flex flex-col gap-2">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Recibir confirmación en:</label>
+                            <div className="flex items-center gap-2 bg-indigo-50 p-2 rounded-xl border border-indigo-200 focus-within:ring-2 focus-within:ring-indigo-300">
+                                <div className="bg-indigo-200 text-indigo-700 p-1 rounded-md"><Zap size={14}/></div>
+                                <input 
+                                    type="email" 
+                                    placeholder="tu@correo.com" 
+                                    className="flex-1 bg-transparent outline-none text-sm text-indigo-900 font-bold" 
+                                    value={myEmail} 
+                                    onChange={(e) => setMyEmail(e.target.value)}
+                                    disabled={status !== 'idle'}
+                                />
+                            </div>
                         </div>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row gap-3">
+                    <div className="flex flex-col sm:flex-row gap-3 pt-2">
                         <button onClick={onClose} className="px-6 py-3.5 rounded-xl font-bold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">Cerrar</button>
                         
                         <button onClick={handleShareWhatsApp} className="flex-1 py-3.5 rounded-xl font-bold bg-green-500 text-white hover:bg-green-600 shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95">
@@ -1079,7 +1103,7 @@ ${body}`;
                         {status === 'idle' && (
                             <button 
                                 onClick={prepareOutlookData} 
-                                disabled={!recipientEmail} 
+                                disabled={!recipientEmail || !myEmail} 
                                 className="flex-1 py-3.5 rounded-xl font-bold bg-blue-600 text-white hover:bg-blue-700 shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95 disabled:opacity-50"
                             >
                                 <Monitor size={20}/> Preparar Outlook
@@ -1097,11 +1121,10 @@ ${body}`;
                                 onClick={downloadAndOpenOutlook} 
                                 className="flex-1 py-3.5 rounded-xl font-bold bg-blue-700 text-white hover:bg-blue-800 shadow-lg flex items-center justify-center gap-2 animate-pulse"
                             >
-                                <Download size={20}/> DESCARGAR Y ABRIR OUTLOOK
+                                <Download size={20}/> ABRIR EN OUTLOOK
                             </button>
                         )}
                     </div>
-                    {status === 'ready' && <p className="text-[10px] text-center text-slate-400">Si no abre automático, haz doble clic en el archivo descargado.</p>}
                 </div>
 
             </motion.div>
