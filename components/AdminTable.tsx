@@ -920,64 +920,55 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
 }
 
 // --------------------------------------------------------------------------------------
-// MODIFICADO: FUNCIÓN DE VISTA PREVIA PDF CON MAILTO PARA OUTLOOK ESCRITORIO
+// COMPONENTE: MODAL DE VISTA PREVIA Y ENVÍO
 // --------------------------------------------------------------------------------------
 function PdfPreviewModal({ pdfUrl, pdfFile, workerName, workerId, onClose }: { pdfUrl: string, pdfFile: File | null, workerName: string, workerId?: string, onClose: () => void }) {
     const supabase = createClient()
     const [recipientEmail, setRecipientEmail] = useState('')
-    const [sendingEmail, setSendingEmail] = useState(false)
+    
+    // Estados para controlar el flujo
+    const [status, setStatus] = useState<'idle' | 'uploading' | 'ready'>('idle')
+    const [mailData, setMailData] = useState<{ subject: string, body: string } | null>(null)
 
-    // --- WHATSAPP ---
+    // --- 1. WHATSAPP (Igual que antes) ---
     const handleShareWhatsApp = async () => {
         if (!pdfFile) return
-        const userAgent = window.navigator.userAgent.toLowerCase();
-        const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
+        const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent.toLowerCase());
 
-        if (isMobile && navigator.share && navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
-            try { await navigator.share({ files: [pdfFile], title: 'Documentos SSOMA', text: `Adjunto documentos de ${workerName}.` }); return } catch (e) { console.warn(e) }
+        if (isMobile && navigator.share && navigator.canShare({ files: [pdfFile] })) {
+            try { await navigator.share({ files: [pdfFile], title: 'Documentos SSOMA' }); return } catch (e) { console.warn(e) }
         }
         const link = document.createElement('a'); link.href = pdfUrl; link.download = pdfFile.name; link.target = "_blank"; document.body.appendChild(link); link.click(); document.body.removeChild(link);
-        toast.success("✅ Descargado. Abriendo WhatsApp...");
-        setTimeout(() => { window.open(`https://wa.me/?text=${encodeURIComponent(`Hola, adjunto los documentos firmados de *${workerName}*.`)}`, '_blank') }, 1000)
+        toast.success("Descargado. Abriendo WhatsApp...");
+        setTimeout(() => { window.open(`https://wa.me/?text=${encodeURIComponent(`Hola, adjunto los documentos de *${workerName}*.`)}`, '_blank') }, 1000)
     }
 
-    // --- OUTLOOK DE ESCRITORIO (MAILTO) ---
-    const handleShareOutlook = async () => {
-        if (!recipientEmail || !recipientEmail.includes('@')) {
-            toast.error("Por favor ingresa un correo válido.");
-            return;
-        }
+    // --- 2. PREPARAR DATOS (SUBIR ARCHIVO Y GENERAR LINKS) ---
+    const prepareOutlookData = async () => {
+        if (!recipientEmail || !recipientEmail.includes('@')) { toast.error("Ingresa un correo válido."); return; }
         if (!pdfFile) return;
 
-        setSendingEmail(true);
-        const toastId = toast.loading("Preparando envío seguro...");
+        setStatus('uploading');
+        const toastId = toast.loading("Subiendo documento y generando enlaces...");
 
         try {
-            // 1. OBTENER QUIÉN ES EL ADMIN ACTUAL (Para que le llegue el correo a ÉL)
+            // A. Obtener Admin
             const { data: { user } } = await supabase.auth.getUser();
             const currentAdminEmail = user?.email;
+            if (!currentAdminEmail) throw new Error("No se identificó tu correo de admin.");
 
-            if (!currentAdminEmail) {
-                throw new Error("No se pudo identificar tu correo de administrador.");
-            }
-
-            // 2. Subir PDF al Storage Público
+            // B. Subir PDF
             const fileName = `legajo_${workerId || 'temp'}_${Date.now()}.pdf`;
-            const { error: uploadError } = await supabase.storage
-                .from('documentos_temporales') 
-                .upload(fileName, pdfFile);
-
+            const { error: uploadError } = await supabase.storage.from('documentos_temporales').upload(fileName, pdfFile);
             if (uploadError) throw uploadError;
 
-            // 3. Obtener Link del PDF
-            const { data: { publicUrl } } = supabase.storage
-                .from('documentos_temporales')
-                .getPublicUrl(fileName);
+            // C. Obtener URL Pública
+            const { data: { publicUrl } } = supabase.storage.from('documentos_temporales').getPublicUrl(fileName);
 
-            // 4. Crear Link de Confirmación (Inyectando el correo del admin)
+            // D. Crear Link Confirmación
             const confirmLink = `${window.location.origin}/api/confirm-receipt?id=${workerId}&doc=legajo&admin_email=${encodeURIComponent(currentAdminEmail)}`;
 
-            // 5. Redactar Asunto y Cuerpo (ACORTADO para evitar límites)
+            // E. Crear Cuerpo del Correo
             const subject = `Documentación Laboral - ${workerName}`;
             const body = 
 `Estimado(a) colaborador(a):
@@ -987,34 +978,47 @@ Se adjunta su legajo SSOMA/RRHH.
 1. DESCARGAR DOCUMENTOS:
 ${publicUrl}
 
-2. CONFIRMAR RECEPCIÓN (Click aquí):
+2. CONFIRMAR RECEPCIÓN:
 ${confirmLink}
 
 Atentamente,
 RUAG System`;
 
-            // 6. ABRIR CLIENTE DE CORREO PREDETERMINADO (Outlook de Escritorio)
-            // Usamos un elemento <a> oculto para forzar mejor la apertura en Windows
-            const mailtoLink = `mailto:${recipientEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-            const link = document.createElement('a');
-            link.href = mailtoLink;
-            link.click();
-            
-            toast.success("Abriendo tu correo...", { id: toastId });
-            setSendingEmail(false);
+            setMailData({ subject, body });
+            setStatus('ready'); // ¡Listo para enviar!
+            toast.dismiss(toastId);
+            toast.success("¡Enlaces generados! Ahora abre Outlook.");
 
         } catch (error: any) {
             console.error(error);
+            setStatus('idle');
             toast.error("Error: " + (error.message || "Verifica storage"), { id: toastId });
-            setSendingEmail(false);
         }
+    }
+
+    // --- 3. ABRIR OUTLOOK (CLICK DIRECTO = SIN BLOQUEO) ---
+    const launchOutlook = () => {
+        if (!mailData) return;
+        // Usamos target _self o window.location para forzar la app de escritorio
+        window.location.href = `mailto:${recipientEmail}?subject=${encodeURIComponent(mailData.subject)}&body=${encodeURIComponent(mailData.body)}`;
+    }
+
+    // --- 4. COPIAR AL PORTAPAPELES (PLAN B) ---
+    const copyToClipboard = () => {
+        if (!mailData) return;
+        const fullText = `PARA: ${recipientEmail}\nASUNTO: ${mailData.subject}\n\n${mailData.body}`;
+        navigator.clipboard.writeText(fullText);
+        toast.success("Copiado al portapapeles. Pégalo en tu Outlook.");
     }
 
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/90 z-[100] flex items-center justify-center p-4" onClick={onClose}>
             <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-white rounded-3xl overflow-hidden shadow-2xl max-w-4xl w-full flex flex-col h-[90vh]" onClick={e => e.stopPropagation()}>
                 
-                <div className="p-5 border-b flex justify-between items-center bg-white shrink-0"><h3 className="font-bold text-slate-800 text-lg flex items-center gap-2"><FileCheck size={24} className="text-emerald-500"/> Vista Previa</h3><button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={24}/></button></div>
+                <div className="p-5 border-b flex justify-between items-center bg-white shrink-0">
+                    <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2"><FileCheck size={24} className="text-emerald-500"/> Vista Previa</h3>
+                    <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={24}/></button>
+                </div>
                 
                 <div className="flex-1 bg-slate-100 relative">
                     <iframe src={pdfUrl} className="w-full h-full" title="PDF Preview" />
@@ -1022,6 +1026,7 @@ RUAG System`;
                 
                 <div className="p-5 border-t bg-white flex flex-col gap-4 shrink-0">
                     
+                    {/* Input Correo */}
                     <div className="flex flex-col gap-2">
                         <label className="text-xs font-bold text-slate-500 uppercase ml-1">Correo del Destinatario (Obrero)</label>
                         <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
@@ -1032,6 +1037,7 @@ RUAG System`;
                                 className="flex-1 bg-transparent outline-none text-sm text-slate-700 font-medium placeholder:text-slate-400" 
                                 value={recipientEmail} 
                                 onChange={(e) => setRecipientEmail(e.target.value)}
+                                disabled={status !== 'idle'} // Bloquear mientras carga
                             />
                         </div>
                     </div>
@@ -1043,14 +1049,33 @@ RUAG System`;
                             <Share2 size={20}/> WhatsApp
                         </button>
 
-                        <button 
-                            onClick={handleShareOutlook} 
-                            disabled={sendingEmail || !recipientEmail} 
-                            className="flex-1 py-3.5 rounded-xl font-bold bg-blue-600 text-white hover:bg-blue-700 shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {sendingEmail ? <Loader2 className="animate-spin" size={20}/> : <Monitor size={20}/>}
-                            {sendingEmail ? 'Generando Enlace...' : 'Enviar por Outlook (PC)'}
-                        </button>
+                        {/* --- BOTÓN INTELIGENTE OUTLOOK --- */}
+                        {status === 'idle' && (
+                            <button 
+                                onClick={prepareOutlookData} 
+                                disabled={!recipientEmail} 
+                                className="flex-1 py-3.5 rounded-xl font-bold bg-blue-600 text-white hover:bg-blue-700 shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95 disabled:opacity-50"
+                            >
+                                <Monitor size={20}/> Preparar Correo
+                            </button>
+                        )}
+
+                        {status === 'uploading' && (
+                            <button disabled className="flex-1 py-3.5 rounded-xl font-bold bg-blue-400 text-white flex items-center justify-center gap-2 cursor-wait">
+                                <Loader2 className="animate-spin" size={20}/> Generando Enlaces...
+                            </button>
+                        )}
+
+                        {status === 'ready' && (
+                            <div className="flex-1 flex gap-2">
+                                <button onClick={launchOutlook} className="flex-1 py-3.5 rounded-xl font-bold bg-blue-700 text-white hover:bg-blue-800 shadow-lg flex items-center justify-center gap-2 animate-pulse">
+                                    <Monitor size={20}/> ABRIR OUTLOOK
+                                </button>
+                                <button onClick={copyToClipboard} className="px-4 py-3.5 rounded-xl font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-300" title="Copiar texto por si Outlook falla">
+                                    Copiar
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
 
