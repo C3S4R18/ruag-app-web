@@ -33,7 +33,7 @@ import {
   PenTool, Fingerprint, Share2, MoreHorizontal, Edit3,
   FileCheck, MessageSquare, Filter, ScanFace, Briefcase, 
   HeartPulse, GraduationCap, UploadCloud, Plus, Users, Zap, Mail,
-  MailCheck, Clock, AlertCircle, RotateCcw // <--- NUEVO ICONO AGREGADO
+  MailCheck, Clock, AlertCircle, RotateCcw, Monitor, Laptop
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -270,7 +270,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
       } catch (error: any) { toast.error("Error: " + error.message) } finally { setDeleting(false) }
   }
 
-  // --- NUEVA FUNCIÓN: RESETEAR CONFIRMACIÓN ---
+  // --- NUEVA FUNCIÓN: RESETEAR CONFIRMACIÓN DE CORREO ---
   const handleResetConfirmation = async (id: string) => {
       if(!confirm("¿Deseas anular la confirmación de recepción y volver a estado Pendiente?")) return;
       
@@ -283,7 +283,6 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
           toast.error("Error al resetear: " + error.message)
       } else {
           toast.success("Estado reseteado a Pendiente")
-          // Actualizamos el estado local inmediatamente
           setFichas(prev => prev.map(f => f.id === id ? { ...f, email_confirmed_at: null } : f))
       }
   }
@@ -919,11 +918,15 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
     )
 }
 
+// --------------------------------------------------------------------------------------
+// MODIFICADO: FUNCIÓN DE VISTA PREVIA PDF CON MAILTO PARA OUTLOOK ESCRITORIO
+// --------------------------------------------------------------------------------------
 function PdfPreviewModal({ pdfUrl, pdfFile, workerName, workerId, onClose }: { pdfUrl: string, pdfFile: File | null, workerName: string, workerId?: string, onClose: () => void }) {
     const supabase = createClient()
     const [recipientEmail, setRecipientEmail] = useState('')
     const [sendingEmail, setSendingEmail] = useState(false)
 
+    // --- WHATSAPP ---
     const handleShareWhatsApp = async () => {
         if (!pdfFile) return
         const userAgent = window.navigator.userAgent.toLowerCase();
@@ -937,6 +940,7 @@ function PdfPreviewModal({ pdfUrl, pdfFile, workerName, workerId, onClose }: { p
         setTimeout(() => { window.open(`https://wa.me/?text=${encodeURIComponent(`Hola, adjunto los documentos firmados de *${workerName}*.`)}`, '_blank') }, 1000)
     }
 
+    // --- OUTLOOK DE ESCRITORIO (MAILTO) ---
     const handleShareOutlook = async () => {
         if (!recipientEmail || !recipientEmail.includes('@')) {
             toast.error("Por favor ingresa un correo válido.");
@@ -945,40 +949,48 @@ function PdfPreviewModal({ pdfUrl, pdfFile, workerName, workerId, onClose }: { p
         if (!pdfFile) return;
 
         setSendingEmail(true);
-        const toastId = toast.loading("Subiendo documento y generando enlaces...");
+        const toastId = toast.loading("Preparando envío seguro...");
 
         try {
-            // 1. Subir PDF
+            // 1. OBTENER QUIÉN ES EL ADMIN ACTUAL (Para que le llegue el correo a ÉL)
+            const { data: { user } } = await supabase.auth.getUser();
+            const currentAdminEmail = user?.email;
+
+            if (!currentAdminEmail) {
+                throw new Error("No se pudo identificar tu correo de administrador.");
+            }
+
+            // 2. Subir PDF al Storage Público
             const fileName = `legajo_${workerId || 'temp'}_${Date.now()}.pdf`;
-            const { data: uploadData, error: uploadError } = await supabase.storage
+            const { error: uploadError } = await supabase.storage
                 .from('documentos_temporales') 
                 .upload(fileName, pdfFile);
 
             if (uploadError) throw uploadError;
 
-            // 2. URL Pública
+            // 3. Obtener Link del PDF
             const { data: { publicUrl } } = supabase.storage
                 .from('documentos_temporales')
                 .getPublicUrl(fileName);
 
-            // 3. Link Confirmación
-            const confirmLink = `${window.location.origin}/api/confirm-receipt?id=${workerId}&doc=legajo`;
+            // 4. Crear Link de Confirmación (Inyectando el correo del admin)
+            const confirmLink = `${window.location.origin}/api/confirm-receipt?id=${workerId}&doc=legajo&admin_email=${encodeURIComponent(currentAdminEmail)}`;
 
-            // 4. Cuerpo Correo
+            // 5. Redactar Asunto y Cuerpo
             const subject = `Documentación Laboral - ${workerName}`;
             const body = 
 `Estimado(a) colaborador(a):
 
 Se adjunta el enlace para descargar su documentación laboral (Legajo SSOMA/RRHH).
 
-📂 DESCARGAR DOCUMENTOS:
+DESCARGAR DOCUMENTOS:
 ${publicUrl}
 
 --------------------------------------------------
 IMPORTANTE:
 Por favor, confirme la recepción de estos documentos haciendo clic en el siguiente enlace:
 
-✅ CONFIRMAR RECEPCIÓN:
+CONFIRMAR RECEPCIÓN:
 ${confirmLink}
 --------------------------------------------------
 
@@ -986,16 +998,15 @@ Atentamente,
 Departamento de RRHH / SSOMA
 RUAG System`;
 
-            // 5. Deeplink Outlook
-            const outlookUrl = `https://outlook.office.com/mail/deeplink/compose?to=${recipientEmail}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+            // 6. ABRIR CLIENTE DE CORREO PREDETERMINADO (Outlook de Escritorio)
+            window.location.href = `mailto:${recipientEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
             
-            window.open(outlookUrl, '_blank');
-            toast.success("Outlook abierto.", { id: toastId });
+            toast.success("Abriendo tu correo...", { id: toastId });
             setSendingEmail(false);
 
         } catch (error: any) {
             console.error(error);
-            toast.error("Error: " + (error.message || "Verifica bucket 'documentos_temporales'"), { id: toastId });
+            toast.error("Error: " + (error.message || "Verifica storage"), { id: toastId });
             setSendingEmail(false);
         }
     }
@@ -1003,26 +1014,47 @@ RUAG System`;
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/90 z-[100] flex items-center justify-center p-4" onClick={onClose}>
             <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-white rounded-3xl overflow-hidden shadow-2xl max-w-4xl w-full flex flex-col h-[90vh]" onClick={e => e.stopPropagation()}>
+                
                 <div className="p-5 border-b flex justify-between items-center bg-white shrink-0"><h3 className="font-bold text-slate-800 text-lg flex items-center gap-2"><FileCheck size={24} className="text-emerald-500"/> Vista Previa</h3><button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={24}/></button></div>
-                <div className="flex-1 bg-slate-100 relative"><iframe src={pdfUrl} className="w-full h-full" title="PDF Preview" /></div>
+                
+                <div className="flex-1 bg-slate-100 relative">
+                    <iframe src={pdfUrl} className="w-full h-full" title="PDF Preview" />
+                </div>
                 
                 <div className="p-5 border-t bg-white flex flex-col gap-4 shrink-0">
+                    
                     <div className="flex flex-col gap-2">
                         <label className="text-xs font-bold text-slate-500 uppercase ml-1">Correo del Destinatario (Obrero)</label>
                         <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
                             <Mail className="text-slate-400 ml-2" size={20}/>
-                            <input type="email" placeholder="ejemplo@correo.com" className="flex-1 bg-transparent outline-none text-sm text-slate-700 font-medium placeholder:text-slate-400" value={recipientEmail} onChange={(e) => setRecipientEmail(e.target.value)}/>
+                            <input 
+                                type="email" 
+                                placeholder="ejemplo@correo.com" 
+                                className="flex-1 bg-transparent outline-none text-sm text-slate-700 font-medium placeholder:text-slate-400" 
+                                value={recipientEmail} 
+                                onChange={(e) => setRecipientEmail(e.target.value)}
+                            />
                         </div>
                     </div>
+
                     <div className="flex flex-col sm:flex-row gap-3">
                         <button onClick={onClose} className="px-6 py-3.5 rounded-xl font-bold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">Cerrar</button>
-                        <button onClick={handleShareWhatsApp} className="flex-1 py-3.5 rounded-xl font-bold bg-green-500 text-white hover:bg-green-600 shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95"><Share2 size={20}/> WhatsApp</button>
-                        <button onClick={handleShareOutlook} disabled={sendingEmail || !recipientEmail} className="flex-1 py-3.5 rounded-xl font-bold bg-blue-600 text-white hover:bg-blue-700 shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
-                            {sendingEmail ? <Loader2 className="animate-spin" size={20}/> : <Mail size={20}/>}
-                            {sendingEmail ? 'Generando Enlace...' : 'Enviar por Outlook Web'}
+                        
+                        <button onClick={handleShareWhatsApp} className="flex-1 py-3.5 rounded-xl font-bold bg-green-500 text-white hover:bg-green-600 shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95">
+                            <Share2 size={20}/> WhatsApp
+                        </button>
+
+                        <button 
+                            onClick={handleShareOutlook} 
+                            disabled={sendingEmail || !recipientEmail} 
+                            className="flex-1 py-3.5 rounded-xl font-bold bg-blue-600 text-white hover:bg-blue-700 shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {sendingEmail ? <Loader2 className="animate-spin" size={20}/> : <Monitor size={20}/>}
+                            {sendingEmail ? 'Generando Enlace...' : 'Enviar por Outlook (PC)'}
                         </button>
                     </div>
                 </div>
+
             </motion.div>
         </motion.div>
     )
