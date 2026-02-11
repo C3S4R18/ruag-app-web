@@ -2,7 +2,6 @@ import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import nodemailer from 'nodemailer'
 
-// Esto asegura que el link siempre se procese en vivo (sin caché)
 export const dynamic = 'force-dynamic'
 
 const supabase = createClient(
@@ -10,140 +9,111 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-// 1. CONFIGURACIÓN DEL ROBOT DE CORREO
+// Configuración SMTP para Office 365
 const transporter = nodemailer.createTransport({
   host: 'smtp.office365.com',
   port: 587,
   secure: false, // STARTTLS
   auth: { 
-    user: process.env.SMTP_USER, // katherinetomaylla@ruagsrl.onmicrosoft.com
-    pass: process.env.SMTP_PASS  // Kt2026//
+    user: process.env.SMTP_USER, 
+    pass: process.env.SMTP_PASS 
   },
   tls: { 
     ciphers: 'SSLv3',
     rejectUnauthorized: false 
-  }
+  },
+  debug: true, // Activar logs detallados
+  logger: true 
 })
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const id = searchParams.get('id')
-  
-  // AQUÍ RECIBE EL CORREO QUE TÚ ESCRIBISTE EN EL PANEL
   const adminEmail = decodeURIComponent(searchParams.get('admin_email') || '')
 
   if (!id) return NextResponse.json({ error: 'Link inválido' }, { status: 400 })
 
   let emailStatus = 'pending';
+  let errorMessage = '';
 
   try {
-    // A. ACTUALIZAR BASE DE DATOS (Check Verde en tu panel)
+    // 1. Base de datos
     await supabase.from('fichas').update({ email_confirmed_at: new Date().toISOString() }).eq('id', id)
     
-    // B. OBTENER DATOS DEL OBRERO
+    // 2. Datos obrero
     const { data: worker } = await supabase.from('fichas').select('nombres, apellido_paterno').eq('id', id).single()
     const workerName = worker ? `${worker.nombres} ${worker.apellido_paterno}` : 'Colaborador'
     const fecha = new Date().toLocaleString('es-PE', { timeZone: 'America/Lima' })
 
-    // C. ENVIARTE EL CORREO A TI (AUTOMÁTICAMENTE)
+    // 3. Envío de Correo
     if (adminEmail && adminEmail.includes('@')) {
       try {
+        // Verificar conexión antes de enviar
+        await transporter.verify();
+
         await transporter.sendMail({
-          // CRÍTICO: Usamos process.env.SMTP_USER para que Microsoft NO bloquee el envío
-          from: process.env.SMTP_USER, 
-          to: adminEmail, // SE ENVÍA A: cesarneyra18@hotmail.com (o lo que hayas escrito)
+          from: process.env.SMTP_USER, // Remitente (Katherine)
+          to: adminEmail, // Destinatario (Tú/Admin)
           subject: `✅ Confirmación: ${workerName}`,
           html: `
-            <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
-              <h2 style="color: #15803d; margin-top: 0;">Recepción Confirmada</h2>
-              <p style="color: #333;">El colaborador <strong>${workerName}</strong> ha confirmado la recepción de documentos.</p>
-              
-              <div style="background-color: #f0fdf4; padding: 15px; border-radius: 5px; margin: 20px 0;">
-                <ul style="margin: 0; padding-left: 20px; color: #166534;">
-                  <li><strong>Fecha:</strong> ${fecha}</li>
-                  <li><strong>Estado:</strong> ✅ Confirmado</li>
-                </ul>
-              </div>
-              <p style="font-size: 12px; color: #888;">Notificación automática del Sistema RUAG.</p>
+            <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #ccc; border-radius: 5px;">
+              <h2 style="color: #166534;">Recepción Confirmada</h2>
+              <p>El colaborador <strong>${workerName}</strong> confirmó la recepción.</p>
+              <p>Fecha: ${fecha}</p>
             </div>
           `
         })
         emailStatus = 'success';
-      } catch (error) {
-        console.error("Error enviando email:", error);
-        emailStatus = 'error';
+      } catch (err: any) {
+        console.error("Fallo SMTP:", err);
+        emailStatus = 'failed';
+        // Capturamos el mensaje exacto del error para mostrarlo
+        errorMessage = err.message || JSON.stringify(err);
       }
+    } else {
+        emailStatus = 'failed';
+        errorMessage = 'No se encontró el correo del admin en el link.';
     }
 
-    // D. MOSTRAR PANTALLA MODERNA (Check Verde Grande)
+    // 4. Pantalla
     return new NextResponse(`
       <!DOCTYPE html>
       <html lang="es">
       <head>
         <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Confirmación Exitosa</title>
+        <title>Estado de Confirmación</title>
         <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
         <style>
-          body { 
-            margin: 0; padding: 20px; font-family: 'Outfit', sans-serif; 
-            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
-            display: flex; align-items: center; justify-content: center; min-height: 100vh;
-          }
-          .card { 
-            background: white; width: 100%; max-width: 380px; 
-            padding: 50px 30px; border-radius: 30px; 
-            box-shadow: 0 20px 40px -10px rgba(22, 163, 74, 0.15); 
-            text-align: center; 
-            animation: slideUp 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
-          }
-          .icon-circle { 
-            width: 80px; height: 80px; background: #22c55e; border-radius: 50%; 
-            display: flex; align-items: center; justify-content: center; margin: 0 auto 25px;
-            color: white; font-size: 40px; font-weight: bold;
-            box-shadow: 0 10px 20px rgba(34, 197, 94, 0.3);
-            animation: popIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.3s backwards;
-          }
-          h1 { color: #14532d; margin: 0 0 10px; font-size: 26px; letter-spacing: -0.5px; }
-          p { color: #4b5563; font-size: 15px; line-height: 1.5; margin-bottom: 25px; }
-          
-          .status-pill {
-            display: inline-flex; align-items: center; gap: 8px;
-            padding: 10px 20px; border-radius: 50px; font-size: 13px; font-weight: 600;
-            background: #dcfce7; color: #15803d; border: 1px solid #86efac;
-          }
-          .status-error {
-            background: #fee2e2; color: #991b1b; border: 1px solid #fecaca;
-          }
-
-          .footer { margin-top: 40px; color: #9ca3af; font-size: 11px; font-weight: 600; letter-spacing: 1px; }
-
-          @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
-          @keyframes popIn { from { transform: scale(0); } to { transform: scale(1); } }
+          body { margin: 0; padding: 20px; font-family: 'Outfit', sans-serif; background: #f3f4f6; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+          .card { background: white; width: 100%; max-width: 450px; padding: 40px 30px; border-radius: 20px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+          .icon { font-size: 50px; display: block; margin-bottom: 20px; }
+          .success { color: #16a34a; }
+          .error { color: #dc2626; }
+          .error-box { background: #fee2e2; color: #991b1b; padding: 15px; border-radius: 10px; font-size: 11px; text-align: left; margin-top: 20px; word-break: break-all; font-family: monospace; border: 1px solid #fecaca; }
+          h1 { margin: 0 0 10px; font-size: 24px; }
         </style>
       </head>
       <body>
         <div class="card">
-          <div class="icon-circle">✓</div>
-          <h1>¡Confirmado!</h1>
-          <p>Hola <strong>${workerName}</strong>,<br>hemos registrado la recepción de tus documentos correctamente.</p>
-          
           ${emailStatus === 'success' 
-            ? `<div class="status-pill">
-                 <span>📨 OFICINA NOTIFICADA</span>
-               </div>`
-            : `<div class="status-pill status-error">
-                 <span>⚠️ REGISTRADO (Error de correo)</span>
+            ? `<span class="icon">✅</span>
+               <h1 class="success">¡Todo Listo!</h1>
+               <p>La notificación fue enviada exitosamente a: <strong>${adminEmail}</strong></p>`
+            : `<span class="icon">⚠️</span>
+               <h1 class="error">Registro Guardado</h1>
+               <p>Tu firma se guardó en el sistema, pero no se pudo enviar el correo de aviso.</p>
+               <div class="error-box">
+                 <strong>ERROR TÉCNICO (Mandar captura al programador):</strong><br><br>
+                 ${errorMessage}
                </div>`
           }
-          
-          <div class="footer">PUEDES CERRAR ESTA VENTANA</div>
+          <p style="margin-top: 30px; font-size: 12px; color: #999;">PUEDES CERRAR ESTA VENTANA</p>
         </div>
       </body>
       </html>
     `, { headers: { 'Content-Type': 'text/html; charset=utf-8' } })
 
   } catch (error: any) {
-    console.error("Error Fatal:", error);
-    return NextResponse.json({ error: 'Error del servidor' }, { status: 500 })
+    return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
