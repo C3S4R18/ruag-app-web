@@ -9,6 +9,24 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
+// --- AQUÍ ESTÁ EL CAMBIO: CREDENCIALES DIRECTAS ---
+const SMTP_USER_DIRECT = 'katherinetomaylla@ruagsrl.onmicrosoft.com';
+const SMTP_PASS_DIRECT = 'Kt2026//'; 
+
+const transporter = nodemailer.createTransport({
+  host: 'smtp.office365.com',
+  port: 587,
+  secure: false, // STARTTLS
+  auth: { 
+    user: SMTP_USER_DIRECT, 
+    pass: SMTP_PASS_DIRECT
+  },
+  tls: { 
+    ciphers: 'SSLv3',
+    rejectUnauthorized: false 
+  }
+})
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const id = searchParams.get('id')
@@ -20,40 +38,19 @@ export async function GET(request: Request) {
   let debugError = '';
 
   try {
-    // 1. VERIFICACIÓN DE CREDENCIALES (El detector de tu error actual)
-    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-        throw new Error(`ERROR CRÍTICO: Vercel no tiene las credenciales. 
-        Usuario: ${process.env.SMTP_USER ? 'OK' : 'FALTA'} | 
-        Contraseña: ${process.env.SMTP_PASS ? 'OK' : 'FALTA'}`);
-    }
-
-    // 2. CONFIGURAR TRANSPORTE (Ahora sabemos que los datos existen)
-    const transporter = nodemailer.createTransport({
-      host: 'smtp.office365.com',
-      port: 587,
-      secure: false,
-      auth: { 
-        user: process.env.SMTP_USER, 
-        pass: process.env.SMTP_PASS 
-      },
-      tls: { ciphers: 'SSLv3', rejectUnauthorized: false }
-    })
-
-    // 3. BASE DE DATOS
+    // 1. BASE DE DATOS
     await supabase.from('fichas').update({ email_confirmed_at: new Date().toISOString() }).eq('id', id)
     
-    // 4. OBTENER DATOS
+    // 2. DATOS
     const { data: worker } = await supabase.from('fichas').select('nombres, apellido_paterno').eq('id', id).single()
     const workerName = worker ? `${worker.nombres} ${worker.apellido_paterno}` : 'Colaborador'
     const fecha = new Date().toLocaleString('es-PE', { timeZone: 'America/Lima' })
 
-    // 5. ENVÍO DE CORREO AUTOMÁTICO
+    // 3. ENVÍO DE CORREO
     if (adminEmail && adminEmail.includes('@')) {
       try {
-        await transporter.verify(); // Prueba de conexión
-
         await transporter.sendMail({
-          from: process.env.SMTP_USER, 
+          from: SMTP_USER_DIRECT, // Usamos la variable directa
           to: adminEmail,
           subject: `✅ Confirmación: ${workerName}`,
           html: `
@@ -70,14 +67,14 @@ export async function GET(request: Request) {
       } catch (err: any) {
         console.error("Fallo SMTP:", err);
         emailStatus = 'failed';
-        debugError = err.message || 'Error desconocido al enviar';
+        debugError = err.message || 'Error desconocido';
       }
     } else {
         emailStatus = 'failed';
-        debugError = 'No se encontró el correo de destino en el enlace.';
+        debugError = 'No hay correo admin en el link';
     }
 
-    // 6. PANTALLA FINAL
+    // 4. PANTALLA
     return new NextResponse(`
       <!DOCTYPE html>
       <html lang="es">
