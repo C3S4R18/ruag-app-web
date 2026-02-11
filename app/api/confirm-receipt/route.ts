@@ -148,7 +148,7 @@ export async function GET(request: Request) {
              status.style.color = '#dc2626';
              status.innerText = "No se pudo enviar el correo, pero tu registro ya está guardado."; 
              
-             // Permitir reintentar después de 2 seg
+             // Permitir reintentar después de 3 seg
              setTimeout(() => {
                 btn.disabled = false;
                 btn.style.background = '#2563eb';
@@ -178,8 +178,10 @@ export async function POST(request: Request) {
 
   try {
     await transporter.sendMail({
-      // TRUCO: Usamos el alias bonito para que se vea profesional
-      from: '"Sistema RUAG" <katherine@ruag.pe>', 
+      // CORRECCIÓN CRÍTICA:
+      // El "From" debe coincidir con el usuario autenticado (process.env.SMTP_USER).
+      // Si usas otro correo, Microsoft lo bloquea (Error 500).
+      from: `"Sistema RUAG" <${process.env.SMTP_USER}>`, 
       to: adminEmail,
       subject: `✅ Confirmación Recibida - ${name}`,
       text: `El trabajador ${name} confirmó la recepción el ${fecha}.`,
