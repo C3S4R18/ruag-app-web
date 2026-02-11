@@ -936,7 +936,7 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
 }
 
 // --------------------------------------------------------------------------------------
-// MODAL DE VISTA PREVIA (CON CAMPO PARA ELEGIR DÓNDE RECIBIR LA CONFIRMACIÓN)
+// MODAL DE VISTA PREVIA (MODIFICADO: Sin correo por defecto)
 // --------------------------------------------------------------------------------------
 function PdfPreviewModal({ pdfUrl, pdfFile, workerName, workerId, onClose }: { pdfUrl: string, pdfFile: File | null, workerName: string, workerId?: string, onClose: () => void }) {
     const supabase = createClient()
@@ -944,20 +944,11 @@ function PdfPreviewModal({ pdfUrl, pdfFile, workerName, workerId, onClose }: { p
     // Correo del Obrero (Para enviarle)
     const [recipientEmail, setRecipientEmail] = useState('')
     
-    // Correo del Admin (Donde TÚ quieres recibir la respuesta)
+    // Correo del Admin (Inicia VACÍO para que escribas el que quieras)
     const [myEmail, setMyEmail] = useState('')
 
     const [status, setStatus] = useState<'idle' | 'uploading' | 'ready'>('idle')
     const [emlUrl, setEmlUrl] = useState<string | null>(null)
-
-    // Cargar tu correo automáticamente al abrir
-    useEffect(() => {
-        const loadMyEmail = async () => {
-            const { data: { user } } = await supabase.auth.getUser()
-            if (user?.email) setMyEmail(user.email)
-        }
-        loadMyEmail()
-    }, [])
 
     // --- WHATSAPP ---
     const handleShareWhatsApp = async () => {
@@ -968,39 +959,36 @@ function PdfPreviewModal({ pdfUrl, pdfFile, workerName, workerId, onClose }: { p
         setTimeout(() => { window.open(`https://wa.me/?text=${encodeURIComponent(`Hola, adjunto los documentos de *${workerName}*.`)}`, '_blank') }, 1000)
     }
 
-    // --- PREPARAR DATOS (SUBIR + GENERAR EML) ---
+    // --- PREPARAR DATOS ---
     const prepareOutlookData = async () => {
-        if (!recipientEmail || !recipientEmail.includes('@')) { toast.error("Ingresa el correo del obrero."); return; }
-        if (!myEmail || !myEmail.includes('@')) { toast.error("Revisa tu correo de confirmación."); return; }
+        if (!recipientEmail || !recipientEmail.includes('@')) { toast.error("Falta el correo del obrero."); return; }
+        if (!myEmail || !myEmail.includes('@')) { toast.error("Escribe tu correo para recibir la confirmación."); return; }
         
         setStatus('uploading');
-        const toastId = toast.loading("Preparando todo...");
+        const toastId = toast.loading("Preparando...");
 
         try {
-            // 1. Subir PDF
             const fileName = `legajo_${workerId || 'temp'}_${Date.now()}.pdf`;
             const { error: uploadError } = await supabase.storage.from('documentos_temporales').upload(fileName, pdfFile as File);
             if (uploadError) throw uploadError;
 
-            // 2. Obtener URL Pública
             const { data: { publicUrl } } = supabase.storage.from('documentos_temporales').getPublicUrl(fileName);
 
-            // 3. Crear Link Confirmación (USANDO EL CORREO QUE TÚ ESCRIBISTE)
+            // USA EL CORREO QUE ESCRIBISTE MANUALMENTE EN EL INPUT
             const confirmLink = `${window.location.origin}/api/confirm-receipt?id=${workerId}&doc=legajo&admin_email=${encodeURIComponent(myEmail)}`;
 
-            // 4. Crear Cuerpo del Correo
             const subject = `Documentación Laboral - ${workerName}`;
             const body = 
 `Estimado(a) colaborador(a):
 
-Se adjunta el enlace para descargar su documentación laboral (Legajo SSOMA/RRHH).
+Se adjunta el enlace para descargar su documentación laboral.
 
 1. DESCARGAR DOCUMENTOS:
 ${publicUrl}
 
 --------------------------------------------------
 IMPORTANTE:
-Por favor, confirme la recepción de estos documentos haciendo clic en el siguiente enlace:
+Por favor, confirme la recepción haciendo clic aquí:
 
 2. CONFIRMAR RECEPCIÓN:
 ${confirmLink}
@@ -1009,7 +997,6 @@ ${confirmLink}
 Atentamente,
 RUAG System`;
 
-            // 5. Generar archivo .eml
             const emlContent = `To: ${recipientEmail}
 Subject: ${subject}
 X-Unsent: 1
@@ -1023,7 +1010,7 @@ ${body}`;
 
             setStatus('ready');
             toast.dismiss(toastId);
-            toast.success("Listo. Abre Outlook.");
+            toast.success("Listo.");
 
         } catch (error: any) {
             console.error(error);
@@ -1032,7 +1019,6 @@ ${body}`;
         }
     }
 
-    // --- DESCARGAR Y ABRIR OUTLOOK ---
     const downloadAndOpenOutlook = () => {
         if (!emlUrl) return;
         const link = document.createElement('a');
@@ -1057,7 +1043,6 @@ ${body}`;
                 </div>
                 
                 <div className="p-5 border-t bg-white flex flex-col gap-4 shrink-0">
-                    
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {/* 1. CORREO DEL OBRERO */}
                         <div className="flex flex-col gap-2">
@@ -1075,14 +1060,14 @@ ${body}`;
                             </div>
                         </div>
 
-                        {/* 2. TU CORREO (AQUÍ PUEDES CAMBIARLO) */}
+                        {/* 2. TU CORREO (VACÍO POR DEFECTO) */}
                         <div className="flex flex-col gap-2">
                             <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Recibir confirmación en:</label>
                             <div className="flex items-center gap-2 bg-indigo-50 p-2 rounded-xl border border-indigo-200 focus-within:ring-2 focus-within:ring-indigo-300">
                                 <div className="bg-indigo-200 text-indigo-700 p-1 rounded-md"><Zap size={14}/></div>
                                 <input 
                                     type="email" 
-                                    placeholder="tu@correo.com" 
+                                    placeholder="ejemplo@tuempresa.com" 
                                     className="flex-1 bg-transparent outline-none text-sm text-indigo-900 font-bold" 
                                     value={myEmail} 
                                     onChange={(e) => setMyEmail(e.target.value)}
@@ -1094,39 +1079,21 @@ ${body}`;
 
                     <div className="flex flex-col sm:flex-row gap-3 pt-2">
                         <button onClick={onClose} className="px-6 py-3.5 rounded-xl font-bold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">Cerrar</button>
-                        
-                        <button onClick={handleShareWhatsApp} className="flex-1 py-3.5 rounded-xl font-bold bg-green-500 text-white hover:bg-green-600 shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95">
-                            <Share2 size={20}/> WhatsApp
-                        </button>
+                        <button onClick={handleShareWhatsApp} className="flex-1 py-3.5 rounded-xl font-bold bg-green-500 text-white hover:bg-green-600 shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95"><Share2 size={20}/> WhatsApp</button>
 
-                        {/* --- BOTÓN LÓGICA EML --- */}
                         {status === 'idle' && (
-                            <button 
-                                onClick={prepareOutlookData} 
-                                disabled={!recipientEmail || !myEmail} 
-                                className="flex-1 py-3.5 rounded-xl font-bold bg-blue-600 text-white hover:bg-blue-700 shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95 disabled:opacity-50"
-                            >
+                            <button onClick={prepareOutlookData} disabled={!recipientEmail || !myEmail} className="flex-1 py-3.5 rounded-xl font-bold bg-blue-600 text-white hover:bg-blue-700 shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95 disabled:opacity-50">
                                 <Monitor size={20}/> Preparar Outlook
                             </button>
                         )}
-
                         {status === 'uploading' && (
-                            <button disabled className="flex-1 py-3.5 rounded-xl font-bold bg-blue-400 text-white flex items-center justify-center gap-2 cursor-wait">
-                                <Loader2 className="animate-spin" size={20}/> Generando...
-                            </button>
+                            <button disabled className="flex-1 py-3.5 rounded-xl font-bold bg-blue-400 text-white flex items-center justify-center gap-2 cursor-wait"><Loader2 className="animate-spin" size={20}/> Generando...</button>
                         )}
-
                         {status === 'ready' && (
-                            <button 
-                                onClick={downloadAndOpenOutlook} 
-                                className="flex-1 py-3.5 rounded-xl font-bold bg-blue-700 text-white hover:bg-blue-800 shadow-lg flex items-center justify-center gap-2 animate-pulse"
-                            >
-                                <Download size={20}/> ABRIR EN OUTLOOK
-                            </button>
+                            <button onClick={downloadAndOpenOutlook} className="flex-1 py-3.5 rounded-xl font-bold bg-blue-700 text-white hover:bg-blue-800 shadow-lg flex items-center justify-center gap-2 animate-pulse"><Download size={20}/> ABRIR OUTLOOK</button>
                         )}
                     </div>
                 </div>
-
             </motion.div>
         </motion.div>
     )
