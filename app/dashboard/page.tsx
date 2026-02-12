@@ -77,13 +77,19 @@ const DOC_LABELS_RRHH: Record<string, string> = {
     // Nota: La declaración de beneficiarios es solo descarga, no tiene cargo digital aquí
 }
 
-// --- LISTA DE CLAVES DE DESCARGA OBLIGATORIA ---
+// --- LISTA DE CLAVES DE DESCARGA OBLIGATORIA (ACTUALIZADO) ---
 // Mapeamos la key de la BD al nombre del archivo real y etiqueta
 const MANDATORY_DOWNLOADS: Record<string, {file: string, label: string}> = {
-    'risst_pdf_download': { file: 'REGLAMENTO INTERNO DE SEGURIDAD.pdf', label: 'Reglamento Interno SST' }, // Ajusta nombre si es diferente
+    // Documentos Previos
+    'risst_pdf_download': { file: 'REGLAMENTO INTERNO DE SEGURIDAD.pdf', label: 'Reglamento Interno RISST' },
     'rit_pdf_download': { file: 'REGLAMENTO INTERNO DE TRABAJO.pdf', label: 'Reglamento Interno de Trabajo' },
     'hostigamiento_pdf_download': { file: 'POLITICA DE HOSTIGAMIENTO SEXUAL.pdf', label: 'Política de Hostigamiento' },
-    'beneficiarios_pdf_download': { file: 'DECLARACION DE BENEFICIARIOS_VIDA LEY_2019.pdf', label: 'Declaración Beneficiarios Vida Ley' }
+    'beneficiarios_pdf_download': { file: 'DECLARACION DE BENEFICIARIOS_VIDA LEY_2019.pdf', label: 'Declaración Beneficiarios Vida Ley' },
+    
+    // --- NUEVOS DOCUMENTOS (SIG) ---
+    'calidad_pdf_download': { file: 'POLITICA DE CALIDAD.pdf', label: 'Política de Calidad' },
+    'etica_pdf_download': { file: 'CODIGO DE ETICA Y CONDUCTA.pdf', label: 'Código de Ética y Conducta' },
+    'antisoborno_pdf_download': { file: 'POLITICA ANTISOBORNO Y ANTICORRUPCIÓN.pdf', label: 'Política Antisoborno' }
 }
 
 interface NotificationItem {
