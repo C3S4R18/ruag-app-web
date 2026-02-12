@@ -11,7 +11,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 
 // Definimos la prop para recibir la función de regreso
 interface CesadosManagerProps {
-    onBack?: () => void;
+    onBack?: () => void; // <--- ESTO ES OBLIGATORIO
 }
 
 export default function CesadosManager({ onBack }: CesadosManagerProps) {

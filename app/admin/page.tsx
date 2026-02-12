@@ -23,7 +23,7 @@ import {
   FileText, Lock, Unlock, ScanLine, Trash2, ChevronRight,
   UserCog, Mail, Key, Save, Send, ScanFace, Zap, Briefcase, FileBadge, 
   HeartHandshake, CheckSquare, Square, ExternalLink, ArrowUpDown,
-  Award, BookOpen, ShieldAlert, FileSpreadsheet, UserX 
+  Award, BookOpen, ShieldAlert, FileSpreadsheet, UserX, Wifi, WifiOff // <--- Nuevos Iconos
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
@@ -72,6 +72,13 @@ export default function AdminPage() {
   // --- MODALES DE IMPORTACIÓN ---
   const [showImport, setShowImport] = useState(false)
   const [showBioImport, setShowBioImport] = useState(false)
+
+  // --- NUEVO MODAL: ADMINISTRADORES ---
+  const [showAdminModal, setShowAdminModal] = useState(false)
+  const [adminsData, setAdminsData] = useState<any[]>([])
+
+  // --- DETECTOR ONLINE/OFFLINE ---
+  const [isSystemOnline, setIsSystemOnline] = useState(true)
 
   // --- ESTADO PARA COMUNICACIÓN CON TABLA HIJA ---
   const [refreshTrigger, setRefreshTrigger] = useState(0)
@@ -133,6 +140,24 @@ export default function AdminPage() {
         })
     }
   }
+
+  // DETECTOR DE CONEXIÓN A INTERNET
+  useEffect(() => {
+      if (typeof window !== 'undefined') {
+          setIsSystemOnline(navigator.onLine)
+          
+          const handleOnline = () => { setIsSystemOnline(true); toast.success("Conexión restaurada") }
+          const handleOffline = () => { setIsSystemOnline(false); toast.error("Sin conexión a internet") }
+
+          window.addEventListener('online', handleOnline)
+          window.addEventListener('offline', handleOffline)
+
+          return () => {
+              window.removeEventListener('online', handleOnline)
+              window.removeEventListener('offline', handleOffline)
+          }
+      }
+  }, [])
 
   useEffect(() => {
     const checkUser = async () => {
@@ -208,18 +233,27 @@ export default function AdminPage() {
   const fetchData = async () => {
       if (workersData.length === 0) setLoadingData(true)
       
-      const { data, error } = await supabase
+      // 1. OBTENER OBREROS (EXCLUYE ADMINS para la TABLA)
+      const { data: workers, error: errorWorkers } = await supabase
         .from('fichas')
         .select('*, profiles!inner(role)') 
         .neq('profiles.role', 'admin')      
         .order('updated_at', { ascending: false })
       
-      if(error) {
-          console.error("Error fetching workers:", error)
+      // 2. OBTENER ADMINISTRADORES (PARA EL MODAL Y EL CONTEO TOTAL)
+      const { data: admins, error: errorAdmins } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('role', 'admin')
+
+      if(errorWorkers || errorAdmins) {
+          console.error("Error fetching data")
           toast.error("Error al cargar datos")
       }
       
-      if(data) setWorkersData(data)
+      if(workers) setWorkersData(workers)
+      if(admins) setAdminsData(admins)
+      
       setLoadingData(false)
   }
 
@@ -352,7 +386,6 @@ export default function AdminPage() {
               if (doc.type === 'pdf') {
                   // Lógica para documentos PDF (Envío para descarga)
                   let fileName = ''
-                  // Mapeo manual de nombres de archivo si es necesario, o usar el label
                   if (doc.id === 'risst_pdf_download') fileName = 'REGLAMENTO INTERNO DE SEGURIDAD.pdf'
                   else if (doc.id === 'rit_pdf_download') fileName = 'REGLAMENTO INTERNO DE TRABAJO.pdf'
                   else if (doc.id === 'hostigamiento_pdf_download') fileName = 'POLITICA DE HOSTIGAMIENTO SEXUAL.pdf'
@@ -366,7 +399,6 @@ export default function AdminPage() {
                   }
               } else {
                   // Lógica para documentos LOCK (Habilitar firma)
-                  // Solo habilitamos si no está completado, para no reiniciar firmas ya hechas
                   if (newStates[doc.id]?.status !== 'completed') {
                       newStates[doc.id] = {
                           status: 'unlocked', // Habilitamos para firma
@@ -432,8 +464,8 @@ export default function AdminPage() {
             <div className="pt-4 pb-2 px-4 text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Vida Ley</div>
             <SidebarItem active={activeView === 'vida_ley'} onClick={() => handleNavClick('vida_ley')} icon={<FileSpreadsheet size={20}/>} label="Trama Vida Ley" />
             <div className="pt-4 pb-2 px-4 text-[10px] font-bold text-red-600 uppercase tracking-widest">
-  Gestión de Bajas
-</div>
+              Gestión de Bajas
+            </div>
             <SidebarItem active={activeView === 'cesados'} onClick={() => handleNavClick('cesados')} icon={<UserX size={20}/>} label="Historial Cesados" />
 
             <div className="pt-4 pb-2 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Gestión Operativa</div>
@@ -565,37 +597,51 @@ export default function AdminPage() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6" id="tour-stats">
+                        {/* 1. TOTAL PERSONAL (SUMA OBREROS + ADMINS) */}
                         <StatCard 
                             title="Total Personal" 
-                            value={workersData.length.toString()} 
+                            value={(workersData.length + adminsData.length).toString()} 
                             desc="Base de datos global" 
                             icon={<Users size={24} className="text-white"/>} 
                             bg="bg-gradient-to-br from-blue-500 to-blue-600"
                             delay={0.1} 
                         />
-                        <StatCard 
-                            title="Docs Firmados" 
-                            value={workersData.reduce((acc, curr) => acc + (curr.doc_states ? Object.values(curr.doc_states).filter((d:any)=>d.status==='completed').length : 0), 0).toString()} 
-                            desc="Total verificados" 
-                            icon={<FileText size={24} className="text-white"/>} 
-                            bg="bg-gradient-to-br from-indigo-500 to-purple-600"
-                            delay={0.2} 
-                        />
+                        
+                        {/* 2. ADMINISTRADORES (NUEVA FUNCIÓN MODAL) */}
+                        <div onClick={() => setShowAdminModal(true)} className="cursor-pointer">
+                            <StatCard 
+                                title="Administradores" 
+                                value={adminsData.length.toString()} 
+                                desc="Ver lista de admins" 
+                                icon={<UserCog size={24} className="text-white"/>} 
+                                bg="bg-gradient-to-br from-indigo-500 to-purple-600"
+                                delay={0.2} 
+                            />
+                        </div>
+
+                        {/* 3. ESTADO DEL SISTEMA (REAL CON DETECTOR DE RED) */}
                         <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
                             <div className="flex justify-between items-start">
                                 <div>
                                     <p className="text-slate-500 text-sm font-medium mb-1">Estado del Sistema</p>
-                                    <h3 className="text-2xl font-bold text-emerald-600 flex items-center gap-2">
-                                        <span className="w-3 h-3 bg-emerald-500 rounded-full animate-ping"></span>
-                                        En Línea
-                                    </h3>
+                                    {isSystemOnline ? (
+                                        <h3 className="text-2xl font-bold text-emerald-600 flex items-center gap-2">
+                                            <span className="w-3 h-3 bg-emerald-500 rounded-full animate-ping"></span>
+                                            En Línea
+                                        </h3>
+                                    ) : (
+                                        <h3 className="text-2xl font-bold text-red-600 flex items-center gap-2 animate-pulse">
+                                            <WifiOff size={20}/>
+                                            Sin Conexión
+                                        </h3>
+                                    )}
                                 </div>
-                                <div className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl">
-                                    <Activity size={24}/>
+                                <div className={`p-3 rounded-2xl ${isSystemOnline ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
+                                    {isSystemOnline ? <Wifi size={24}/> : <Activity size={24}/>}
                                 </div>
                             </div>
                             <div className="mt-4 text-xs font-medium text-slate-400 bg-slate-50 inline-block px-3 py-1 rounded-full border border-slate-100">
-                                Sincronizando con base de datos central
+                                {isSystemOnline ? "Sincronizado con servidor" : "Reconectando..."}
                             </div>
                         </div>
                     </div>
@@ -626,11 +672,11 @@ export default function AdminPage() {
 
             {/* --- VISTA CESADOS (NUEVA) --- */}
             {activeView === 'cesados' && (
-    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="h-full pb-20">
-        {/* LE PASAMOS LA FUNCIÓN PARA VOLVER AL DASHBOARD */}
-        <CesadosManager onBack={() => setActiveView('dashboard')} />
-    </motion.div>
-)}
+                <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="h-full pb-20">
+                    {/* LE PASAMOS LA FUNCIÓN PARA VOLVER AL DASHBOARD */}
+                    <CesadosManager onBack={() => setActiveView('dashboard')} />
+                </motion.div>
+            )}
 
             {/* SECCIÓN GRID/LISTA COMPARTIDA (BIOMETRIA/DOCS/RRHH) */}
             {(activeView === 'biometria' || activeView === 'documentos' || activeView === 'rrhh') && (
@@ -826,7 +872,33 @@ export default function AdminPage() {
 
         {/* --- MODALES --- */}
         
-        {/* MODAL ACCIONES MASIVAS (NUEVO) */}
+        {/* MODAL LISTA DE ADMINISTRADORES (NUEVO) */}
+        <AnimatePresence>
+            {showAdminModal && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[80] flex items-center justify-center p-4" onClick={() => setShowAdminModal(false)}>
+                    <motion.div initial={{ scale: 0.95, y: 10 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 10 }} className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden border border-white/20" onClick={e => e.stopPropagation()}>
+                         <div className="p-6 border-b flex justify-between items-center bg-indigo-50/50">
+                            <h3 className="font-bold text-lg text-indigo-900 flex items-center gap-2"><UserCog size={20}/> Administradores</h3>
+                            <button onClick={() => setShowAdminModal(false)} className="p-2 hover:bg-white rounded-full transition-colors text-slate-400"><X size={20}/></button>
+                         </div>
+                         <div className="p-6 space-y-3 max-h-[60vh] overflow-y-auto">
+                            {adminsData.map((admin) => (
+                                <div key={admin.id} className="flex items-center gap-4 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                    <div className="w-10 h-10 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center font-bold">{admin.nombres.charAt(0)}</div>
+                                    <div>
+                                        <p className="font-bold text-slate-800 text-sm">{admin.nombres} {admin.apellido_paterno}</p>
+                                        <p className="text-xs text-slate-500 font-mono">{admin.dni}</p>
+                                    </div>
+                                    <div className="ml-auto bg-indigo-600 text-white text-[10px] px-2 py-0.5 rounded font-bold">ADMIN</div>
+                                </div>
+                            ))}
+                         </div>
+                    </motion.div>
+                </motion.div>
+            )}
+        </AnimatePresence>
+
+        {/* MODAL ACCIONES MASIVAS */}
         <AnimatePresence>
             {showMassActionModal && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[70] flex items-center justify-center p-4" onClick={() => setShowMassActionModal(false)}>
@@ -1329,6 +1401,7 @@ function AdminDocsDrawer({ worker, onClose, onUpdate }: any) {
     )
 }
 
+// --- DRAWER RRHH ACTUALIZADO (DISEÑO PREMIUM CON COLORES) ---
 function AdminRRHHDrawer({ worker, onClose, onUpdate }: any) {
     const supabase = createClient()
     const [docStates, setDocStates] = useState<any>(worker.doc_states || {})
@@ -1352,7 +1425,7 @@ function AdminRRHHDrawer({ worker, onClose, onUpdate }: any) {
                 [key]: { 
                     status: 'pending_download', 
                     sent_at: new Date().toISOString(), 
-                    label: label,
+                    label: label, 
                     file: fileName 
                 } 
             }
