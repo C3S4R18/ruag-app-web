@@ -20,12 +20,13 @@ import {
   LayoutDashboard, Fingerprint, Menu, PenTool, CheckCircle, Loader2,
   FileText, Lock, Unlock, ScanLine, Trash2, ChevronRight,
   UserCog, Mail, Key, Save, Send, ScanFace, Zap, Briefcase, FileBadge, 
-  HeartHandshake, CheckSquare, Square, ExternalLink, ArrowUpDown 
+  HeartHandshake, CheckSquare, Square, ExternalLink, ArrowUpDown,
+  Award, BookOpen, ShieldAlert 
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 
-// --- CONFIGURACIÓN DOCUMENTOS SSOMA ---
+// --- CONFIGURACIÓN DOCUMENTOS SSOMA (Firma/Bloqueo) ---
 const DIGITAL_DOCS = [
     { id: 'risst', label: 'Cargo RISST', type: 'lock' },
     { id: 'capacitacion', label: 'Registro Capacitación', type: 'lock' },
@@ -146,7 +147,6 @@ export default function AdminPage() {
           setUserName(name) 
           
           // --- LOGICA DE PRESENCIA (BURBUJAS) ---
-          // Pre-llenamos con el usuario actual para que se vea inmediatamente
           const currentUserData = {
              name: name,
              online_at: new Date().toISOString(),
@@ -162,7 +162,6 @@ export default function AdminPage() {
             .on('presence', { event: 'sync' }, () => {
                 const newState = channel.presenceState()
                 const users = Object.values(newState).map((u: any) => u[0])
-                // Ordenar para que siempre salgas tú primero o se mantenga estable
                 setOnlineUsers(users)
             })
             .on('broadcast', { event: 'admin_action' }, ({ payload }: any) => {
@@ -319,7 +318,7 @@ export default function AdminPage() {
   const handleOpenMassAction = () => {
       if (activeView === 'documentos') setMassActionType('ssoma')
       else if (activeView === 'rrhh') setMassActionType('rrhh')
-      else return // En biometría no hay envíos masivos por ahora
+      else return 
 
       setSelectedMassDocs([])
       setShowMassActionModal(true)
@@ -340,7 +339,6 @@ export default function AdminPage() {
       let successCount = 0
 
       for (const workerId of selectedGridIds) {
-          // Obtener estado actual del worker
           const worker = workersData.find(w => w.id === workerId)
           if (!worker) continue
 
@@ -349,9 +347,7 @@ export default function AdminPage() {
           
           docsToProcess.forEach(doc => {
               if (doc.type === 'pdf') {
-                  // Lógica para documentos PDF (Envío para descarga)
                   let fileName = ''
-                  // Mapeo manual de nombres de archivo si es necesario, o usar el label
                   if (doc.id === 'risst_pdf_download') fileName = 'REGLAMENTO INTERNO DE SEGURIDAD.pdf'
                   else if (doc.id === 'rit_pdf_download') fileName = 'REGLAMENTO INTERNO DE TRABAJO.pdf'
                   else if (doc.id === 'hostigamiento_pdf_download') fileName = 'POLITICA DE HOSTIGAMIENTO SEXUAL.pdf'
@@ -364,11 +360,9 @@ export default function AdminPage() {
                       file: fileName
                   }
               } else {
-                  // Lógica para documentos LOCK (Habilitar firma)
-                  // Solo habilitamos si no está completado, para no reiniciar firmas ya hechas
                   if (newStates[doc.id]?.status !== 'completed') {
                       newStates[doc.id] = {
-                          status: 'unlocked', // Habilitamos para firma
+                          status: 'unlocked', 
                           updated_at: new Date().toISOString()
                       }
                   }
@@ -384,7 +378,7 @@ export default function AdminPage() {
       setSelectedGridIds([])
       toast.success(`Acción masiva completada en ${successCount} trabajadores.`)
       broadcastChange('realizó', `envío masivo de ${selectedMassDocs.length} documentos a ${successCount} personas`)
-      fetchData() // Refrescar datos
+      fetchData() 
   }
 
 
@@ -437,7 +431,6 @@ export default function AdminPage() {
                 <SidebarItem active={activeView === 'documentos'} onClick={() => handleNavClick('documentos')} icon={<HardHat size={20}/>} label="Registros SIG" />
             </div>
             
-            {/* NUEVO ITEM RRHH */}
             <div id="nav-rrhh">
                 <SidebarItem active={activeView === 'rrhh'} onClick={() => handleNavClick('rrhh')} icon={<Briefcase size={20}/>} label="Gestión RRHH" />
             </div>
@@ -485,7 +478,6 @@ export default function AdminPage() {
 
             <div className="flex items-center gap-6">
                 
-                {/* MOSTRAR ADMINS CONECTADOS (BURBUJAS) - AHORA SIEMPRE VISIBLE */}
                 <div className="flex items-center gap-2">
                     <span className="text-[10px] font-bold text-slate-400 uppercase mr-1 hidden md:inline">En línea:</span>
                     <div className="flex -space-x-2">
@@ -497,7 +489,6 @@ export default function AdminPage() {
                                 >
                                     {user.name ? user.name.charAt(0) : '?'}
                                 </div>
-                                {/* Tooltip */}
                                 <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
                                     {user.name || 'Admin'}
                                 </div>
@@ -619,7 +610,7 @@ export default function AdminPage() {
                                     {selectedGridIds.length > 0 ? `${selectedGridIds.length} Seleccionados` : 'Todos'}
                                 </button>
 
-                                {/* BOTÓN DE ORDENAMIENTO (NUEVO) */}
+                                {/* BOTÓN DE ORDENAMIENTO */}
                                 <button 
                                     onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
                                     className="flex items-center gap-2 text-slate-500 hover:text-indigo-600 font-bold text-xs bg-slate-50 px-3 py-2.5 rounded-xl border border-slate-100 hover:border-indigo-200 transition-all"
@@ -1100,53 +1091,217 @@ function BiometricModal({ worker, onClose, onUpdate }: any) {
     return (<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[100] flex items-center justify-center p-4" onClick={onClose}><motion.div initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }} className="bg-white rounded-3xl w-full max-w-4xl h-[85vh] flex flex-col overflow-hidden shadow-2xl border border-white/20" onClick={e => e.stopPropagation()}><div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white shrink-0"><div className="flex items-center gap-4"><div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center font-bold text-2xl shadow-lg shadow-blue-500/30">{worker.nombres.charAt(0)}</div><div><h3 className="font-bold text-slate-900 text-xl">{worker.nombres} {worker.apellido_paterno}</h3><div className="flex items-center gap-2 mt-1"><span className="text-xs font-mono font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">{worker.dni}</span><span className="text-xs text-slate-400">•</span><span className="text-xs text-slate-500 font-medium capitalize">{worker.cargo || 'Operario'}</span></div></div></div><button onClick={onClose} className="p-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full transition-colors"><X size={20}/></button></div><div className="flex border-b border-slate-200 shrink-0 bg-slate-50/50 p-1 gap-1 mx-6 mt-4 rounded-xl"><button onClick={() => setTab('firma')} className={`flex-1 py-2.5 text-sm font-bold flex items-center justify-center gap-2 rounded-lg transition-all ${tab === 'firma' ? 'bg-white text-blue-600 shadow-sm border border-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}><PenTool size={16}/> Firma Digital</button><button onClick={() => setTab('huella')} className={`flex-1 py-2.5 text-sm font-bold flex items-center justify-center gap-2 rounded-lg transition-all ${tab === 'huella' ? 'bg-white text-blue-600 shadow-sm border border-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}><ScanLine size={16}/> Huella Dactilar</button></div><div className="flex-1 bg-slate-50 relative p-6 flex items-center justify-center overflow-hidden"><div className="w-full h-full bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden relative">{tab === 'firma' ? ( <BiometricSignature onSave={(data) => updateField('firma_url', data)} onClear={() => updateField('firma_url', null)} existingSignature={worker.firma_url} /> ) : ( <BiometricFingerprint onSave={(data) => updateField('huella_url', data)} onClear={() => updateField('huella_url', null)} existingFingerprint={worker.huella_url} /> )}</div></div></motion.div></motion.div>)
 }
 
+// --- DRAWER SSOMA ACTUALIZADO (MODERNO Y CON 4 DOCS) ---
 function AdminDocsDrawer({ worker, onClose, onUpdate }: any) {
-    const supabase = createClient(); const [docStates, setDocStates] = useState<any>(worker.doc_states || {});
+    const supabase = createClient(); 
+    const [docStates, setDocStates] = useState<any>(worker.doc_states || {});
+    
     useEffect(() => { setDocStates(worker.doc_states || {}) }, [worker]);
-    const updateDocState = async (docId: string, newState: any, msg: string) => { const updatedDocStates = { ...docStates, [docId]: newState }; setDocStates(updatedDocStates); try { const { error } = await supabase.from('fichas').update({ doc_states: updatedDocStates }).eq('id', worker.id); if(error) throw error; toast.success(msg); onUpdate() } catch (e) { toast.error("Error al actualizar"); setDocStates(worker.doc_states || {}) } }
-    const toggleLock = (docId: string) => { const currentState = docStates[docId] || {}; const newStatus = currentState.status === 'unlocked' ? 'locked' : 'unlocked'; updateDocState(docId, { ...currentState, status: newStatus }, newStatus === 'unlocked' ? "Documento habilitado" : "Documento bloqueado") }
-    const resetDoc = (docId: string) => { if(!confirm("¿Borrar datos del obrero y bloquear?")) return; updateDocState(docId, { status: 'locked', data: {}, completed_at: null }, "Documento reseteado") }
-    const sendRisstPdfToWorker = async () => { try { const { data: currentFicha } = await supabase.from('fichas').select('doc_states').eq('id', worker.id).single(); const currentStates = currentFicha?.doc_states || {}; const newStates = { ...currentStates, risst_pdf_download: { status: 'pending_download', sent_at: new Date().toISOString(), label: 'Reglamento Interno de SST' } }; const { error } = await supabase.from('fichas').update({ doc_states: newStates }).eq('id', worker.id); if (error) throw error; toast.success(`PDF de RISST enviado a ${worker.nombres}`) } catch (error: any) { toast.error("Error al enviar RISST: " + error.message) } }
-    return (<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm z-50 flex justify-end" onClick={onClose}><motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }} className="w-full max-w-md bg-white h-full shadow-2xl flex flex-col border-l border-slate-100" onClick={e => e.stopPropagation()}><div id="drawer-header" className="h-20 px-6 border-b border-slate-100 flex justify-between items-center bg-white shrink-0"><div><h2 className="font-bold text-slate-900 text-xl tracking-tight">SSOMA</h2><div className="flex items-center gap-2 mt-1"><div className="w-2 h-2 bg-blue-500 rounded-full"></div><p className="text-xs text-slate-500 font-medium">{worker.nombres}</p></div></div><button id="drawer-close-btn" onClick={onClose} className="p-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full transition-colors"><X size={20}/></button></div><div className="flex-1 overflow-y-auto p-6 space-y-4 bg-slate-50/50"><div id="drawer-risst-btn" className="mb-6 bg-indigo-50 p-4 rounded-2xl border border-indigo-100 shadow-sm"><div className="flex items-start gap-3"><div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg"><FileText size={20}/></div><div><h4 className="font-bold text-indigo-900 text-sm">Reglamento Interno (RISST)</h4><p className="text-xs text-indigo-600/80 mt-1 leading-relaxed">Envía el documento PDF digital para que el obrero lo descargue obligatoriamente desde su panel.</p></div></div><button onClick={sendRisstPdfToWorker} className="mt-3 w-full py-2.5 bg-indigo-600 text-white text-xs font-bold rounded-xl hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2 shadow-lg shadow-indigo-200 active:scale-95"><Send size={14}/> Enviar PDF al Obrero</button></div><div id="drawer-info-section"><div className="flex items-center justify-between mb-4"><p className="text-xs text-slate-500 uppercase font-bold tracking-wider">DOCUMENTOS SSOMA</p><span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-bold">{DIGITAL_DOCS.length} Docs</span></div>{DIGITAL_DOCS.map((doc) => { const status = docStates[doc.id]?.status || 'locked'; const isUnlocked = status === 'unlocked'; const isCompleted = status === 'completed'; return (<div key={doc.id} className={`p-4 rounded-2xl border flex items-center justify-between transition-all group ${isCompleted ? 'bg-emerald-50/50 border-emerald-200' : isUnlocked ? 'bg-white border-blue-200 shadow-md shadow-blue-100/50 ring-1 ring-blue-100' : 'bg-white border-slate-200 shadow-sm opacity-70 grayscale'}`}><div className="flex items-center gap-4"><div className={`p-2.5 rounded-xl ${isCompleted ? 'bg-emerald-100 text-emerald-600' : isUnlocked ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400'}`}>{isCompleted ? <CheckCircle size={20}/> : <FileText size={20}/>}</div><div><h4 className="font-bold text-sm text-slate-800">{doc.label}</h4><p className="text-[10px] font-bold mt-0.5 flex items-center gap-1.5"><span className={`w-1.5 h-1.5 rounded-full ${isCompleted ? 'bg-emerald-500' : isUnlocked ? 'bg-blue-500 animate-pulse' : 'bg-slate-400'}`}></span><span style={{color: isCompleted ? '#059669' : isUnlocked ? '#2563EB' : '#94A3B8'}}>{isCompleted ? 'FIRMADO' : isUnlocked ? 'DISPONIBLE' : 'BLOQUEADO'}</span></p></div></div><div className="flex items-center gap-2"><button onClick={() => resetDoc(doc.id)} className="p-2 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors" title="Reiniciar"><Trash2 size={16} /></button><button onClick={() => toggleLock(doc.id)} className={`p-2 rounded-lg transition-all shadow-sm ${isUnlocked ? 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-blue-200' : 'bg-white border border-slate-200 text-slate-500 hover:bg-slate-50'}`} title={isUnlocked ? "Bloquear" : "Habilitar"}>{isUnlocked ? <Unlock size={18} /> : <Lock size={18} />}</button></div></div>) })}</div></div><div className="p-6 border-t border-slate-200 bg-white"><button className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-colors shadow-lg shadow-slate-900/20" onClick={onClose}>Cerrar Panel</button></div></motion.div></motion.div>)
+    
+    const updateDocState = async (docId: string, newState: any, msg: string) => { 
+        const updatedDocStates = { ...docStates, [docId]: newState }; 
+        setDocStates(updatedDocStates); 
+        try { 
+            const { error } = await supabase.from('fichas').update({ doc_states: updatedDocStates }).eq('id', worker.id); 
+            if(error) throw error; 
+            toast.success(msg); 
+            onUpdate() 
+        } catch (e) { 
+            toast.error("Error al actualizar"); 
+            setDocStates(worker.doc_states || {}) 
+        } 
+    }
+    
+    const toggleLock = (docId: string) => { 
+        const currentState = docStates[docId] || {}; 
+        const newStatus = currentState.status === 'unlocked' ? 'locked' : 'unlocked'; 
+        updateDocState(docId, { ...currentState, status: newStatus }, newStatus === 'unlocked' ? "Documento habilitado" : "Documento bloqueado") 
+    }
+    
+    const resetDoc = (docId: string) => { 
+        if(!confirm("¿Borrar datos del obrero y bloquear?")) return; 
+        updateDocState(docId, { status: 'locked', data: {}, completed_at: null }, "Documento reseteado") 
+    }
+
+    // LISTA DE DOCUMENTOS PARA DESCARGA (RISST + NUEVOS)
+    const SSOMA_DOWNLOADS = [
+        {
+            id: 'risst_pdf_download',
+            label: 'Reglamento Interno (RISST)',
+            fileName: 'REGLAMENTO INTERNO DE SEGURIDAD.pdf',
+            desc: 'Lectura obligatoria de seguridad.',
+            icon: <FileText size={20}/>,
+            styles: {
+               bg: 'bg-indigo-50', border: 'border-indigo-100',
+               iconBg: 'bg-indigo-100', iconText: 'text-indigo-600',
+               title: 'text-indigo-900', desc: 'text-indigo-600/80',
+               btn: 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200'
+            }
+        },
+        {
+            id: 'calidad_pdf_download',
+            label: 'Política de Calidad',
+            fileName: 'POLITICA DE CALIDAD.pdf',
+            desc: 'Estándares de calidad de la empresa.',
+            icon: <Award size={20}/>,
+            styles: {
+               bg: 'bg-emerald-50', border: 'border-emerald-100',
+               iconBg: 'bg-emerald-100', iconText: 'text-emerald-600',
+               title: 'text-emerald-900', desc: 'text-emerald-600/80',
+               btn: 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200'
+            }
+        },
+        {
+            id: 'etica_pdf_download',
+            label: 'Código de Ética y Conducta',
+            fileName: 'CODIGO DE ETICA Y CONDUCTA.pdf',
+            desc: 'Normas de comportamiento.',
+            icon: <BookOpen size={20}/>,
+            styles: {
+               bg: 'bg-sky-50', border: 'border-sky-100',
+               iconBg: 'bg-sky-100', iconText: 'text-sky-600',
+               title: 'text-sky-900', desc: 'text-sky-600/80',
+               btn: 'bg-sky-600 hover:bg-sky-700 shadow-sky-200'
+            }
+        },
+        {
+            id: 'antisoborno_pdf_download',
+            label: 'Política Antisoborno',
+            fileName: 'POLITICA ANTISOBORNO Y ANTICORRUPCIÓN.pdf',
+            desc: 'Prevención de corrupción.',
+            icon: <ShieldAlert size={20}/>,
+            styles: {
+               bg: 'bg-rose-50', border: 'border-rose-100',
+               iconBg: 'bg-rose-100', iconText: 'text-rose-600',
+               title: 'text-rose-900', desc: 'text-rose-600/80',
+               btn: 'bg-rose-600 hover:bg-rose-700 shadow-rose-200'
+            }
+        }
+    ]
+
+    // FUNCIÓN GENÉRICA PARA ENVIAR CUALQUIER PDF
+    const sendPdfToWorker = async (docConfig: any) => { 
+        try { 
+            const { data: currentFicha } = await supabase.from('fichas').select('doc_states').eq('id', worker.id).single(); 
+            const currentStates = currentFicha?.doc_states || {}; 
+            
+            const newStates = { 
+                ...currentStates, 
+                [docConfig.id]: { 
+                    status: 'pending_download', 
+                    sent_at: new Date().toISOString(), 
+                    label: docConfig.label,
+                    file: docConfig.fileName // Guardamos el nombre exacto del archivo
+                } 
+            }; 
+            
+            const { error } = await supabase.from('fichas').update({ doc_states: newStates }).eq('id', worker.id); 
+            if (error) throw error; 
+            toast.success(`PDF de ${docConfig.label} enviado.`) 
+        } catch (error: any) { 
+            toast.error("Error al enviar: " + error.message) 
+        } 
+    }
+
+    return (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm z-50 flex justify-end" onClick={onClose}>
+            <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }} className="w-full max-w-md bg-white h-full shadow-2xl flex flex-col border-l border-slate-100" onClick={e => e.stopPropagation()}>
+                
+                <div id="drawer-header" className="h-20 px-6 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
+                    <div>
+                        <h2 className="font-bold text-slate-900 text-xl tracking-tight">SSOMA</h2>
+                        <div className="flex items-center gap-2 mt-1">
+                            <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                            <p className="text-xs text-slate-500 font-medium">{worker.nombres}</p>
+                        </div>
+                    </div>
+                    <button id="drawer-close-btn" onClick={onClose} className="p-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full transition-colors"><X size={20}/></button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/50">
+                    
+                    {/* SECCIÓN DE DESCARGAS (NUEVO DISEÑO COLORIDO) */}
+                    <div>
+                        <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-3 pl-1">Documentos de Lectura</p>
+                        <div className="space-y-4">
+                            {SSOMA_DOWNLOADS.map((doc) => (
+                                <div key={doc.id} className={`p-4 rounded-2xl border shadow-sm ${doc.styles.bg} ${doc.styles.border}`}>
+                                    <div className="flex items-start gap-3">
+                                        <div className={`p-2 rounded-lg ${doc.styles.iconBg} ${doc.styles.iconText}`}>
+                                            {doc.icon}
+                                        </div>
+                                        <div>
+                                            <h4 className={`font-bold text-sm ${doc.styles.title}`}>{doc.label}</h4>
+                                            <p className={`text-xs mt-1 leading-relaxed ${doc.styles.desc}`}>{doc.desc}</p>
+                                        </div>
+                                    </div>
+                                    <button 
+                                        onClick={() => sendPdfToWorker(doc)} 
+                                        className={`mt-3 w-full py-2.5 text-white text-xs font-bold rounded-xl transition-colors flex items-center justify-center gap-2 shadow-lg active:scale-95 ${doc.styles.btn}`}
+                                    >
+                                        <Send size={14}/> Enviar PDF al Obrero
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="h-px bg-slate-200"></div>
+
+                    {/* SECCIÓN DOCUMENTOS DE FIRMA */}
+                    <div id="drawer-info-section">
+                        <div className="flex items-center justify-between mb-4">
+                            <p className="text-xs text-slate-500 uppercase font-bold tracking-wider">REGISTROS DE FIRMA</p>
+                            <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-bold">{DIGITAL_DOCS.length} Docs</span>
+                        </div>
+                        
+                        <div className="space-y-3">
+                            {DIGITAL_DOCS.map((doc) => { 
+                                const status = docStates[doc.id]?.status || 'locked'; 
+                                const isUnlocked = status === 'unlocked'; 
+                                const isCompleted = status === 'completed'; 
+                                
+                                return (
+                                    <div key={doc.id} className={`p-4 rounded-2xl border flex items-center justify-between transition-all group ${isCompleted ? 'bg-emerald-50/50 border-emerald-200' : isUnlocked ? 'bg-white border-blue-200 shadow-md shadow-blue-100/50 ring-1 ring-blue-100' : 'bg-white border-slate-200 shadow-sm opacity-70 grayscale'}`}>
+                                        <div className="flex items-center gap-4">
+                                            <div className={`p-2.5 rounded-xl ${isCompleted ? 'bg-emerald-100 text-emerald-600' : isUnlocked ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400'}`}>
+                                                {isCompleted ? <CheckCircle size={20}/> : <FileText size={20}/>}
+                                            </div>
+                                            <div>
+                                                <h4 className="font-bold text-sm text-slate-800">{doc.label}</h4>
+                                                <p className="text-[10px] font-bold mt-0.5 flex items-center gap-1.5">
+                                                    <span className={`w-1.5 h-1.5 rounded-full ${isCompleted ? 'bg-emerald-500' : isUnlocked ? 'bg-blue-500 animate-pulse' : 'bg-slate-400'}`}></span>
+                                                    <span style={{color: isCompleted ? '#059669' : isUnlocked ? '#2563EB' : '#94A3B8'}}>{isCompleted ? 'FIRMADO' : isUnlocked ? 'DISPONIBLE' : 'BLOQUEADO'}</span>
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <button onClick={() => resetDoc(doc.id)} className="p-2 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors" title="Reiniciar"><Trash2 size={16} /></button>
+                                            <button onClick={() => toggleLock(doc.id)} className={`p-2 rounded-lg transition-all shadow-sm ${isUnlocked ? 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-blue-200' : 'bg-white border border-slate-200 text-slate-500 hover:bg-slate-50'}`} title={isUnlocked ? "Bloquear" : "Habilitar"}>{isUnlocked ? <Unlock size={18} /> : <Lock size={18} />}</button>
+                                        </div>
+                                    </div>
+                                ) 
+                            })}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="p-6 border-t border-slate-200 bg-white">
+                    <button className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-colors shadow-lg shadow-slate-900/20" onClick={onClose}>Cerrar Panel</button>
+                </div>
+            </motion.div>
+        </motion.div>
+    )
 }
 
+// --- DRAWER RRHH ACTUALIZADO (DISEÑO PREMIUM CON COLORES) ---
 function AdminRRHHDrawer({ worker, onClose, onUpdate }: any) {
     const supabase = createClient()
     const [docStates, setDocStates] = useState<any>(worker.doc_states || {})
 
     useEffect(() => { setDocStates(worker.doc_states || {}) }, [worker])
 
-    // Enviar PDFs (RIT y Política)
-    const sendPdfToWorker = async (key: string, label: string) => {
-        try {
-            const { data: currentFicha } = await supabase.from('fichas').select('doc_states').eq('id', worker.id).single()
-            const currentStates = currentFicha?.doc_states || {}
-            
-            // Usamos nombres de archivo estándar
-            let fileName = '';
-            if (key === 'rit_pdf_download') fileName = 'REGLAMENTO INTERNO DE TRABAJO.pdf';
-            else if (key === 'hostigamiento_pdf_download') fileName = 'POLITICA DE HOSTIGAMIENTO SEXUAL.pdf';
-            else if (key === 'beneficiarios_pdf_download') fileName = 'DECLARACION DE BENEFICIARIOS_VIDA LEY_2019.pdf';
-
-            const newStates = { 
-                ...currentStates, 
-                [key]: { 
-                    status: 'pending_download', 
-                    sent_at: new Date().toISOString(),
-                    label: label,
-                    file: fileName 
-                } 
-            }
-            
-            const { error } = await supabase.from('fichas').update({ doc_states: newStates }).eq('id', worker.id)
-            if (error) throw error
-            toast.success(`${label} enviado a ${worker.nombres}`)
-        } catch (error: any) {
-            toast.error("Error al enviar PDF: " + error.message)
-        }
-    }
-
-    // Actualizar estados para Cargos (Habilitar/Bloquear)
+    // ACTUALIZAR ESTADOS (Firma/Bloqueo)
     const updateDocState = async (docId: string, newState: any, msg: string) => {
         const updatedDocStates = { ...docStates, [docId]: newState }
         setDocStates(updatedDocStates) 
@@ -1173,6 +1328,73 @@ function AdminRRHHDrawer({ worker, onClose, onUpdate }: any) {
         updateDocState(docId, { status: 'locked', data: {}, completed_at: null }, "Documento reseteado")
     }
 
+    // LISTA DE DOCUMENTOS PARA DESCARGA (RRHH)
+    const RRHH_DOWNLOADS = [
+        {
+            id: 'rit_pdf_download',
+            label: 'Reglamento Interno (RIT)',
+            fileName: 'REGLAMENTO INTERNO DE TRABAJO.pdf',
+            desc: 'Lectura obligatoria para el personal.',
+            icon: <FileBadge size={20}/>,
+            styles: {
+               bg: 'bg-purple-50', border: 'border-purple-100',
+               iconBg: 'bg-purple-100', iconText: 'text-purple-600',
+               title: 'text-purple-900', desc: 'text-purple-600/80',
+               btn: 'bg-purple-600 hover:bg-purple-700 shadow-purple-200'
+            }
+        },
+        {
+            id: 'hostigamiento_pdf_download',
+            label: 'Política Hostigamiento',
+            fileName: 'POLITICA DE HOSTIGAMIENTO SEXUAL.pdf',
+            desc: 'Prevención y sanción del hostigamiento.',
+            icon: <ShieldCheck size={20}/>,
+            styles: {
+               bg: 'bg-pink-50', border: 'border-pink-100',
+               iconBg: 'bg-pink-100', iconText: 'text-pink-600',
+               title: 'text-pink-900', desc: 'text-pink-600/80',
+               btn: 'bg-pink-600 hover:bg-pink-700 shadow-pink-200'
+            }
+        },
+        {
+            id: 'beneficiarios_pdf_download',
+            label: 'Declaración Beneficiarios',
+            fileName: 'DECLARACION DE BENEFICIARIOS_VIDA LEY_2019.pdf',
+            desc: 'Vida Ley D. LEG. 688.',
+            icon: <HeartHandshake size={20}/>,
+            styles: {
+               bg: 'bg-orange-50', border: 'border-orange-100',
+               iconBg: 'bg-orange-100', iconText: 'text-orange-600',
+               title: 'text-orange-900', desc: 'text-orange-600/80',
+               btn: 'bg-orange-600 hover:bg-orange-700 shadow-orange-200'
+            }
+        }
+    ]
+
+    // FUNCIÓN GENÉRICA PARA ENVIAR CUALQUIER PDF
+    const sendPdfToWorker = async (docConfig: any) => { 
+        try { 
+            const { data: currentFicha } = await supabase.from('fichas').select('doc_states').eq('id', worker.id).single(); 
+            const currentStates = currentFicha?.doc_states || {}; 
+            
+            const newStates = { 
+                ...currentStates, 
+                [docConfig.id]: { 
+                    status: 'pending_download', 
+                    sent_at: new Date().toISOString(), 
+                    label: docConfig.label,
+                    file: docConfig.fileName 
+                } 
+            }; 
+            
+            const { error } = await supabase.from('fichas').update({ doc_states: newStates }).eq('id', worker.id); 
+            if (error) throw error; 
+            toast.success(`PDF de ${docConfig.label} enviado.`) 
+        } catch (error: any) { 
+            toast.error("Error al enviar: " + error.message) 
+        } 
+    }
+
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm z-50 flex justify-end" onClick={onClose}>
             <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }} className="w-full max-w-md bg-white h-full shadow-2xl flex flex-col border-l border-slate-100" onClick={e => e.stopPropagation()}>
@@ -1191,43 +1413,28 @@ function AdminRRHHDrawer({ worker, onClose, onUpdate }: any) {
                 <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/50">
                     
                     {/* SECCIÓN ENVÍO DE PDFS (LECTURA OBLIGATORIA) */}
-                    <div className="space-y-4">
-                        <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-2">Envío de Documentos (Lectura)</p>
-                        
-                        {/* RIT */}
-                        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-3">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-purple-100 text-purple-600 rounded-lg"><FileBadge size={20}/></div>
-                                <div>
-                                    <h4 className="font-bold text-slate-800 text-sm">Reglamento Interno (RIT)</h4>
-                                    <p className="text-xs text-slate-500">Lectura obligatoria</p>
+                    <div>
+                        <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-3 pl-1">Documentos de Lectura</p>
+                        <div className="space-y-4">
+                            {RRHH_DOWNLOADS.map((doc) => (
+                                <div key={doc.id} className={`p-4 rounded-2xl border shadow-sm ${doc.styles.bg} ${doc.styles.border}`}>
+                                    <div className="flex items-start gap-3">
+                                        <div className={`p-2 rounded-lg ${doc.styles.iconBg} ${doc.styles.iconText}`}>
+                                            {doc.icon}
+                                        </div>
+                                        <div>
+                                            <h4 className={`font-bold text-sm ${doc.styles.title}`}>{doc.label}</h4>
+                                            <p className={`text-xs mt-1 leading-relaxed ${doc.styles.desc}`}>{doc.desc}</p>
+                                        </div>
+                                    </div>
+                                    <button 
+                                        onClick={() => sendPdfToWorker(doc)} 
+                                        className={`mt-3 w-full py-2.5 text-white text-xs font-bold rounded-xl transition-colors flex items-center justify-center gap-2 shadow-lg active:scale-95 ${doc.styles.btn}`}
+                                    >
+                                        <Send size={14}/> Enviar PDF al Obrero
+                                    </button>
                                 </div>
-                            </div>
-                            <button onClick={() => sendPdfToWorker('rit_pdf_download', 'Reglamento Interno de Trabajo')} className="w-full py-2 bg-slate-900 text-white text-xs font-bold rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-center gap-2"><Send size={14}/> Enviar RIT</button>
-                        </div>
-
-                        {/* POLÍTICA HOSTIGAMIENTO */}
-                        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-3">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-pink-100 text-pink-600 rounded-lg"><ShieldCheck size={20}/></div>
-                                <div>
-                                    <h4 className="font-bold text-slate-800 text-sm">Política Hostigamiento</h4>
-                                    <p className="text-xs text-slate-500">Prevención y sanción</p>
-                                </div>
-                            </div>
-                            <button onClick={() => sendPdfToWorker('hostigamiento_pdf_download', 'Política de Hostigamiento Sexual')} className="w-full py-2 bg-slate-900 text-white text-xs font-bold rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-center gap-2"><Send size={14}/> Enviar Política</button>
-                        </div>
-
-                        {/* DECLARACIÓN BENEFICIARIOS (NUEVO) */}
-                        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-3">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-orange-100 text-orange-600 rounded-lg"><HeartHandshake size={20}/></div>
-                                <div>
-                                    <h4 className="font-bold text-slate-800 text-sm">Declaración Beneficiarios</h4>
-                                    <p className="text-xs text-slate-500">Vida Ley D. LEG. 688</p>
-                                </div>
-                            </div>
-                            <button onClick={() => sendPdfToWorker('beneficiarios_pdf_download', 'Declaración de Beneficiarios Vida Ley')} className="w-full py-2 bg-slate-900 text-white text-xs font-bold rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-center gap-2"><Send size={14}/> Enviar Declaración</button>
+                            ))}
                         </div>
                     </div>
 
