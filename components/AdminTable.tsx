@@ -7,6 +7,7 @@ import { pdf } from '@react-pdf/renderer'
 import { FichaDocument } from './FichaPdf'
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
+import * as XLSX from 'xlsx'
 
 // --- COMPONENTES BIOMÉTRICOS ---
 import BiometricSignature from './ssoma/BiometricSignature' 
@@ -34,7 +35,7 @@ import {
   FileCheck, MessageSquare, Filter, ScanFace, Briefcase, 
   HeartPulse, GraduationCap, UploadCloud, Plus, Users, Zap, Mail,
   MailCheck, Clock, AlertCircle, RotateCcw, Monitor, ArrowUpDown,
-  ArrowRightCircle, FileSpreadsheet 
+  ArrowRightCircle, FileSpreadsheet, UserX 
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -100,8 +101,10 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
   const [downloadingPdf, setDownloadingPdf] = useState(false)
   const [deleting, setDeleting] = useState(false)
   
-  // MOVIMIENTO A VIDA LEY
-  const [moving, setMoving] = useState(false)
+  // ACCIONES MASIVAS
+  const [moving, setMoving] = useState(false) // Para Vida Ley
+  const [cessing, setCessing] = useState(false) // Para Cesados (NUEVO)
+  const [exporting, setExporting] = useState(false)
 
   // Audio y Notificaciones
   const [audioEnabled, setAudioEnabled] = useState(false) 
@@ -128,14 +131,14 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
     // Listener de Fichas (Cambios en DB)
     const fichasChannel = supabase.channel('realtime-fichas').on('postgres_changes', { event: '*', schema: 'public', table: 'fichas' }, (payload: any) => {
           if (payload.eventType === 'INSERT') {
-             // Solo agregamos si NO es vida ley
-             if (!payload.new.in_vida_ley) {
+             // Solo agregamos si NO es vida ley Y NO es cesado
+             if (!payload.new.in_vida_ley && !payload.new.es_cesado) {
                  setFichas((prev) => [payload.new, ...prev])
                  if(payload.new.estado === 'completado') { toast.success(`🔔 Nuevo Ingreso: ${payload.new.nombres}`); playSystemSound() }
              }
           } else if (payload.eventType === 'UPDATE') {
-             // Si se movió a vida ley, lo sacamos de la lista
-             if (payload.new.in_vida_ley === true) {
+             // Si se movió a vida ley O a cesados, lo sacamos de la lista
+             if (payload.new.in_vida_ley === true || payload.new.es_cesado === true) {
                  setFichas((prev) => prev.filter(f => f.id !== payload.new.id))
              } else {
                  setFichas((prev) => prev.map(f => f.id === payload.new.id ? payload.new : f))
@@ -204,10 +207,11 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
 
   const fetchFichas = async () => {
     if(fichas.length === 0) setLoading(true)
-    // FILTRO IMPORTANTE: Solo traemos los que NO están en vida ley
+    // FILTRO ACTUALIZADO: Solo traemos los que NO están en vida ley Y NO están cesados
     const { data } = await supabase.from('fichas')
         .select(`*, profiles(role)`)
-        .is('in_vida_ley', false) // SOLO ACTIVOS
+        .is('in_vida_ley', false)
+        .is('es_cesado', false) // SOLO ACTIVOS
         .order('updated_at', { ascending: false })
     if (data) setFichas(data)
     setLoading(false)
@@ -320,6 +324,60 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
       } finally {
           setMoving(false);
       }
+  };
+
+  // --- NUEVA FUNCIÓN: PASAR A CESADOS ---
+  const handleMoveToCesados = async () => {
+      if (selectedIds.length === 0) { toast.warning("Selecciona trabajadores."); return; }
+      if (!confirm(`⚠️ ¿CONFIRMAR CESE para ${selectedIds.length} trabajadores? \n\nPasarán a la lista de Cesados y saldrán de los activos.`)) return;
+
+      setCessing(true)
+      try {
+          // Marcar como cesado y guardar fecha de hoy
+          // Nos aseguramos de que NO estén en vida ley para que no se mezclen
+          const { error } = await supabase
+            .from('fichas')
+            .update({ 
+                es_cesado: true, 
+                fecha_cese: new Date().toISOString(),
+                in_vida_ley: false 
+            })
+            .in('id', selectedIds)
+          
+          if (error) throw error
+          
+          toast.success(`${selectedIds.length} trabajadores dados de baja exitosamente.`)
+          
+          // Actualizar UI
+          setFichas(prev => prev.filter(f => !selectedIds.includes(f.id)))
+          setSelectedIds([])
+          
+          if(onNotifyChange) onNotifyChange("cesó", `a ${selectedIds.length} trabajadores`)
+
+      } catch (error: any) {
+          toast.error("Error al cesar: " + error.message)
+      } finally {
+          setCessing(false)
+      }
+  }
+
+  // --- EXPORTAR EXCEL DIRECTO (SOLO SI LO NECESITAN DESDE AQUÍ TAMBIÉN) ---
+  const handleExportVidaLey = () => {
+      if (selectedIds.length === 0) { toast.warning("Selecciona trabajadores."); return; }
+      setExporting(true); toast.info("Generando Excel...");
+      try {
+          const selectedWorkers = fichas.filter(f => selectedIds.includes(f.id));
+          const excelData = selectedWorkers.map(w => ({
+              'Nombres': w.nombres || '', 'Paterno': w.apellido_paterno || '', 'Materno': w.apellido_materno || '',
+              'TipoTrab': 'O', 'TipoDoc': 'DNI', 'NroDoc': w.dni || '', 'Sexo': 'M',
+              'FechaNac': w.fecha_nacimiento ? new Date(w.fecha_nacimiento).toLocaleDateString('es-PE') : '',
+              'Moneda': 'S', 'Remuneracion': '', 'Sede': w.nombre_obra || ''
+          }));
+          const worksheet = XLSX.utils.json_to_sheet(excelData); const workbook = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(workbook, worksheet, "Planilla Vida Ley");
+          XLSX.writeFile(workbook, `Trama_Vida_Ley_${new Date().toLocaleDateString().replace(/\//g, '-')}.xlsx`);
+          toast.success("Exportado."); if(onNotifyChange) onNotifyChange("exportó", `Excel de ${selectedIds.length} trabajadores`);
+      } catch (error: any) { toast.error("Error al generar el Excel."); } finally { setExporting(false); }
   };
 
   const handleResetConfirmation = async (id: string) => {
@@ -579,10 +637,22 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                         <motion.div initial={{opacity:0, scale:0.9, x: 20}} animate={{opacity:1, scale:1, x: 0}} exit={{opacity:0, scale:0.9, x: 20}} className="flex items-center gap-2 bg-slate-900 p-1.5 rounded-xl shadow-xl shadow-slate-900/20" id="tour-bulk-actions">
                             <span className="text-xs font-bold text-slate-400 px-2">{selectedIds.length}</span><div className="w-[1px] h-4 bg-slate-700 mx-1"></div>
                             
-                            {/* --- BOTÓN MOVER A VIDA LEY --- */}
+                            {/* --- BOTÓN NUEVO: CESADOS (ROJO) --- */}
+                            <button onClick={handleMoveToCesados} disabled={cessing} className="flex items-center gap-2 px-3 py-2 bg-red-600 text-white rounded-lg font-bold text-xs hover:bg-red-700 transition-colors" title="Dar de Baja Definitiva">
+                                {cessing ? <Loader2 className="animate-spin" size={14}/> : <UserX size={14}/>} <span className="hidden sm:inline">DAR DE BAJA</span>
+                            </button>
+
+                            {/* --- BOTÓN MOVER A VIDA LEY (VERDE) --- */}
                             <button onClick={handleMoveToVidaLey} disabled={moving} className="flex items-center gap-2 px-3 py-2 bg-emerald-600 text-white rounded-lg font-bold text-xs hover:bg-emerald-700 transition-colors" title="Mover a Vida Ley">
                                 {moving ? <Loader2 className="animate-spin" size={14}/> : <ArrowRightCircle size={14}/>} <span className="hidden sm:inline">A VIDA LEY</span>
                             </button>
+
+                            {/* --- BOTÓN EXPORTAR EXCEL DIRECTO (OPCIONAL) --- */}
+                            <button onClick={handleExportVidaLey} disabled={exporting} className="p-2 text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-300 rounded-lg transition-colors" title="Exportar Vida Ley (Excel Directo)">
+                                {exporting ? <Loader2 className="animate-spin" size={16}/> : <FileSpreadsheet size={16}/>}
+                            </button>
+
+                            <div className="w-[1px] h-4 bg-slate-700 mx-1"></div>
 
                             <button onClick={handleOpenDocSelector} disabled={preparingDoc} className="p-2 text-white hover:bg-slate-700 rounded-lg transition-colors" title="Imprimir Selección">{preparingDoc ? <Loader2 className="animate-spin" size={16}/> : <Printer size={16}/>}</button>
                             <button onClick={handleBulkDelete} disabled={deleting} className="p-2 text-red-400 hover:bg-red-500/20 hover:text-red-300 rounded-lg transition-colors" title="Eliminar Selección">{deleting ? <Loader2 className="animate-spin" size={16}/> : <Trash2 size={16}/>}</button>
@@ -744,18 +814,13 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
 function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloading, onPrintPreview, onNotifyChange }: FichaDrawerProps & { onNotifyChange?: (a:string, d:string)=>void }) {
     const [isEditing, setIsEditing] = useState(false)
     const supabase = createClient()
-    
-    // CORRECCIÓN: Inicialización segura de estado para evitar el error "undefined"
     const [formData, setFormData] = useState<any>(() => ({
         ...ficha,
         esposa_datos: ficha.esposa ? JSON.parse(ficha.esposa) : { paterno: '', materno: '', nombres: '', dni: '' },
         hijos_datos: ficha.hijos ? JSON.parse(ficha.hijos) : []
     }))
-    
     const [saving, setSaving] = useState(false)
     const [loadingAction, setLoadingAction] = useState(false)
-
-    // Se mantiene el useEffect para actualizaciones externas
     useEffect(() => {
         let esposaObj = { paterno: '', materno: '', nombres: '', dni: '' }
         let hijosArr: any[] = []
@@ -763,7 +828,6 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
         try { hijosArr = ficha.hijos ? JSON.parse(ficha.hijos) : [] } catch(e) {}
         setFormData({ ...ficha, esposa_datos: esposaObj, hijos_datos: hijosArr })
     }, [ficha])
-
     const handleSave = async () => {
         setSaving(true)
         const payload = { ...formData, esposa: JSON.stringify(formData.esposa_datos), hijos: JSON.stringify(formData.hijos_datos) }
@@ -779,7 +843,6 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
             onUpdate() 
         }
     }
-
     const handleChangeStatus = async (newStatus: 'pendiente' | 'completado') => {
         setLoadingAction(true)
         try {
@@ -791,7 +854,6 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
             onUpdate(); onClose()
         } catch (error: any) { toast.error("Error: " + error.message) } finally { setLoadingAction(false) }
     }
-
     const handleDeleteDoc = async (field: string) => {
         if (!confirm("¿Eliminar este documento?")) return
         const { error } = await supabase.from('fichas').update({ [field]: null }).eq('id', ficha.id)
@@ -802,8 +864,6 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
             onUpdate() 
         }
     }
-
-    // Funciones para gestionar familia
     const handleEsposaChange = (field: string, val: string) => setFormData((prev:any) => ({ ...prev, esposa_datos: { ...prev.esposa_datos, [field]: val } }))
     const addHijo = () => setFormData((prev:any) => ({ ...prev, hijos_datos: [...prev.hijos_datos, { paterno: '', materno: '', nombres: '', fecha_nacimiento: '' }] }))
     const removeHijo = (idx: number) => setFormData((prev:any) => ({ ...prev, hijos_datos: prev.hijos_datos.filter((_:any, i:number) => i !== idx) }))
@@ -811,8 +871,6 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
         const newHijos = [...formData.hijos_datos]; newHijos[idx] = { ...newHijos[idx], [field]: val }
         setFormData((prev:any) => ({ ...prev, hijos_datos: newHijos }))
     }
-
-    // Función para subida rápida de documentos por admin
     const handleAdminDocUpload = async (file: File, fieldName: string) => {
         if (!file) return
         const toastId = toast.loading("Subiendo documento...")
@@ -821,7 +879,6 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
             const fileName = `admin_upload_${Date.now()}.${fileExt}`
             const { error: uploadError } = await supabase.storage.from('documentos').upload(fileName, file)
             if(uploadError) throw uploadError
-            
             const { data } = supabase.storage.from('documentos').getPublicUrl(fileName)
             setFormData((prev: any) => ({ ...prev, [fieldName]: data.publicUrl }))
             toast.success("Documento subido (Guardar cambios para confirmar)", { id: toastId })
@@ -829,11 +886,9 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
             toast.error("Error al subir", { id: toastId })
         }
     }
-
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex justify-end" onClick={onClose}>
             <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", damping: 30, stiffness: 300 }} className="w-full max-w-2xl bg-white h-full shadow-2xl flex flex-col border-l border-white/20" onClick={e => e.stopPropagation()}>
-                
                 <div id="drawer-header" className="h-24 px-8 border-b border-slate-100 flex justify-between items-center bg-white z-10 shrink-0 relative overflow-hidden">
                     <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none"><ShieldCheck size={120} /></div>
                     <div className="flex items-center gap-5 relative z-10">
@@ -848,13 +903,11 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
                     </div>
                     <button id="drawer-close-btn" onClick={onClose} className="p-2.5 bg-slate-50 hover:bg-slate-100 rounded-full transition-colors relative z-10 text-slate-500"><X size={20}/></button>
                 </div>
-                
                 <div className="flex-1 overflow-y-auto p-8 space-y-8 bg-slate-50 scroll-smooth">
                     <div id="drawer-actions-top" className="flex gap-3 sticky top-0 z-10 pb-4 bg-slate-50/95 backdrop-blur-sm pt-2">
                         <button onClick={onDownload} disabled={downloading} className="flex-1 flex items-center justify-center gap-2 bg-white border border-slate-200 text-slate-700 py-3.5 rounded-xl text-sm font-bold shadow-sm hover:border-blue-300 hover:text-blue-600 transition-all disabled:opacity-50 active:scale-95">{downloading ? <Loader2 className="animate-spin" size={16}/> : <><Download size={16}/> Descargar PDF</>}</button>
                         <button onClick={() => setIsEditing(!isEditing)} className={`flex-1 flex items-center justify-center gap-2 border py-3.5 rounded-xl text-sm font-bold shadow-sm transition-all active:scale-95 ${isEditing ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:bg-white hover:border-slate-300'}`}>{isEditing ? 'Cancelar Edición' : 'Editar Datos'}</button>
                     </div>
-
                     <div id="drawer-info-section">
                         <Section title="Información Personal" icon={<User size={18}/>}>
                             <Grid>
@@ -870,9 +923,7 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
                                 <Field label="Celular" name="celular" val={formData.celular} edit={isEditing} set={setFormData}/>
                             </Grid>
                         </Section>
-
                         <Section title="Familia" icon={<Users size={18}/>}>
-                             {/* Esposa (Con Optional Chaining para seguridad) */}
                              <div className="mb-4 pb-4 border-b border-slate-200">
                                 <h4 className="text-xs font-bold text-slate-500 mb-2">ESPOSA / CONVIVIENTE</h4>
                                 <Grid>
@@ -882,8 +933,6 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
                                     <Field label="Ap. Materno" val={formData.esposa_datos?.materno || ''} edit={isEditing} customChange={(v:any)=>handleEsposaChange('materno', v)} />
                                 </Grid>
                              </div>
-                             
-                             {/* Hijos */}
                              <div>
                                 <div className="flex justify-between items-center mb-2">
                                     <h4 className="text-xs font-bold text-slate-500">HIJOS ({formData.hijos_datos?.length || 0})</h4>
@@ -902,7 +951,6 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
                                 ))}
                              </div>
                         </Section>
-
                         <Section title="Sistema de Pensiones" icon={<ShieldCheck size={18}/>}>
                             <Grid>
                                 <Field label="Régimen" name="sistema_pension" val={formData.sistema_pension} edit={isEditing} set={setFormData}/>
@@ -910,7 +958,6 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
                                 <Field label="CUSPP" name="cuspp" val={formData.cuspp} edit={isEditing} set={setFormData}/>
                             </Grid>
                         </Section>
-
                         <Section title="Datos Bancarios" icon={<Wallet size={18}/>}>
                             <Grid>
                                 <Field label="Banco" name="banco" val={formData.banco} edit={isEditing} set={setFormData}/>
@@ -918,7 +965,6 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
                                 <Field label="CCI" name="cci" val={formData.cci} edit={isEditing} set={setFormData}/>
                             </Grid>
                         </Section>
-
                         <Section title="Información Laboral" icon={<HardHat size={18}/>}>
                             <Grid>
                                 <Field label="Categoría" name="categoria" val={formData.categoria} edit={isEditing} set={setFormData}/>
@@ -927,7 +973,6 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
                                 <Field label="Obra" name="nombre_obra" val={formData.nombre_obra} edit={isEditing} set={setFormData}/>
                             </Grid>
                         </Section>
-
                         <Section title="Educación" icon={<GraduationCap size={18}/>}>
                             <Grid>
                                 <Field label="Nivel" name="nivel_educacion" val={formData.nivel_educacion} edit={isEditing} set={setFormData}/>
@@ -935,7 +980,6 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
                                 <Field label="Institución" name="universidad" val={formData.universidad} edit={isEditing} set={setFormData} full/>
                             </Grid>
                         </Section>
-
                         <Section title="Emergencia" icon={<HeartPulse size={18}/>}>
                             <Grid>
                                 <Field label="Nombre Contacto" name="emergencia_nombre" val={formData.emergencia_nombre} edit={isEditing} set={setFormData}/>
@@ -943,7 +987,6 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
                                 <Field label="Teléfono" name="emergencia_celular" val={formData.emergencia_celular} edit={isEditing} set={setFormData}/>
                             </Grid>
                         </Section>
-
                         <Section title="Documentos Adjuntos" icon={<FileBadge size={18}/>}>
                             <div className="grid grid-cols-2 gap-4">
                                 <DocCard label="DNI (Frontal)" url={formData.url_dni_frontal} onDelete={() => handleDeleteDoc('url_dni_frontal')} isEditing={isEditing} onUpload={(f:File)=>handleAdminDocUpload(f, 'url_dni_frontal')} />
@@ -959,7 +1002,6 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
                                 <DocCard label="Estudios Hijos" url={formData.url_constancia_estudios} onDelete={() => handleDeleteDoc('url_constancia_estudios')} isEditing={isEditing} onUpload={(f:File)=>handleAdminDocUpload(f, 'url_constancia_estudios')} />
                             </div>
                         </Section>
-
                         <Section title="Firma Registrada" icon={<PenTool size={18}/>}>
                              <div className="border border-dashed border-slate-300 rounded-lg p-4 bg-slate-50 flex justify-center">
                                 {formData.url_firma ? (
@@ -969,7 +1011,6 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
                         </Section>
                     </div>
                 </div>
-
                 <div className="p-6 border-t border-slate-200 bg-white flex justify-between items-center gap-4 shrink-0 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-20">
                     {ficha.estado === 'completado' ? (
                         <button onClick={() => handleChangeStatus('pendiente')} disabled={loadingAction} className="flex-1 bg-amber-50 text-amber-700 border border-amber-200 py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-amber-100 transition-colors active:scale-95">

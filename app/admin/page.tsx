@@ -9,7 +9,8 @@ import MassImport from '@/components/MassImport'
 import ChatSystem from '@/components/ChatSystem' 
 import AdminTour from '@/components/AdminTour' 
 import BiometricBatchUpload from '@/components/BiometricBatchUpload'
-import VidaLeyManager from '@/components/VidaLeyManager' // <--- IMPORTANTE: Componente Nuevo
+import VidaLeyManager from '@/components/VidaLeyManager' 
+import CesadosManager from '@/components/CesadosManager' 
 
 // IMPORTS COMPONENTES
 import BiometricSignature from '@/components/ssoma/BiometricSignature'
@@ -22,7 +23,7 @@ import {
   FileText, Lock, Unlock, ScanLine, Trash2, ChevronRight,
   UserCog, Mail, Key, Save, Send, ScanFace, Zap, Briefcase, FileBadge, 
   HeartHandshake, CheckSquare, Square, ExternalLink, ArrowUpDown,
-  Award, BookOpen, ShieldAlert, FileSpreadsheet // <--- Icono para Vida Ley
+  Award, BookOpen, ShieldAlert, FileSpreadsheet, UserX 
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
@@ -62,8 +63,8 @@ export default function AdminPage() {
   const [userId, setUserId] = useState('') 
   const [loading, setLoading] = useState(true)
 
-  // VISTAS (AHORA INCLUYE 'vida_ley')
-  const [activeView, setActiveView] = useState<'dashboard' | 'biometria' | 'documentos' | 'rrhh' | 'profile' | 'vida_ley'>('dashboard')
+  // VISTAS
+  const [activeView, setActiveView] = useState<'dashboard' | 'biometria' | 'documentos' | 'rrhh' | 'profile' | 'vida_ley' | 'cesados'>('dashboard')
   
   const [isSidebarOpen, setSidebarOpen] = useState(true)
   const [isMobile, setIsMobile] = useState(false)
@@ -428,8 +429,10 @@ export default function AdminPage() {
             <SidebarItem active={activeView === 'dashboard'} onClick={() => handleNavClick('dashboard')} icon={<LayoutDashboard size={20}/>} label="Dashboard General" />
             
             {/* NUEVA SECCIÓN: GESTIÓN DE BAJAS */}
-            <div className="pt-4 pb-2 px-4 text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Gestión de Bajas</div>
+            <div className="pt-4 pb-2 px-4 text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Vida Ley</div>
             <SidebarItem active={activeView === 'vida_ley'} onClick={() => handleNavClick('vida_ley')} icon={<FileSpreadsheet size={20}/>} label="Trama Vida Ley" />
+            <div className="pt-4 pb-2 px-4 text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Gestión de Bajas</div>
+            <SidebarItem active={activeView === 'cesados'} onClick={() => handleNavClick('cesados')} icon={<UserX size={20}/>} label="Historial Cesados" />
 
             <div className="pt-4 pb-2 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Gestión Operativa</div>
             
@@ -482,6 +485,7 @@ export default function AdminPage() {
                         {activeView === 'documentos' && 'Gestión Documental SSOMA'}
                         {activeView === 'rrhh' && 'Gestión de Recursos Humanos'}
                         {activeView === 'vida_ley' && 'Trama Vida Ley'}
+                        {activeView === 'cesados' && 'Historial de Cesados'}
                         {activeView === 'profile' && 'Configuración de Cuenta'}
                     </h2>
                     <p className="text-xs text-slate-400 hidden sm:block">Panel de administración centralizada</p>
@@ -611,14 +615,22 @@ export default function AdminPage() {
                 </motion.div>
             )}
 
-            {/* --- VISTA VIDA LEY (NUEVA PANTALLA) --- */}
+            {/* --- VISTA VIDA LEY (EXCEL EDITABLE) --- */}
             {activeView === 'vida_ley' && (
                 <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="h-full pb-20">
                     <VidaLeyManager />
                 </motion.div>
             )}
 
-            {/* SECCIÓN GRID/LISTA COMPARTIDA */}
+            {/* --- VISTA CESADOS (NUEVA) --- */}
+            {activeView === 'cesados' && (
+    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="h-full pb-20">
+        {/* LE PASAMOS LA FUNCIÓN PARA VOLVER AL DASHBOARD */}
+        <CesadosManager onBack={() => setActiveView('dashboard')} />
+    </motion.div>
+)}
+
+            {/* SECCIÓN GRID/LISTA COMPARTIDA (BIOMETRIA/DOCS/RRHH) */}
             {(activeView === 'biometria' || activeView === 'documentos' || activeView === 'rrhh') && (
                 <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6 h-full flex flex-col max-w-7xl mx-auto">
                     
@@ -1315,14 +1327,43 @@ function AdminDocsDrawer({ worker, onClose, onUpdate }: any) {
     )
 }
 
-// --- DRAWER RRHH ACTUALIZADO (DISEÑO PREMIUM CON COLORES) ---
 function AdminRRHHDrawer({ worker, onClose, onUpdate }: any) {
     const supabase = createClient()
     const [docStates, setDocStates] = useState<any>(worker.doc_states || {})
 
     useEffect(() => { setDocStates(worker.doc_states || {}) }, [worker])
 
-    // ACTUALIZAR ESTADOS (Firma/Bloqueo)
+    // Enviar PDFs (RIT y Política)
+    const sendPdfToWorker = async (key: string, label: string) => {
+        try {
+            const { data: currentFicha } = await supabase.from('fichas').select('doc_states').eq('id', worker.id).single()
+            const currentStates = currentFicha?.doc_states || {}
+            
+            // Usamos nombres de archivo estándar
+            let fileName = '';
+            if (key === 'rit_pdf_download') fileName = 'REGLAMENTO INTERNO DE TRABAJO.pdf';
+            else if (key === 'hostigamiento_pdf_download') fileName = 'POLITICA DE HOSTIGAMIENTO SEXUAL.pdf';
+            else if (key === 'beneficiarios_pdf_download') fileName = 'DECLARACION DE BENEFICIARIOS_VIDA LEY_2019.pdf';
+
+            const newStates = { 
+                ...currentStates, 
+                [key]: { 
+                    status: 'pending_download', 
+                    sent_at: new Date().toISOString(), 
+                    label: label,
+                    file: fileName 
+                } 
+            }
+            
+            const { error } = await supabase.from('fichas').update({ doc_states: newStates }).eq('id', worker.id)
+            if (error) throw error
+            toast.success(`${label} enviado a ${worker.nombres}`)
+        } catch (error: any) {
+            toast.error("Error al enviar PDF: " + error.message)
+        }
+    }
+
+    // Actualizar estados para Cargos (Habilitar/Bloquear)
     const updateDocState = async (docId: string, newState: any, msg: string) => {
         const updatedDocStates = { ...docStates, [docId]: newState }
         setDocStates(updatedDocStates) 
@@ -1349,73 +1390,6 @@ function AdminRRHHDrawer({ worker, onClose, onUpdate }: any) {
         updateDocState(docId, { status: 'locked', data: {}, completed_at: null }, "Documento reseteado")
     }
 
-    // LISTA DE DOCUMENTOS PARA DESCARGA (RRHH)
-    const RRHH_DOWNLOADS = [
-        {
-            id: 'rit_pdf_download',
-            label: 'Reglamento Interno (RIT)',
-            fileName: 'REGLAMENTO INTERNO DE TRABAJO.pdf',
-            desc: 'Lectura obligatoria para el personal.',
-            icon: <FileBadge size={20}/>,
-            styles: {
-               bg: 'bg-purple-50', border: 'border-purple-100',
-               iconBg: 'bg-purple-100', iconText: 'text-purple-600',
-               title: 'text-purple-900', desc: 'text-purple-600/80',
-               btn: 'bg-purple-600 hover:bg-purple-700 shadow-purple-200'
-            }
-        },
-        {
-            id: 'hostigamiento_pdf_download',
-            label: 'Política Hostigamiento',
-            fileName: 'POLITICA DE HOSTIGAMIENTO SEXUAL.pdf',
-            desc: 'Prevención y sanción del hostigamiento.',
-            icon: <ShieldCheck size={20}/>,
-            styles: {
-               bg: 'bg-pink-50', border: 'border-pink-100',
-               iconBg: 'bg-pink-100', iconText: 'text-pink-600',
-               title: 'text-pink-900', desc: 'text-pink-600/80',
-               btn: 'bg-pink-600 hover:bg-pink-700 shadow-pink-200'
-            }
-        },
-        {
-            id: 'beneficiarios_pdf_download',
-            label: 'Declaración Beneficiarios',
-            fileName: 'DECLARACION DE BENEFICIARIOS_VIDA LEY_2019.pdf',
-            desc: 'Vida Ley D. LEG. 688.',
-            icon: <HeartHandshake size={20}/>,
-            styles: {
-               bg: 'bg-orange-50', border: 'border-orange-100',
-               iconBg: 'bg-orange-100', iconText: 'text-orange-600',
-               title: 'text-orange-900', desc: 'text-orange-600/80',
-               btn: 'bg-orange-600 hover:bg-orange-700 shadow-orange-200'
-            }
-        }
-    ]
-
-    // FUNCIÓN GENÉRICA PARA ENVIAR CUALQUIER PDF
-    const sendPdfToWorker = async (docConfig: any) => { 
-        try { 
-            const { data: currentFicha } = await supabase.from('fichas').select('doc_states').eq('id', worker.id).single(); 
-            const currentStates = currentFicha?.doc_states || {}; 
-            
-            const newStates = { 
-                ...currentStates, 
-                [docConfig.id]: { 
-                    status: 'pending_download', 
-                    sent_at: new Date().toISOString(), 
-                    label: docConfig.label,
-                    file: docConfig.fileName 
-                } 
-            }; 
-            
-            const { error } = await supabase.from('fichas').update({ doc_states: newStates }).eq('id', worker.id); 
-            if (error) throw error; 
-            toast.success(`PDF de ${docConfig.label} enviado.`) 
-        } catch (error: any) { 
-            toast.error("Error al enviar: " + error.message) 
-        } 
-    }
-
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm z-50 flex justify-end" onClick={onClose}>
             <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }} className="w-full max-w-md bg-white h-full shadow-2xl flex flex-col border-l border-slate-100" onClick={e => e.stopPropagation()}>
@@ -1434,28 +1408,43 @@ function AdminRRHHDrawer({ worker, onClose, onUpdate }: any) {
                 <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/50">
                     
                     {/* SECCIÓN ENVÍO DE PDFS (LECTURA OBLIGATORIA) */}
-                    <div>
-                        <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-3 pl-1">Documentos de Lectura</p>
-                        <div className="space-y-4">
-                            {RRHH_DOWNLOADS.map((doc) => (
-                                <div key={doc.id} className={`p-4 rounded-2xl border shadow-sm ${doc.styles.bg} ${doc.styles.border}`}>
-                                    <div className="flex items-start gap-3">
-                                        <div className={`p-2 rounded-lg ${doc.styles.iconBg} ${doc.styles.iconText}`}>
-                                            {doc.icon}
-                                        </div>
-                                        <div>
-                                            <h4 className={`font-bold text-sm ${doc.styles.title}`}>{doc.label}</h4>
-                                            <p className={`text-xs mt-1 leading-relaxed ${doc.styles.desc}`}>{doc.desc}</p>
-                                        </div>
-                                    </div>
-                                    <button 
-                                        onClick={() => sendPdfToWorker(doc)} 
-                                        className={`mt-3 w-full py-2.5 text-white text-xs font-bold rounded-xl transition-colors flex items-center justify-center gap-2 shadow-lg active:scale-95 ${doc.styles.btn}`}
-                                    >
-                                        <Send size={14}/> Enviar PDF al Obrero
-                                    </button>
+                    <div className="space-y-4">
+                        <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-2">Envío de Documentos (Lectura)</p>
+                        
+                        {/* RIT */}
+                        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-3">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-purple-100 text-purple-600 rounded-lg"><FileBadge size={20}/></div>
+                                <div>
+                                    <h4 className="font-bold text-slate-800 text-sm">Reglamento Interno (RIT)</h4>
+                                    <p className="text-xs text-slate-500">Lectura obligatoria</p>
                                 </div>
-                            ))}
+                            </div>
+                            <button onClick={() => sendPdfToWorker('rit_pdf_download', 'Reglamento Interno de Trabajo')} className="w-full py-2 bg-slate-900 text-white text-xs font-bold rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-center gap-2"><Send size={14}/> Enviar RIT</button>
+                        </div>
+
+                        {/* POLÍTICA HOSTIGAMIENTO */}
+                        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-3">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-pink-100 text-pink-600 rounded-lg"><ShieldCheck size={20}/></div>
+                                <div>
+                                    <h4 className="font-bold text-slate-800 text-sm">Política Hostigamiento</h4>
+                                    <p className="text-xs text-slate-500">Prevención y sanción</p>
+                                </div>
+                            </div>
+                            <button onClick={() => sendPdfToWorker('hostigamiento_pdf_download', 'Política de Hostigamiento Sexual')} className="w-full py-2 bg-slate-900 text-white text-xs font-bold rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-center gap-2"><Send size={14}/> Enviar Política</button>
+                        </div>
+
+                        {/* DECLARACIÓN BENEFICIARIOS (NUEVO) */}
+                        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-3">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-orange-100 text-orange-600 rounded-lg"><HeartHandshake size={20}/></div>
+                                <div>
+                                    <h4 className="font-bold text-slate-800 text-sm">Declaración Beneficiarios</h4>
+                                    <p className="text-xs text-slate-500">Vida Ley D. LEG. 688</p>
+                                </div>
+                            </div>
+                            <button onClick={() => sendPdfToWorker('beneficiarios_pdf_download', 'Declaración de Beneficiarios Vida Ley')} className="w-full py-2 bg-slate-900 text-white text-xs font-bold rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-center gap-2"><Send size={14}/> Enviar Declaración</button>
                         </div>
                     </div>
 
