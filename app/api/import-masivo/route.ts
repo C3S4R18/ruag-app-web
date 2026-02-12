@@ -20,20 +20,20 @@ export async function POST(request: Request) {
 
     for (const emp of employees) {
       const documentNumber = emp.dni.trim()
-      // Generamos el correo "falso" por defecto
       const generatedEmail = `${documentNumber}@ruag.sistema` 
       const password = documentNumber 
 
       let userId = null;
-      let finalEmailToUse = generatedEmail; // Por defecto usaremos el generado
+      let finalEmailToUse = generatedEmail; 
       let isExistingUser = false;
+      
+      // VARIABLE PARA GUARDAR EL ROL ACTUAL (IMPORTANTE PARA NO BORRAR ADMINS)
+      let currentRole = 'obrero'; 
 
       // 1. ESTRATEGIA DE BÚSQUEDA
-      // Buscamos si ya tiene perfil. Si existe, intentamos obtener su email REAL de la tabla fichas o profiles
-      // para no sobrescribirlo con el falso.
       const { data: existingProfile } = await supabaseAdmin
         .from('profiles')
-        .select('id')
+        .select('id, role') // <--- AQUI: TRAEMOS TAMBIÉN EL ROL
         .eq('dni', documentNumber)
         .single()
 
@@ -41,7 +41,12 @@ export async function POST(request: Request) {
         userId = existingProfile.id
         isExistingUser = true;
         
-        // OPCIONAL: Si quieres asegurarte de usar el correo que YA tiene en la tabla fichas:
+        // SI YA EXISTE, PRESERVAMOS SU ROL (Si es admin, se queda admin)
+        if (existingProfile.role) {
+            currentRole = existingProfile.role;
+        }
+
+        // Recuperar email real si existe en ficha
         const { data: existingFicha } = await supabaseAdmin
             .from('fichas')
             .select('correo')
@@ -49,12 +54,11 @@ export async function POST(request: Request) {
             .single()
             
         if (existingFicha && existingFicha.correo) {
-            finalEmailToUse = existingFicha.correo; // Mantenemos su correo actual (sea real o falso)
+            finalEmailToUse = existingFicha.correo; 
         }
 
       } else {
         // --- USUARIO NUEVO ---
-        // Si no tiene perfil, intentamos crearlo en Auth
         const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
           email: generatedEmail,
           password: password,
@@ -64,17 +68,15 @@ export async function POST(request: Request) {
 
         if (!authError && authData.user) {
           userId = authData.user.id
+          // Si es nuevo, el rol se queda en 'obrero' (por defecto)
         } else if (authError?.message?.includes('already registered')) {
-          // Si existe en Auth pero no en Profiles (Caso raro/recuperación)
-          // En este caso, no podemos recuperar el email real fácilmente sin el ID, 
-          // así que usaremos el generado, pero marcaremos el error si no podemos proceder.
-          results.errors++
-          results.details.push({ dni: documentNumber, error: "Usuario existe en Auth sin Perfil. Requiere revisión manual." })
-          continue
+           // Caso raro: Existe en Auth pero no en Profile. 
+           // Intentaremos arreglarlo, pero marcamos error por seguridad.
+           results.errors++
+           continue
         } else {
-          results.errors++
-          results.details.push({ dni: documentNumber, error: authError?.message })
-          continue
+           results.errors++
+           continue
         }
       }
 
@@ -87,11 +89,10 @@ export async function POST(request: Request) {
           apellido_paterno: emp.apellido_paterno,
           apellido_materno: emp.apellido_materno,
           telefono: emp.celular,
-          role: 'obrero'
+          role: currentRole // <--- AQUI ESTÁ LA CORRECCIÓN: Usamos el rol preservado
         })
 
         // 3. ACTUALIZAR / CREAR FICHA
-        // Aquí preparamos el objeto para upsert
         const fichaData: any = {
           user_id: userId,
           estado: 'completado',
@@ -129,15 +130,9 @@ export async function POST(request: Request) {
           updated_at: new Date().toISOString()
         }
 
-        // CORRECCIÓN CRÍTICA:
-        // Solo actualizamos el campo 'correo' si es un usuario NUEVO.
-        // Si es antiguo, NO enviamos el campo 'correo' en el upsert para que la base de datos mantenga el valor actual.
-        // O si preferimos, usamos el 'finalEmailToUse' que recuperamos arriba.
         if (!isExistingUser) {
             fichaData.correo = generatedEmail;
         } else {
-            // Si ya existe, nos aseguramos de que el upsert NO toque el correo,
-            // O forzamos el correo que recuperamos de la base de datos (finalEmailToUse)
             fichaData.correo = finalEmailToUse; 
         }
 
