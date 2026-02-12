@@ -9,6 +9,7 @@ import MassImport from '@/components/MassImport'
 import ChatSystem from '@/components/ChatSystem' 
 import AdminTour from '@/components/AdminTour' 
 import BiometricBatchUpload from '@/components/BiometricBatchUpload'
+import VidaLeyManager from '@/components/VidaLeyManager' // <--- IMPORTANTE: Componente Nuevo
 
 // IMPORTS COMPONENTES
 import BiometricSignature from '@/components/ssoma/BiometricSignature'
@@ -21,12 +22,12 @@ import {
   FileText, Lock, Unlock, ScanLine, Trash2, ChevronRight,
   UserCog, Mail, Key, Save, Send, ScanFace, Zap, Briefcase, FileBadge, 
   HeartHandshake, CheckSquare, Square, ExternalLink, ArrowUpDown,
-  Award, BookOpen, ShieldAlert 
+  Award, BookOpen, ShieldAlert, FileSpreadsheet // <--- Icono para Vida Ley
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 
-// --- CONFIGURACIÓN DOCUMENTOS SSOMA (Firma/Bloqueo) ---
+// --- CONFIGURACIÓN DOCUMENTOS SSOMA ---
 const DIGITAL_DOCS = [
     { id: 'risst', label: 'Cargo RISST', type: 'lock' },
     { id: 'capacitacion', label: 'Registro Capacitación', type: 'lock' },
@@ -61,8 +62,8 @@ export default function AdminPage() {
   const [userId, setUserId] = useState('') 
   const [loading, setLoading] = useState(true)
 
-  // VISTAS
-  const [activeView, setActiveView] = useState<'dashboard' | 'biometria' | 'documentos' | 'rrhh' | 'profile'>('dashboard')
+  // VISTAS (AHORA INCLUYE 'vida_ley')
+  const [activeView, setActiveView] = useState<'dashboard' | 'biometria' | 'documentos' | 'rrhh' | 'profile' | 'vida_ley'>('dashboard')
   
   const [isSidebarOpen, setSidebarOpen] = useState(true)
   const [isMobile, setIsMobile] = useState(false)
@@ -318,7 +319,7 @@ export default function AdminPage() {
   const handleOpenMassAction = () => {
       if (activeView === 'documentos') setMassActionType('ssoma')
       else if (activeView === 'rrhh') setMassActionType('rrhh')
-      else return 
+      else return // En biometría no hay envíos masivos por ahora
 
       setSelectedMassDocs([])
       setShowMassActionModal(true)
@@ -339,6 +340,7 @@ export default function AdminPage() {
       let successCount = 0
 
       for (const workerId of selectedGridIds) {
+          // Obtener estado actual del worker
           const worker = workersData.find(w => w.id === workerId)
           if (!worker) continue
 
@@ -347,7 +349,9 @@ export default function AdminPage() {
           
           docsToProcess.forEach(doc => {
               if (doc.type === 'pdf') {
+                  // Lógica para documentos PDF (Envío para descarga)
                   let fileName = ''
+                  // Mapeo manual de nombres de archivo si es necesario, o usar el label
                   if (doc.id === 'risst_pdf_download') fileName = 'REGLAMENTO INTERNO DE SEGURIDAD.pdf'
                   else if (doc.id === 'rit_pdf_download') fileName = 'REGLAMENTO INTERNO DE TRABAJO.pdf'
                   else if (doc.id === 'hostigamiento_pdf_download') fileName = 'POLITICA DE HOSTIGAMIENTO SEXUAL.pdf'
@@ -360,9 +364,11 @@ export default function AdminPage() {
                       file: fileName
                   }
               } else {
+                  // Lógica para documentos LOCK (Habilitar firma)
+                  // Solo habilitamos si no está completado, para no reiniciar firmas ya hechas
                   if (newStates[doc.id]?.status !== 'completed') {
                       newStates[doc.id] = {
-                          status: 'unlocked', 
+                          status: 'unlocked', // Habilitamos para firma
                           updated_at: new Date().toISOString()
                       }
                   }
@@ -378,7 +384,7 @@ export default function AdminPage() {
       setSelectedGridIds([])
       toast.success(`Acción masiva completada en ${successCount} trabajadores.`)
       broadcastChange('realizó', `envío masivo de ${selectedMassDocs.length} documentos a ${successCount} personas`)
-      fetchData() 
+      fetchData() // Refrescar datos
   }
 
 
@@ -421,6 +427,10 @@ export default function AdminPage() {
         <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto mt-2">
             <SidebarItem active={activeView === 'dashboard'} onClick={() => handleNavClick('dashboard')} icon={<LayoutDashboard size={20}/>} label="Dashboard General" />
             
+            {/* NUEVA SECCIÓN: GESTIÓN DE BAJAS */}
+            <div className="pt-4 pb-2 px-4 text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Gestión de Bajas</div>
+            <SidebarItem active={activeView === 'vida_ley'} onClick={() => handleNavClick('vida_ley')} icon={<FileSpreadsheet size={20}/>} label="Trama Vida Ley" />
+
             <div className="pt-4 pb-2 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Gestión Operativa</div>
             
             <div id="nav-biometria">
@@ -431,6 +441,7 @@ export default function AdminPage() {
                 <SidebarItem active={activeView === 'documentos'} onClick={() => handleNavClick('documentos')} icon={<HardHat size={20}/>} label="Registros SIG" />
             </div>
             
+            {/* NUEVO ITEM RRHH */}
             <div id="nav-rrhh">
                 <SidebarItem active={activeView === 'rrhh'} onClick={() => handleNavClick('rrhh')} icon={<Briefcase size={20}/>} label="Gestión RRHH" />
             </div>
@@ -470,6 +481,7 @@ export default function AdminPage() {
                         {activeView === 'biometria' && 'Control Biométrico'}
                         {activeView === 'documentos' && 'Gestión Documental SSOMA'}
                         {activeView === 'rrhh' && 'Gestión de Recursos Humanos'}
+                        {activeView === 'vida_ley' && 'Trama Vida Ley'}
                         {activeView === 'profile' && 'Configuración de Cuenta'}
                     </h2>
                     <p className="text-xs text-slate-400 hidden sm:block">Panel de administración centralizada</p>
@@ -478,6 +490,7 @@ export default function AdminPage() {
 
             <div className="flex items-center gap-6">
                 
+                {/* MOSTRAR ADMINS CONECTADOS (BURBUJAS) - AHORA SIEMPRE VISIBLE */}
                 <div className="flex items-center gap-2">
                     <span className="text-[10px] font-bold text-slate-400 uppercase mr-1 hidden md:inline">En línea:</span>
                     <div className="flex -space-x-2">
@@ -489,6 +502,7 @@ export default function AdminPage() {
                                 >
                                     {user.name ? user.name.charAt(0) : '?'}
                                 </div>
+                                {/* Tooltip */}
                                 <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
                                     {user.name || 'Admin'}
                                 </div>
@@ -594,6 +608,13 @@ export default function AdminPage() {
                             onNotifyChange={broadcastChange}
                         />
                     </div>
+                </motion.div>
+            )}
+
+            {/* --- VISTA VIDA LEY (NUEVA PANTALLA) --- */}
+            {activeView === 'vida_ley' && (
+                <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="h-full pb-20">
+                    <VidaLeyManager />
                 </motion.div>
             )}
 

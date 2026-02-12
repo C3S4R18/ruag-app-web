@@ -33,7 +33,8 @@ import {
   PenTool, Fingerprint, Share2, MoreHorizontal, Edit3,
   FileCheck, MessageSquare, Filter, ScanFace, Briefcase, 
   HeartPulse, GraduationCap, UploadCloud, Plus, Users, Zap, Mail,
-  MailCheck, Clock, AlertCircle, RotateCcw, Monitor, ArrowUpDown
+  MailCheck, Clock, AlertCircle, RotateCcw, Monitor, ArrowUpDown,
+  ArrowRightCircle, FileSpreadsheet 
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -99,6 +100,9 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
   const [downloadingPdf, setDownloadingPdf] = useState(false)
   const [deleting, setDeleting] = useState(false)
   
+  // MOVIMIENTO A VIDA LEY
+  const [moving, setMoving] = useState(false)
+
   // Audio y Notificaciones
   const [audioEnabled, setAudioEnabled] = useState(false) 
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({})
@@ -124,10 +128,19 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
     // Listener de Fichas (Cambios en DB)
     const fichasChannel = supabase.channel('realtime-fichas').on('postgres_changes', { event: '*', schema: 'public', table: 'fichas' }, (payload: any) => {
           if (payload.eventType === 'INSERT') {
-             setFichas((prev) => [payload.new, ...prev])
-             if(payload.new.estado === 'completado') { toast.success(`🔔 Nuevo Ingreso: ${payload.new.nombres}`); playSystemSound() }
+             // Solo agregamos si NO es vida ley
+             if (!payload.new.in_vida_ley) {
+                 setFichas((prev) => [payload.new, ...prev])
+                 if(payload.new.estado === 'completado') { toast.success(`🔔 Nuevo Ingreso: ${payload.new.nombres}`); playSystemSound() }
+             }
           } else if (payload.eventType === 'UPDATE') {
-             setFichas((prev) => prev.map(f => f.id === payload.new.id ? payload.new : f))
+             // Si se movió a vida ley, lo sacamos de la lista
+             if (payload.new.in_vida_ley === true) {
+                 setFichas((prev) => prev.filter(f => f.id !== payload.new.id))
+             } else {
+                 setFichas((prev) => prev.map(f => f.id === payload.new.id ? payload.new : f))
+             }
+             
              // Notificar si se confirmó el correo
              if (payload.new.email_confirmed_at && !payload.old.email_confirmed_at) {
                  toast.success(`📧 Correo confirmado por ${payload.new.nombres}`);
@@ -191,7 +204,11 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
 
   const fetchFichas = async () => {
     if(fichas.length === 0) setLoading(true)
-    const { data } = await supabase.from('fichas').select(`*, profiles(role)`).order('updated_at', { ascending: false })
+    // FILTRO IMPORTANTE: Solo traemos los que NO están en vida ley
+    const { data } = await supabase.from('fichas')
+        .select(`*, profiles(role)`)
+        .is('in_vida_ley', false) // SOLO ACTIVOS
+        .order('updated_at', { ascending: false })
     if (data) setFichas(data)
     setLoading(false)
   }
@@ -271,7 +288,40 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
       } catch (error: any) { toast.error("Error: " + error.message) } finally { setDeleting(false) }
   }
 
-  // --- NUEVA FUNCIÓN: RESETEAR CONFIRMACIÓN DE CORREO ---
+  // --- FUNCIÓN CLAVE: MOVER A VIDA LEY ---
+  const handleMoveToVidaLey = async () => {
+      if (selectedIds.length === 0) {
+          toast.warning("Selecciona al menos un trabajador para mover.");
+          return;
+      }
+
+      if (!confirm(`¿Estás seguro de mover ${selectedIds.length} trabajadores a la gestión de VIDA LEY?\n\nDesaparecerán de esta lista principal y pasarán al módulo de bajas para su gestión en Excel.`)) return;
+
+      setMoving(true);
+      try {
+          // 1. Actualizamos el campo 'in_vida_ley' a true
+          const { error } = await supabase
+              .from('fichas')
+              .update({ in_vida_ley: true })
+              .in('id', selectedIds);
+
+          if (error) throw error;
+
+          toast.success(`${selectedIds.length} trabajadores movidos a Vida Ley.`);
+          if(onNotifyChange) onNotifyChange("movió", `${selectedIds.length} obreros a la gestión de Vida Ley`);
+
+          // 2. Actualizamos la tabla localmente (los quitamos de la vista)
+          setFichas(prev => prev.filter(f => !selectedIds.includes(f.id)));
+          setSelectedIds([]);
+
+      } catch (error: any) {
+          console.error("Error moviendo a vida ley:", error);
+          toast.error("Error al mover: " + error.message);
+      } finally {
+          setMoving(false);
+      }
+  };
+
   const handleResetConfirmation = async (id: string) => {
       if(!confirm("¿Deseas anular la confirmación de recepción y volver a estado Pendiente?")) return;
       
@@ -528,6 +578,12 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                     {selectedIds.length > 0 && (
                         <motion.div initial={{opacity:0, scale:0.9, x: 20}} animate={{opacity:1, scale:1, x: 0}} exit={{opacity:0, scale:0.9, x: 20}} className="flex items-center gap-2 bg-slate-900 p-1.5 rounded-xl shadow-xl shadow-slate-900/20" id="tour-bulk-actions">
                             <span className="text-xs font-bold text-slate-400 px-2">{selectedIds.length}</span><div className="w-[1px] h-4 bg-slate-700 mx-1"></div>
+                            
+                            {/* --- BOTÓN MOVER A VIDA LEY --- */}
+                            <button onClick={handleMoveToVidaLey} disabled={moving} className="flex items-center gap-2 px-3 py-2 bg-emerald-600 text-white rounded-lg font-bold text-xs hover:bg-emerald-700 transition-colors" title="Mover a Vida Ley">
+                                {moving ? <Loader2 className="animate-spin" size={14}/> : <ArrowRightCircle size={14}/>} <span className="hidden sm:inline">A VIDA LEY</span>
+                            </button>
+
                             <button onClick={handleOpenDocSelector} disabled={preparingDoc} className="p-2 text-white hover:bg-slate-700 rounded-lg transition-colors" title="Imprimir Selección">{preparingDoc ? <Loader2 className="animate-spin" size={16}/> : <Printer size={16}/>}</button>
                             <button onClick={handleBulkDelete} disabled={deleting} className="p-2 text-red-400 hover:bg-red-500/20 hover:text-red-300 rounded-lg transition-colors" title="Eliminar Selección">{deleting ? <Loader2 className="animate-spin" size={16}/> : <Trash2 size={16}/>}</button>
                         </motion.div>
@@ -684,8 +740,6 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
     </div>
   )
 }
-
-// ... SUBCOMPONENTES (Drawer, etc) ...
 
 function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloading, onPrintPreview, onNotifyChange }: FichaDrawerProps & { onNotifyChange?: (a:string, d:string)=>void }) {
     const [isEditing, setIsEditing] = useState(false)
@@ -935,22 +989,13 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
     )
 }
 
-// --------------------------------------------------------------------------------------
-// MODAL DE VISTA PREVIA (MODIFICADO: Sin correo por defecto)
-// --------------------------------------------------------------------------------------
 function PdfPreviewModal({ pdfUrl, pdfFile, workerName, workerId, onClose }: { pdfUrl: string, pdfFile: File | null, workerName: string, workerId?: string, onClose: () => void }) {
     const supabase = createClient()
-    
-    // Correo del Obrero (Para enviarle)
     const [recipientEmail, setRecipientEmail] = useState('')
-    
-    // Correo del Admin (Inicia VACÍO para que escribas el que quieras)
     const [myEmail, setMyEmail] = useState('')
-
     const [status, setStatus] = useState<'idle' | 'uploading' | 'ready'>('idle')
     const [emlUrl, setEmlUrl] = useState<string | null>(null)
 
-    // --- WHATSAPP ---
     const handleShareWhatsApp = async () => {
         if (!pdfFile) return
         const isMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent.toLowerCase());
@@ -959,7 +1004,6 @@ function PdfPreviewModal({ pdfUrl, pdfFile, workerName, workerId, onClose }: { p
         setTimeout(() => { window.open(`https://wa.me/?text=${encodeURIComponent(`Hola, adjunto los documentos de *${workerName}*.`)}`, '_blank') }, 1000)
     }
 
-    // --- PREPARAR DATOS ---
     const prepareOutlookData = async () => {
         if (!recipientEmail || !recipientEmail.includes('@')) { toast.error("Falta el correo del obrero."); return; }
         if (!myEmail || !myEmail.includes('@')) { toast.error("Escribe tu correo para recibir la confirmación."); return; }
@@ -973,8 +1017,6 @@ function PdfPreviewModal({ pdfUrl, pdfFile, workerName, workerId, onClose }: { p
             if (uploadError) throw uploadError;
 
             const { data: { publicUrl } } = supabase.storage.from('documentos_temporales').getPublicUrl(fileName);
-
-            // USA EL CORREO QUE ESCRIBISTE MANUALMENTE EN EL INPUT
             const confirmLink = `${window.location.origin}/api/confirm-receipt?id=${workerId}&doc=legajo&admin_email=${encodeURIComponent(myEmail)}`;
 
             const subject = `Documentación Laboral - ${workerName}`;
@@ -1021,12 +1063,7 @@ ${body}`;
 
     const downloadAndOpenOutlook = () => {
         if (!emlUrl) return;
-        const link = document.createElement('a');
-        link.href = emlUrl;
-        link.download = `Enviar_a_${workerName.split(' ')[0]}.eml`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        const link = document.createElement('a'); link.href = emlUrl; link.download = `Enviar_a_${workerName.split(' ')[0]}.eml`; document.body.appendChild(link); link.click(); document.body.removeChild(link);
     }
 
     return (
@@ -1044,54 +1081,22 @@ ${body}`;
                 
                 <div className="p-5 border-t bg-white flex flex-col gap-4 shrink-0">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {/* 1. CORREO DEL OBRERO */}
                         <div className="flex flex-col gap-2">
                             <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Para (Obrero):</label>
-                            <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200 focus-within:ring-2 focus-within:ring-blue-100">
-                                <Mail className="text-slate-400 ml-2" size={18}/>
-                                <input 
-                                    type="email" 
-                                    placeholder="obrero@correo.com" 
-                                    className="flex-1 bg-transparent outline-none text-sm text-slate-700 font-medium" 
-                                    value={recipientEmail} 
-                                    onChange={(e) => setRecipientEmail(e.target.value)}
-                                    disabled={status !== 'idle'}
-                                />
-                            </div>
+                            <div className="flex items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200 focus-within:ring-2 focus-within:ring-blue-100"><Mail className="text-slate-400 ml-2" size={18}/><input type="email" placeholder="obrero@correo.com" className="flex-1 bg-transparent outline-none text-sm text-slate-700 font-medium" value={recipientEmail} onChange={(e) => setRecipientEmail(e.target.value)} disabled={status !== 'idle'}/></div>
                         </div>
-
-                        {/* 2. TU CORREO (VACÍO POR DEFECTO) */}
                         <div className="flex flex-col gap-2">
                             <label className="text-[10px] font-bold text-slate-500 uppercase ml-1">Recibir confirmación en:</label>
-                            <div className="flex items-center gap-2 bg-indigo-50 p-2 rounded-xl border border-indigo-200 focus-within:ring-2 focus-within:ring-indigo-300">
-                                <div className="bg-indigo-200 text-indigo-700 p-1 rounded-md"><Zap size={14}/></div>
-                                <input 
-                                    type="email" 
-                                    placeholder="ejemplo@tuempresa.com" 
-                                    className="flex-1 bg-transparent outline-none text-sm text-indigo-900 font-bold" 
-                                    value={myEmail} 
-                                    onChange={(e) => setMyEmail(e.target.value)}
-                                    disabled={status !== 'idle'}
-                                />
-                            </div>
+                            <div className="flex items-center gap-2 bg-indigo-50 p-2 rounded-xl border border-indigo-200 focus-within:ring-2 focus-within:ring-indigo-300"><div className="bg-indigo-200 text-indigo-700 p-1 rounded-md"><Zap size={14}/></div><input type="email" placeholder="ejemplo@tuempresa.com" className="flex-1 bg-transparent outline-none text-sm text-indigo-900 font-bold" value={myEmail} onChange={(e) => setMyEmail(e.target.value)} disabled={status !== 'idle'}/></div>
                         </div>
                     </div>
 
                     <div className="flex flex-col sm:flex-row gap-3 pt-2">
                         <button onClick={onClose} className="px-6 py-3.5 rounded-xl font-bold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">Cerrar</button>
                         <button onClick={handleShareWhatsApp} className="flex-1 py-3.5 rounded-xl font-bold bg-green-500 text-white hover:bg-green-600 shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95"><Share2 size={20}/> WhatsApp</button>
-
-                        {status === 'idle' && (
-                            <button onClick={prepareOutlookData} disabled={!recipientEmail || !myEmail} className="flex-1 py-3.5 rounded-xl font-bold bg-blue-600 text-white hover:bg-blue-700 shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95 disabled:opacity-50">
-                                <Monitor size={20}/> Preparar Outlook
-                            </button>
-                        )}
-                        {status === 'uploading' && (
-                            <button disabled className="flex-1 py-3.5 rounded-xl font-bold bg-blue-400 text-white flex items-center justify-center gap-2 cursor-wait"><Loader2 className="animate-spin" size={20}/> Generando...</button>
-                        )}
-                        {status === 'ready' && (
-                            <button onClick={downloadAndOpenOutlook} className="flex-1 py-3.5 rounded-xl font-bold bg-blue-700 text-white hover:bg-blue-800 shadow-lg flex items-center justify-center gap-2 animate-pulse"><Download size={20}/> ABRIR OUTLOOK</button>
-                        )}
+                        {status === 'idle' && (<button onClick={prepareOutlookData} disabled={!recipientEmail || !myEmail} className="flex-1 py-3.5 rounded-xl font-bold bg-blue-600 text-white hover:bg-blue-700 shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95 disabled:opacity-50"><Monitor size={20}/> Preparar Outlook</button>)}
+                        {status === 'uploading' && (<button disabled className="flex-1 py-3.5 rounded-xl font-bold bg-blue-400 text-white flex items-center justify-center gap-2 cursor-wait"><Loader2 className="animate-spin" size={20}/> Generando...</button>)}
+                        {status === 'ready' && (<button onClick={downloadAndOpenOutlook} className="flex-1 py-3.5 rounded-xl font-bold bg-blue-700 text-white hover:bg-blue-800 shadow-lg flex items-center justify-center gap-2 animate-pulse"><Download size={20}/> ABRIR OUTLOOK</button>)}
                     </div>
                 </div>
             </motion.div>
