@@ -431,7 +431,9 @@ export default function AdminPage() {
             {/* NUEVA SECCIÓN: GESTIÓN DE BAJAS */}
             <div className="pt-4 pb-2 px-4 text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Vida Ley</div>
             <SidebarItem active={activeView === 'vida_ley'} onClick={() => handleNavClick('vida_ley')} icon={<FileSpreadsheet size={20}/>} label="Trama Vida Ley" />
-            <div className="pt-4 pb-2 px-4 text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Gestión de Bajas</div>
+            <div className="pt-4 pb-2 px-4 text-[10px] font-bold text-red-600 uppercase tracking-widest">
+  Gestión de Bajas
+</div>
             <SidebarItem active={activeView === 'cesados'} onClick={() => handleNavClick('cesados')} icon={<UserX size={20}/>} label="Historial Cesados" />
 
             <div className="pt-4 pb-2 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Gestión Operativa</div>
