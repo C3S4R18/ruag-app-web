@@ -11,7 +11,7 @@ import AdminTour from '@/components/AdminTour'
 import BiometricBatchUpload from '@/components/BiometricBatchUpload'
 import VidaLeyManager from '@/components/VidaLeyManager' 
 import CesadosManager from '@/components/CesadosManager'
-import SctrManager from '@/components/SctrManager' // <--- IMPORT SCTR AGREGADO
+import SctrManager from '@/components/SctrManager' 
 
 // IMPORTS COMPONENTES
 import BiometricSignature from '@/components/ssoma/BiometricSignature'
@@ -47,13 +47,13 @@ const DIGITAL_DOCS: DocDefinition[] = [
     { id: 'iperc', label: 'Entrega IPERC', type: 'lock' },
 ]
 
-// --- CONFIGURACIÓN DOCUMENTOS RRHH (ACTUALIZADO: Agregados Ética y Antisoborno) ---
+// --- CONFIGURACIÓN DOCUMENTOS RRHH ---
 const RRHH_DOCS_CONFIG: DocDefinition[] = [
     { id: 'rit_pdf_download', label: 'Reglamento Interno Trabajo (RIT)', type: 'pdf' },
     { id: 'hostigamiento_pdf_download', label: 'Política Hostigamiento', type: 'pdf' },
     { id: 'beneficiarios_pdf_download', label: 'Declaración Beneficiarios', type: 'pdf' },
-    { id: 'etica_pdf_download', label: 'Código de Ética y Conducta', type: 'pdf' }, // MOVIDO AQUI
-    { id: 'antisoborno_pdf_download', label: 'Política Antisoborno', type: 'pdf' }, // MOVIDO AQUI
+    { id: 'etica_pdf_download', label: 'Código de Ética y Conducta', type: 'pdf' },
+    { id: 'antisoborno_pdf_download', label: 'Política Antisoborno', type: 'pdf' },
     { id: 'cargo_politica_prevencion', label: 'Cargo Política Prevención', type: 'lock' },
     { id: 'cargo_rit', label: 'Cargo Reglamento Trabajo', type: 'lock' },
 ]
@@ -74,7 +74,7 @@ export default function AdminPage() {
   const [userId, setUserId] = useState('') 
   const [loading, setLoading] = useState(true)
 
-  // VISTAS (Agregado 'sctr')
+  // VISTAS
   const [activeView, setActiveView] = useState<'dashboard' | 'biometria' | 'documentos' | 'rrhh' | 'profile' | 'vida_ley' | 'sctr' | 'cesados'>('dashboard')
   
   const [isSidebarOpen, setSidebarOpen] = useState(true)
@@ -470,43 +470,73 @@ export default function AdminPage() {
             </div>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto mt-2">
-            <SidebarItem active={activeView === 'dashboard'} onClick={() => handleNavClick('dashboard')} icon={<LayoutDashboard size={20}/>} label="Dashboard General" />
-            
-            {/* SECCIÓN GESTIÓN DE SEGUROS Y BAJAS (Con IDs para el Tour y SCTR añadido) */}
-            <div className="pt-4 pb-2 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Seguros y Bajas</div>
-            
-            <div id="nav-vida_ley">
-                <SidebarItem active={activeView === 'vida_ley'} onClick={() => handleNavClick('vida_ley')} icon={<FileSpreadsheet size={20} className="text-emerald-600"/>} label="Trama Vida Ley" />
-            </div>
-            
-            {/* NUEVO ITEM SCTR AGREGADO */}
-            <div id="nav-sctr">
-                <SidebarItem active={activeView === 'sctr'} onClick={() => handleNavClick('sctr')} icon={<ShieldCheck size={20} className="text-amber-600"/>} label="Trama SCTR" />
+        {/* --- SIDEBAR REORGANIZADO Y MODERNO --- */}
+        <nav className="flex-1 px-4 py-6 space-y-8 overflow-y-auto">
+            {/* Dashboard General - Solo */}
+            <div>
+                <SidebarItem active={activeView === 'dashboard'} onClick={() => handleNavClick('dashboard')} icon={<LayoutDashboard size={20}/>} label="Dashboard General" />
             </div>
 
-            <div id="nav-cesados">
-                <SidebarItem active={activeView === 'cesados'} onClick={() => handleNavClick('cesados')} icon={<UserX size={20} className="text-red-600"/>} label="Historial Cesados" />
+            {/* GRUPO 1: GESTIÓN DE TALENTO (RRHH, Vida Ley, Cesados) */}
+            <div>
+                <div className="px-4 mb-3 flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest opacity-80">Gestión de Talento</span>
+                    <div className="h-px flex-1 bg-slate-800"></div>
+                </div>
+                <div className="space-y-1">
+                    <div id="nav-rrhh">
+                        <SidebarItem active={activeView === 'rrhh'} onClick={() => handleNavClick('rrhh')} icon={<Briefcase size={20} className="text-purple-400"/>} label="Gestión RRHH" />
+                    </div>
+                    <div id="nav-vida_ley">
+                        <SidebarItem active={activeView === 'vida_ley'} onClick={() => handleNavClick('vida_ley')} icon={<FileSpreadsheet size={20} className="text-emerald-400"/>} label="Trama Vida Ley" />
+                    </div>
+                    <div id="nav-cesados">
+                        <SidebarItem active={activeView === 'cesados'} onClick={() => handleNavClick('cesados')} icon={<UserX size={20} className="text-rose-400"/>} label="Historial Cesados" />
+                    </div>
+                </div>
             </div>
 
-            <div className="pt-4 pb-2 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Gestión Operativa</div>
-            
-            <div id="nav-biometria">
-                <SidebarItem active={activeView === 'biometria'} onClick={() => handleNavClick('biometria')} icon={<Fingerprint size={20}/>} label="Biometría y Firmas" />
+            {/* GRUPO 2: SEGURIDAD (SSOMA, SCTR) */}
+            <div>
+                <div className="px-4 mb-3 flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest opacity-80">Seguridad (SSOMA)</span>
+                    <div className="h-px flex-1 bg-slate-800"></div>
+                </div>
+                <div className="space-y-1">
+                    <div id="nav-documentos">
+                        <SidebarItem active={activeView === 'documentos'} onClick={() => handleNavClick('documentos')} icon={<HardHat size={20} className="text-blue-400"/>} label="Registros SIG" />
+                    </div>
+                    <div id="nav-sctr">
+                        <SidebarItem active={activeView === 'sctr'} onClick={() => handleNavClick('sctr')} icon={<ShieldCheck size={20} className="text-amber-400"/>} label="Trama SCTR" />
+                    </div>
+                </div>
             </div>
 
-            <div id="nav-documentos">
-                <SidebarItem active={activeView === 'documentos'} onClick={() => handleNavClick('documentos')} icon={<HardHat size={20}/>} label="Registros SIG" />
+            {/* GRUPO 3: CONTROL (Biometría) */}
+            <div>
+                <div className="px-4 mb-3 flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest opacity-80">Control Operativo</span>
+                    <div className="h-px flex-1 bg-slate-800"></div>
+                </div>
+                <div className="space-y-1">
+                    <div id="nav-biometria">
+                        <SidebarItem active={activeView === 'biometria'} onClick={() => handleNavClick('biometria')} icon={<Fingerprint size={20} className="text-sky-400"/>} label="Biometría y Firmas" />
+                    </div>
+                </div>
             </div>
-            
-            {/* NUEVO ITEM RRHH */}
-            <div id="nav-rrhh">
-                <SidebarItem active={activeView === 'rrhh'} onClick={() => handleNavClick('rrhh')} icon={<Briefcase size={20}/>} label="Gestión RRHH" />
+
+            {/* GRUPO 4: SISTEMA (Perfil) */}
+            <div>
+                <div className="px-4 mb-3 flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest opacity-80">Sistema</span>
+                    <div className="h-px flex-1 bg-slate-800"></div>
+                </div>
+                <div className="space-y-1">
+                    <SidebarItem active={activeView === 'profile'} onClick={() => handleNavClick('profile')} icon={<UserCog size={20}/>} label="Mi Perfil" />
+                </div>
             </div>
-            
-            <div className="pt-4 pb-2 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Cuenta</div>
-            <SidebarItem active={activeView === 'profile'} onClick={() => handleNavClick('profile')} icon={<UserCog size={20}/>} label="Mi Perfil" />
         </nav>
+        {/* ------------------------------------- */}
 
         <AdminTour 
             changeView={(view) => setActiveView(view)} 
@@ -514,8 +544,8 @@ export default function AdminPage() {
             closeDrawer={closeDrawersForTour}
         />
 
-        <div className="p-4 bg-slate-900/30">
-             <button onClick={async () => { await supabase.auth.signOut(); router.push('/') }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-red-500/10 hover:text-red-400 transition-all group">
+        <div className="p-4 bg-slate-900/30 border-t border-slate-800/50">
+             <button onClick={async () => { await supabase.auth.signOut(); router.push('/') }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-rose-500/10 hover:text-rose-400 transition-all group">
                 <LogOut size={20} className="group-hover:-translate-x-1 transition-transform"/>
                 <span className="text-sm font-medium">Cerrar Sesión</span>
              </button>
