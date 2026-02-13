@@ -183,6 +183,28 @@ export default function SctrManager({ onBack }: { onBack?: () => void }) {
         }
     }
 
+    // --- NUEVO: FUNCIÓN PARA ENVIAR POR OUTLOOK ---
+    const handleEnviarOutlook = () => {
+        // 1. Ejecutar descarga
+        handleExportExcel();
+
+        // 2. Preparar correo
+        const destinatario = "emision@atlanticcorredores.com";
+        const fecha = new Date().toLocaleDateString('es-PE');
+        const asunto = `Envío de Trama SCTR - ${fecha}`;
+        const cuerpo = `Estimados,\n\nAdjunto sírvanse encontrar la trama SCTR actualizada.\n\nAtentamente,\nAdministración RUAG`;
+
+        // 3. Crear link mailto
+        const mailtoLink = `mailto:${destinatario}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`;
+
+        // 4. Abrir Outlook (con timeout para que primero inicie la descarga)
+        setTimeout(() => {
+            window.location.href = mailtoLink;
+            toast.info("Outlook abierto. No olvides adjuntar el Excel descargado.", { duration: 5000, icon: '📧' });
+        }, 1000);
+    }
+    // ----------------------------------------------
+
     const filteredRows = rows.filter(r => 
         (r.nombres + r.ape_paterno + r.num_doc).toLowerCase().includes(search.toLowerCase())
     )
@@ -219,14 +241,28 @@ export default function SctrManager({ onBack }: { onBack?: () => void }) {
                             onChange={e => setSearch(e.target.value)}
                         />
                     </div>
+
                     <button 
                         onClick={handleExportExcel} 
                         disabled={exporting || rows.length === 0}
-                        className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-xl text-sm font-bold hover:bg-green-700 transition-all shadow-lg shadow-green-600/20 disabled:opacity-50 active:scale-95"
+                        className="flex items-center gap-2 px-4 py-3 bg-green-600 text-white rounded-xl text-sm font-bold hover:bg-green-700 transition-all shadow-lg shadow-green-600/20 disabled:opacity-50 active:scale-95"
                     >
                         {exporting ? <Loader2 className="animate-spin" size={18}/> : <FileSpreadsheet size={18}/>}
                         <span className="hidden sm:inline">Exportar Excel</span>
                     </button>
+
+                    {/* --- BOTÓN NUEVO: ENVIAR OUTLOOK --- */}
+                    <button 
+                        onClick={handleEnviarOutlook}
+                        disabled={exporting || rows.length === 0}
+                        className="flex items-center gap-2 px-4 py-3 bg-[#0078D4] hover:bg-[#005a9e] text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-900/20 transition-all active:scale-95 border border-white/10 disabled:opacity-50"
+                        title="Descargar y enviar por Outlook"
+                    >
+                        {/* Icono Outlook/Mail */}
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                        <span className="hidden xl:inline">Enviar a Atlantic</span>
+                    </button>
+                    {/* ----------------------------------- */}
                 </div>
             </div>
 
@@ -370,7 +406,7 @@ export default function SctrManager({ onBack }: { onBack?: () => void }) {
                    <span>Los cambios realizados aquí son <b>temporales para la exportación</b> y no afectan la ficha original del trabajador.</span>
                 </div>
                 <div className="font-mono font-bold">
-                   Total: {filteredRows.length}
+                    Total: {filteredRows.length}
                 </div>
             </div>
         </div>

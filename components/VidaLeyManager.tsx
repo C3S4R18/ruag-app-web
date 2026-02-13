@@ -4,8 +4,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import { toast } from 'sonner'
 import * as XLSX from 'xlsx'
-import { Save, FileSpreadsheet, Loader2, Search, ArrowLeft, Trash2, RotateCcw } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { Save, FileSpreadsheet, Loader2, Search, RotateCcw } from 'lucide-react'
 
 export default function VidaLeyManager() {
     const supabase = createClient()
@@ -27,7 +26,6 @@ export default function VidaLeyManager() {
             toast.error("Error al cargar datos")
         } else {
             // Mapeamos los datos para la "Vista Excel"
-            // Si ya tienen datos guardados en 'datos_vida_ley', los usamos. Si no, valores por defecto.
             const mapped = data.map(w => {
                 const savedData = w.datos_vida_ley || {}
                 return {
@@ -117,6 +115,28 @@ export default function VidaLeyManager() {
         }
     }
 
+    // --- NUEVO: FUNCIÓN PARA ENVIAR POR OUTLOOK ---
+    const handleEnviarOutlook = () => {
+        // 1. Descargar el Excel primero
+        handleExportExcel();
+
+        // 2. Preparar los datos del correo
+        const destinatario = "emision@atlanticcorredores.com";
+        const fecha = new Date().toLocaleDateString('es-PE');
+        const asunto = `Envío de Trama Vida Ley - ${fecha}`;
+        const cuerpo = `Estimados,\n\nAdjunto sírvanse encontrar la trama Vida Ley actualizada.\n\nAtentamente,\nAdministración RUAG`;
+
+        // 3. Crear el link mailto
+        const mailtoLink = `mailto:${destinatario}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`;
+
+        // 4. Abrir Outlook (con un pequeño retraso para que no interrumpa la descarga)
+        setTimeout(() => {
+            window.location.href = mailtoLink;
+            toast.info("Outlook abierto. Por favor adjunta el Excel descargado.", { duration: 5000, icon: '📧' });
+        }, 1000);
+    }
+    // ----------------------------------------------
+
     const filteredWorkers = workers.filter(w => 
         (w.nombres || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
         (w.paterno || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -140,23 +160,37 @@ export default function VidaLeyManager() {
                     </p>
                 </div>
                 
-                <div className="flex gap-3">
+                <div className="flex gap-3 items-center">
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16}/>
                         <input 
                             type="text" 
                             placeholder="Buscar en lista..." 
-                            className="pl-9 pr-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                            className="pl-9 pr-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-emerald-500 outline-none w-48"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
-                    <button onClick={handleSaveChanges} disabled={saving} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2.5 rounded-xl font-bold text-sm hover:bg-blue-700 transition-colors disabled:opacity-50">
-                        {saving ? <Loader2 className="animate-spin" size={16}/> : <Save size={16}/>} Guardar Avance
+                    
+                    <button onClick={handleSaveChanges} disabled={saving} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2.5 rounded-xl font-bold text-sm hover:bg-blue-700 transition-colors disabled:opacity-50" title="Guardar cambios">
+                        {saving ? <Loader2 className="animate-spin" size={16}/> : <Save size={16}/>}
                     </button>
-                    <button onClick={handleExportExcel} className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2.5 rounded-xl font-bold text-sm hover:bg-emerald-700 transition-colors shadow-lg hover:shadow-emerald-200">
-                        <FileSpreadsheet size={16}/> EXPORTAR TRAMA (.XLSX)
+                    
+                    <button onClick={handleExportExcel} className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2.5 rounded-xl font-bold text-sm hover:bg-emerald-700 transition-colors shadow-lg hover:shadow-emerald-200" title="Solo descargar Excel">
+                        <FileSpreadsheet size={16}/> Excel
                     </button>
+
+                    {/* --- BOTÓN NUEVO: ENVIAR OUTLOOK --- */}
+                    <button 
+                        onClick={handleEnviarOutlook}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-[#0078D4] hover:bg-[#005a9e] text-white rounded-xl font-bold text-sm shadow-lg shadow-blue-900/20 transition-all active:scale-95 border border-white/10"
+                        title="Descargar y abrir Outlook"
+                    >
+                        {/* Icono Outlook/Mail */}
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                        <span className="hidden xl:inline">Enviar a Atlantic</span>
+                    </button>
+                    {/* ----------------------------------- */}
                 </div>
             </div>
 

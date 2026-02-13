@@ -47,11 +47,13 @@ const DIGITAL_DOCS: DocDefinition[] = [
     { id: 'iperc', label: 'Entrega IPERC', type: 'lock' },
 ]
 
-// --- CONFIGURACIÓN DOCUMENTOS RRHH ---
+// --- CONFIGURACIÓN DOCUMENTOS RRHH (ACTUALIZADO: Agregados Ética y Antisoborno) ---
 const RRHH_DOCS_CONFIG: DocDefinition[] = [
     { id: 'rit_pdf_download', label: 'Reglamento Interno Trabajo (RIT)', type: 'pdf' },
     { id: 'hostigamiento_pdf_download', label: 'Política Hostigamiento', type: 'pdf' },
     { id: 'beneficiarios_pdf_download', label: 'Declaración Beneficiarios', type: 'pdf' },
+    { id: 'etica_pdf_download', label: 'Código de Ética y Conducta', type: 'pdf' }, // MOVIDO AQUI
+    { id: 'antisoborno_pdf_download', label: 'Política Antisoborno', type: 'pdf' }, // MOVIDO AQUI
     { id: 'cargo_politica_prevencion', label: 'Cargo Política Prevención', type: 'lock' },
     { id: 'cargo_rit', label: 'Cargo Reglamento Trabajo', type: 'lock' },
 ]
@@ -399,6 +401,8 @@ export default function AdminPage() {
                   else if (doc.id === 'rit_pdf_download') fileName = 'REGLAMENTO INTERNO DE TRABAJO.pdf'
                   else if (doc.id === 'hostigamiento_pdf_download') fileName = 'POLITICA DE HOSTIGAMIENTO SEXUAL.pdf'
                   else if (doc.id === 'beneficiarios_pdf_download') fileName = 'DECLARACION DE BENEFICIARIOS_VIDA LEY_2019.pdf'
+                  else if (doc.id === 'etica_pdf_download') fileName = 'CODIGO DE ETICA Y CONDUCTA.pdf'
+                  else if (doc.id === 'antisoborno_pdf_download') fileName = 'POLITICA ANTISOBORNO Y ANTICORRUPCIÓN.pdf'
 
                   newStates[doc.id] = {
                       status: 'pending_download',
@@ -911,8 +915,8 @@ export default function AdminPage() {
                                 <div key={admin.id} className="flex items-center gap-4 p-3 bg-slate-50 rounded-xl border border-slate-100">
                                     <div className="w-10 h-10 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center font-bold">{admin.nombres.charAt(0)}</div>
                                     <div>
-                                        <p className="font-bold text-slate-800 text-sm">{admin.nombres} {admin.apellido_paterno}</p>
-                                        <p className="text-xs text-slate-500 font-mono">{admin.dni}</p>
+                                            <p className="font-bold text-slate-800 text-sm">{admin.nombres} {admin.apellido_paterno}</p>
+                                            <p className="text-xs text-slate-500 font-mono">{admin.dni}</p>
                                     </div>
                                     <div className="ml-auto bg-indigo-600 text-white text-[10px] px-2 py-0.5 rounded font-bold">ADMIN</div>
                                 </div>
@@ -941,11 +945,11 @@ export default function AdminPage() {
                             <div className="space-y-2 mb-6 max-h-60 overflow-y-auto pr-1">
                                 {(massActionType === 'ssoma' ? DIGITAL_DOCS : RRHH_DOCS_CONFIG).map((doc) => (
                                     <label key={doc.id} className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${selectedMassDocs.includes(doc.id) ? (massActionType === 'rrhh' ? 'border-purple-500 bg-purple-50' : 'border-blue-500 bg-blue-50') : 'border-slate-200 hover:bg-slate-50'}`}>
-                                        <div className={`mt-0.5 w-5 h-5 rounded-md border flex items-center justify-center transition-all ${selectedMassDocs.includes(doc.id) ? (massActionType === 'rrhh' ? 'bg-purple-600 border-purple-600' : 'bg-blue-600 border-blue-600') : 'bg-white border-slate-300'}`}>
-                                            {selectedMassDocs.includes(doc.id) && <CheckSquare size={12} className="text-white"/>}
-                                        </div>
-                                        <input type="checkbox" className="hidden" checked={selectedMassDocs.includes(doc.id)} onChange={() => handleToggleMassDoc(doc.id)}/>
-                                        <span className="text-sm font-bold text-slate-700">{doc.label}</span>
+                                            <div className={`mt-0.5 w-5 h-5 rounded-md border flex items-center justify-center transition-all ${selectedMassDocs.includes(doc.id) ? (massActionType === 'rrhh' ? 'bg-purple-600 border-purple-600' : 'bg-blue-600 border-blue-600') : 'bg-white border-slate-300'}`}>
+                                                {selectedMassDocs.includes(doc.id) && <CheckSquare size={12} className="text-white"/>}
+                                            </div>
+                                            <input type="checkbox" className="hidden" checked={selectedMassDocs.includes(doc.id)} onChange={() => handleToggleMassDoc(doc.id)}/>
+                                            <span className="text-sm font-bold text-slate-700">{doc.label}</span>
                                     </label>
                                 ))}
                             </div>
@@ -1223,7 +1227,7 @@ function BiometricModal({ worker, onClose, onUpdate }: any) {
     return (<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[100] flex items-center justify-center p-4" onClick={onClose}><motion.div initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }} className="bg-white rounded-3xl w-full max-w-4xl h-[85vh] flex flex-col overflow-hidden shadow-2xl border border-white/20" onClick={e => e.stopPropagation()}><div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white shrink-0"><div className="flex items-center gap-4"><div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center font-bold text-2xl shadow-lg shadow-blue-500/30">{worker.nombres.charAt(0)}</div><div><h3 className="font-bold text-slate-900 text-xl">{worker.nombres} {worker.apellido_paterno}</h3><div className="flex items-center gap-2 mt-1"><span className="text-xs font-mono font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">{worker.dni}</span><span className="text-xs text-slate-400">•</span><span className="text-xs text-slate-500 font-medium capitalize">{worker.cargo || 'Operario'}</span></div></div></div><button onClick={onClose} className="p-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full transition-colors"><X size={20}/></button></div><div className="flex border-b border-slate-200 shrink-0 bg-slate-50/50 p-1 gap-1 mx-6 mt-4 rounded-xl"><button onClick={() => setTab('firma')} className={`flex-1 py-2.5 text-sm font-bold flex items-center justify-center gap-2 rounded-lg transition-all ${tab === 'firma' ? 'bg-white text-blue-600 shadow-sm border border-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}><PenTool size={16}/> Firma Digital</button><button onClick={() => setTab('huella')} className={`flex-1 py-2.5 text-sm font-bold flex items-center justify-center gap-2 rounded-lg transition-all ${tab === 'huella' ? 'bg-white text-blue-600 shadow-sm border border-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}><ScanLine size={16}/> Huella Dactilar</button></div><div className="flex-1 bg-slate-50 relative p-6 flex items-center justify-center overflow-hidden"><div className="w-full h-full bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden relative">{tab === 'firma' ? ( <BiometricSignature onSave={(data) => updateField('firma_url', data)} onClear={() => updateField('firma_url', null)} existingSignature={worker.firma_url} /> ) : ( <BiometricFingerprint onSave={(data) => updateField('huella_url', data)} onClear={() => updateField('huella_url', null)} existingFingerprint={worker.huella_url} /> )}</div></div></motion.div></motion.div>)
 }
 
-// --- DRAWER SSOMA ACTUALIZADO (MODERNO Y CON 4 DOCS) ---
+// --- DRAWER SSOMA ACTUALIZADO (MODERNO Y CON 2 DOCS RESTANTES) ---
 function AdminDocsDrawer({ worker, onClose, onUpdate }: any) {
     const supabase = createClient(); 
     const [docStates, setDocStates] = useState<any>(worker.doc_states || {});
@@ -1255,7 +1259,7 @@ function AdminDocsDrawer({ worker, onClose, onUpdate }: any) {
         updateDocState(docId, { status: 'locked', data: {}, completed_at: null }, "Documento reseteado") 
     }
 
-    // LISTA DE DOCUMENTOS PARA DESCARGA (RISST + NUEVOS)
+    // LISTA DE DOCUMENTOS PARA DESCARGA (ÉTICA Y ANTISOBORNO MOVIDOS A RRHH)
     const SSOMA_DOWNLOADS = [
         {
             id: 'risst_pdf_download',
@@ -1281,32 +1285,6 @@ function AdminDocsDrawer({ worker, onClose, onUpdate }: any) {
                iconBg: 'bg-emerald-100', iconText: 'text-emerald-600',
                title: 'text-emerald-900', desc: 'text-emerald-600/80',
                btn: 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-200'
-            }
-        },
-        {
-            id: 'etica_pdf_download',
-            label: 'Código de Ética y Conducta',
-            fileName: 'CODIGO DE ETICA Y CONDUCTA.pdf',
-            desc: 'Normas de comportamiento.',
-            icon: <BookOpen size={20}/>,
-            styles: {
-               bg: 'bg-sky-50', border: 'border-sky-100',
-               iconBg: 'bg-sky-100', iconText: 'text-sky-600',
-               title: 'text-sky-900', desc: 'text-sky-600/80',
-               btn: 'bg-sky-600 hover:bg-sky-700 shadow-sky-200'
-            }
-        },
-        {
-            id: 'antisoborno_pdf_download',
-            label: 'Política Antisoborno',
-            fileName: 'POLITICA ANTISOBORNO Y ANTICORRUPCIÓN.pdf',
-            desc: 'Prevención de corrupción.',
-            icon: <ShieldAlert size={20}/>,
-            styles: {
-               bg: 'bg-rose-50', border: 'border-rose-100',
-               iconBg: 'bg-rose-100', iconText: 'text-rose-600',
-               title: 'text-rose-900', desc: 'text-rose-600/80',
-               btn: 'bg-rose-600 hover:bg-rose-700 shadow-rose-200'
             }
         }
     ]
@@ -1395,22 +1373,22 @@ function AdminDocsDrawer({ worker, onClose, onUpdate }: any) {
                                 
                                 return (
                                     <div key={doc.id} className={`p-4 rounded-2xl border flex items-center justify-between transition-all group ${isCompleted ? 'bg-emerald-50/50 border-emerald-200' : isUnlocked ? 'bg-white border-blue-200 shadow-md shadow-blue-100/50 ring-1 ring-blue-100' : 'bg-white border-slate-200 shadow-sm opacity-70 grayscale'}`}>
-                                        <div className="flex items-center gap-4">
-                                            <div className={`p-2.5 rounded-xl ${isCompleted ? 'bg-emerald-100 text-emerald-600' : isUnlocked ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400'}`}>
-                                                {isCompleted ? <CheckCircle size={20}/> : <FileText size={20}/>}
+                                            <div className="flex items-center gap-4">
+                                                <div className={`p-2.5 rounded-xl ${isCompleted ? 'bg-emerald-100 text-emerald-600' : isUnlocked ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400'}`}>
+                                                    {isCompleted ? <CheckCircle size={20}/> : <FileText size={20}/>}
+                                                </div>
+                                                <div>
+                                                    <h4 className="font-bold text-sm text-slate-800">{doc.label}</h4>
+                                                    <p className="text-[10px] font-bold mt-0.5 flex items-center gap-1.5">
+                                                        <span className={`w-1.5 h-1.5 rounded-full ${isCompleted ? 'bg-emerald-500' : isUnlocked ? 'bg-blue-500 animate-pulse' : 'bg-slate-400'}`}></span>
+                                                        <span style={{color: isCompleted ? '#059669' : isUnlocked ? '#2563EB' : '#94A3B8'}}>{isCompleted ? 'FIRMADO' : isUnlocked ? 'DISPONIBLE' : 'BLOQUEADO'}</span>
+                                                    </p>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <h4 className="font-bold text-sm text-slate-800">{doc.label}</h4>
-                                                <p className="text-[10px] font-bold mt-0.5 flex items-center gap-1.5">
-                                                    <span className={`w-1.5 h-1.5 rounded-full ${isCompleted ? 'bg-emerald-500' : isUnlocked ? 'bg-blue-500 animate-pulse' : 'bg-slate-400'}`}></span>
-                                                    <span style={{color: isCompleted ? '#059669' : isUnlocked ? '#2563EB' : '#94A3B8'}}>{isCompleted ? 'FIRMADO' : isUnlocked ? 'DISPONIBLE' : 'BLOQUEADO'}</span>
-                                                </p>
+                                            <div className="flex items-center gap-2">
+                                                <button onClick={() => resetDoc(doc.id)} className="p-2 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors" title="Reiniciar"><Trash2 size={16} /></button>
+                                                <button onClick={() => toggleLock(doc.id)} className={`p-2 rounded-lg transition-all shadow-sm ${isUnlocked ? 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-blue-200' : 'bg-white border border-slate-200 text-slate-500 hover:bg-slate-50'}`} title={isUnlocked ? "Bloquear" : "Habilitar"}>{isUnlocked ? <Unlock size={18} /> : <Lock size={18} />}</button>
                                             </div>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <button onClick={() => resetDoc(doc.id)} className="p-2 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors" title="Reiniciar"><Trash2 size={16} /></button>
-                                            <button onClick={() => toggleLock(doc.id)} className={`p-2 rounded-lg transition-all shadow-sm ${isUnlocked ? 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-blue-200' : 'bg-white border border-slate-200 text-slate-500 hover:bg-slate-50'}`} title={isUnlocked ? "Bloquear" : "Habilitar"}>{isUnlocked ? <Unlock size={18} /> : <Lock size={18} />}</button>
-                                        </div>
                                     </div>
                                 ) 
                             })}
@@ -1426,14 +1404,14 @@ function AdminDocsDrawer({ worker, onClose, onUpdate }: any) {
     )
 }
 
-// --- DRAWER RRHH ACTUALIZADO (DISEÑO PREMIUM CON COLORES) ---
+// --- DRAWER RRHH ACTUALIZADO (AHORA INCLUYE ÉTICA Y ANTISOBORNO) ---
 function AdminRRHHDrawer({ worker, onClose, onUpdate }: any) {
     const supabase = createClient()
     const [docStates, setDocStates] = useState<any>(worker.doc_states || {})
 
     useEffect(() => { setDocStates(worker.doc_states || {}) }, [worker])
 
-    // Enviar PDFs (RIT y Política)
+    // Enviar PDFs (RIT, Política, Beneficiarios, Ética, Antisoborno)
     const sendPdfToWorker = async (key: string, label: string) => {
         try {
             const { data: currentFicha } = await supabase.from('fichas').select('doc_states').eq('id', worker.id).single()
@@ -1444,6 +1422,8 @@ function AdminRRHHDrawer({ worker, onClose, onUpdate }: any) {
             if (key === 'rit_pdf_download') fileName = 'REGLAMENTO INTERNO DE TRABAJO.pdf';
             else if (key === 'hostigamiento_pdf_download') fileName = 'POLITICA DE HOSTIGAMIENTO SEXUAL.pdf';
             else if (key === 'beneficiarios_pdf_download') fileName = 'DECLARACION DE BENEFICIARIOS_VIDA LEY_2019.pdf';
+            else if (key === 'etica_pdf_download') fileName = 'CODIGO DE ETICA Y CONDUCTA.pdf'; // Nuevo
+            else if (key === 'antisoborno_pdf_download') fileName = 'POLITICA ANTISOBORNO Y ANTICORRUPCIÓN.pdf'; // Nuevo
 
             const newStates = { 
                 ...currentStates, 
@@ -1535,7 +1515,7 @@ function AdminRRHHDrawer({ worker, onClose, onUpdate }: any) {
                             <button onClick={() => sendPdfToWorker('hostigamiento_pdf_download', 'Política de Hostigamiento Sexual')} className="w-full py-2 bg-slate-900 text-white text-xs font-bold rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-center gap-2"><Send size={14}/> Enviar Política</button>
                         </div>
 
-                        {/* DECLARACIÓN BENEFICIARIOS (NUEVO) */}
+                        {/* DECLARACIÓN BENEFICIARIOS */}
                         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-3">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 bg-orange-100 text-orange-600 rounded-lg"><HeartHandshake size={20}/></div>
@@ -1546,6 +1526,31 @@ function AdminRRHHDrawer({ worker, onClose, onUpdate }: any) {
                             </div>
                             <button onClick={() => sendPdfToWorker('beneficiarios_pdf_download', 'Declaración de Beneficiarios Vida Ley')} className="w-full py-2 bg-slate-900 text-white text-xs font-bold rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-center gap-2"><Send size={14}/> Enviar Declaración</button>
                         </div>
+
+                        {/* CÓDIGO DE ÉTICA (MOVIDO AQUI) */}
+                        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-3">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-sky-100 text-sky-600 rounded-lg"><BookOpen size={20}/></div>
+                                <div>
+                                    <h4 className="font-bold text-slate-800 text-sm">Código de Ética y Conducta</h4>
+                                    <p className="text-xs text-slate-500">Normas de comportamiento</p>
+                                </div>
+                            </div>
+                            <button onClick={() => sendPdfToWorker('etica_pdf_download', 'Código de Ética y Conducta')} className="w-full py-2 bg-slate-900 text-white text-xs font-bold rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-center gap-2"><Send size={14}/> Enviar Código</button>
+                        </div>
+
+                        {/* POLÍTICA ANTISOBORNO (MOVIDO AQUI) */}
+                        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-3">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-rose-100 text-rose-600 rounded-lg"><ShieldAlert size={20}/></div>
+                                <div>
+                                    <h4 className="font-bold text-slate-800 text-sm">Política Antisoborno</h4>
+                                    <p className="text-xs text-slate-500">Prevención de corrupción</p>
+                                </div>
+                            </div>
+                            <button onClick={() => sendPdfToWorker('antisoborno_pdf_download', 'Política Antisoborno')} className="w-full py-2 bg-slate-900 text-white text-xs font-bold rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-center gap-2"><Send size={14}/> Enviar Política</button>
+                        </div>
+
                     </div>
 
                     <div className="h-px bg-slate-200"></div>
@@ -1554,7 +1559,6 @@ function AdminRRHHDrawer({ worker, onClose, onUpdate }: any) {
                     <div>
                         <div className="flex items-center justify-between mb-4">
                             <p className="text-xs text-slate-500 uppercase font-bold tracking-wider">Cargos y Confirmaciones</p>
-                            {/* TIPADO CORRECTO PARA EVITAR ERROR TS */}
                             <span className="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded font-bold">{RRHH_DOCS.length} Docs</span>
                         </div>
                         
@@ -1566,20 +1570,20 @@ function AdminRRHHDrawer({ worker, onClose, onUpdate }: any) {
 
                                 return (
                                     <div key={doc.id} className={`p-4 rounded-2xl border flex items-center justify-between transition-all group ${isCompleted ? 'bg-emerald-50/50 border-emerald-200' : isUnlocked ? 'bg-white border-purple-200 shadow-md shadow-purple-100/50 ring-1 ring-purple-100' : 'bg-white border-slate-200 shadow-sm opacity-70 grayscale'}`}>
-                                        <div className="flex items-center gap-4">
-                                            <div className={`p-2.5 rounded-xl ${isCompleted ? 'bg-emerald-100 text-emerald-600' : isUnlocked ? 'bg-purple-100 text-purple-600' : 'bg-slate-100 text-slate-400'}`}>{isCompleted ? <CheckCircle size={20}/> : <FileText size={20}/>}</div>
-                                            <div>
-                                                <h4 className="font-bold text-sm text-slate-800 line-clamp-1 w-40" title={doc.label}>{doc.label}</h4>
-                                                <p className="text-[10px] font-bold mt-0.5 flex items-center gap-1.5">
-                                                    <span className={`w-1.5 h-1.5 rounded-full ${isCompleted ? 'bg-emerald-500' : isUnlocked ? 'bg-purple-500 animate-pulse' : 'bg-slate-400'}`}></span>
-                                                    <span style={{color: isCompleted ? '#059669' : isUnlocked ? '#9333ea' : '#94A3B8'}}>{isCompleted ? 'FIRMADO' : isUnlocked ? 'PENDIENTE' : 'BLOQUEADO'}</span>
-                                                </p>
+                                            <div className="flex items-center gap-4">
+                                                <div className={`p-2.5 rounded-xl ${isCompleted ? 'bg-emerald-100 text-emerald-600' : isUnlocked ? 'bg-purple-100 text-purple-600' : 'bg-slate-100 text-slate-400'}`}>{isCompleted ? <CheckCircle size={20}/> : <FileText size={20}/>}</div>
+                                                <div>
+                                                    <h4 className="font-bold text-sm text-slate-800 line-clamp-1 w-40" title={doc.label}>{doc.label}</h4>
+                                                    <p className="text-[10px] font-bold mt-0.5 flex items-center gap-1.5">
+                                                        <span className={`w-1.5 h-1.5 rounded-full ${isCompleted ? 'bg-emerald-500' : isUnlocked ? 'bg-purple-500 animate-pulse' : 'bg-slate-400'}`}></span>
+                                                        <span style={{color: isCompleted ? '#059669' : isUnlocked ? '#9333ea' : '#94A3B8'}}>{isCompleted ? 'FIRMADO' : isUnlocked ? 'PENDIENTE' : 'BLOQUEADO'}</span>
+                                                    </p>
+                                                </div>
                                             </div>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <button onClick={() => resetDoc(doc.id)} className="p-2 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors" title="Reiniciar"><Trash2 size={16} /></button>
-                                            <button onClick={() => toggleLock(doc.id)} className={`p-2 rounded-lg transition-all shadow-sm ${isUnlocked ? 'bg-purple-600 text-white hover:bg-purple-700 hover:shadow-purple-200' : 'bg-white border border-slate-200 text-slate-500 hover:bg-slate-50'}`} title={isUnlocked ? "Bloquear" : "Habilitar"}>{isUnlocked ? <Unlock size={18} /> : <Lock size={18} />}</button>
-                                        </div>
+                                            <div className="flex items-center gap-2">
+                                                <button onClick={() => resetDoc(doc.id)} className="p-2 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors" title="Reiniciar"><Trash2 size={16} /></button>
+                                                <button onClick={() => toggleLock(doc.id)} className={`p-2 rounded-lg transition-all shadow-sm ${isUnlocked ? 'bg-purple-600 text-white hover:bg-purple-700 hover:shadow-purple-200' : 'bg-white border border-slate-200 text-slate-500 hover:bg-slate-50'}`} title={isUnlocked ? "Bloquear" : "Habilitar"}>{isUnlocked ? <Unlock size={18} /> : <Lock size={18} />}</button>
+                                            </div>
                                     </div>
                                 )
                             })}
