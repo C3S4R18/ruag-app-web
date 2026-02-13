@@ -11,7 +11,7 @@ import AdminTour from '@/components/AdminTour'
 import BiometricBatchUpload from '@/components/BiometricBatchUpload'
 import VidaLeyManager from '@/components/VidaLeyManager' 
 import CesadosManager from '@/components/CesadosManager'
-import SctrManager from '@/components/SctrManager'
+import SctrManager from '@/components/SctrManager' // <--- IMPORT SCTR AGREGADO
 
 // IMPORTS COMPONENTES
 import BiometricSignature from '@/components/ssoma/BiometricSignature'
@@ -24,13 +24,21 @@ import {
   FileText, Lock, Unlock, ScanLine, Trash2, ChevronRight,
   UserCog, Mail, Key, Save, Send, ScanFace, Zap, Briefcase, FileBadge, 
   HeartHandshake, CheckSquare, Square, ExternalLink, ArrowUpDown,
-  Award, BookOpen, ShieldAlert, FileSpreadsheet, UserX, Wifi, WifiOff // <--- Nuevos Iconos
+  Award, BookOpen, ShieldAlert, FileSpreadsheet, UserX, Wifi, WifiOff 
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 
+// --- INTERFAZ PARA DOCUMENTOS (Solución error TypeScript) ---
+interface DocDefinition {
+  id: string;
+  label: string;
+  type?: string;
+  desc?: string;
+}
+
 // --- CONFIGURACIÓN DOCUMENTOS SSOMA ---
-const DIGITAL_DOCS = [
+const DIGITAL_DOCS: DocDefinition[] = [
     { id: 'risst', label: 'Cargo RISST', type: 'lock' },
     { id: 'capacitacion', label: 'Registro Capacitación', type: 'lock' },
     { id: 'induccion', label: 'Inducción Hombre Nuevo', type: 'lock' },
@@ -40,7 +48,7 @@ const DIGITAL_DOCS = [
 ]
 
 // --- CONFIGURACIÓN DOCUMENTOS RRHH ---
-const RRHH_DOCS_CONFIG = [
+const RRHH_DOCS_CONFIG: DocDefinition[] = [
     { id: 'rit_pdf_download', label: 'Reglamento Interno Trabajo (RIT)', type: 'pdf' },
     { id: 'hostigamiento_pdf_download', label: 'Política Hostigamiento', type: 'pdf' },
     { id: 'beneficiarios_pdf_download', label: 'Declaración Beneficiarios', type: 'pdf' },
@@ -49,7 +57,7 @@ const RRHH_DOCS_CONFIG = [
 ]
 
 // --- CONFIGURACIÓN DOCUMENTOS RRHH (CARGOS PARA HABILITAR) ---
-const RRHH_DOCS = [
+const RRHH_DOCS: DocDefinition[] = [
     { id: 'cargo_politica_prevencion', label: 'Cargo Política de Prevención' },
     { id: 'cargo_rit', label: 'Cargo del Reglamento de Trabajo' },
 ]
@@ -64,8 +72,8 @@ export default function AdminPage() {
   const [userId, setUserId] = useState('') 
   const [loading, setLoading] = useState(true)
 
-  // VISTAS
-  const [activeView, setActiveView] = useState<'dashboard' | 'biometria' | 'documentos' | 'rrhh' | 'profile' | 'vida_ley' | 'cesados'>('dashboard')
+  // VISTAS (Agregado 'sctr')
+  const [activeView, setActiveView] = useState<'dashboard' | 'biometria' | 'documentos' | 'rrhh' | 'profile' | 'vida_ley' | 'sctr' | 'cesados'>('dashboard')
   
   const [isSidebarOpen, setSidebarOpen] = useState(true)
   const [isMobile, setIsMobile] = useState(false)
@@ -461,17 +469,20 @@ export default function AdminPage() {
         <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto mt-2">
             <SidebarItem active={activeView === 'dashboard'} onClick={() => handleNavClick('dashboard')} icon={<LayoutDashboard size={20}/>} label="Dashboard General" />
             
-            {/* NUEVA SECCIÓN: GESTIÓN DE BAJAS */}
-            <div className="pt-4 pb-2 px-4 text-[10px] font-bold text-emerald-600 uppercase tracking-widest">Vida Ley</div>
+            {/* SECCIÓN GESTIÓN DE SEGUROS Y BAJAS (Con IDs para el Tour y SCTR añadido) */}
+            <div className="pt-4 pb-2 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Seguros y Bajas</div>
+            
             <div id="nav-vida_ley">
-                <SidebarItem active={activeView === 'vida_ley'} onClick={() => handleNavClick('vida_ley')} icon={<FileSpreadsheet size={20}/>} label="Trama Vida Ley" />
+                <SidebarItem active={activeView === 'vida_ley'} onClick={() => handleNavClick('vida_ley')} icon={<FileSpreadsheet size={20} className="text-emerald-600"/>} label="Trama Vida Ley" />
             </div>
             
-            <div className="pt-4 pb-2 px-4 text-[10px] font-bold text-red-600 uppercase tracking-widest">
-              Gestión de Bajas
+            {/* NUEVO ITEM SCTR AGREGADO */}
+            <div id="nav-sctr">
+                <SidebarItem active={activeView === 'sctr'} onClick={() => handleNavClick('sctr')} icon={<ShieldCheck size={20} className="text-amber-600"/>} label="Trama SCTR" />
             </div>
+
             <div id="nav-cesados">
-                <SidebarItem active={activeView === 'cesados'} onClick={() => handleNavClick('cesados')} icon={<UserX size={20}/>} label="Historial Cesados" />
+                <SidebarItem active={activeView === 'cesados'} onClick={() => handleNavClick('cesados')} icon={<UserX size={20} className="text-red-600"/>} label="Historial Cesados" />
             </div>
 
             <div className="pt-4 pb-2 px-4 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Gestión Operativa</div>
@@ -525,6 +536,7 @@ export default function AdminPage() {
                         {activeView === 'documentos' && 'Gestión Documental SSOMA'}
                         {activeView === 'rrhh' && 'Gestión de Recursos Humanos'}
                         {activeView === 'vida_ley' && 'Trama Vida Ley'}
+                        {activeView === 'sctr' && 'Trama SCTR'}
                         {activeView === 'cesados' && 'Historial de Cesados'}
                         {activeView === 'profile' && 'Configuración de Cuenta'}
                     </h2>
@@ -673,6 +685,13 @@ export default function AdminPage() {
             {activeView === 'vida_ley' && (
                 <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="h-full pb-20">
                     <VidaLeyManager />
+                </motion.div>
+            )}
+
+            {/* --- VISTA SCTR (NUEVA) --- */}
+            {activeView === 'sctr' && (
+                <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="h-full pb-20">
+                    <SctrManager onBack={() => setActiveView('dashboard')} />
                 </motion.div>
             )}
 
@@ -1535,6 +1554,7 @@ function AdminRRHHDrawer({ worker, onClose, onUpdate }: any) {
                     <div>
                         <div className="flex items-center justify-between mb-4">
                             <p className="text-xs text-slate-500 uppercase font-bold tracking-wider">Cargos y Confirmaciones</p>
+                            {/* TIPADO CORRECTO PARA EVITAR ERROR TS */}
                             <span className="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded font-bold">{RRHH_DOCS.length} Docs</span>
                         </div>
                         

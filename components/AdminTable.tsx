@@ -103,6 +103,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
   
   // ACCIONES MASIVAS
   const [moving, setMoving] = useState(false) // Para Vida Ley
+  const [movingSctr, setMovingSctr] = useState(false) // NUEVO: Para SCTR
   const [cessing, setCessing] = useState(false) // Para Cesados (NUEVO)
   const [exporting, setExporting] = useState(false)
 
@@ -131,14 +132,14 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
     // Listener de Fichas (Cambios en DB)
     const fichasChannel = supabase.channel('realtime-fichas').on('postgres_changes', { event: '*', schema: 'public', table: 'fichas' }, (payload: any) => {
           if (payload.eventType === 'INSERT') {
-             // Solo agregamos si NO es vida ley Y NO es cesado
-             if (!payload.new.in_vida_ley && !payload.new.es_cesado) {
+             // Solo agregamos si NO es vida ley Y NO es cesado Y NO es SCTR
+             if (!payload.new.in_vida_ley && !payload.new.es_cesado && !payload.new.in_sctr) {
                  setFichas((prev) => [payload.new, ...prev])
                  if(payload.new.estado === 'completado') { toast.success(`🔔 Nuevo Ingreso: ${payload.new.nombres}`); playSystemSound() }
              }
           } else if (payload.eventType === 'UPDATE') {
-             // Si se movió a vida ley O a cesados, lo sacamos de la lista
-             if (payload.new.in_vida_ley === true || payload.new.es_cesado === true) {
+             // Si se movió a vida ley O a cesados O a SCTR, lo sacamos de la lista
+             if (payload.new.in_vida_ley === true || payload.new.es_cesado === true || payload.new.in_sctr === true) {
                  setFichas((prev) => prev.filter(f => f.id !== payload.new.id))
              } else {
                  setFichas((prev) => prev.map(f => f.id === payload.new.id ? payload.new : f))
@@ -207,11 +208,12 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
 
   const fetchFichas = async () => {
     if(fichas.length === 0) setLoading(true)
-    // FILTRO ACTUALIZADO: Solo traemos los que NO están en vida ley Y NO están cesados
+    // FILTRO ACTUALIZADO: Solo traemos los que NO están en vida ley Y NO están cesados Y NO están en SCTR
     const { data } = await supabase.from('fichas')
         .select(`*, profiles(role)`)
         .is('in_vida_ley', false)
         .is('es_cesado', false) // SOLO ACTIVOS
+        .is('in_sctr', false) // NUEVO FILTRO SCTR
         .order('updated_at', { ascending: false })
     if (data) setFichas(data)
     setLoading(false)
@@ -326,6 +328,32 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
       }
   };
 
+  // --- NUEVA FUNCIÓN: MOVER A SCTR (AGREGADO) ---
+  const handleMoveToSctr = async () => {
+      if (selectedIds.length === 0) { toast.warning("Selecciona trabajadores."); return; }
+      if (!confirm(`¿Mover ${selectedIds.length} trabajadores a la nómina de SCTR?`)) return;
+
+      setMovingSctr(true);
+      try {
+          const { error } = await supabase
+              .from('fichas')
+              .update({ in_sctr: true })
+              .in('id', selectedIds);
+
+          if (error) throw error;
+
+          toast.success(`${selectedIds.length} trabajadores movidos a SCTR.`);
+          if(onNotifyChange) onNotifyChange("movió", `${selectedIds.length} obreros a SCTR`);
+
+          setFichas(prev => prev.filter(f => !selectedIds.includes(f.id)));
+          setSelectedIds([]);
+      } catch (error: any) {
+          toast.error("Error: " + error.message);
+      } finally {
+          setMovingSctr(false);
+      }
+  };
+
   // --- NUEVA FUNCIÓN: PASAR A CESADOS ---
   const handleMoveToCesados = async () => {
       if (selectedIds.length === 0) { toast.warning("Selecciona trabajadores."); return; }
@@ -340,7 +368,8 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
             .update({ 
                 es_cesado: true, 
                 fecha_cese: new Date().toISOString(),
-                in_vida_ley: false 
+                in_vida_ley: false,
+                in_sctr: false // Limpiamos también SCTR
             })
             .in('id', selectedIds)
           
@@ -640,6 +669,11 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                             {/* --- BOTÓN NUEVO: CESADOS (ROJO) --- */}
                             <button onClick={handleMoveToCesados} disabled={cessing} className="flex items-center gap-2 px-3 py-2 bg-red-600 text-white rounded-lg font-bold text-xs hover:bg-red-700 transition-colors" title="Dar de Baja Definitiva">
                                 {cessing ? <Loader2 className="animate-spin" size={14}/> : <UserX size={14}/>} <span className="hidden sm:inline">DAR DE BAJA</span>
+                            </button>
+
+                            {/* --- BOTÓN MOVER A SCTR (NUEVO AMBER) --- */}
+                            <button onClick={handleMoveToSctr} disabled={movingSctr} className="flex items-center gap-2 px-3 py-2 bg-amber-600 text-white rounded-lg font-bold text-xs hover:bg-amber-700 transition-colors" title="Mover a SCTR">
+                                {movingSctr ? <Loader2 className="animate-spin" size={14}/> : <ShieldCheck size={14}/>} <span className="hidden sm:inline">A SCTR</span>
                             </button>
 
                             {/* --- BOTÓN MOVER A VIDA LEY (VERDE) --- */}
