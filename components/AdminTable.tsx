@@ -35,7 +35,7 @@ import {
   FileCheck, MessageSquare, Filter, ScanFace, Briefcase, 
   HeartPulse, GraduationCap, UploadCloud, Plus, Users, Zap, Mail,
   MailCheck, Clock, AlertCircle, RotateCcw, Monitor, ArrowUpDown,
-  ArrowRightCircle, FileSpreadsheet, UserX 
+  ArrowRightCircle, FileSpreadsheet, UserX, Cake // <--- Icono agregado para Cumpleaños/Edad
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -103,7 +103,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
   
   // ACCIONES MASIVAS
   const [moving, setMoving] = useState(false) // Para Vida Ley
-  const [movingSctr, setMovingSctr] = useState(false) // NUEVO: Para SCTR
+  const [movingSctr, setMovingSctr] = useState(false) // Para SCTR
   const [cessing, setCessing] = useState(false) // Para Cesados (NUEVO)
   const [exporting, setExporting] = useState(false)
 
@@ -112,6 +112,10 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({})
   const [notifications, setNotifications] = useState<any[]>([]) 
   const [showNotifDropdown, setShowNotifDropdown] = useState(false)
+
+  // --- NUEVA LÓGICA: ALERTAS DE HIJOS MAYORES DE EDAD ---
+  const [adultChildrenAlerts, setAdultChildrenAlerts] = useState<any[]>([])
+  const [showBirthdayDropdown, setShowBirthdayDropdown] = useState(false)
 
   // --- EFECTO REFRESH AUTOMÁTICO ---
   useEffect(() => {
@@ -135,6 +139,8 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
              // Solo agregamos si NO es vida ley Y NO es cesado Y NO es SCTR
              if (!payload.new.in_vida_ley && !payload.new.es_cesado && !payload.new.in_sctr) {
                  setFichas((prev) => [payload.new, ...prev])
+                 // Re-verificar edades al insertar
+                 checkForAdultChildren([payload.new, ...fichas]) 
                  if(payload.new.estado === 'completado') { toast.success(`🔔 Nuevo Ingreso: ${payload.new.nombres}`); playSystemSound() }
              }
           } else if (payload.eventType === 'UPDATE') {
@@ -142,7 +148,10 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
              if (payload.new.in_vida_ley === true || payload.new.es_cesado === true || payload.new.in_sctr === true) {
                  setFichas((prev) => prev.filter(f => f.id !== payload.new.id))
              } else {
-                 setFichas((prev) => prev.map(f => f.id === payload.new.id ? payload.new : f))
+                 const updatedList = fichas.map(f => f.id === payload.new.id ? payload.new : f)
+                 setFichas(updatedList)
+                 // Re-verificar edades al actualizar (por si editaron hijos)
+                 checkForAdultChildren(updatedList)
              }
              
              // Notificar si se confirmó el correo
@@ -155,7 +164,9 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                  playSystemSound();
              }
           } else if (payload.eventType === 'DELETE') {
-             setFichas((prev) => prev.filter(f => f.id !== payload.old.id))
+             const updatedList = fichas.filter(f => f.id !== payload.old.id)
+             setFichas(updatedList)
+             checkForAdultChildren(updatedList)
              setSelectedIds(prev => prev.filter(id => id !== payload.old.id))
           }
       }).subscribe()
@@ -206,16 +217,63 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
     }
   }, [])
 
+  // --- FUNCIÓN PARA DETECTAR HIJOS MAYORES DE 18 AÑOS ---
+  const checkForAdultChildren = (data: any[]) => {
+      const alerts: any[] = []
+      
+      data.forEach(worker => {
+          if (worker.hijos) {
+              try {
+                  const hijos = typeof worker.hijos === 'string' ? JSON.parse(worker.hijos) : worker.hijos
+                  
+                  if (Array.isArray(hijos)) {
+                      hijos.forEach((hijo: any) => {
+                          if (hijo.fecha_nacimiento) {
+                              const birthDate = new Date(hijo.fecha_nacimiento)
+                              const today = new Date()
+                              
+                              let age = today.getFullYear() - birthDate.getFullYear()
+                              const m = today.getMonth() - birthDate.getMonth()
+                              
+                              if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+                                  age--
+                              }
+
+                              if (age >= 18) {
+                                  alerts.push({
+                                      id: `${worker.id}-${hijo.nombres}`, // ID único para key
+                                      workerName: `${worker.nombres} ${worker.apellido_paterno}`,
+                                      workerId: worker.id,
+                                      childName: hijo.nombres,
+                                      childAge: age,
+                                      birthDate: hijo.fecha_nacimiento
+                                  })
+                              }
+                          }
+                      })
+                  }
+              } catch (e) {
+                  console.error("Error parseando hijos de", worker.nombres, e)
+              }
+          }
+      })
+      
+      setAdultChildrenAlerts(alerts)
+  }
+
   const fetchFichas = async () => {
     if(fichas.length === 0) setLoading(true)
-    // FILTRO ACTUALIZADO: Solo traemos los que NO están en vida ley Y NO están cesados Y NO están en SCTR
     const { data } = await supabase.from('fichas')
         .select(`*, profiles(role)`)
         .is('in_vida_ley', false)
-        .is('es_cesado', false) // SOLO ACTIVOS
-        .is('in_sctr', false) // NUEVO FILTRO SCTR
+        .is('es_cesado', false) 
+        .is('in_sctr', false)
         .order('updated_at', { ascending: false })
-    if (data) setFichas(data)
+    
+    if (data) {
+        setFichas(data)
+        checkForAdultChildren(data) // Ejecutamos la revisión de edades
+    }
     setLoading(false)
   }
 
@@ -600,6 +658,42 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
             </div>
 
             <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto justify-end">
+                
+                {/* --- NUEVO BOTÓN: ALERTAS CUMPLEAÑOS / MAYORÍA EDAD --- */}
+                <div className="relative">
+                    <button onClick={() => setShowBirthdayDropdown(!showBirthdayDropdown)} className={`relative p-2.5 rounded-xl border transition-all ${showBirthdayDropdown ? 'bg-pink-50 border-pink-200 text-pink-600' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
+                        <Cake size={18} />
+                        {adultChildrenAlerts.length > 0 && <span className="absolute top-1.5 right-2 w-2.5 h-2.5 bg-pink-500 border-2 border-white rounded-full animate-pulse"></span>}
+                    </button>
+                    <AnimatePresence>
+                        {showBirthdayDropdown && (
+                            <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }} className="absolute right-0 top-full mt-3 w-80 bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden z-50 origin-top-right">
+                                <div className="p-4 border-b border-slate-100 bg-pink-50/50 flex justify-between items-center">
+                                    <h4 className="font-bold text-pink-800 text-sm flex items-center gap-2"><Cake size={16}/> Hijos Mayores (18+)</h4>
+                                </div>
+                                <div className="max-h-60 overflow-y-auto">
+                                    {adultChildrenAlerts.length === 0 ? (
+                                        <div className="p-8 text-center text-slate-400"><p className="text-xs font-medium">No hay hijos mayores de edad registrados.</p></div>
+                                    ) : (
+                                        adultChildrenAlerts.map((alert) => (
+                                            <div key={alert.id} className="p-4 hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0">
+                                                <div className="flex items-start gap-3">
+                                                    <div className="w-8 h-8 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center text-xs font-bold shrink-0">18+</div>
+                                                    <div>
+                                                        <p className="text-sm font-bold text-slate-800">{alert.childName}</p>
+                                                        <p className="text-xs text-slate-500">Edad: <span className="font-bold text-pink-600">{alert.childAge} años</span></p>
+                                                        <p className="text-[10px] text-slate-400 mt-1">Hijo de: {alert.workerName}</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+
                 <div className="relative" id="tour-notifications">
                     <button onClick={() => setShowNotifDropdown(!showNotifDropdown)} className={`relative p-2.5 rounded-xl border transition-all ${showNotifDropdown ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
                         <Bell size={18} />
@@ -1185,6 +1279,6 @@ function Field({label, name, val, edit, set, full, customChange, type="text"}: a
 function DocCard({label, url, onDelete, isEditing, onUpload}: any) { const fileRef = useRef<HTMLInputElement>(null); if(!url && !isEditing) return <div className="flex items-center gap-3 p-4 bg-slate-50 border border-slate-100 rounded-xl opacity-60"><div className="w-10 h-10 rounded-xl bg-slate-200 text-slate-400 flex items-center justify-center"><FileText size={18}/></div><span className="text-xs font-bold text-slate-400">Sin archivo</span></div>; return (<div className="relative group">{url ? (<a href={url} target="_blank" className="flex items-center gap-3 p-4 bg-white border border-slate-200 rounded-xl hover:border-blue-400 hover:shadow-md transition-all group cursor-pointer active:scale-95"><div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors shadow-sm"><FileText size={20}/></div><span className="text-xs font-bold text-slate-700 truncate group-hover:text-blue-700 pr-6">{label}</span></a>) : (<div className="flex items-center gap-3 p-4 bg-slate-50 border border-slate-200 rounded-xl border-dashed"><span className="text-xs font-bold text-slate-400">{label} (Vacío)</span></div>)}<div className="absolute top-2 right-2 flex gap-1">{isEditing && (<><input type="file" ref={fileRef} className="hidden" onChange={(e) => e.target.files?.[0] && onUpload(e.target.files[0])} /><button onClick={(e) => { e.stopPropagation(); fileRef.current?.click() }} className="p-1.5 bg-white border border-blue-200 text-blue-600 rounded-lg shadow-sm hover:bg-blue-50 transition-all z-10" title="Subir/Cambiar Archivo"><UploadCloud size={14}/></button></>)}{onDelete && isEditing && url && (<button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(); }} className="p-1.5 bg-white border border-red-100 text-red-500 rounded-lg shadow-sm hover:bg-red-50 transition-all z-10" title="Eliminar documento"><Trash2 size={14}/></button>)}</div></div>) }
 
 function PrintPreviewModal({ image, onClose }: { image: string, onClose: () => void }) {
-    const handlePrint = () => { const iframe = document.createElement('iframe'); iframe.style.position = 'absolute'; iframe.width='0'; iframe.height='0'; iframe.style.border='none'; document.body.appendChild(iframe); const doc = iframe.contentWindow?.document; if (doc) { doc.open(); doc.write(`<html><body onload="window.print()"><img src="${image}" style="width:100%"/></body></html>`); doc.close(); setTimeout(() => document.body.removeChild(iframe), 5000); } };
-    return (<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={onClose}><motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-white rounded-3xl overflow-hidden shadow-2xl max-w-lg w-full flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}><div className="p-5 border-b flex justify-between items-center bg-white"><h3 className="font-bold text-slate-800 flex items-center gap-2"><Printer size={20} className="text-blue-600"/> Vista Previa</h3><button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20}/></button></div><div className="flex-1 overflow-y-auto p-8 bg-slate-50 flex justify-center"><div className="bg-white shadow-xl p-2 rounded-lg border border-slate-100"><img src={image} className="w-full h-auto max-w-[300px] object-contain" /></div></div><div className="p-5 border-t bg-white flex gap-3"><button onClick={onClose} className="flex-1 py-3.5 rounded-xl font-bold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">Cancelar</button><button onClick={handlePrint} className="flex-1 py-3.5 rounded-xl font-bold bg-slate-900 text-white hover:bg-slate-800 shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95"><Printer size={18}/> Imprimir</button></div></motion.div></motion.div>)
+    const handlePrint = () => { const iframe = document.createElement('iframe'); iframe.style.position = 'absolute'; iframe.width='0'; iframe.height='0'; iframe.style.border='none'; document.body.appendChild(iframe); const doc = iframe.contentWindow?.document; if (doc) { doc.open(); doc.write(`<html><body onload="window.print()"><img src="${image}" style="width:100%"/></body></html>`); doc.close(); setTimeout(() => document.body.removeChild(iframe), 5000); } };
+    return (<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={onClose}><motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-white rounded-3xl overflow-hidden shadow-2xl max-w-lg w-full flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}><div className="p-5 border-b flex justify-between items-center bg-white"><h3 className="font-bold text-slate-800 flex items-center gap-2"><Printer size={20} className="text-blue-600"/> Vista Previa</h3><button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20}/></button></div><div className="flex-1 overflow-y-auto p-8 bg-slate-50 flex justify-center"><div className="bg-white shadow-xl p-2 rounded-lg border border-slate-100"><img src={image} className="w-full h-auto max-w-[300px] object-contain" /></div></div><div className="p-5 border-t bg-white flex gap-3"><button onClick={onClose} className="flex-1 py-3.5 rounded-xl font-bold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">Cancelar</button><button onClick={handlePrint} className="flex-1 py-3.5 rounded-xl font-bold bg-slate-900 text-white hover:bg-slate-800 shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95"><Printer size={18}/> Imprimir</button></div></motion.div></motion.div>)
 }
