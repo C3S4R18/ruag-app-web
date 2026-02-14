@@ -35,7 +35,7 @@ import {
   FileCheck, MessageSquare, Filter, ScanFace, Briefcase, 
   HeartPulse, GraduationCap, UploadCloud, Plus, Users, Zap, Mail,
   MailCheck, Clock, AlertCircle, RotateCcw, Monitor, ArrowUpDown,
-  ArrowRightCircle, FileSpreadsheet, UserX, Cake // <--- Icono agregado para Cumpleaños/Edad
+  ArrowRightCircle, FileSpreadsheet, UserX, Cake 
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -86,7 +86,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
   const [preparingDoc, setPreparingDoc] = useState(false)
   const [printImage, setPrintImage] = useState<string | null>(null)
   const printRef = useRef<HTMLDivElement>(null)
-  
+   
   // ESTADO PARA CONTROLAR LA INCLUSIÓN DE FIRMAS
   const [includeSignatures, setIncludeSignatures] = useState(false)
 
@@ -100,7 +100,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
   const [loading, setLoading] = useState(true)
   const [downloadingPdf, setDownloadingPdf] = useState(false)
   const [deleting, setDeleting] = useState(false)
-  
+   
   // ACCIONES MASIVAS
   const [moving, setMoving] = useState(false) // Para Vida Ley
   const [movingSctr, setMovingSctr] = useState(false) // Para SCTR
@@ -133,26 +133,30 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
 
     fetchFichas()
     
-    // Listener de Fichas (Cambios en DB)
+    // Listener de Fichas (Cambios en DB) - CORREGIDO PARA QUE NO BORRE LA LISTA
     const fichasChannel = supabase.channel('realtime-fichas').on('postgres_changes', { event: '*', schema: 'public', table: 'fichas' }, (payload: any) => {
           if (payload.eventType === 'INSERT') {
              // Solo agregamos si NO es vida ley Y NO es cesado Y NO es SCTR
              if (!payload.new.in_vida_ley && !payload.new.es_cesado && !payload.new.in_sctr) {
-                 setFichas((prev) => [payload.new, ...prev])
-                 // Re-verificar edades al insertar
-                 checkForAdultChildren([payload.new, ...fichas]) 
+                 setFichas((prev) => {
+                     const updated = [payload.new, ...prev]
+                     checkForAdultChildren(updated)
+                     return updated
+                 })
                  if(payload.new.estado === 'completado') { toast.success(`🔔 Nuevo Ingreso: ${payload.new.nombres}`); playSystemSound() }
              }
           } else if (payload.eventType === 'UPDATE') {
              // Si se movió a vida ley O a cesados O a SCTR, lo sacamos de la lista
-             if (payload.new.in_vida_ley === true || payload.new.es_cesado === true || payload.new.in_sctr === true) {
-                 setFichas((prev) => prev.filter(f => f.id !== payload.new.id))
-             } else {
-                 const updatedList = fichas.map(f => f.id === payload.new.id ? payload.new : f)
-                 setFichas(updatedList)
-                 // Re-verificar edades al actualizar (por si editaron hijos)
-                 checkForAdultChildren(updatedList)
-             }
+             setFichas((prev) => {
+                if (payload.new.in_vida_ley === true || payload.new.es_cesado === true || payload.new.in_sctr === true) {
+                    return prev.filter(f => f.id !== payload.new.id)
+                } else {
+                    // Mantenemos los datos del perfil anterior (si existían) mezclando el objeto
+                    const updatedList = prev.map(f => f.id === payload.new.id ? { ...f, ...payload.new } : f)
+                    checkForAdultChildren(updatedList)
+                    return updatedList
+                }
+             })
              
              // Notificar si se confirmó el correo
              if (payload.new.email_confirmed_at && !payload.old.email_confirmed_at) {
@@ -164,9 +168,11 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                  playSystemSound();
              }
           } else if (payload.eventType === 'DELETE') {
-             const updatedList = fichas.filter(f => f.id !== payload.old.id)
-             setFichas(updatedList)
-             checkForAdultChildren(updatedList)
+             setFichas((prev) => {
+                 const updatedList = prev.filter(f => f.id !== payload.old.id)
+                 checkForAdultChildren(updatedList)
+                 return updatedList
+             })
              setSelectedIds(prev => prev.filter(id => id !== payload.old.id))
           }
       }).subscribe()
@@ -611,7 +617,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
   useEffect(() => { setCurrentPage(1) }, [searchTerm, filterObra, filterEstado])
 
   return (
-    <div className="flex flex-col h-full bg-white rounded-3xl border border-slate-200/60 shadow-xl shadow-slate-200/40 overflow-hidden relative font-sans">
+    <div className="flex flex-col h-full w-full bg-white rounded-3xl border border-slate-200/60 shadow-xl shadow-slate-200/40 overflow-hidden relative font-sans">
       
       {/* CONTENEDOR OCULTO DE IMPRESIÓN */}
       <div className="fixed top-0 left-0 pointer-events-none opacity-0 overflow-hidden" style={{ zIndex: -100 }}>
@@ -796,29 +802,44 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
         <table className="w-full text-left border-collapse">
             <thead className="bg-white sticky top-0 z-20 shadow-sm border-b border-slate-100">
                 <tr>
-                    <th className="px-6 py-4 w-16 text-center"><button onClick={() => handleSelectAll(filteredAndSorted)} className="text-slate-300 hover:text-blue-600 transition-colors">{selectedIds.length > 0 && selectedIds.length === filteredAndSorted.length ? <CheckSquare size={20} className="text-blue-600"/> : <Square size={20}/>}</button></th>
-                    <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Colaborador</th>
-                    <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Ubicación / Cargo</th>
-                    <th className="px-6 py-4 text-center text-[11px] font-bold text-slate-400 uppercase tracking-widest">Confirmación</th>
-                    <th className="px-6 py-4 text-center text-[11px] font-bold text-slate-400 uppercase tracking-widest">Biometría</th>
-                    <th className="px-6 py-4 text-right text-[11px] font-bold text-slate-400 uppercase tracking-widest">Acciones</th>
+                    <th className="px-4 py-3 w-12 text-center"><button onClick={() => handleSelectAll(filteredAndSorted)} className="text-slate-300 hover:text-blue-600 transition-colors">{selectedIds.length > 0 && selectedIds.length === filteredAndSorted.length ? <CheckSquare size={20} className="text-blue-600"/> : <Square size={20}/>}</button></th>
+                    <th className="px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">Colaborador</th>
+                    <th className="px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">Ubicación / Cargo</th>
+                    {/* --- NUEVA COLUMNA ESTADO FICHA --- */}
+                    <th className="px-4 py-3 text-center text-[11px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">Estado Ficha</th>
+                    <th className="px-4 py-3 text-center text-[11px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">Confirmación</th>
+                    <th className="px-4 py-3 text-center text-[11px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">Biometría</th>
+                    <th className="px-4 py-3 text-right text-[11px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">Acciones</th>
                 </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
                 {loading ? (
-                    <tr><td colSpan={6} className="p-24 text-center"><div className="flex flex-col items-center gap-4"><div className="p-4 bg-blue-50 rounded-full"><Loader2 className="animate-spin text-blue-600" size={32}/></div><p className="font-medium text-slate-500 animate-pulse">Sincronizando base de datos...</p></div></td></tr>
+                    <tr><td colSpan={7} className="p-24 text-center"><div className="flex flex-col items-center gap-4"><div className="p-4 bg-blue-50 rounded-full"><Loader2 className="animate-spin text-blue-600" size={32}/></div><p className="font-medium text-slate-500 animate-pulse">Sincronizando base de datos...</p></div></td></tr>
                 ) : paginatedData.length === 0 ? (
-                    <tr><td colSpan={6} className="p-24 text-center text-slate-400"><div className="flex flex-col items-center gap-3"><div className="p-4 bg-slate-50 rounded-full"><Search size={32} className="text-slate-300"/></div><p>No se encontraron resultados.</p></div></td></tr>
+                    <tr><td colSpan={7} className="p-24 text-center text-slate-400"><div className="flex flex-col items-center gap-3"><div className="p-4 bg-slate-50 rounded-full"><Search size={32} className="text-slate-300"/></div><p>No se encontraron resultados.</p></div></td></tr>
                 ) : paginatedData.map((ficha, index) => (
                     <motion.tr key={ficha.id} id={index === 0 ? "tour-row-0" : undefined} initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.02 }} className={`group hover:bg-slate-50/80 transition-colors cursor-pointer ${selectedIds.includes(ficha.id) ? 'bg-blue-50/30' : ''}`} onClick={() => setSelectedFicha(ficha)}>
-                        <td className="px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}><button onClick={() => handleSelectOne(ficha.id)} className="text-slate-300 hover:text-blue-600 transition-colors">{selectedIds.includes(ficha.id) ? <CheckSquare size={20} className="text-blue-600"/> : <Square size={20}/>}</button></td>
-                        <td className="px-6 py-4"><div className="flex items-center gap-4"><div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-50 to-blue-50 flex items-center justify-center text-blue-600 font-bold text-sm border border-blue-100 shadow-sm shrink-0 uppercase relative">{ficha.nombres?.charAt(0)}{ficha.apellido_paterno?.charAt(0)}<span className="absolute -bottom-1 -right-1 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full"></span></div><div className="min-w-0"><p className="font-bold text-slate-800 text-sm truncate group-hover:text-blue-700 transition-colors">{ficha.apellido_paterno} {ficha.apellido_materno}, {ficha.nombres}</p><div className="flex items-center gap-2 mt-0.5"><span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">{ficha.dni}</span></div></div></div></td>
-                        <td className="px-6 py-4"><div className="flex flex-col gap-1"><div className="flex items-center gap-1.5 text-xs font-medium text-slate-700"><Building2 size={13} className="text-slate-400"/><span className="truncate max-w-[150px]" title={ficha.nombre_obra}>{ficha.nombre_obra || 'Sin Obra'}</span></div><div className="flex items-center gap-1.5 text-xs text-slate-500"><HardHat size={13} className="text-slate-400"/><span className="truncate capitalize">{ficha.cargo || 'Sin Cargo'}</span></div></div></td>
-                        <td className="px-6 py-4 text-center">
-                            {/* --- COLUMNA DE CONFIRMACIÓN (NUEVA) --- */}
+                        <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}><button onClick={() => handleSelectOne(ficha.id)} className="text-slate-300 hover:text-blue-600 transition-colors">{selectedIds.includes(ficha.id) ? <CheckSquare size={20} className="text-blue-600"/> : <Square size={20}/>}</button></td>
+                        <td className="px-4 py-3"><div className="flex items-center gap-4"><div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-50 to-blue-50 flex items-center justify-center text-blue-600 font-bold text-sm border border-blue-100 shadow-sm shrink-0 uppercase relative">{ficha.nombres?.charAt(0)}{ficha.apellido_paterno?.charAt(0)}<span className="absolute -bottom-1 -right-1 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full"></span></div><div className="min-w-0"><p className="font-bold text-slate-800 text-sm truncate group-hover:text-blue-700 transition-colors">{ficha.apellido_paterno} {ficha.apellido_materno}, {ficha.nombres}</p><div className="flex items-center gap-2 mt-0.5"><span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">{ficha.dni}</span></div></div></div></td>
+                        <td className="px-4 py-3"><div className="flex flex-col gap-1"><div className="flex items-center gap-1.5 text-xs font-medium text-slate-700"><Building2 size={13} className="text-slate-400"/><span className="truncate max-w-[150px]" title={ficha.nombre_obra}>{ficha.nombre_obra || 'Sin Obra'}</span></div><div className="flex items-center gap-1.5 text-xs text-slate-500"><HardHat size={13} className="text-slate-400"/><span className="truncate capitalize">{ficha.cargo || 'Sin Cargo'}</span></div></div></td>
+                        
+                        {/* --- CELDA NUEVA: ESTADO FICHA --- */}
+                        <td className="px-4 py-3 text-center">
+                            {ficha.estado === 'completado' ? (
+                                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200 whitespace-nowrap">
+                                    <CheckCircle size={14} /> COMPLETADO
+                                </div>
+                            ) : (
+                                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200 whitespace-nowrap">
+                                     <Loader2 size={14} className="animate-spin" /> PENDIENTE
+                                </div>
+                            )}
+                        </td>
+
+                        <td className="px-4 py-3 text-center">
                             {ficha.email_confirmed_at ? (
                                 <div className="flex items-center justify-center gap-2">
-                                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/60 shadow-sm cursor-help" title={`Confirmado el: ${new Date(ficha.email_confirmed_at).toLocaleString()}`}>
+                                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/60 shadow-sm cursor-help whitespace-nowrap" title={`Confirmado el: ${new Date(ficha.email_confirmed_at).toLocaleString()}`}>
                                         <MailCheck size={14}/> RECIBIDO
                                     </div>
                                     <button 
@@ -830,13 +851,13 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                                     </button>
                                 </div>
                             ) : (
-                                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200 shadow-sm opacity-70">
+                                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200 shadow-sm opacity-70 whitespace-nowrap">
                                     <Clock size={14}/> PENDIENTE
                                 </div>
                             )}
                         </td>
-                        <td className="px-6 py-4"><div className="flex items-center justify-center gap-3"><div className={`p-2 rounded-lg border transition-all ${ficha.firma_url ? 'bg-emerald-50/50 border-emerald-200 text-emerald-600' : 'bg-slate-50 border-slate-100 text-slate-300'}`} title={ficha.firma_url ? "Firma Registrada" : "Falta Firma"}><PenTool size={14}/></div><div className={`p-2 rounded-lg border transition-all ${ficha.huella_url ? 'bg-emerald-50/50 border-emerald-200 text-emerald-600' : 'bg-slate-50 border-slate-100 text-slate-300'}`} title={ficha.huella_url ? "Huella Registrada" : "Falta Huella"}><Fingerprint size={14}/></div></div></td>
-                        <td className="px-6 py-4 text-right"><div className="flex items-center justify-end gap-1 opacity-60 group-hover:opacity-100 transition-opacity">{onOpenChat && (<button onClick={(e) => { e.stopPropagation(); handleChatClick(ficha) }} className="relative p-2.5 text-slate-400 hover:text-white hover:bg-indigo-600 rounded-xl transition-all active:scale-95" title="Chat con trabajador"><MessageSquare size={16} />{unreadCounts[ficha.user_id] > 0 && (<span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white shadow-sm ring-2 ring-white">{unreadCounts[ficha.user_id]}</span>)}</button>)}<button onClick={(e) => { e.stopPropagation(); setSelectedFicha(ficha) }} className="p-2.5 text-slate-400 hover:text-white hover:bg-blue-600 rounded-xl transition-all active:scale-95" title="Editar Ficha"><Edit3 size={16}/></button><button onClick={(e) => { e.stopPropagation(); handleDownloadPDF(ficha) }} className="p-2.5 text-slate-400 hover:text-white hover:bg-emerald-600 rounded-xl transition-all active:scale-95" title="Descargar PDF"><Download size={16}/></button></div></td>
+                        <td className="px-4 py-3"><div className="flex items-center justify-center gap-3"><div className={`p-2 rounded-lg border transition-all ${ficha.firma_url ? 'bg-emerald-50/50 border-emerald-200 text-emerald-600' : 'bg-slate-50 border-slate-100 text-slate-300'}`} title={ficha.firma_url ? "Firma Registrada" : "Falta Firma"}><PenTool size={14}/></div><div className={`p-2 rounded-lg border transition-all ${ficha.huella_url ? 'bg-emerald-50/50 border-emerald-200 text-emerald-600' : 'bg-slate-50 border-slate-100 text-slate-300'}`} title={ficha.huella_url ? "Huella Registrada" : "Falta Huella"}><Fingerprint size={14}/></div></div></td>
+                        <td className="px-4 py-3 text-right"><div className="flex items-center justify-end gap-1 opacity-60 group-hover:opacity-100 transition-opacity"><div className="flex items-center gap-2">{onOpenChat && (<button onClick={(e) => { e.stopPropagation(); handleChatClick(ficha) }} className="relative p-2.5 text-slate-400 hover:text-white hover:bg-indigo-600 rounded-xl transition-all active:scale-95" title="Chat con trabajador"><MessageSquare size={16} />{unreadCounts[ficha.user_id] > 0 && (<span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white shadow-sm ring-2 ring-white">{unreadCounts[ficha.user_id]}</span>)}</button>)}<button onClick={(e) => { e.stopPropagation(); setSelectedFicha(ficha) }} className="p-2.5 text-slate-400 hover:text-white hover:bg-blue-600 rounded-xl transition-all active:scale-95" title="Editar Ficha"><Edit3 size={16}/></button><button onClick={(e) => { e.stopPropagation(); handleDownloadPDF(ficha) }} className="p-2.5 text-slate-400 hover:text-white hover:bg-emerald-600 rounded-xl transition-all active:scale-95" title="Descargar PDF"><Download size={16}/></button></div></div></td>
                     </motion.tr>
                 ))}
             </tbody>
@@ -1279,6 +1300,6 @@ function Field({label, name, val, edit, set, full, customChange, type="text"}: a
 function DocCard({label, url, onDelete, isEditing, onUpload}: any) { const fileRef = useRef<HTMLInputElement>(null); if(!url && !isEditing) return <div className="flex items-center gap-3 p-4 bg-slate-50 border border-slate-100 rounded-xl opacity-60"><div className="w-10 h-10 rounded-xl bg-slate-200 text-slate-400 flex items-center justify-center"><FileText size={18}/></div><span className="text-xs font-bold text-slate-400">Sin archivo</span></div>; return (<div className="relative group">{url ? (<a href={url} target="_blank" className="flex items-center gap-3 p-4 bg-white border border-slate-200 rounded-xl hover:border-blue-400 hover:shadow-md transition-all group cursor-pointer active:scale-95"><div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors shadow-sm"><FileText size={20}/></div><span className="text-xs font-bold text-slate-700 truncate group-hover:text-blue-700 pr-6">{label}</span></a>) : (<div className="flex items-center gap-3 p-4 bg-slate-50 border border-slate-200 rounded-xl border-dashed"><span className="text-xs font-bold text-slate-400">{label} (Vacío)</span></div>)}<div className="absolute top-2 right-2 flex gap-1">{isEditing && (<><input type="file" ref={fileRef} className="hidden" onChange={(e) => e.target.files?.[0] && onUpload(e.target.files[0])} /><button onClick={(e) => { e.stopPropagation(); fileRef.current?.click() }} className="p-1.5 bg-white border border-blue-200 text-blue-600 rounded-lg shadow-sm hover:bg-blue-50 transition-all z-10" title="Subir/Cambiar Archivo"><UploadCloud size={14}/></button></>)}{onDelete && isEditing && url && (<button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(); }} className="p-1.5 bg-white border border-red-100 text-red-500 rounded-lg shadow-sm hover:bg-red-50 transition-all z-10" title="Eliminar documento"><Trash2 size={14}/></button>)}</div></div>) }
 
 function PrintPreviewModal({ image, onClose }: { image: string, onClose: () => void }) {
-    const handlePrint = () => { const iframe = document.createElement('iframe'); iframe.style.position = 'absolute'; iframe.width='0'; iframe.height='0'; iframe.style.border='none'; document.body.appendChild(iframe); const doc = iframe.contentWindow?.document; if (doc) { doc.open(); doc.write(`<html><body onload="window.print()"><img src="${image}" style="width:100%"/></body></html>`); doc.close(); setTimeout(() => document.body.removeChild(iframe), 5000); } };
-    return (<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={onClose}><motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-white rounded-3xl overflow-hidden shadow-2xl max-w-lg w-full flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}><div className="p-5 border-b flex justify-between items-center bg-white"><h3 className="font-bold text-slate-800 flex items-center gap-2"><Printer size={20} className="text-blue-600"/> Vista Previa</h3><button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20}/></button></div><div className="flex-1 overflow-y-auto p-8 bg-slate-50 flex justify-center"><div className="bg-white shadow-xl p-2 rounded-lg border border-slate-100"><img src={image} className="w-full h-auto max-w-[300px] object-contain" /></div></div><div className="p-5 border-t bg-white flex gap-3"><button onClick={onClose} className="flex-1 py-3.5 rounded-xl font-bold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">Cancelar</button><button onClick={handlePrint} className="flex-1 py-3.5 rounded-xl font-bold bg-slate-900 text-white hover:bg-slate-800 shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95"><Printer size={18}/> Imprimir</button></div></motion.div></motion.div>)
+    const handlePrint = () => { const iframe = document.createElement('iframe'); iframe.style.position = 'absolute'; iframe.width='0'; iframe.height='0'; iframe.style.border='none'; document.body.appendChild(iframe); const doc = iframe.contentWindow?.document; if (doc) { doc.open(); doc.write(`<html><body onload="window.print()"><img src="${image}" style="width:100%"/></body></html>`); doc.close(); setTimeout(() => document.body.removeChild(iframe), 5000); } };
+    return (<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={onClose}><motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-white rounded-3xl overflow-hidden shadow-2xl max-w-lg w-full flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}><div className="p-5 border-b flex justify-between items-center bg-white"><h3 className="font-bold text-slate-800 flex items-center gap-2"><Printer size={20} className="text-blue-600"/> Vista Previa</h3><button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20}/></button></div><div className="flex-1 overflow-y-auto p-8 bg-slate-50 flex justify-center"><div className="bg-white shadow-xl p-2 rounded-lg border border-slate-100"><img src={image} className="w-full h-auto max-w-[300px] object-contain" /></div></div><div className="p-5 border-t bg-white flex gap-3"><button onClick={onClose} className="flex-1 py-3.5 rounded-xl font-bold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">Cancelar</button><button onClick={handlePrint} className="flex-1 py-3.5 rounded-xl font-bold bg-slate-900 text-white hover:bg-slate-800 shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95"><Printer size={18}/> Imprimir</button></div></motion.div></motion.div>)
 }
