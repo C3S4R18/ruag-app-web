@@ -470,8 +470,8 @@ export default function AdminPage() {
             </div>
         </div>
 
-        {/* --- SIDEBAR REORGANIZADO Y MODERNO --- */}
-        <nav className="flex-1 px-4 py-6 space-y-8 overflow-y-auto">
+        {/* --- SIDEBAR REORGANIZADO Y MODERNO CON SCROLLBAR PERSONALIZADO Y TITULOS ANIMADOS --- */}
+        <nav className="flex-1 px-3 py-6 space-y-8 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-600">
             {/* Dashboard General - Solo */}
             <div>
                 <SidebarItem active={activeView === 'dashboard'} onClick={() => handleNavClick('dashboard')} icon={<LayoutDashboard size={20}/>} label="Dashboard General" />
@@ -479,10 +479,16 @@ export default function AdminPage() {
 
             {/* GRUPO 1: GESTIÓN DE TALENTO (RRHH, Vida Ley, Cesados) */}
             <div>
-                <div className="px-4 mb-3 flex items-center gap-2">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest opacity-80">Gestión de Talento</span>
-                    <div className="h-px flex-1 bg-slate-800"></div>
-                </div>
+                <motion.div 
+                    initial={{ opacity: 0, x: -10 }} 
+                    animate={{ opacity: 1, x: 0 }} 
+                    transition={{ delay: 0.1 }}
+                    className="px-4 mb-3 mt-2"
+                >
+                    <h3 className="text-xs font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-indigo-300 uppercase tracking-widest">
+                        Gestión de Talento
+                    </h3>
+                </motion.div>
                 <div className="space-y-1">
                     <div id="nav-rrhh">
                         <SidebarItem active={activeView === 'rrhh'} onClick={() => handleNavClick('rrhh')} icon={<Briefcase size={20} className="text-purple-400"/>} label="Gestión RRHH" />
@@ -498,10 +504,16 @@ export default function AdminPage() {
 
             {/* GRUPO 2: SEGURIDAD (SSOMA, SCTR) */}
             <div>
-                <div className="px-4 mb-3 flex items-center gap-2">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest opacity-80">Seguridad (SSOMA)</span>
-                    <div className="h-px flex-1 bg-slate-800"></div>
-                </div>
+                <motion.div 
+                    initial={{ opacity: 0, x: -10 }} 
+                    animate={{ opacity: 1, x: 0 }} 
+                    transition={{ delay: 0.2 }}
+                    className="px-4 mb-3 mt-2"
+                >
+                    <h3 className="text-xs font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-indigo-300 uppercase tracking-widest">
+                        Seguridad (SSOMA)
+                    </h3>
+                </motion.div>
                 <div className="space-y-1">
                     <div id="nav-documentos">
                         <SidebarItem active={activeView === 'documentos'} onClick={() => handleNavClick('documentos')} icon={<HardHat size={20} className="text-blue-400"/>} label="Registros SIG" />
@@ -514,10 +526,16 @@ export default function AdminPage() {
 
             {/* GRUPO 3: CONTROL (Biometría) */}
             <div>
-                <div className="px-4 mb-3 flex items-center gap-2">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest opacity-80">Control Operativo</span>
-                    <div className="h-px flex-1 bg-slate-800"></div>
-                </div>
+                <motion.div 
+                    initial={{ opacity: 0, x: -10 }} 
+                    animate={{ opacity: 1, x: 0 }} 
+                    transition={{ delay: 0.3 }}
+                    className="px-4 mb-3 mt-2"
+                >
+                    <h3 className="text-xs font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-indigo-300 uppercase tracking-widest">
+                        Control Operativo
+                    </h3>
+                </motion.div>
                 <div className="space-y-1">
                     <div id="nav-biometria">
                         <SidebarItem active={activeView === 'biometria'} onClick={() => handleNavClick('biometria')} icon={<Fingerprint size={20} className="text-sky-400"/>} label="Biometría y Firmas" />
@@ -527,10 +545,16 @@ export default function AdminPage() {
 
             {/* GRUPO 4: SISTEMA (Perfil) */}
             <div>
-                <div className="px-4 mb-3 flex items-center gap-2">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest opacity-80">Sistema</span>
-                    <div className="h-px flex-1 bg-slate-800"></div>
-                </div>
+                <motion.div 
+                    initial={{ opacity: 0, x: -10 }} 
+                    animate={{ opacity: 1, x: 0 }} 
+                    transition={{ delay: 0.4 }}
+                    className="px-4 mb-3 mt-2"
+                >
+                    <h3 className="text-xs font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-indigo-300 uppercase tracking-widest">
+                        Sistema
+                    </h3>
+                </motion.div>
                 <div className="space-y-1">
                     <SidebarItem active={activeView === 'profile'} onClick={() => handleNavClick('profile')} icon={<UserCog size={20}/>} label="Mi Perfil" />
                 </div>

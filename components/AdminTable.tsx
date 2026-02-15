@@ -35,7 +35,7 @@ import {
   FileCheck, MessageSquare, Filter, ScanFace, Briefcase, 
   HeartPulse, GraduationCap, UploadCloud, Plus, Users, Zap, Mail,
   MailCheck, Clock, AlertCircle, RotateCcw, Monitor, ArrowUpDown,
-  ArrowRightCircle, FileSpreadsheet, UserX, Cake 
+  ArrowRightCircle, FileSpreadsheet, UserX, Cake, CalendarClock, Ban, Check 
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -223,7 +223,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
     }
   }, [])
 
-  // --- FUNCIÓN PARA DETECTAR HIJOS MAYORES DE 18 AÑOS ---
+  // --- FUNCIÓN PARA DETECTAR HIJOS Y GESTIONAR ESTADOS (ACTUALIZADO) ---
   const checkForAdultChildren = (data: any[]) => {
       const alerts: any[] = []
       
@@ -233,7 +233,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                   const hijos = typeof worker.hijos === 'string' ? JSON.parse(worker.hijos) : worker.hijos
                   
                   if (Array.isArray(hijos)) {
-                      hijos.forEach((hijo: any) => {
+                      hijos.forEach((hijo: any, index: number) => {
                           if (hijo.fecha_nacimiento) {
                               const birthDate = new Date(hijo.fecha_nacimiento)
                               const today = new Date()
@@ -245,14 +245,37 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                                   age--
                               }
 
-                              if (age >= 18) {
+                              // REGLA DE NEGOCIO:
+                              // - Si tiene < 18: No es alerta.
+                              // - Si tiene >= 18 Y < 25: Es alerta A MENOS QUE ya esté extendido o dado de baja.
+                              // - Si tiene >= 25: Ya no hay beneficio automático.
+                              
+                              // Flags internos del objeto hijo
+                              const isExtended = hijo.extension_estudios === true; // Ya validado hasta los 24
+                              const isRemoved = hijo.baja_beneficio === true; // Ya se le quitó el beneficio
+                              const requestDate = hijo.fecha_solicitud_constancia ? new Date(hijo.fecha_solicitud_constancia) : null;
+
+                              if (age >= 18 && age < 25 && !isExtended && !isRemoved) {
+                                  
+                                  // Calcular días de retraso si ya se pidió
+                                  let daysWaiting = 0;
+                                  let status = 'new'; // 'new', 'waiting'
+
+                                  if (requestDate) {
+                                      const diffTime = Math.abs(today.getTime() - requestDate.getTime());
+                                      daysWaiting = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                                      status = 'waiting';
+                                  }
+
                                   alerts.push({
-                                      id: `${worker.id}-${hijo.nombres}`, // ID único para key
-                                      workerName: `${worker.nombres} ${worker.apellido_paterno}`,
+                                      id: `${worker.id}-${index}`, // ID único
                                       workerId: worker.id,
+                                      workerName: `${worker.nombres} ${worker.apellido_paterno}`,
+                                      childIndex: index,
                                       childName: hijo.nombres,
                                       childAge: age,
-                                      birthDate: hijo.fecha_nacimiento
+                                      status: status,
+                                      daysWaiting: daysWaiting
                                   })
                               }
                           }
@@ -266,6 +289,51 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
       
       setAdultChildrenAlerts(alerts)
   }
+
+  // --- FUNCIÓN PARA ACTUALIZAR ESTADO DEL HIJO (ACTUALIZADO) ---
+  const updateChildStatus = async (alertItem: any, action: 'request' | 'extend' | 'remove') => {
+      const worker = fichas.find(f => f.id === alertItem.workerId);
+      if (!worker) return;
+
+      let hijosArray = typeof worker.hijos === 'string' ? JSON.parse(worker.hijos) : worker.hijos;
+      if (!Array.isArray(hijosArray)) hijosArray = [];
+
+      // Encontrar el hijo por índice (más seguro si hay nombres repetidos)
+      const hijo = hijosArray[alertItem.childIndex];
+      if (!hijo) return;
+
+      // Aplicar lógica según acción
+      if (action === 'request') {
+          // Marcar fecha en que RRHH pidió el documento
+          hijo.fecha_solicitud_constancia = new Date().toISOString();
+          toast.info(`Se marcó como solicitado para ${hijo.nombres}`);
+      } else if (action === 'extend') {
+          // El obrero trajo el papel -> Extender hasta los 24
+          hijo.extension_estudios = true;
+          hijo.fecha_solicitud_constancia = null; // Limpiar solicitud
+          toast.success(`Beneficio extendido para ${hijo.nombres} (Estudios)`);
+      } else if (action === 'remove') {
+          // No estudia -> Quitar beneficio
+          hijo.baja_beneficio = true;
+          hijo.fecha_solicitud_constancia = null;
+          toast.error(`Beneficio retirado para ${hijo.nombres}`);
+      }
+
+      // Guardar en Supabase
+      const { error } = await supabase
+          .from('fichas')
+          .update({ hijos: JSON.stringify(hijosArray) })
+          .eq('id', worker.id);
+
+      if (error) {
+          toast.error("Error al actualizar: " + error.message);
+      } else {
+          // Actualizar estado local inmediatamente para reflejar cambio en UI
+          const updatedFichas = fichas.map(f => f.id === worker.id ? { ...f, hijos: hijosArray } : f);
+          setFichas(updatedFichas);
+          checkForAdultChildren(updatedFichas); // Re-calcular alertas
+      }
+  };
 
   const fetchFichas = async () => {
     if(fichas.length === 0) setLoading(true)
@@ -665,7 +733,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
 
             <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto justify-end">
                 
-                {/* --- NUEVO BOTÓN: ALERTAS CUMPLEAÑOS / MAYORÍA EDAD --- */}
+                {/* --- NUEVO BOTÓN: GESTIÓN BENEFICIOS (18-24) --- */}
                 <div className="relative">
                     <button onClick={() => setShowBirthdayDropdown(!showBirthdayDropdown)} className={`relative p-2.5 rounded-xl border transition-all ${showBirthdayDropdown ? 'bg-pink-50 border-pink-200 text-pink-600' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
                         <Cake size={18} />
@@ -673,22 +741,62 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                     </button>
                     <AnimatePresence>
                         {showBirthdayDropdown && (
-                            <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }} className="absolute right-0 top-full mt-3 w-80 bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden z-50 origin-top-right">
+                            <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }} className="absolute right-0 top-full mt-3 w-96 bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden z-50 origin-top-right">
                                 <div className="p-4 border-b border-slate-100 bg-pink-50/50 flex justify-between items-center">
-                                    <h4 className="font-bold text-pink-800 text-sm flex items-center gap-2"><Cake size={16}/> Hijos Mayores (18+)</h4>
+                                    <h4 className="font-bold text-pink-800 text-sm flex items-center gap-2"><Cake size={16}/> Gestión Beneficios (18+)</h4>
+                                    <span className="text-[10px] font-bold bg-white px-2 py-0.5 rounded-full text-pink-600 border border-pink-200">{adultChildrenAlerts.length} Pendientes</span>
                                 </div>
-                                <div className="max-h-60 overflow-y-auto">
+                                <div className="max-h-80 overflow-y-auto bg-slate-50/50">
                                     {adultChildrenAlerts.length === 0 ? (
-                                        <div className="p-8 text-center text-slate-400"><p className="text-xs font-medium">No hay hijos mayores de edad registrados.</p></div>
+                                        <div className="p-8 text-center text-slate-400"><p className="text-xs font-medium">Todo al día. No hay hijos pendientes.</p></div>
                                     ) : (
                                         adultChildrenAlerts.map((alert) => (
-                                            <div key={alert.id} className="p-4 hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0">
-                                                <div className="flex items-start gap-3">
-                                                    <div className="w-8 h-8 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center text-xs font-bold shrink-0">18+</div>
+                                            <div key={alert.id} className="p-4 hover:bg-white transition-colors border-b border-slate-100 last:border-0 bg-white">
+                                                <div className="flex justify-between items-start mb-2">
                                                     <div>
-                                                        <p className="text-sm font-bold text-slate-800">{alert.childName}</p>
-                                                        <p className="text-xs text-slate-500">Edad: <span className="font-bold text-pink-600">{alert.childAge} años</span></p>
-                                                        <p className="text-[10px] text-slate-400 mt-1">Hijo de: {alert.workerName}</p>
+                                                        <div className="flex items-center gap-2">
+                                                            <p className="text-sm font-bold text-slate-800">{alert.childName}</p>
+                                                            {alert.status === 'new' && <span className="text-[9px] font-bold bg-red-100 text-red-600 px-1.5 rounded">NUEVO</span>}
+                                                            {alert.status === 'waiting' && <span className={`text-[9px] font-bold px-1.5 rounded ${alert.daysWaiting > 7 ? 'bg-red-100 text-red-600 animate-pulse' : 'bg-amber-100 text-amber-600'}`}>{alert.daysWaiting > 7 ? 'DEMORADO' : 'ESPERANDO'}</span>}
+                                                        </div>
+                                                        <p className="text-xs text-slate-500">Cumplió <span className="font-bold text-pink-600">{alert.childAge} años</span></p>
+                                                        <p className="text-[10px] text-slate-400 mt-0.5">Padre: {alert.workerName}</p>
+                                                    </div>
+                                                </div>
+
+                                                {/* BARRA DE ACCIONES */}
+                                                <div className="bg-slate-50 p-2 rounded-lg border border-slate-100 flex flex-col gap-2">
+                                                    {alert.status === 'new' ? (
+                                                        <>
+                                                            <div className="text-[10px] text-slate-400 text-center italic">¿Ya solicitaste la constancia de estudios?</div>
+                                                            <button 
+                                                                onClick={() => updateChildStatus(alert, 'request')}
+                                                                className="w-full py-1.5 bg-blue-600 text-white text-xs font-bold rounded-md hover:bg-blue-700 flex items-center justify-center gap-1"
+                                                            >
+                                                                <CalendarClock size={12}/> SOLICITAR DOCUMENTO
+                                                            </button>
+                                                        </>
+                                                    ) : (
+                                                        <div className={`text-xs text-center font-medium ${alert.daysWaiting > 7 ? 'text-red-500' : 'text-amber-600'}`}>
+                                                            Esperando documentos hace {alert.daysWaiting} días
+                                                        </div>
+                                                    )}
+
+                                                    <div className="flex gap-2 pt-1 border-t border-slate-200">
+                                                        <button 
+                                                            onClick={() => updateChildStatus(alert, 'extend')}
+                                                            className="flex-1 py-1.5 bg-emerald-50 text-emerald-600 border border-emerald-200 text-[10px] font-bold rounded-md hover:bg-emerald-100 flex items-center justify-center gap-1"
+                                                            title="Trajo constancia: Extender beneficio"
+                                                        >
+                                                            <Check size={12}/> ESTUDIA (Extender)
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => updateChildStatus(alert, 'remove')}
+                                                            className="flex-1 py-1.5 bg-red-50 text-red-600 border border-red-200 text-[10px] font-bold rounded-md hover:bg-red-100 flex items-center justify-center gap-1"
+                                                            title="No estudia: Quitar beneficio"
+                                                        >
+                                                            <Ban size={12}/> NO ESTUDIA (Baja)
+                                                        </button>
                                                     </div>
                                                 </div>
                                             </div>
@@ -799,7 +907,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
 
       {/* TABLA DE DATOS */}
       <div className="flex-1 overflow-auto bg-white min-h-[500px]">
-        <table className="w-full text-left border-collapse">
+        <table className="w-full min-w-max text-left border-collapse">
             <thead className="bg-white sticky top-0 z-20 shadow-sm border-b border-slate-100">
                 <tr>
                     <th className="px-4 py-3 w-12 text-center"><button onClick={() => handleSelectAll(filteredAndSorted)} className="text-slate-300 hover:text-blue-600 transition-colors">{selectedIds.length > 0 && selectedIds.length === filteredAndSorted.length ? <CheckSquare size={20} className="text-blue-600"/> : <Square size={20}/>}</button></th>
@@ -1300,6 +1408,6 @@ function Field({label, name, val, edit, set, full, customChange, type="text"}: a
 function DocCard({label, url, onDelete, isEditing, onUpload}: any) { const fileRef = useRef<HTMLInputElement>(null); if(!url && !isEditing) return <div className="flex items-center gap-3 p-4 bg-slate-50 border border-slate-100 rounded-xl opacity-60"><div className="w-10 h-10 rounded-xl bg-slate-200 text-slate-400 flex items-center justify-center"><FileText size={18}/></div><span className="text-xs font-bold text-slate-400">Sin archivo</span></div>; return (<div className="relative group">{url ? (<a href={url} target="_blank" className="flex items-center gap-3 p-4 bg-white border border-slate-200 rounded-xl hover:border-blue-400 hover:shadow-md transition-all group cursor-pointer active:scale-95"><div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors shadow-sm"><FileText size={20}/></div><span className="text-xs font-bold text-slate-700 truncate group-hover:text-blue-700 pr-6">{label}</span></a>) : (<div className="flex items-center gap-3 p-4 bg-slate-50 border border-slate-200 rounded-xl border-dashed"><span className="text-xs font-bold text-slate-400">{label} (Vacío)</span></div>)}<div className="absolute top-2 right-2 flex gap-1">{isEditing && (<><input type="file" ref={fileRef} className="hidden" onChange={(e) => e.target.files?.[0] && onUpload(e.target.files[0])} /><button onClick={(e) => { e.stopPropagation(); fileRef.current?.click() }} className="p-1.5 bg-white border border-blue-200 text-blue-600 rounded-lg shadow-sm hover:bg-blue-50 transition-all z-10" title="Subir/Cambiar Archivo"><UploadCloud size={14}/></button></>)}{onDelete && isEditing && url && (<button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(); }} className="p-1.5 bg-white border border-red-100 text-red-500 rounded-lg shadow-sm hover:bg-red-50 transition-all z-10" title="Eliminar documento"><Trash2 size={14}/></button>)}</div></div>) }
 
 function PrintPreviewModal({ image, onClose }: { image: string, onClose: () => void }) {
-    const handlePrint = () => { const iframe = document.createElement('iframe'); iframe.style.position = 'absolute'; iframe.width='0'; iframe.height='0'; iframe.style.border='none'; document.body.appendChild(iframe); const doc = iframe.contentWindow?.document; if (doc) { doc.open(); doc.write(`<html><body onload="window.print()"><img src="${image}" style="width:100%"/></body></html>`); doc.close(); setTimeout(() => document.body.removeChild(iframe), 5000); } };
-    return (<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={onClose}><motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-white rounded-3xl overflow-hidden shadow-2xl max-w-lg w-full flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}><div className="p-5 border-b flex justify-between items-center bg-white"><h3 className="font-bold text-slate-800 flex items-center gap-2"><Printer size={20} className="text-blue-600"/> Vista Previa</h3><button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20}/></button></div><div className="flex-1 overflow-y-auto p-8 bg-slate-50 flex justify-center"><div className="bg-white shadow-xl p-2 rounded-lg border border-slate-100"><img src={image} className="w-full h-auto max-w-[300px] object-contain" /></div></div><div className="p-5 border-t bg-white flex gap-3"><button onClick={onClose} className="flex-1 py-3.5 rounded-xl font-bold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">Cancelar</button><button onClick={handlePrint} className="flex-1 py-3.5 rounded-xl font-bold bg-slate-900 text-white hover:bg-slate-800 shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95"><Printer size={18}/> Imprimir</button></div></motion.div></motion.div>)
+    const handlePrint = () => { const iframe = document.createElement('iframe'); iframe.style.position = 'absolute'; iframe.width='0'; iframe.height='0'; iframe.style.border='none'; document.body.appendChild(iframe); const doc = iframe.contentWindow?.document; if (doc) { doc.open(); doc.write(`<html><body onload="window.print()"><img src="${image}" style="width:100%"/></body></html>`); doc.close(); setTimeout(() => document.body.removeChild(iframe), 5000); } };
+    return (<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={onClose}><motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-white rounded-3xl overflow-hidden shadow-2xl max-w-lg w-full flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}><div className="p-5 border-b flex justify-between items-center bg-white"><h3 className="font-bold text-slate-800 flex items-center gap-2"><Printer size={20} className="text-blue-600"/> Vista Previa</h3><button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20}/></button></div><div className="flex-1 overflow-y-auto p-8 bg-slate-50 flex justify-center"><div className="bg-white shadow-xl p-2 rounded-lg border border-slate-100"><img src={image} className="w-full h-auto max-w-[300px] object-contain" /></div></div><div className="p-5 border-t bg-white flex gap-3"><button onClick={onClose} className="flex-1 py-3.5 rounded-xl font-bold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">Cancelar</button><button onClick={handlePrint} className="flex-1 py-3.5 rounded-xl font-bold bg-slate-900 text-white hover:bg-slate-800 shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95"><Printer size={18}/> Imprimir</button></div></motion.div></motion.div>)
 }
