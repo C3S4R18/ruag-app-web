@@ -3,33 +3,34 @@
 import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link' 
-import AdminTable from '@/components/AdminTable' 
-import MassImport from '@/components/MassImport' 
-import ChatSystem from '@/components/ChatSystem' 
-import AdminTour from '@/components/AdminTour' 
+import Link from 'next/link'
+import AdminTable from '@/components/AdminTable'
+import MassImport from '@/components/MassImport'
+import ChatSystem from '@/components/ChatSystem'
+import AdminTour from '@/components/AdminTour'
 import BiometricBatchUpload from '@/components/BiometricBatchUpload'
-import VidaLeyManager from '@/components/VidaLeyManager' 
+import VidaLeyManager from '@/components/VidaLeyManager'
 import CesadosManager from '@/components/CesadosManager'
-import SctrManager from '@/components/SctrManager' 
+import SctrManager from '@/components/SctrManager'
 
 // IMPORTS COMPONENTES
 import BiometricSignature from '@/components/ssoma/BiometricSignature'
 import BiometricFingerprint from '@/components/ssoma/BiometricFingerprint'
 
-import { 
-  LayoutGrid, Users, LogOut, ShieldCheck, 
+import {
+  LayoutGrid, Users, LogOut, ShieldCheck,
   Search, TrendingUp, Activity, HardHat, UploadCloud, X,
   LayoutDashboard, Fingerprint, Menu, PenTool, CheckCircle, Loader2,
   FileText, Lock, Unlock, ScanLine, Trash2, ChevronRight,
-  UserCog, Mail, Key, Save, Send, ScanFace, Zap, Briefcase, FileBadge, 
+  UserCog, Mail, Key, Save, Send, ScanFace, Zap, Briefcase, FileBadge,
   HeartHandshake, CheckSquare, Square, ExternalLink, ArrowUpDown,
-  Award, BookOpen, ShieldAlert, FileSpreadsheet, UserX, Wifi, WifiOff 
+  Award, BookOpen, ShieldAlert, FileSpreadsheet, UserX, Wifi, WifiOff,
+  Building, ArrowRightCircle, PlusCircle, Maximize2, FileCheck, Layers, Eye
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 
-// --- INTERFAZ PARA DOCUMENTOS (Solución error TypeScript) ---
+// --- INTERFAZ PARA DOCUMENTOS ---
 interface DocDefinition {
   id: string;
   label: string;
@@ -39,29 +40,29 @@ interface DocDefinition {
 
 // --- CONFIGURACIÓN DOCUMENTOS SSOMA ---
 const DIGITAL_DOCS: DocDefinition[] = [
-    { id: 'risst', label: 'Cargo RISST', type: 'lock' },
-    { id: 'capacitacion', label: 'Registro Capacitación', type: 'lock' },
-    { id: 'induccion', label: 'Inducción Hombre Nuevo', type: 'lock' },
-    { id: 'epp', label: 'Entrega de EPPs', type: 'lock' },
-    { id: 'acta_derecho', label: 'Acta Derecho a Saber', type: 'lock' },
-    { id: 'iperc', label: 'Entrega IPERC', type: 'lock' },
+  { id: 'risst', label: 'Cargo RISST', type: 'lock' },
+  { id: 'capacitacion', label: 'Registro Capacitación', type: 'lock' },
+  { id: 'induccion', label: 'Inducción Hombre Nuevo', type: 'lock' },
+  { id: 'epp', label: 'Entrega de EPPs', type: 'lock' },
+  { id: 'acta_derecho', label: 'Acta Derecho a Saber', type: 'lock' },
+  { id: 'iperc', label: 'Entrega IPERC', type: 'lock' },
 ]
 
 // --- CONFIGURACIÓN DOCUMENTOS RRHH ---
 const RRHH_DOCS_CONFIG: DocDefinition[] = [
-    { id: 'rit_pdf_download', label: 'Reglamento Interno Trabajo (RIT)', type: 'pdf' },
-    { id: 'hostigamiento_pdf_download', label: 'Política Hostigamiento', type: 'pdf' },
-    { id: 'beneficiarios_pdf_download', label: 'Declaración Beneficiarios', type: 'pdf' },
-    { id: 'etica_pdf_download', label: 'Código de Ética y Conducta', type: 'pdf' },
-    { id: 'antisoborno_pdf_download', label: 'Política Antisoborno', type: 'pdf' },
-    { id: 'cargo_politica_prevencion', label: 'Cargo Política Prevención', type: 'lock' },
-    { id: 'cargo_rit', label: 'Cargo Reglamento Trabajo', type: 'lock' },
+  { id: 'rit_pdf_download', label: 'Reglamento Interno Trabajo (RIT)', type: 'pdf' },
+  { id: 'hostigamiento_pdf_download', label: 'Política Hostigamiento', type: 'pdf' },
+  { id: 'beneficiarios_pdf_download', label: 'Declaración Beneficiarios', type: 'pdf' },
+  { id: 'etica_pdf_download', label: 'Código de Ética y Conducta', type: 'pdf' },
+  { id: 'antisoborno_pdf_download', label: 'Política Antisoborno', type: 'pdf' },
+  { id: 'cargo_politica_prevencion', label: 'Cargo Política Prevención', type: 'lock' },
+  { id: 'cargo_rit', label: 'Cargo Reglamento Trabajo', type: 'lock' },
 ]
 
 // --- CONFIGURACIÓN DOCUMENTOS RRHH (CARGOS PARA HABILITAR) ---
 const RRHH_DOCS: DocDefinition[] = [
-    { id: 'cargo_politica_prevencion', label: 'Cargo Política de Prevención' },
-    { id: 'cargo_rit', label: 'Cargo del Reglamento de Trabajo' },
+  { id: 'cargo_politica_prevencion', label: 'Cargo Política de Prevención' },
+  { id: 'cargo_rit', label: 'Cargo del Reglamento de Trabajo' },
 ]
 
 export default function AdminPage() {
@@ -71,7 +72,7 @@ export default function AdminPage() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [userName, setUserName] = useState('')
   const [userEmail, setUserEmail] = useState('')
-  const [userId, setUserId] = useState('') 
+  const [userId, setUserId] = useState('')
   const [loading, setLoading] = useState(true)
 
   // VISTAS
@@ -84,6 +85,19 @@ export default function AdminPage() {
   const [showImport, setShowImport] = useState(false)
   const [showBioImport, setShowBioImport] = useState(false)
 
+  // --- GESTIÓN DE OBRAS (CENTRO DE COSTOS) ---
+  const [showCostCenter, setShowCostCenter] = useState(false)
+  const [obrasList, setObrasList] = useState<any[]>([]) // Lista completa de obras
+  const [currentObra, setCurrentObra] = useState<any>(null) // Obra seleccionada actualmente
+  const [obraForm, setObraForm] = useState({ numero: '', nombre: '' })
+  const [draggedWorker, setDraggedWorker] = useState<any>(null)
+  
+  // Obreros en la obra seleccionada
+  const [workersInCurrentObra, setWorkersInCurrentObra] = useState<any[]>([])
+
+  // --- NUEVO: PANTALLA DETALLE DE OBRA ---
+  const [showObraDetails, setShowObraDetails] = useState(false)
+
   // --- NUEVO MODAL: ADMINISTRADORES ---
   const [showAdminModal, setShowAdminModal] = useState(false)
   const [adminsData, setAdminsData] = useState<any[]>([])
@@ -95,7 +109,7 @@ export default function AdminPage() {
   const [refreshTrigger, setRefreshTrigger] = useState(0)
 
   // --- REALTIME (GOOGLE SHEETS BUBBLES) ---
-  const [onlineUsers, setOnlineUsers] = useState<any[]>([]) 
+  const [onlineUsers, setOnlineUsers] = useState<any[]>([])
   const channelRef = useRef<any>(null)
 
   // Datos
@@ -110,7 +124,7 @@ export default function AdminPage() {
   const [selectedWorkerBiometria, setSelectedWorkerBiometria] = useState<any>(null)
   const [selectedWorkerDocs, setSelectedWorkerDocs] = useState<any>(null) // SSOMA
   const [selectedWorkerRRHH, setSelectedWorkerRRHH] = useState<any>(null) // RRHH
-  const [chatWorker, setChatWorker] = useState<any>(null) 
+  const [chatWorker, setChatWorker] = useState<any>(null)
 
   // --- SELECCIÓN MÚLTIPLE (GRID/LIST) ---
   const [selectedGridIds, setSelectedGridIds] = useState<string[]>([])
@@ -178,11 +192,11 @@ export default function AdminPage() {
       setUserEmail(user.email || '')
       
       const { data: profile } = await supabase.from('profiles').select('role, nombres').eq('id', user.id).single()
-      if (profile?.role !== 'admin') { router.push('/dashboard') } 
-      else { 
-          setIsAdmin(true); 
+      if (profile?.role !== 'admin') { router.push('/dashboard') }
+      else {
+          setIsAdmin(true);
           const name = profile.nombres.split(' ')[0]
-          setUserName(name) 
+          setUserName(name)
           
           // --- LOGICA DE PRESENCIA (BURBUJAS) ---
           const currentUserData = {
@@ -190,7 +204,7 @@ export default function AdminPage() {
              online_at: new Date().toISOString(),
              color: '#' + Math.floor(Math.random()*16777215).toString(16)
           };
-          setOnlineUsers([currentUserData]); 
+          setOnlineUsers([currentUserData]);
 
           const channel = supabase.channel('admin_room', {
               config: { presence: { key: user.id } }
@@ -208,7 +222,7 @@ export default function AdminPage() {
                         <div className="flex flex-col">
                             <span className="font-bold text-xs">{payload.user} {payload.action}</span>
                             <span className="text-[10px] opacity-80">{payload.details}</span>
-                        </div>, 
+                        </div>,
                         { duration: 4000, icon: <Zap size={16} className="text-amber-500"/> }
                     )
                 }
@@ -241,72 +255,69 @@ export default function AdminPage() {
     }
   }, [])
 
+  // --- CARGAR DATOS ---
   const fetchData = async () => {
       if (workersData.length === 0) setLoadingData(true)
       
-      // 1. OBTENER OBREROS (EXCLUYE ADMINS para la TABLA)
+      // 1. OBREROS
       const { data: workers, error: errorWorkers } = await supabase
         .from('fichas')
-        .select('*, profiles!inner(role)') 
-        .neq('profiles.role', 'admin')      
+        .select('*, profiles!inner(role)')
+        .neq('profiles.role', 'admin')
         .order('updated_at', { ascending: false })
       
-      // 2. OBTENER ADMINISTRADORES (PARA EL MODAL Y EL CONTEO TOTAL)
-      const { data: admins, error: errorAdmins } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('role', 'admin')
+      // 2. ADMINS
+      const { data: admins } = await supabase.from('profiles').select('*').eq('role', 'admin')
 
-      if(errorWorkers || errorAdmins) {
-          console.error("Error fetching data")
-          toast.error("Error al cargar datos")
-      }
+      // 3. OBRAS (NUEVO: CARGAR LISTA COMPLETA)
+      const { data: obras } = await supabase.from('obras').select('*').order('created_at', { ascending: false })
+
+      if(errorWorkers) toast.error("Error al cargar datos")
       
       if(workers) setWorkersData(workers)
       if(admins) setAdminsData(admins)
+      if(obras) setObrasList(obras)
       
       setLoadingData(false)
   }
 
+  // --- ACTUALIZAR OBREROS DE LA OBRA SELECCIONADA ---
+  useEffect(() => {
+      if (currentObra) {
+          const filtered = workersData.filter(w => w.nombre_obra === currentObra.nombre)
+          setWorkersInCurrentObra(filtered)
+      } else {
+          setWorkersInCurrentObra([])
+      }
+  }, [currentObra, workersData])
+
   useEffect(() => {
       fetchData()
 
+      // SUSCRIPCIÓN A CAMBIOS
       const channel = supabase.channel('admin-docs')
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'fichas' }, (payload: any) => {
             const newRow = payload.new
-            const oldData = workersDataRef.current
-            const oldRow = oldData.find(w => w.id === newRow.id)
-
-            if (oldRow) {
-                const newDocs = newRow.doc_states || {}
-                const oldDocs = oldRow.doc_states || {}
-
-                let hasNewCompletion = false
-                Object.keys(newDocs).forEach(key => {
-                    if (newDocs[key]?.status === 'completed' && oldDocs[key]?.status !== 'completed') {
-                        hasNewCompletion = true
-                    }
+            setWorkersData(prev => prev.map(w => w.id === newRow.id ? newRow : w))
+            
+            // Si la ficha actualizada pertenece a la obra actual, actualizamos la vista pequeña
+            if (currentObra && newRow.nombre_obra === currentObra.nombre) {
+                setWorkersInCurrentObra(prev => {
+                    const exists = prev.find(p => p.id === newRow.id)
+                    // Si ya existe actualizamos, si no existe (acaba de ser asignado por otro admin) lo agregamos
+                    if (exists) return prev.map(p => p.id === newRow.id ? newRow : p)
+                    return [...prev, newRow]
                 })
-
-                if (hasNewCompletion) {
-                    playAdminSound()
-                    toast.success(`✅ ${newRow.nombres} ha completado un documento.`)
-                }
-
-                setWorkersData(prev => prev.map(w => w.id === newRow.id ? newRow : w))
-                
-                // Actualizar modales abiertos
-                if (selectedWorkerDocsRef.current && selectedWorkerDocsRef.current.id === newRow.id) {
-                    setSelectedWorkerDocs(newRow)
-                }
-                if (selectedWorkerRRHHRef.current && selectedWorkerRRHHRef.current.id === newRow.id) {
-                    setSelectedWorkerRRHH(newRow)
-                }
             }
-        }).subscribe()
+        })
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'obras' }, (payload: any) => {
+            // Si alguien crea una obra nueva, la agregamos a la lista
+            setObrasList(prev => [payload.new, ...prev])
+        })
+        .subscribe()
 
       return () => { supabase.removeChannel(channel) }
-  }, []) 
+  }, [currentObra])
 
   // --- FILTRO Y ORDENAMIENTO ---
   const filteredWorkers = workersData.filter(worker => 
@@ -326,9 +337,98 @@ export default function AdminPage() {
       if (isMobile) setSidebarOpen(false)
   }
 
+  // --- LÓGICA CENTRO DE COSTOS (OBRAS) ---
+  const handleCreateObra = async (e: any) => {
+    e.preventDefault()
+    if (!obraForm.nombre || !obraForm.numero) {
+        toast.error("Complete ambos campos")
+        return
+    }
+
+    // VALIDACIÓN DE DUPLICADOS EN CLIENTE
+    const duplicate = obrasList.find(o => o.nombre.toLowerCase() === obraForm.nombre.toLowerCase() || o.numero === obraForm.numero)
+    if (duplicate) {
+        toast.error("Ya existe una obra con ese Nombre o Número.")
+        return
+    }
+
+    try {
+        const { data, error } = await supabase.from('obras').insert({
+            numero: obraForm.numero,
+            nombre: obraForm.nombre
+        }).select().single()
+
+        if (error) throw error
+
+        toast.success(`Obra "${obraForm.nombre}" creada exitosamente`)
+        
+        // Agregar a la lista local y seleccionarla
+        // (El listener de realtime también lo haría, pero esto es más rápido para el UX)
+        setObrasList(prev => [data, ...prev])
+        setCurrentObra(data)
+        setObraForm({ numero: '', nombre: '' })
+
+    } catch (err: any) {
+        console.error(err)
+        toast.error("Error al crear obra: " + err.message)
+    }
+  }
+
+  // --- SELECCIONAR OBRA DE LA LISTA ---
+  const handleSelectObra = (obra: any) => {
+      setCurrentObra(obra)
+      // Al seleccionar, filtramos los trabajadores que ya tienen esa obra
+      const workers = workersData.filter(w => w.nombre_obra === obra.nombre)
+      setWorkersInCurrentObra(workers)
+  }
+
+  // --- DRAG AND DROP HANDLERS ---
+  const handleDragStart = (e: React.DragEvent, worker: any) => {
+      e.dataTransfer.setData("workerId", worker.id)
+      setDraggedWorker(worker)
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+      e.preventDefault() 
+  }
+
+  const handleDropOnObra = async (e: React.DragEvent) => {
+    e.preventDefault()
+    const workerId = e.dataTransfer.getData("workerId")
+    if (!workerId || !currentObra) return
+
+    const worker = workersData.find(w => w.id === workerId)
+    if (!worker) return
+
+    if (worker.nombre_obra === currentObra.nombre) {
+        toast.info("El obrero ya está en esta obra")
+        return
+    }
+
+    try {
+        const { error } = await supabase
+            .from('fichas')
+            .update({ nombre_obra: currentObra.nombre })
+            .eq('id', workerId)
+
+        if (error) throw error
+
+        toast.success(`${worker.nombres} asignado a ${currentObra.nombre}`)
+        // Actualización local optimista
+        setWorkersInCurrentObra(prev => [...prev, { ...worker, nombre_obra: currentObra.nombre }])
+        broadcastChange('asignó', `obrero a ${currentObra.nombre}`)
+
+    } catch (err: any) {
+        toast.error("Error al asignar: " + err.message)
+    }
+    setDraggedWorker(null)
+  }
+
+
+  // --- RESTO DE FUNCIONES ---
+
   const openFirstWorkerDrawerForTour = () => {
       const targetWorker = filteredWorkers.length > 0 ? filteredWorkers[0] : (workersData.length > 0 ? workersData[0] : null);
-      
       if (targetWorker) {
           if (activeView === 'biometria') setSelectedWorkerBiometria(targetWorker);
           else if (activeView === 'documentos') setSelectedWorkerDocs(targetWorker);
@@ -361,11 +461,10 @@ export default function AdminPage() {
       }
   }
 
-  // --- LÓGICA ACCIONES MASIVAS ---
   const handleOpenMassAction = () => {
       if (activeView === 'documentos') setMassActionType('ssoma')
       else if (activeView === 'rrhh') setMassActionType('rrhh')
-      else return // En biometría no hay envíos masivos por ahora
+      else return 
 
       setSelectedMassDocs([])
       setShowMassActionModal(true)
@@ -386,7 +485,6 @@ export default function AdminPage() {
       let successCount = 0
 
       for (const workerId of selectedGridIds) {
-          // Obtener estado actual del worker
           const worker = workersData.find(w => w.id === workerId)
           if (!worker) continue
 
@@ -395,7 +493,6 @@ export default function AdminPage() {
           
           docsToProcess.forEach(doc => {
               if (doc.type === 'pdf') {
-                  // Lógica para documentos PDF (Envío para descarga)
                   let fileName = ''
                   if (doc.id === 'risst_pdf_download') fileName = 'REGLAMENTO INTERNO DE SEGURIDAD.pdf'
                   else if (doc.id === 'rit_pdf_download') fileName = 'REGLAMENTO INTERNO DE TRABAJO.pdf'
@@ -411,10 +508,9 @@ export default function AdminPage() {
                       file: fileName
                   }
               } else {
-                  // Lógica para documentos LOCK (Habilitar firma)
                   if (newStates[doc.id]?.status !== 'completed') {
                       newStates[doc.id] = {
-                          status: 'unlocked', // Habilitamos para firma
+                          status: 'unlocked',
                           updated_at: new Date().toISOString()
                       }
                   }
@@ -430,7 +526,7 @@ export default function AdminPage() {
       setSelectedGridIds([])
       toast.success(`Acción masiva completada en ${successCount} trabajadores.`)
       broadcastChange('realizó', `envío masivo de ${selectedMassDocs.length} documentos a ${successCount} personas`)
-      fetchData() // Refrescar datos
+      fetchData()
   }
 
 
@@ -470,24 +566,17 @@ export default function AdminPage() {
             </div>
         </div>
 
-        {/* --- SIDEBAR REORGANIZADO Y MODERNO CON SCROLLBAR PERSONALIZADO Y TITULOS ANIMADOS --- */}
+        {/* --- SIDEBAR --- */}
         <nav className="flex-1 px-3 py-6 space-y-8 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-600">
-            {/* Dashboard General - Solo */}
+            {/* Dashboard General */}
             <div>
                 <SidebarItem active={activeView === 'dashboard'} onClick={() => handleNavClick('dashboard')} icon={<LayoutDashboard size={20}/>} label="Dashboard General" />
             </div>
 
-            {/* GRUPO 1: GESTIÓN DE TALENTO (RRHH, Vida Ley, Cesados) */}
+            {/* GRUPO 1 */}
             <div>
-                <motion.div 
-                    initial={{ opacity: 0, x: -10 }} 
-                    animate={{ opacity: 1, x: 0 }} 
-                    transition={{ delay: 0.1 }}
-                    className="px-4 mb-3 mt-2"
-                >
-                    <h3 className="text-xs font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-indigo-300 uppercase tracking-widest">
-                        Gestión de Talento
-                    </h3>
+                <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }} className="px-4 mb-3 mt-2">
+                    <h3 className="text-xs font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-indigo-300 uppercase tracking-widest">Gestión de Talento</h3>
                 </motion.div>
                 <div className="space-y-1">
                     <div id="nav-rrhh">
@@ -502,17 +591,10 @@ export default function AdminPage() {
                 </div>
             </div>
 
-            {/* GRUPO 2: SEGURIDAD (SSOMA, SCTR) */}
+            {/* GRUPO 2 */}
             <div>
-                <motion.div 
-                    initial={{ opacity: 0, x: -10 }} 
-                    animate={{ opacity: 1, x: 0 }} 
-                    transition={{ delay: 0.2 }}
-                    className="px-4 mb-3 mt-2"
-                >
-                    <h3 className="text-xs font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-indigo-300 uppercase tracking-widest">
-                        Seguridad (SSOMA)
-                    </h3>
+                <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }} className="px-4 mb-3 mt-2">
+                    <h3 className="text-xs font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-indigo-300 uppercase tracking-widest">Seguridad (SSOMA)</h3>
                 </motion.div>
                 <div className="space-y-1">
                     <div id="nav-documentos">
@@ -524,17 +606,10 @@ export default function AdminPage() {
                 </div>
             </div>
 
-            {/* GRUPO 3: CONTROL (Biometría) */}
+            {/* GRUPO 3 */}
             <div>
-                <motion.div 
-                    initial={{ opacity: 0, x: -10 }} 
-                    animate={{ opacity: 1, x: 0 }} 
-                    transition={{ delay: 0.3 }}
-                    className="px-4 mb-3 mt-2"
-                >
-                    <h3 className="text-xs font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-indigo-300 uppercase tracking-widest">
-                        Control Operativo
-                    </h3>
+                <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }} className="px-4 mb-3 mt-2">
+                    <h3 className="text-xs font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-indigo-300 uppercase tracking-widest">Control Operativo</h3>
                 </motion.div>
                 <div className="space-y-1">
                     <div id="nav-biometria">
@@ -543,24 +618,16 @@ export default function AdminPage() {
                 </div>
             </div>
 
-            {/* GRUPO 4: SISTEMA (Perfil) */}
+            {/* GRUPO 4 */}
             <div>
-                <motion.div 
-                    initial={{ opacity: 0, x: -10 }} 
-                    animate={{ opacity: 1, x: 0 }} 
-                    transition={{ delay: 0.4 }}
-                    className="px-4 mb-3 mt-2"
-                >
-                    <h3 className="text-xs font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-indigo-300 uppercase tracking-widest">
-                        Sistema
-                    </h3>
+                <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }} className="px-4 mb-3 mt-2">
+                    <h3 className="text-xs font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-indigo-300 uppercase tracking-widest">Sistema</h3>
                 </motion.div>
                 <div className="space-y-1">
                     <SidebarItem active={activeView === 'profile'} onClick={() => handleNavClick('profile')} icon={<UserCog size={20}/>} label="Mi Perfil" />
                 </div>
             </div>
         </nav>
-        {/* ------------------------------------- */}
 
         <AdminTour 
             changeView={(view) => setActiveView(view)} 
@@ -576,6 +643,7 @@ export default function AdminPage() {
         </div>
       </motion.aside>
 
+      {/* --- CONTENIDO PRINCIPAL --- */}
       <main className="flex-1 flex flex-col h-full min-w-0 bg-[#F8FAFC] relative">
         
         <header className="h-20 bg-white/80 backdrop-blur-xl border-b border-slate-200/60 px-6 flex items-center justify-between shrink-0 sticky top-0 z-30 shadow-sm">
@@ -604,7 +672,7 @@ export default function AdminPage() {
 
             <div className="flex items-center gap-6">
                 
-                {/* MOSTRAR ADMINS CONECTADOS (BURBUJAS) - AHORA SIEMPRE VISIBLE */}
+                {/* ADMINS CONECTADOS */}
                 <div className="flex items-center gap-2">
                     <span className="text-[10px] font-bold text-slate-400 uppercase mr-1 hidden md:inline">En línea:</span>
                     <div className="flex -space-x-2">
@@ -616,7 +684,6 @@ export default function AdminPage() {
                                 >
                                     {user.name ? user.name.charAt(0) : '?'}
                                 </div>
-                                {/* Tooltip */}
                                 <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
                                     {user.name || 'Admin'}
                                 </div>
@@ -644,318 +711,356 @@ export default function AdminPage() {
             </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-6 md:p-8 scroll-smooth">
+        {/* --- CONTENEDOR SPLIT: PRINCIPAL + CENTRO DE COSTOS --- */}
+        <div className="flex flex-1 overflow-hidden">
             
-            {activeView === 'dashboard' && (
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-8 pb-20 max-w-7xl mx-auto">
-                    
-                    <div className="flex flex-wrap justify-end gap-3">
-                        <Link href="/admin/ssoma/induccion">
-                            <div className="flex items-center gap-2 px-5 py-3 rounded-xl bg-slate-900 text-white text-xs font-bold shadow-xl shadow-slate-900/20 hover:scale-105 transition-all cursor-pointer border border-slate-700">
-                                <HardHat size={18}/> Gestion SSOMA
-                            </div>
-                        </Link>
+            <div className="flex-1 overflow-y-auto p-6 md:p-8 scroll-smooth">
+                
+                {activeView === 'dashboard' && (
+                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-8 pb-20 max-w-7xl mx-auto">
                         
-                        <button 
-                            onClick={() => setShowBioImport(true)} 
-                            className="flex items-center gap-2 px-5 py-3 bg-blue-600 text-white border border-blue-500 rounded-xl text-xs font-bold shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all"
-                        >
-                            <ScanFace size={18}/> IMPORTAR FIRMAS/HUELLAS
-                        </button>
-
-                        <button 
-                            id="tour-import"
-                            onClick={() => setShowImport(true)} 
-                            className="flex items-center gap-2 px-5 py-3 bg-white text-slate-700 border border-slate-200 rounded-xl text-xs font-bold shadow-sm hover:border-blue-300 hover:text-blue-600 hover:shadow-md transition-all"
-                        >
-                            <UploadCloud size={18}/> CARGA MASIVA DATA
-                        </button>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6" id="tour-stats">
-                        {/* 1. TOTAL PERSONAL (SUMA OBREROS + ADMINS) */}
-                        <StatCard 
-                            title="Total Personal" 
-                            value={(workersData.length + adminsData.length).toString()} 
-                            desc="Base de datos global" 
-                            icon={<Users size={24} className="text-white"/>} 
-                            bg="bg-gradient-to-br from-blue-500 to-blue-600"
-                            delay={0.1} 
-                        />
-                        
-                        {/* 2. ADMINISTRADORES (NUEVA FUNCIÓN MODAL) */}
-                        <div onClick={() => setShowAdminModal(true)} className="cursor-pointer">
-                            <StatCard 
-                                title="Administradores" 
-                                value={adminsData.length.toString()} 
-                                desc="Ver lista de admins" 
-                                icon={<UserCog size={24} className="text-white"/>} 
-                                bg="bg-gradient-to-br from-indigo-500 to-purple-600"
-                                delay={0.2} 
-                            />
-                        </div>
-
-                        {/* 3. ESTADO DEL SISTEMA (REAL CON DETECTOR DE RED) */}
-                        <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
-                            <div className="flex justify-between items-start">
-                                <div>
-                                    <p className="text-slate-500 text-sm font-medium mb-1">Estado del Sistema</p>
-                                    {isSystemOnline ? (
-                                        <h3 className="text-2xl font-bold text-emerald-600 flex items-center gap-2">
-                                            <span className="w-3 h-3 bg-emerald-500 rounded-full animate-ping"></span>
-                                            En Línea
-                                        </h3>
-                                    ) : (
-                                        <h3 className="text-2xl font-bold text-red-600 flex items-center gap-2 animate-pulse">
-                                            <WifiOff size={20}/>
-                                            Sin Conexión
-                                        </h3>
-                                    )}
+                        <div className="flex flex-wrap justify-end gap-3">
+                            <Link href="/admin/ssoma/induccion">
+                                <div className="flex items-center gap-2 px-5 py-3 rounded-xl bg-slate-900 text-white text-xs font-bold shadow-xl shadow-slate-900/20 hover:scale-105 transition-all cursor-pointer border border-slate-700">
+                                    <HardHat size={18}/> Gestion SSOMA
                                 </div>
-                                <div className={`p-3 rounded-2xl ${isSystemOnline ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
-                                    {isSystemOnline ? <Wifi size={24}/> : <Activity size={24}/>}
-                                </div>
-                            </div>
-                            <div className="mt-4 text-xs font-medium text-slate-400 bg-slate-50 inline-block px-3 py-1 rounded-full border border-slate-100">
-                                {isSystemOnline ? "Sincronizado con servidor" : "Reconectando..."}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="bg-white rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/40 overflow-hidden">
-                        <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white/50">
-                            <h3 className="font-bold text-slate-800 text-lg flex items-center gap-3">
-                                <LayoutGrid size={20} className="text-blue-500"/> 
-                                Registro de Trabajadores
-                            </h3>
-                        </div>
-                        
-                        <AdminTable 
-                            onOpenChat={(worker) => setChatWorker(worker)} 
-                            refreshTrigger={refreshTrigger}
-                            onNotifyChange={broadcastChange}
-                        />
-                    </div>
-                </motion.div>
-            )}
-
-            {/* --- VISTA VIDA LEY (EXCEL EDITABLE) --- */}
-            {activeView === 'vida_ley' && (
-                <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="h-full pb-20">
-                    <VidaLeyManager />
-                </motion.div>
-            )}
-
-            {/* --- VISTA SCTR (NUEVA) --- */}
-            {activeView === 'sctr' && (
-                <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="h-full pb-20">
-                    <SctrManager onBack={() => setActiveView('dashboard')} />
-                </motion.div>
-            )}
-
-            {/* --- VISTA CESADOS (NUEVA) --- */}
-            {activeView === 'cesados' && (
-                <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="h-full pb-20">
-                    {/* LE PASAMOS LA FUNCIÓN PARA VOLVER AL DASHBOARD */}
-                    <CesadosManager onBack={() => setActiveView('dashboard')} />
-                </motion.div>
-            )}
-
-            {/* SECCIÓN GRID/LISTA COMPARTIDA (BIOMETRIA/DOCS/RRHH) */}
-            {(activeView === 'biometria' || activeView === 'documentos' || activeView === 'rrhh') && (
-                <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6 h-full flex flex-col max-w-7xl mx-auto">
-                    
-                    <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4 justify-between items-center sticky top-0 z-10">
-                        {/* SELECTOR MASIVO GLOBAL */}
-                        {(activeView === 'documentos' || activeView === 'rrhh') && (
-                            <div className="flex items-center gap-4 mr-4 border-r border-slate-200 pr-4">
-                                <button onClick={handleGridSelectAll} className="flex items-center gap-2 text-slate-500 hover:text-blue-600 font-bold text-xs bg-slate-50 px-3 py-2.5 rounded-xl border border-slate-100 hover:border-blue-200 transition-all">
-                                    {selectedGridIds.length === filteredWorkers.length && filteredWorkers.length > 0 ? <CheckSquare size={18} className="text-blue-600"/> : <Square size={18}/>}
-                                    {selectedGridIds.length > 0 ? `${selectedGridIds.length} Seleccionados` : 'Todos'}
-                                </button>
-
-                                {/* BOTÓN DE ORDENAMIENTO */}
-                                <button 
-                                    onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
-                                    className="flex items-center gap-2 text-slate-500 hover:text-indigo-600 font-bold text-xs bg-slate-50 px-3 py-2.5 rounded-xl border border-slate-100 hover:border-indigo-200 transition-all"
-                                    title="Ordenar alfabéticamente"
-                                >
-                                    <ArrowUpDown size={16} />
-                                    {sortOrder === 'asc' ? 'A - Z' : 'Z - A'}
-                                </button>
-                            </div>
-                        )}
-
-                        <div className="relative w-full md:w-96 group" id="tour-search">
-                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors" size={20}/>
-                            <input 
-                                type="text" 
-                                placeholder="Filtrar por DNI, Nombre o Apellido..." 
-                                className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-4 focus:ring-blue-50 focus:border-blue-300 outline-none transition-all font-medium" 
-                                value={searchQuery} 
-                                onChange={e => setSearchQuery(e.target.value)}
-                            />
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-slate-500 font-medium bg-slate-50 px-4 py-2 rounded-xl border border-slate-100">
-                            <Users size={16} className="text-slate-400"/>
-                            <span>Resultados: <span className="text-slate-900 font-bold">{filteredWorkers.length}</span></span>
-                        </div>
-                    </div>
-
-                    {/* BARRA FLOTANTE DE ACCIONES MASIVAS */}
-                    <AnimatePresence>
-                        {selectedGridIds.length > 0 && (activeView === 'documentos' || activeView === 'rrhh') && (
-                            <motion.div 
-                                initial={{ y: 50, opacity: 0 }} 
-                                animate={{ y: 0, opacity: 1 }} 
-                                exit={{ y: 50, opacity: 0 }}
-                                className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 bg-slate-900 text-white p-3 px-6 rounded-2xl shadow-2xl shadow-slate-900/30 border border-slate-700"
+                            </Link>
+                            
+                            <button 
+                                onClick={() => setShowBioImport(true)} 
+                                className="flex items-center gap-2 px-5 py-3 bg-blue-600 text-white border border-blue-500 rounded-xl text-xs font-bold shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all"
                             >
-                                <span className="font-bold text-sm bg-slate-800 px-3 py-1 rounded-lg">{selectedGridIds.length} Obreros</span>
-                                <div className="h-6 w-px bg-slate-700"></div>
-                                <button 
-                                    onClick={handleOpenMassAction}
-                                    className="flex items-center gap-2 font-bold text-sm hover:text-blue-300 transition-colors"
-                                >
-                                    <Send size={16}/> 
-                                    {activeView === 'documentos' ? 'Enviar Docs SSOMA' : 'Enviar Docs RRHH'}
-                                </button>
-                                <button onClick={() => setSelectedGridIds([])} className="p-1 hover:bg-slate-800 rounded-full transition-colors ml-2">
-                                    <X size={16}/>
-                                </button>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
+                                <ScanFace size={18}/> IMPORTAR FIRMAS/HUELLAS
+                            </button>
 
-                    {loadingData ? (
-                        <div className="flex-1 flex flex-col items-center justify-center text-slate-400 py-20">
-                            <Loader2 size={48} className="animate-spin mb-4 text-blue-500"/>
-                            <p className="font-medium animate-pulse">Consultando trabajadores...</p>
+                            <button 
+                                id="tour-import"
+                                onClick={() => setShowImport(true)} 
+                                className="flex items-center gap-2 px-5 py-3 bg-white text-slate-700 border border-slate-200 rounded-xl text-xs font-bold shadow-sm hover:border-blue-300 hover:text-blue-600 hover:shadow-md transition-all"
+                            >
+                                <UploadCloud size={18}/> CARGA MASIVA DATA
+                            </button>
+                            
+                            {/* --- BOTÓN NUEVO: CENTRO DE COSTO --- */}
+                            <button 
+                                onClick={() => setShowCostCenter(!showCostCenter)} 
+                                className={`flex items-center gap-2 px-5 py-3 border rounded-xl text-xs font-bold shadow-sm transition-all ${showCostCenter ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-indigo-700 border-indigo-200 hover:bg-indigo-50'}`}
+                            >
+                                <Building size={18}/> CENTRO DE COSTO
+                            </button>
                         </div>
-                    ) : filteredWorkers.length === 0 ? (
-                        <div className="flex-1 flex flex-col items-center justify-center text-slate-400 border-2 border-dashed border-slate-200 rounded-3xl p-16 bg-slate-50/50">
-                            <div className="bg-white p-4 rounded-full shadow-sm mb-4">
-                                <Search size={32} className="text-slate-300"/>
+
+                        {/* ... Tarjetas de Estadísticas ... */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6" id="tour-stats">
+                            <StatCard 
+                                title="Total Personal" 
+                                value={(workersData.length + adminsData.length).toString()} 
+                                desc="Base de datos global" 
+                                icon={<Users size={24} className="text-white"/>} 
+                                bg="bg-gradient-to-br from-blue-500 to-blue-600"
+                                delay={0.1} 
+                            />
+                            <div onClick={() => setShowAdminModal(true)} className="cursor-pointer">
+                                <StatCard 
+                                    title="Administradores" 
+                                    value={adminsData.length.toString()} 
+                                    desc="Ver lista de admins" 
+                                    icon={<UserCog size={24} className="text-white"/>} 
+                                    bg="bg-gradient-to-br from-indigo-500 to-purple-600"
+                                    delay={0.2} 
+                                />
                             </div>
-                            <p className="font-bold text-slate-600 text-lg">No hay coincidencias</p>
-                        </div>
-                    ) : (
-                        <>
-                            {/* --- VISTA GRID (SOLO PARA BIOMETRÍA) --- */}
-                            {activeView === 'biometria' ? (
-                                <div 
-                                    className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 pb-20"
-                                    id="tour-biometria-grid"
-                                >
-                                    {filteredWorkers.map((worker, index) => (
-                                        <div 
-                                            key={worker.id} 
-                                            id={index === 0 ? 'tour-worker-card' : undefined} 
-                                            className="group bg-white rounded-2xl p-5 border border-slate-200 shadow-sm transition-all hover:shadow-xl hover:-translate-y-1 relative overflow-hidden"
-                                        >
-                                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-400 to-indigo-500 transition-opacity opacity-0 group-hover:opacity-100"></div>
-                                            
-                                            <div className="flex items-start gap-4 mb-5 cursor-pointer" onClick={() => setSelectedWorkerBiometria(worker)}>
-                                                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-600 font-bold text-xl border border-white shadow-inner transition-colors group-hover:from-blue-50 group-hover:to-blue-100 group-hover:text-blue-600">
-                                                    {worker.nombres?.charAt(0)}{worker.apellido_paterno?.charAt(0)}
-                                                </div>
-                                                <div className="min-w-0 flex-1">
-                                                    <h4 className="font-bold text-slate-800 truncate text-base group-hover:text-blue-700 transition-colors uppercase">{worker.apellido_paterno}</h4>
-                                                    <p className="text-sm text-slate-500 truncate mb-1">{worker.nombres}</p>
-                                                    <span className="text-[10px] font-mono font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 group-hover:bg-blue-50 group-hover:text-blue-600 group-hover:border-blue-100 transition-colors">
-                                                        {worker.dni}
-                                                    </span>
-                                                </div>
-                                            </div>
-
-                                            <div className="grid grid-cols-2 gap-2 cursor-pointer" onClick={() => setSelectedWorkerBiometria(worker)}>
-                                                <div className={`py-2.5 rounded-xl text-[10px] font-bold text-center border flex flex-col items-center justify-center gap-1 transition-colors ${worker.firma_url ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-400 border-slate-100'}`}>
-                                                    <PenTool size={14} className={worker.firma_url ? "text-emerald-500" : "text-slate-300"}/> 
-                                                    {worker.firma_url ? 'FIRMA OK' : 'SIN FIRMA'}
-                                                </div>
-                                                <div className={`py-2.5 rounded-xl text-[10px] font-bold text-center border flex flex-col items-center justify-center gap-1 transition-colors ${worker.huella_url ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-400 border-slate-100'}`}>
-                                                    <Fingerprint size={14} className={worker.huella_url ? "text-emerald-500" : "text-slate-300"}/> 
-                                                    {worker.huella_url ? 'HUELLA OK' : 'SIN HUELLA'}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
+                            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                        <p className="text-slate-500 text-sm font-medium mb-1">Estado del Sistema</p>
+                                        {isSystemOnline ? (
+                                            <h3 className="text-2xl font-bold text-emerald-600 flex items-center gap-2">
+                                                <span className="w-3 h-3 bg-emerald-500 rounded-full animate-ping"></span>
+                                                En Línea
+                                            </h3>
+                                        ) : (
+                                            <h3 className="text-2xl font-bold text-red-600 flex items-center gap-2 animate-pulse">
+                                                <WifiOff size={20}/>
+                                                Sin Conexión
+                                            </h3>
+                                        )}
+                                    </div>
+                                    <div className={`p-3 rounded-2xl ${isSystemOnline ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
+                                        {isSystemOnline ? <Wifi size={24}/> : <Activity size={24}/>}
+                                    </div>
                                 </div>
-                            ) : (
-                                /* --- VISTA LISTA (PARA SSOMA Y RRHH) --- */
-                                <div className="flex flex-col gap-2 pb-20" id="tour-docs-list">
-                                    {filteredWorkers.map((worker, index) => {
-                                        const isSelected = selectedGridIds.includes(worker.id);
-                                        const isRRHH = activeView === 'rrhh';
-                                        
-                                        return (
+                                <div className="mt-4 text-xs font-medium text-slate-400 bg-slate-50 inline-block px-3 py-1 rounded-full border border-slate-100">
+                                    {isSystemOnline ? "Sincronizado con servidor" : "Reconectando..."}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-white rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/40 overflow-hidden">
+                            <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white/50">
+                                <h3 className="font-bold text-slate-800 text-lg flex items-center gap-3">
+                                    <LayoutGrid size={20} className="text-blue-500"/> 
+                                    Registro de Trabajadores
+                                </h3>
+                            </div>
+                            
+                            <AdminTable 
+                                onOpenChat={(worker) => setChatWorker(worker)} 
+                                refreshTrigger={refreshTrigger}
+                                onNotifyChange={broadcastChange}
+                            />
+                        </div>
+                    </motion.div>
+                )}
+
+                {/* --- VISTAS ESPECÍFICAS (VIDA LEY, SCTR, CESADOS, PROFILE) --- */}
+                {activeView === 'vida_ley' && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full pb-20"><VidaLeyManager /></motion.div>}
+                {activeView === 'sctr' && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full pb-20"><SctrManager onBack={() => setActiveView('dashboard')} /></motion.div>}
+                {activeView === 'cesados' && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full pb-20"><CesadosManager onBack={() => setActiveView('dashboard')} /></motion.div>}
+                {activeView === 'profile' && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-lg mx-auto pb-20 mt-10"><AdminProfileSettings userEmail={userEmail} supabase={supabase} /></motion.div>}
+
+                {/* --- SECCIÓN GRID/LISTA COMPARTIDA (BIOMETRIA/DOCS/RRHH) --- */}
+                {(activeView === 'biometria' || activeView === 'documentos' || activeView === 'rrhh') && (
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6 h-full flex flex-col max-w-7xl mx-auto">
+                        
+                        {/* HEADER DE CONTROL */}
+                        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4 justify-between items-center sticky top-0 z-10">
+                             {/* ... botones de selección y orden ... */}
+                            <div className="flex items-center gap-4 mr-4">
+                                {(activeView === 'documentos' || activeView === 'rrhh') && (
+                                    <>
+                                        <button onClick={handleGridSelectAll} className="flex items-center gap-2 text-slate-500 hover:text-blue-600 font-bold text-xs bg-slate-50 px-3 py-2.5 rounded-xl border border-slate-100 hover:border-blue-200 transition-all">
+                                            {selectedGridIds.length === filteredWorkers.length && filteredWorkers.length > 0 ? <CheckSquare size={18} className="text-blue-600"/> : <Square size={18}/>}
+                                            {selectedGridIds.length > 0 ? `${selectedGridIds.length} Seleccionados` : 'Todos'}
+                                        </button>
+                                        <button onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')} className="flex items-center gap-2 text-slate-500 hover:text-indigo-600 font-bold text-xs bg-slate-50 px-3 py-2.5 rounded-xl border border-slate-100 hover:border-indigo-200 transition-all">
+                                            <ArrowUpDown size={16} /> {sortOrder === 'asc' ? 'A - Z' : 'Z - A'}
+                                        </button>
+                                    </>
+                                )}
+                                
+                                {/* BOTÓN CENTRO DE COSTO (Repetido aquí por comodidad si se desea) */}
+                                <button 
+                                    onClick={() => setShowCostCenter(!showCostCenter)} 
+                                    className={`flex items-center gap-2 px-3 py-2.5 border rounded-xl text-xs font-bold shadow-sm transition-all ${showCostCenter ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-indigo-700 border-indigo-200 hover:bg-indigo-50'}`}
+                                >
+                                    <Building size={16}/> {showCostCenter ? 'Ocultar C. Costo' : 'Centro de Costo'}
+                                </button>
+                            </div>
+
+                            <div className="relative w-full md:w-96 group" id="tour-search">
+                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors" size={20}/>
+                                <input type="text" placeholder="Filtrar por DNI, Nombre o Apellido..." className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-4 focus:ring-blue-50 focus:border-blue-300 outline-none transition-all font-medium" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+                            </div>
+                        </div>
+
+                        {/* BARRA MASIVA */}
+                        <AnimatePresence>
+                            {selectedGridIds.length > 0 && (activeView === 'documentos' || activeView === 'rrhh') && (
+                                <motion.div initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 50, opacity: 0 }} className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-4 bg-slate-900 text-white p-3 px-6 rounded-2xl shadow-2xl shadow-slate-900/30 border border-slate-700">
+                                    <span className="font-bold text-sm bg-slate-800 px-3 py-1 rounded-lg">{selectedGridIds.length} Obreros</span>
+                                    <div className="h-6 w-px bg-slate-700"></div>
+                                    <button onClick={handleOpenMassAction} className="flex items-center gap-2 font-bold text-sm hover:text-blue-300 transition-colors">
+                                        <Send size={16}/> {activeView === 'documentos' ? 'Enviar Docs SSOMA' : 'Enviar Docs RRHH'}
+                                    </button>
+                                    <button onClick={() => setSelectedGridIds([])} className="p-1 hover:bg-slate-800 rounded-full transition-colors ml-2"><X size={16}/></button>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+
+                        {/* LISTA DE TRABAJADORES (DRAGGABLE) */}
+                        {loadingData ? (
+                            <div className="flex-1 flex flex-col items-center justify-center text-slate-400 py-20"><Loader2 size={48} className="animate-spin mb-4 text-blue-500"/><p className="font-medium animate-pulse">Consultando trabajadores...</p></div>
+                        ) : filteredWorkers.length === 0 ? (
+                            <div className="flex-1 flex flex-col items-center justify-center text-slate-400 border-2 border-dashed border-slate-200 rounded-3xl p-16 bg-slate-50/50"><div className="bg-white p-4 rounded-full shadow-sm mb-4"><Search size={32} className="text-slate-300"/></div><p className="font-bold text-slate-600 text-lg">No hay coincidencias</p></div>
+                        ) : (
+                            <>
+                                {activeView === 'biometria' ? (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 pb-20" id="tour-biometria-grid">
+                                        {filteredWorkers.map((worker, index) => (
                                             <div 
-                                                key={worker.id}
-                                                className={`group flex items-center justify-between p-4 bg-white rounded-xl border transition-all hover:shadow-md cursor-pointer ${isSelected ? 'border-blue-500 bg-blue-50/20' : 'border-slate-200 hover:border-blue-300'}`}
-                                                onClick={() => {
-                                                    if (activeView === 'documentos') setSelectedWorkerDocs(worker)
-                                                    else if (activeView === 'rrhh') setSelectedWorkerRRHH(worker)
-                                                }}
+                                                key={worker.id} 
+                                                draggable={true}
+                                                onDragStart={(e) => handleDragStart(e, worker)}
+                                                className="group bg-white rounded-2xl p-5 border border-slate-200 shadow-sm transition-all hover:shadow-xl hover:-translate-y-1 relative overflow-hidden cursor-move active:cursor-grabbing"
                                             >
-                                                {/* Sección Izquierda: Datos */}
-                                                <div className="flex items-center gap-4 flex-1 min-w-0">
-                                                    {/* Checkbox */}
-                                                    <div onClick={(e) => { e.stopPropagation(); handleGridSelect(worker.id); }} className="text-slate-300 hover:text-blue-600 transition-colors p-2 -ml-2">
-                                                        {isSelected ? <CheckSquare size={20} className="text-blue-600"/> : <Square size={20}/>}
-                                                    </div>
-
-                                                    {/* Avatar */}
-                                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold border ${isRRHH ? 'bg-purple-50 text-purple-600 border-purple-100' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>
-                                                        {worker.nombres?.charAt(0)}{worker.apellido_paterno?.charAt(0)}
-                                                    </div>
-
-                                                    {/* Info Text */}
-                                                    <div className="min-w-0">
-                                                        <div className="flex items-baseline gap-2">
-                                                            <h4 className="font-bold text-slate-800 text-sm truncate uppercase group-hover:text-blue-700 transition-colors">
-                                                                {worker.apellido_paterno}, {worker.nombres}
-                                                            </h4>
-                                                            <span className="text-xs text-slate-400 font-mono hidden sm:inline">{worker.dni}</span>
-                                                        </div>
-                                                        <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
-                                                            <HardHat size={12}/>
-                                                            <span className="truncate max-w-[150px]">{worker.cargo || 'Sin Cargo'}</span>
-                                                            <span className="text-slate-300 mx-1">|</span>
-                                                            <span>{worker.nombre_obra || 'Sin Obra'}</span>
-                                                        </div>
+                                                {/* Contenido Card (Igual que antes) */}
+                                                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-400 to-indigo-500 transition-opacity opacity-0 group-hover:opacity-100"></div>
+                                                <div className="flex items-start gap-4 mb-5 cursor-pointer" onClick={() => setSelectedWorkerBiometria(worker)}>
+                                                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-600 font-bold text-xl border border-white shadow-inner transition-colors group-hover:from-blue-50 group-hover:to-blue-100 group-hover:text-blue-600">{worker.nombres?.charAt(0)}{worker.apellido_paterno?.charAt(0)}</div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <h4 className="font-bold text-slate-800 truncate text-base group-hover:text-blue-700 transition-colors uppercase">{worker.apellido_paterno}</h4>
+                                                        <p className="text-sm text-slate-500 truncate mb-1">{worker.nombres}</p>
+                                                        <span className="text-[10px] font-mono font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 group-hover:bg-blue-50 group-hover:text-blue-600 group-hover:border-blue-100 transition-colors">{worker.dni}</span>
                                                     </div>
                                                 </div>
-
-                                                {/* Sección Derecha: Botón de Acción */}
-                                                <div className="ml-4 shrink-0">
-                                                    <button 
-                                                        className={`px-4 py-2 rounded-lg text-xs font-bold border transition-colors flex items-center gap-2 ${isRRHH ? 'bg-purple-50 text-purple-700 border-purple-100 group-hover:bg-purple-600 group-hover:text-white group-hover:border-purple-600' : 'bg-blue-50 text-blue-700 border-blue-100 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600'}`}
-                                                    >
-                                                        {isRRHH ? <Briefcase size={14}/> : <FileText size={14}/>}
-                                                        <span className="hidden sm:inline">{isRRHH ? 'Gestionar RRHH' : 'Gestionar Docs'}</span>
-                                                    </button>
+                                                {/* Iconos Firma/Huella */}
+                                                <div className="grid grid-cols-2 gap-2 cursor-pointer" onClick={() => setSelectedWorkerBiometria(worker)}>
+                                                    <div className={`py-2.5 rounded-xl text-[10px] font-bold text-center border flex flex-col items-center justify-center gap-1 transition-colors ${worker.firma_url ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-400 border-slate-100'}`}><PenTool size={14} className={worker.firma_url ? "text-emerald-500" : "text-slate-300"}/> {worker.firma_url ? 'FIRMA OK' : 'SIN FIRMA'}</div>
+                                                    <div className={`py-2.5 rounded-xl text-[10px] font-bold text-center border flex flex-col items-center justify-center gap-1 transition-colors ${worker.huella_url ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-400 border-slate-100'}`}><Fingerprint size={14} className={worker.huella_url ? "text-emerald-500" : "text-slate-300"}/> {worker.huella_url ? 'HUELLA OK' : 'SIN HUELLA'}</div>
                                                 </div>
                                             </div>
-                                        )
-                                    })}
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col gap-2 pb-20" id="tour-docs-list">
+                                        {filteredWorkers.map((worker, index) => {
+                                            const isSelected = selectedGridIds.includes(worker.id);
+                                            const isRRHH = activeView === 'rrhh';
+                                            return (
+                                                <div 
+                                                    key={worker.id}
+                                                    draggable={true}
+                                                    onDragStart={(e) => handleDragStart(e, worker)}
+                                                    className={`group flex items-center justify-between p-4 bg-white rounded-xl border transition-all hover:shadow-md cursor-move active:cursor-grabbing ${isSelected ? 'border-blue-500 bg-blue-50/20' : 'border-slate-200 hover:border-blue-300'}`}
+                                                    onClick={() => { if (activeView === 'documentos') setSelectedWorkerDocs(worker); else if (activeView === 'rrhh') setSelectedWorkerRRHH(worker) }}
+                                                >
+                                                    {/* ... Contenido de la fila ... */}
+                                                    <div className="flex items-center gap-4 flex-1 min-w-0">
+                                                        <div onClick={(e) => { e.stopPropagation(); handleGridSelect(worker.id); }} className="text-slate-300 hover:text-blue-600 transition-colors p-2 -ml-2">{isSelected ? <CheckSquare size={20} className="text-blue-600"/> : <Square size={20}/>}</div>
+                                                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold border ${isRRHH ? 'bg-purple-50 text-purple-600 border-purple-100' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>{worker.nombres?.charAt(0)}{worker.apellido_paterno?.charAt(0)}</div>
+                                                        <div className="min-w-0">
+                                                            <div className="flex items-baseline gap-2"><h4 className="font-bold text-slate-800 text-sm truncate uppercase group-hover:text-blue-700 transition-colors">{worker.apellido_paterno}, {worker.nombres}</h4><span className="text-xs text-slate-400 font-mono hidden sm:inline">{worker.dni}</span></div>
+                                                            <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5"><HardHat size={12}/><span className="truncate max-w-[150px]">{worker.cargo || 'Sin Cargo'}</span><span className="text-slate-300 mx-1">|</span><span>{worker.nombre_obra || 'Sin Obra'}</span></div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="ml-4 shrink-0"><button className={`px-4 py-2 rounded-lg text-xs font-bold border transition-colors flex items-center gap-2 ${isRRHH ? 'bg-purple-50 text-purple-700 border-purple-100 group-hover:bg-purple-600 group-hover:text-white group-hover:border-purple-600' : 'bg-blue-50 text-blue-700 border-blue-100 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600'}`}>{isRRHH ? <Briefcase size={14}/> : <FileText size={14}/>}<span className="hidden sm:inline">{isRRHH ? 'Gestionar RRHH' : 'Gestionar Docs'}</span></button></div>
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+                                )}
+                            </>
+                        )}
+                    </motion.div>
+                )}
+
+            </div>
+
+            {/* --- PANEL LATERAL/INFERIOR DE CENTRO DE COSTOS (MEJORADO) --- */}
+            <AnimatePresence>
+                {showCostCenter && (
+                    <motion.div 
+                        initial={{ width: 0, opacity: 0 }} 
+                        animate={{ width: 400, opacity: 1 }} 
+                        exit={{ width: 0, opacity: 0 }}
+                        className="bg-white border-l border-slate-200 shadow-2xl h-full flex flex-col z-40 shrink-0"
+                    >
+                        {/* HEADER DEL PANEL */}
+                        <div className="p-6 bg-slate-900 border-b border-slate-800 text-white">
+                            <h3 className="text-lg font-bold flex items-center gap-2">
+                                <Building size={20} className="text-indigo-400"/> Gestión de Obras
+                            </h3>
+                            <p className="text-xs text-slate-400 mt-1">Crea, selecciona y asigna personal.</p>
+                        </div>
+                        
+                        <div className="flex flex-col h-full overflow-hidden bg-slate-50">
+                            
+                            {/* 1. FORMULARIO DE CREACIÓN (SIEMPRE VISIBLE) */}
+                            <div className="p-4 border-b border-slate-200 bg-white shadow-sm z-10">
+                                <form onSubmit={handleCreateObra} className="space-y-3">
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <div className="col-span-1">
+                                            <input 
+                                                type="text" 
+                                                value={obraForm.numero} 
+                                                onChange={e => setObraForm({...obraForm, numero: e.target.value})}
+                                                className="w-full px-3 py-2 bg-slate-50 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-xs font-bold"
+                                                placeholder="N° Obra"
+                                            />
+                                        </div>
+                                        <div className="col-span-2">
+                                            <input 
+                                                type="text" 
+                                                value={obraForm.nombre} 
+                                                onChange={e => setObraForm({...obraForm, nombre: e.target.value})}
+                                                className="w-full px-3 py-2 bg-slate-50 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-xs font-bold"
+                                                placeholder="Nombre de Obra"
+                                            />
+                                        </div>
+                                    </div>
+                                    <button type="submit" className="w-full py-2 bg-indigo-600 text-white font-bold rounded-lg text-xs hover:bg-indigo-700 transition-colors flex justify-center gap-2 items-center shadow-md active:scale-95">
+                                        <PlusCircle size={14}/> CREAR NUEVA OBRA
+                                    </button>
+                                </form>
+                            </div>
+
+                            {/* 2. LISTA DE OBRAS (SCROLLABLE) */}
+                            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Obras Registradas ({obrasList.length})</p>
+                                {obrasList.length === 0 ? (
+                                    <div className="text-center py-8 text-slate-400 border-2 border-dashed border-slate-200 rounded-xl">
+                                        <Layers size={24} className="mx-auto mb-2 opacity-50"/>
+                                        <p className="text-xs">No hay obras registradas</p>
+                                    </div>
+                                ) : (
+                                    obrasList.map((obra) => (
+                                        <div 
+                                            key={obra.id} 
+                                            onClick={() => handleSelectObra(obra)}
+                                            className={`p-3 rounded-xl border cursor-pointer transition-all hover:shadow-md flex items-center justify-between group ${currentObra?.id === obra.id ? 'bg-indigo-50 border-indigo-200 shadow-sm ring-1 ring-indigo-200' : 'bg-white border-slate-200 hover:border-indigo-300'}`}
+                                        >
+                                            <div className="min-w-0">
+                                                <h4 className={`font-bold text-sm truncate ${currentObra?.id === obra.id ? 'text-indigo-800' : 'text-slate-700'}`}>{obra.nombre}</h4>
+                                                <span className="text-[10px] font-mono bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200">#{obra.numero}</span>
+                                            </div>
+                                            {currentObra?.id === obra.id && <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>}
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+
+                            {/* 3. ZONA DE ARRASTRE DE LA OBRA ACTIVA */}
+                            {currentObra && (
+                                <div className="p-4 bg-white border-t border-slate-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-20">
+                                    <div className="mb-2 flex justify-between items-center">
+                                        <span className="text-[10px] font-bold text-indigo-600 uppercase">Obra Activa</span>
+                                        <span className="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 font-bold">{workersInCurrentObra.length} Obreros</span>
+                                    </div>
+                                    
+                                    <div 
+                                        onDragOver={handleDragOver}
+                                        onDrop={handleDropOnObra}
+                                        className={`h-32 border-2 border-dashed rounded-xl flex flex-col items-center justify-center transition-all relative overflow-hidden group ${draggedWorker ? 'border-indigo-500 bg-indigo-50 scale-[1.02]' : 'border-slate-300 bg-slate-50'}`}
+                                    >
+                                        <UploadCloud size={24} className={`mb-1 transition-colors ${draggedWorker ? 'text-indigo-600' : 'text-slate-400'}`}/>
+                                        <p className={`text-xs font-bold ${draggedWorker ? 'text-indigo-700' : 'text-slate-500'}`}>
+                                            {draggedWorker ? '¡SUELTA AQUÍ!' : 'Arrastra obreros aquí'}
+                                        </p>
+                                        <p className="text-[9px] text-slate-400 mt-0.5 text-center px-4 truncate w-full">
+                                            Para asignar a: <span className="font-bold text-slate-600">{currentObra.nombre}</span>
+                                        </p>
+                                    </div>
+
+                                    <button 
+                                        onClick={() => setShowObraDetails(true)} 
+                                        className="w-full mt-3 py-3 bg-slate-900 text-white text-xs font-bold rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 shadow-lg active:scale-95"
+                                    >
+                                        <Maximize2 size={14}/> VER PLANILLA COMPLETA
+                                    </button>
                                 </div>
                             )}
-                        </>
-                    )}
-                </motion.div>
-            )}
-
-            {activeView === 'profile' && (
-                <motion.div initial={{opacity:0, scale:0.95}} animate={{opacity:1, scale:1}} className="max-w-lg mx-auto pb-20 mt-10">
-                    <AdminProfileSettings userEmail={userEmail} supabase={supabase} />
-                </motion.div>
-            )}
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
         </div>
 
+        {/* --- MODAL PANTALLA COMPLETA: DETALLE DE OBRA --- */}
+        <AnimatePresence>
+            {showObraDetails && currentObra && (
+                <ObraDetailsModal 
+                    obra={currentObra} 
+                    workers={workersInCurrentObra} 
+                    onClose={() => setShowObraDetails(false)}
+                />
+            )}
+        </AnimatePresence>
+
         {/* --- MODALES --- */}
         
-        {/* MODAL LISTA DE ADMINISTRADORES (NUEVO) */}
+        {/* MODAL LISTA DE ADMINISTRADORES */}
         <AnimatePresence>
             {showAdminModal && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[80] flex items-center justify-center p-4" onClick={() => setShowAdminModal(false)}>
@@ -1105,7 +1210,91 @@ function StatCard({title, value, desc, icon, bg, delay}: any) {
     return <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay }} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-lg transition-all"><div className="flex justify-between items-start"><div><p className="text-slate-500 text-sm font-medium mb-1">{title}</p><h3 className="text-3xl font-bold text-slate-800 tracking-tight">{value}</h3></div><div className={`p-3 rounded-2xl shadow-lg shadow-blue-900/10 ${bg}`}>{icon}</div></div><div className="mt-4 pt-4 border-t border-slate-50"><div className="text-xs font-bold text-slate-400 flex items-center gap-1.5"><TrendingUp size={14} className="text-emerald-500"/> <span className="text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">{desc}</span></div></div></motion.div>
 }
 
-// --- ACTUALIZADO: PERFIL CON MODAL DE REDIRECCIÓN A EMAIL ---
+// --- NUEVO COMPONENTE: MODAL DETALLE DE OBRA ---
+function ObraDetailsModal({ obra, workers, onClose }: any) {
+    const [filter, setFilter] = useState('')
+    
+    const filtered = workers.filter((w: any) => 
+        w.nombres.toLowerCase().includes(filter.toLowerCase()) || 
+        w.apellido_paterno.toLowerCase().includes(filter.toLowerCase()) ||
+        w.dni.includes(filter)
+    )
+
+    return (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-6" onClick={onClose}>
+            <motion.div initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }} className="bg-white w-full max-w-5xl h-[85vh] rounded-3xl shadow-2xl overflow-hidden flex flex-col border border-white/20" onClick={e => e.stopPropagation()}>
+                
+                {/* HEADER */}
+                <div className="bg-slate-900 text-white p-6 shrink-0 flex justify-between items-center">
+                    <div>
+                        <div className="flex items-center gap-3 mb-1">
+                            <Building size={24} className="text-indigo-400"/>
+                            <h2 className="text-2xl font-bold">{obra.nombre}</h2>
+                        </div>
+                        <div className="flex items-center gap-4 text-sm text-slate-400 font-mono">
+                            <span className="bg-slate-800 px-2 py-0.5 rounded border border-slate-700">OBRA #{obra.numero}</span>
+                            <span>•</span>
+                            <span>{workers.length} Trabajadores Asignados</span>
+                        </div>
+                    </div>
+                    <button onClick={onClose} className="p-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors backdrop-blur-sm"><X size={20}/></button>
+                </div>
+
+                {/* CONTENIDO */}
+                <div className="flex-1 flex flex-col bg-slate-50 overflow-hidden">
+                    {/* BARRA DE BUSQUEDA */}
+                    <div className="p-4 border-b border-slate-200 bg-white flex justify-between items-center gap-4">
+                        <div className="relative flex-1 max-w-md">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
+                            <input 
+                                type="text" 
+                                placeholder="Buscar en esta obra..." 
+                                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm font-medium"
+                                value={filter}
+                                onChange={e => setFilter(e.target.value)}
+                            />
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-50 transition-colors shadow-sm">
+                                <FileCheck size={16}/> Exportar Lista
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* TABLA */}
+                    <div className="flex-1 overflow-y-auto p-4">
+                        {filtered.length === 0 ? (
+                            <div className="h-full flex flex-col items-center justify-center text-slate-400">
+                                <Users size={48} className="mb-4 opacity-20"/>
+                                <p className="font-bold">No se encontraron trabajadores</p>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {filtered.map((w: any) => (
+                                    <div key={w.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-start gap-4 hover:shadow-md transition-all group">
+                                        <div className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-lg border border-indigo-100 shrink-0">
+                                            {w.nombres.charAt(0)}
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <h4 className="font-bold text-slate-800 text-sm truncate uppercase group-hover:text-indigo-600 transition-colors">{w.apellido_paterno}, {w.nombres}</h4>
+                                            <p className="text-xs text-slate-500 font-mono mt-0.5 mb-2">{w.dni}</p>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded border border-slate-200 capitalize truncate max-w-[100px]">{w.cargo || 'Sin Cargo'}</span>
+                                                <span className="text-[10px] bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded border border-emerald-100 font-bold flex items-center gap-1"><CheckCircle size={10}/> Activo</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+            </motion.div>
+        </motion.div>
+    )
+}
+
 function AdminProfileSettings({ userEmail, supabase }: any) {
     const [email, setEmail] = useState(userEmail);
     const [password, setPassword] = useState('');
@@ -1281,7 +1470,6 @@ function BiometricModal({ worker, onClose, onUpdate }: any) {
     return (<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[100] flex items-center justify-center p-4" onClick={onClose}><motion.div initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }} className="bg-white rounded-3xl w-full max-w-4xl h-[85vh] flex flex-col overflow-hidden shadow-2xl border border-white/20" onClick={e => e.stopPropagation()}><div className="p-6 border-b border-slate-100 flex justify-between items-center bg-white shrink-0"><div className="flex items-center gap-4"><div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center font-bold text-2xl shadow-lg shadow-blue-500/30">{worker.nombres.charAt(0)}</div><div><h3 className="font-bold text-slate-900 text-xl">{worker.nombres} {worker.apellido_paterno}</h3><div className="flex items-center gap-2 mt-1"><span className="text-xs font-mono font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">{worker.dni}</span><span className="text-xs text-slate-400">•</span><span className="text-xs text-slate-500 font-medium capitalize">{worker.cargo || 'Operario'}</span></div></div></div><button onClick={onClose} className="p-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full transition-colors"><X size={20}/></button></div><div className="flex border-b border-slate-200 shrink-0 bg-slate-50/50 p-1 gap-1 mx-6 mt-4 rounded-xl"><button onClick={() => setTab('firma')} className={`flex-1 py-2.5 text-sm font-bold flex items-center justify-center gap-2 rounded-lg transition-all ${tab === 'firma' ? 'bg-white text-blue-600 shadow-sm border border-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}><PenTool size={16}/> Firma Digital</button><button onClick={() => setTab('huella')} className={`flex-1 py-2.5 text-sm font-bold flex items-center justify-center gap-2 rounded-lg transition-all ${tab === 'huella' ? 'bg-white text-blue-600 shadow-sm border border-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}><ScanLine size={16}/> Huella Dactilar</button></div><div className="flex-1 bg-slate-50 relative p-6 flex items-center justify-center overflow-hidden"><div className="w-full h-full bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden relative">{tab === 'firma' ? ( <BiometricSignature onSave={(data) => updateField('firma_url', data)} onClear={() => updateField('firma_url', null)} existingSignature={worker.firma_url} /> ) : ( <BiometricFingerprint onSave={(data) => updateField('huella_url', data)} onClear={() => updateField('huella_url', null)} existingFingerprint={worker.huella_url} /> )}</div></div></motion.div></motion.div>)
 }
 
-// --- DRAWER SSOMA ACTUALIZADO (MODERNO Y CON 2 DOCS RESTANTES) ---
 function AdminDocsDrawer({ worker, onClose, onUpdate }: any) {
     const supabase = createClient(); 
     const [docStates, setDocStates] = useState<any>(worker.doc_states || {});
@@ -1313,7 +1501,7 @@ function AdminDocsDrawer({ worker, onClose, onUpdate }: any) {
         updateDocState(docId, { status: 'locked', data: {}, completed_at: null }, "Documento reseteado") 
     }
 
-    // LISTA DE DOCUMENTOS PARA DESCARGA (ÉTICA Y ANTISOBORNO MOVIDOS A RRHH)
+    // LISTA DE DOCUMENTOS PARA DESCARGA
     const SSOMA_DOWNLOADS = [
         {
             id: 'risst_pdf_download',
@@ -1343,7 +1531,6 @@ function AdminDocsDrawer({ worker, onClose, onUpdate }: any) {
         }
     ]
 
-    // FUNCIÓN GENÉRICA PARA ENVIAR CUALQUIER PDF
     const sendPdfToWorker = async (docConfig: any) => { 
         try { 
             const { data: currentFicha } = await supabase.from('fichas').select('doc_states').eq('id', worker.id).single(); 
@@ -1355,7 +1542,7 @@ function AdminDocsDrawer({ worker, onClose, onUpdate }: any) {
                     status: 'pending_download', 
                     sent_at: new Date().toISOString(), 
                     label: docConfig.label,
-                    file: docConfig.fileName // Guardamos el nombre exacto del archivo
+                    file: docConfig.fileName 
                 } 
             }; 
             
@@ -1384,7 +1571,7 @@ function AdminDocsDrawer({ worker, onClose, onUpdate }: any) {
 
                 <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/50">
                     
-                    {/* SECCIÓN DE DESCARGAS (NUEVO DISEÑO COLORIDO) */}
+                    {/* SECCIÓN DE DESCARGAS */}
                     <div>
                         <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-3 pl-1">Documentos de Lectura</p>
                         <div className="space-y-4">
@@ -1458,26 +1645,24 @@ function AdminDocsDrawer({ worker, onClose, onUpdate }: any) {
     )
 }
 
-// --- DRAWER RRHH ACTUALIZADO (AHORA INCLUYE ÉTICA Y ANTISOBORNO) ---
 function AdminRRHHDrawer({ worker, onClose, onUpdate }: any) {
     const supabase = createClient()
     const [docStates, setDocStates] = useState<any>(worker.doc_states || {})
 
     useEffect(() => { setDocStates(worker.doc_states || {}) }, [worker])
 
-    // Enviar PDFs (RIT, Política, Beneficiarios, Ética, Antisoborno)
+    // Enviar PDFs
     const sendPdfToWorker = async (key: string, label: string) => {
         try {
             const { data: currentFicha } = await supabase.from('fichas').select('doc_states').eq('id', worker.id).single()
             const currentStates = currentFicha?.doc_states || {}
             
-            // Usamos nombres de archivo estándar
             let fileName = '';
             if (key === 'rit_pdf_download') fileName = 'REGLAMENTO INTERNO DE TRABAJO.pdf';
             else if (key === 'hostigamiento_pdf_download') fileName = 'POLITICA DE HOSTIGAMIENTO SEXUAL.pdf';
             else if (key === 'beneficiarios_pdf_download') fileName = 'DECLARACION DE BENEFICIARIOS_VIDA LEY_2019.pdf';
-            else if (key === 'etica_pdf_download') fileName = 'CODIGO DE ETICA Y CONDUCTA.pdf'; // Nuevo
-            else if (key === 'antisoborno_pdf_download') fileName = 'POLITICA ANTISOBORNO Y ANTICORRUPCIÓN.pdf'; // Nuevo
+            else if (key === 'etica_pdf_download') fileName = 'CODIGO DE ETICA Y CONDUCTA.pdf'; 
+            else if (key === 'antisoborno_pdf_download') fileName = 'POLITICA ANTISOBORNO Y ANTICORRUPCIÓN.pdf';
 
             const newStates = { 
                 ...currentStates, 
@@ -1497,7 +1682,7 @@ function AdminRRHHDrawer({ worker, onClose, onUpdate }: any) {
         }
     }
 
-    // Actualizar estados para Cargos (Habilitar/Bloquear)
+    // Actualizar estados para Cargos
     const updateDocState = async (docId: string, newState: any, msg: string) => {
         const updatedDocStates = { ...docStates, [docId]: newState }
         setDocStates(updatedDocStates) 
@@ -1541,7 +1726,7 @@ function AdminRRHHDrawer({ worker, onClose, onUpdate }: any) {
                 
                 <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/50">
                     
-                    {/* SECCIÓN ENVÍO DE PDFS (LECTURA OBLIGATORIA) */}
+                    {/* SECCIÓN ENVÍO DE PDFS */}
                     <div className="space-y-4">
                         <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-2">Envío de Documentos (Lectura)</p>
                         
@@ -1581,7 +1766,7 @@ function AdminRRHHDrawer({ worker, onClose, onUpdate }: any) {
                             <button onClick={() => sendPdfToWorker('beneficiarios_pdf_download', 'Declaración de Beneficiarios Vida Ley')} className="w-full py-2 bg-slate-900 text-white text-xs font-bold rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-center gap-2"><Send size={14}/> Enviar Declaración</button>
                         </div>
 
-                        {/* CÓDIGO DE ÉTICA (MOVIDO AQUI) */}
+                        {/* ÉTICA */}
                         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-3">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 bg-sky-100 text-sky-600 rounded-lg"><BookOpen size={20}/></div>
@@ -1593,7 +1778,7 @@ function AdminRRHHDrawer({ worker, onClose, onUpdate }: any) {
                             <button onClick={() => sendPdfToWorker('etica_pdf_download', 'Código de Ética y Conducta')} className="w-full py-2 bg-slate-900 text-white text-xs font-bold rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-center gap-2"><Send size={14}/> Enviar Código</button>
                         </div>
 
-                        {/* POLÍTICA ANTISOBORNO (MOVIDO AQUI) */}
+                        {/* ANTISOBORNO */}
                         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-3">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 bg-rose-100 text-rose-600 rounded-lg"><ShieldAlert size={20}/></div>
@@ -1604,7 +1789,6 @@ function AdminRRHHDrawer({ worker, onClose, onUpdate }: any) {
                             </div>
                             <button onClick={() => sendPdfToWorker('antisoborno_pdf_download', 'Política Antisoborno')} className="w-full py-2 bg-slate-900 text-white text-xs font-bold rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-center gap-2"><Send size={14}/> Enviar Política</button>
                         </div>
-
                     </div>
 
                     <div className="h-px bg-slate-200"></div>

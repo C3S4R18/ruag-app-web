@@ -430,6 +430,14 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
       else setSelectedIds(prev => [...prev, id])
   }
 
+  // --- MANEJO DE DRAG START (PARA ARRASTRAR AL CENTRO DE COSTOS) ---
+  const handleDragStart = (e: React.DragEvent, worker: any) => {
+      // Pasamos el ID del obrero
+      e.dataTransfer.setData("workerId", worker.id)
+      // Efecto visual de movimiento
+      e.dataTransfer.effectAllowed = "move"
+  }
+
   const handleBulkDelete = async () => {
       if (!confirm(`⚠️ ¿Estás seguro de eliminar ${selectedIds.length} fichas seleccionadas?`)) return
       setDeleting(true)
@@ -942,7 +950,19 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                 ) : paginatedData.length === 0 ? (
                     <tr><td colSpan={7} className="p-24 text-center text-slate-400"><div className="flex flex-col items-center gap-3"><div className="p-4 bg-slate-50 rounded-full"><Search size={32} className="text-slate-300"/></div><p>No se encontraron resultados.</p></div></td></tr>
                 ) : paginatedData.map((ficha, index) => (
-                    <motion.tr key={ficha.id} id={index === 0 ? "tour-row-0" : undefined} initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.02 }} className={`group hover:bg-slate-50/80 transition-colors cursor-pointer ${selectedIds.includes(ficha.id) ? 'bg-blue-50/30' : ''}`} onClick={() => setSelectedFicha(ficha)}>
+                    <motion.tr 
+    key={ficha.id} 
+    id={index === 0 ? "tour-row-0" : undefined} 
+    initial={{ opacity: 0, y: 5 }} 
+    animate={{ opacity: 1, y: 0 }} 
+    transition={{ delay: index * 0.02 }} 
+    // --- CORRECCIÓN AQUÍ ---
+    draggable={true}
+    onDragStart={(e) => handleDragStart(e as unknown as React.DragEvent<HTMLTableRowElement>, ficha)}
+    // -----------------------
+    className={`group hover:bg-slate-50/80 transition-colors cursor-move active:cursor-grabbing ${selectedIds.includes(ficha.id) ? 'bg-blue-50/30' : ''}`} 
+    onClick={() => setSelectedFicha(ficha)}
+>
                         <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}><button onClick={() => handleSelectOne(ficha.id)} className="text-slate-300 hover:text-blue-600 transition-colors">{selectedIds.includes(ficha.id) ? <CheckSquare size={20} className="text-blue-600"/> : <Square size={20}/>}</button></td>
                         <td className="px-4 py-3"><div className="flex items-center gap-4"><div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-50 to-blue-50 flex items-center justify-center text-blue-600 font-bold text-sm border border-blue-100 shadow-sm shrink-0 uppercase relative">{ficha.nombres?.charAt(0)}{ficha.apellido_paterno?.charAt(0)}<span className="absolute -bottom-1 -right-1 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full"></span></div><div className="min-w-0"><p className="font-bold text-slate-800 text-sm truncate group-hover:text-blue-700 transition-colors">{ficha.apellido_paterno} {ficha.apellido_materno}, {ficha.nombres}</p><div className="flex items-center gap-2 mt-0.5"><span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">{ficha.dni}</span></div></div></div></td>
                         <td className="px-4 py-3"><div className="flex flex-col gap-1"><div className="flex items-center gap-1.5 text-xs font-medium text-slate-700"><Building2 size={13} className="text-slate-400"/><span className="truncate max-w-[150px]" title={ficha.nombre_obra}>{ficha.nombre_obra || 'Sin Obra'}</span></div><div className="flex items-center gap-1.5 text-xs text-slate-500"><HardHat size={13} className="text-slate-400"/><span className="truncate capitalize">{ficha.cargo || 'Sin Cargo'}</span></div></div></td>
