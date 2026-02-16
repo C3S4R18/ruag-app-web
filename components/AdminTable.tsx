@@ -86,7 +86,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
   const [preparingDoc, setPreparingDoc] = useState(false)
   const [printImage, setPrintImage] = useState<string | null>(null)
   const printRef = useRef<HTMLDivElement>(null)
-   
+    
   // ESTADO PARA CONTROLAR LA INCLUSIÓN DE FIRMAS
   const [includeSignatures, setIncludeSignatures] = useState(false)
 
@@ -100,7 +100,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
   const [loading, setLoading] = useState(true)
   const [downloadingPdf, setDownloadingPdf] = useState(false)
   const [deleting, setDeleting] = useState(false)
-   
+    
   // ACCIONES MASIVAS
   const [moving, setMoving] = useState(false) // Para Vida Ley
   const [movingSctr, setMovingSctr] = useState(false) // Para SCTR
@@ -132,7 +132,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
     }
 
     fetchFichas()
-    
+     
     // Listener de Fichas (Cambios en DB) - CORREGIDO PARA QUE NO BORRE LA LISTA
     const fichasChannel = supabase.channel('realtime-fichas').on('postgres_changes', { event: '*', schema: 'public', table: 'fichas' }, (payload: any) => {
           if (payload.eventType === 'INSERT') {
@@ -157,6 +157,19 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                     return updatedList
                 }
              })
+
+             // 🔴 ACTUALIZACIÓN EN TIEMPO REAL DEL DRAWER
+             setSelectedFicha((currentSelected: any) => {
+                if (currentSelected && currentSelected.id === payload.new.id) {
+                    // Si la ficha se fue a cesados/vida ley, cerrar drawer
+                    if (payload.new.in_vida_ley || payload.new.es_cesado || payload.new.in_sctr) {
+                        return null; 
+                    }
+                    // Si no, actualizar datos (incluidos nuevos documentos)
+                    return { ...currentSelected, ...payload.new }
+                }
+                return currentSelected
+             })
              
              // Notificar si se confirmó el correo
              if (payload.new.email_confirmed_at && !payload.old.email_confirmed_at) {
@@ -174,6 +187,9 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                  return updatedList
              })
              setSelectedIds(prev => prev.filter(id => id !== payload.old.id))
+             
+             // Cerrar drawer si se elimina la ficha que se está viendo
+             setSelectedFicha((prev: any) => (prev && prev.id === payload.old.id) ? null : prev)
           }
       }).subscribe()
 
@@ -343,7 +359,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
         .is('es_cesado', false) 
         .is('in_sctr', false)
         .order('updated_at', { ascending: false })
-    
+     
     if (data) {
         setFichas(data)
         checkForAdultChildren(data) // Ejecutamos la revisión de edades
@@ -948,7 +964,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                             {ficha.email_confirmed_at ? (
                                 <div className="flex items-center justify-center gap-2">
                                     <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200/60 shadow-sm cursor-help whitespace-nowrap" title={`Confirmado el: ${new Date(ficha.email_confirmed_at).toLocaleString()}`}>
-                                        <MailCheck size={14}/> RECIBIDO
+                                            <MailCheck size={14}/> RECIBIDO
                                     </div>
                                     <button 
                                         onClick={(e) => { e.stopPropagation(); handleResetConfirmation(ficha.id); }}
@@ -970,11 +986,6 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                 ))}
             </tbody>
         </table>
-      </div>
-
-      <div className="p-4 border-t border-slate-100 bg-white flex justify-between items-center text-sm sticky bottom-0 z-20">
-          <div className="text-slate-400 font-medium text-xs">Mostrando <span className="text-slate-900 font-bold">{paginatedData.length}</span> de <span className="text-slate-900 font-bold">{filteredAndSorted.length}</span> colaboradores</div>
-          <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-xl border border-slate-100"><button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="p-2 rounded-lg hover:bg-white hover:shadow-sm text-slate-500 disabled:opacity-30 transition-all"><ChevronLeft size={16}/></button><div className="px-3 text-xs font-bold text-slate-700">{currentPage} / {totalPages || 1}</div><button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="p-2 rounded-lg hover:bg-white hover:shadow-sm text-slate-500 disabled:opacity-30 transition-all"><ChevronRight size={16}/></button></div>
       </div>
 
       {/* --- DRAWER Y MODALES --- */}
@@ -1246,8 +1257,7 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
                         </Section>
                         <Section title="Documentos Adjuntos" icon={<FileBadge size={18}/>}>
                             <div className="grid grid-cols-2 gap-4">
-                                <DocCard label="DNI (Frontal)" url={formData.url_dni_frontal} onDelete={() => handleDeleteDoc('url_dni_frontal')} isEditing={isEditing} onUpload={(f:File)=>handleAdminDocUpload(f, 'url_dni_frontal')} />
-                                <DocCard label="DNI (Reverso)" url={formData.url_dni_reverso} onDelete={() => handleDeleteDoc('url_dni_reverso')} isEditing={isEditing} onUpload={(f:File)=>handleAdminDocUpload(f, 'url_dni_reverso')} />
+                                <DocCard label="DNI (Frontal y Reverso)" url={formData.url_dni_frontal} onDelete={() => handleDeleteDoc('url_dni_frontal')} isEditing={isEditing} onUpload={(f:File)=>handleAdminDocUpload(f, 'url_dni_frontal')} />
                                 <DocCard label="Carnet RETCC" url={formData.url_carnet} onDelete={() => handleDeleteDoc('url_carnet')} isEditing={isEditing} onUpload={(f:File)=>handleAdminDocUpload(f, 'url_carnet')} />
                                 <DocCard label="Antecedentes" url={formData.url_antecedentes} onDelete={() => handleDeleteDoc('url_antecedentes')} isEditing={isEditing} onUpload={(f:File)=>handleAdminDocUpload(f, 'url_antecedentes')} />
                                 <DocCard label="Ant. Policiales" url={formData.url_policiales} onDelete={() => handleDeleteDoc('url_policiales')} isEditing={isEditing} onUpload={(f:File)=>handleAdminDocUpload(f, 'url_policiales')} />
@@ -1408,6 +1418,5 @@ function Field({label, name, val, edit, set, full, customChange, type="text"}: a
 function DocCard({label, url, onDelete, isEditing, onUpload}: any) { const fileRef = useRef<HTMLInputElement>(null); if(!url && !isEditing) return <div className="flex items-center gap-3 p-4 bg-slate-50 border border-slate-100 rounded-xl opacity-60"><div className="w-10 h-10 rounded-xl bg-slate-200 text-slate-400 flex items-center justify-center"><FileText size={18}/></div><span className="text-xs font-bold text-slate-400">Sin archivo</span></div>; return (<div className="relative group">{url ? (<a href={url} target="_blank" className="flex items-center gap-3 p-4 bg-white border border-slate-200 rounded-xl hover:border-blue-400 hover:shadow-md transition-all group cursor-pointer active:scale-95"><div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors shadow-sm"><FileText size={20}/></div><span className="text-xs font-bold text-slate-700 truncate group-hover:text-blue-700 pr-6">{label}</span></a>) : (<div className="flex items-center gap-3 p-4 bg-slate-50 border border-slate-200 rounded-xl border-dashed"><span className="text-xs font-bold text-slate-400">{label} (Vacío)</span></div>)}<div className="absolute top-2 right-2 flex gap-1">{isEditing && (<><input type="file" ref={fileRef} className="hidden" onChange={(e) => e.target.files?.[0] && onUpload(e.target.files[0])} /><button onClick={(e) => { e.stopPropagation(); fileRef.current?.click() }} className="p-1.5 bg-white border border-blue-200 text-blue-600 rounded-lg shadow-sm hover:bg-blue-50 transition-all z-10" title="Subir/Cambiar Archivo"><UploadCloud size={14}/></button></>)}{onDelete && isEditing && url && (<button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(); }} className="p-1.5 bg-white border border-red-100 text-red-500 rounded-lg shadow-sm hover:bg-red-50 transition-all z-10" title="Eliminar documento"><Trash2 size={14}/></button>)}</div></div>) }
 
 function PrintPreviewModal({ image, onClose }: { image: string, onClose: () => void }) {
-    const handlePrint = () => { const iframe = document.createElement('iframe'); iframe.style.position = 'absolute'; iframe.width='0'; iframe.height='0'; iframe.style.border='none'; document.body.appendChild(iframe); const doc = iframe.contentWindow?.document; if (doc) { doc.open(); doc.write(`<html><body onload="window.print()"><img src="${image}" style="width:100%"/></body></html>`); doc.close(); setTimeout(() => document.body.removeChild(iframe), 5000); } };
-    return (<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={onClose}><motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-white rounded-3xl overflow-hidden shadow-2xl max-w-lg w-full flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}><div className="p-5 border-b flex justify-between items-center bg-white"><h3 className="font-bold text-slate-800 flex items-center gap-2"><Printer size={20} className="text-blue-600"/> Vista Previa</h3><button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20}/></button></div><div className="flex-1 overflow-y-auto p-8 bg-slate-50 flex justify-center"><div className="bg-white shadow-xl p-2 rounded-lg border border-slate-100"><img src={image} className="w-full h-auto max-w-[300px] object-contain" /></div></div><div className="p-5 border-t bg-white flex gap-3"><button onClick={onClose} className="flex-1 py-3.5 rounded-xl font-bold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">Cancelar</button><button onClick={handlePrint} className="flex-1 py-3.5 rounded-xl font-bold bg-slate-900 text-white hover:bg-slate-800 shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95"><Printer size={18}/> Imprimir</button></div></motion.div></motion.div>)
-}
+    const handlePrint = () => { const iframe = document.createElement('iframe'); iframe.style.position = 'absolute'; iframe.width='0'; iframe.height='0'; iframe.style.border='none'; document.body.appendChild(iframe); const doc = iframe.contentWindow?.document; if (doc) { doc.open(); doc.write(`<html><body onload="window.print()"><img src="${image}" style="width:100%"/></body></html>`); doc.close(); setTimeout(() => document.body.removeChild(iframe), 5000); } };
+    return (<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={onClose}><motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-white rounded-3xl overflow-hidden shadow-2xl max-w-lg w-full flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}><div className="p-5 border-b flex justify-between items-center bg-white"><h3 className="font-bold text-slate-800 flex items-center gap-2"><Printer size={20} className="text-blue-600"/> Vista Previa</h3><button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20}/></button></div><div className="flex-1 overflow-y-auto p-8 bg-slate-50 flex justify-center"><div className="bg-white shadow-xl p-2 rounded-lg border border-slate-100"><img src={image} className="w-full h-auto max-w-[300px] object-contain" /></div></div><div className="p-5 border-t bg-white flex gap-3"><button onClick={onClose} className="flex-1 py-3.5 rounded-xl font-bold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">Cancelar</button><button onClick={handlePrint} className="flex-1 py-3.5 rounded-xl font-bold bg-slate-900 text-white hover:bg-slate-800 shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95"><Printer size={18}/> Imprimir</button></div></motion.div></motion.div>) }

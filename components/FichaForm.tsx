@@ -58,7 +58,7 @@ export default function FichaForm() {
     
     // DOCUMENTOS
     doc_dni_trabajador: '', 
-    // doc_dni_reverso: '', // ELIMINADO: Se combina en doc_dni_trabajador
+    // doc_dni_reverso: '', // ELIMINADO
     doc_certiadulto: '', 
     doc_policiales: '', doc_penales: '',
     doc_carnet_retcc: '',
@@ -69,7 +69,6 @@ export default function FichaForm() {
     url_firma: ''
   })
 
-  // Detectar PDF para mostrar icono en lugar de preview
   const isDniPdf = formData.doc_dni_trabajador && formData.doc_dni_trabajador.toLowerCase().includes('.pdf');
 
   // Carga inicial
@@ -99,7 +98,6 @@ export default function FichaForm() {
                 
                 // Mapeo Correcto de URLs
                 doc_dni_trabajador: ficha.url_dni_frontal, 
-                // doc_dni_reverso: ficha.url_dni_reverso, // Ignoramos reverso antiguo si existe
                 doc_certiadulto: ficha.url_antecedentes,
                 doc_carnet_retcc: ficha.url_carnet,
                 doc_policiales: ficha.url_policiales,
@@ -134,12 +132,44 @@ export default function FichaForm() {
     loadUser()
   }, [])
 
+  // --- AUTOGUARDADO CUANDO SE ACTUALIZAN DOCUMENTOS ---
+  // Este useEffect vigila cambios en los documentos y los guarda automáticamente en DB
+  // para que no se pierdan si se refresca la página.
+  useEffect(() => {
+      if (user && formData.id && (
+          formData.doc_dni_trabajador || 
+          formData.doc_certiadulto ||
+          formData.doc_carnet_retcc || 
+          formData.doc_policiales ||
+          formData.doc_penales ||
+          formData.doc_esposa_matrimonio ||
+          formData.doc_esposa_dni ||
+          formData.doc_hijos_dni ||
+          formData.doc_hijos_estudios
+      )) {
+          // Usamos un debounce (retraso) pequeño para no saturar si hay muchos cambios rápidos
+          const timer = setTimeout(() => {
+              guardarProgreso(false, true); // true = silent save (sin toast)
+          }, 1000);
+          return () => clearTimeout(timer);
+      }
+  }, [
+      formData.doc_dni_trabajador, 
+      formData.doc_certiadulto,
+      formData.doc_carnet_retcc,
+      formData.doc_policiales,
+      formData.doc_penales,
+      formData.doc_esposa_matrimonio,
+      formData.doc_esposa_dni,
+      formData.doc_hijos_dni,
+      formData.doc_hijos_estudios
+  ]);
+
   const handleChange = (e: any) => setFormData({ ...formData, [e.target.name]: e.target.value })
   
   // Handlers
   const handleEsposaChange = (field: string, val: string) => setFormData((prev:any) => ({ ...prev, esposa_datos: { ...prev.esposa_datos, [field]: val } }))
   
-  // Añadido campo fecha_nacimiento
   const addHijo = () => setFormData((prev:any) => ({ ...prev, hijos_datos: [...prev.hijos_datos, { paterno: '', materno: '', nombres: '', fecha_nacimiento: '' }] }))
   const removeHijo = (idx: number) => setFormData((prev:any) => ({ ...prev, hijos_datos: prev.hijos_datos.filter((_:any, i:number) => i !== idx) }))
   const handleHijoChange = (idx: number, field: string, val: string) => {
@@ -148,9 +178,7 @@ export default function FichaForm() {
   }
 
   // --- LÓGICA DE FIRMA ---
-  const handleSignatureEnd = () => { 
-      // NO hacemos setFormData aquí para evitar re-renderizados que bloqueen el canvas.
-  }
+  const handleSignatureEnd = () => { }
   
   const clearSignature = () => { 
       if (sigPad.current) {
@@ -188,7 +216,6 @@ export default function FichaForm() {
             toast.error("Los datos de contacto de emergencia son obligatorios.")
             return false
         }
-        // VALIDACIÓN MODIFICADA: Solo revisamos doc_dni_trabajador (que ahora contiene el PDF completo)
         if (!formData.doc_dni_trabajador) {
              toast.error("Es obligatorio subir el DNI (Frontal y Reverso).")
              return false
@@ -205,10 +232,9 @@ export default function FichaForm() {
       }
   }
 
-  const guardarProgreso = async (complete: boolean = false) => {
+  const guardarProgreso = async (complete: boolean = false, silent: boolean = false) => {
     if (!user) return
 
-    // Extraer firma del canvas si existe
     let currentSignature = formData.url_firma;
     if (sigPad.current && !sigPad.current.isEmpty()) {
         currentSignature = sigPad.current.getTrimmedCanvas().toDataURL('image/png');
@@ -227,7 +253,7 @@ export default function FichaForm() {
         
         // DOCUMENTOS
         url_dni_frontal: formData.doc_dni_trabajador, 
-        url_dni_reverso: null, // Ya no usamos este campo
+        url_dni_reverso: null, 
         url_antecedentes: formData.doc_certiadulto, url_policiales: formData.doc_policiales, url_penales: formData.doc_penales,
         url_carnet: formData.doc_carnet_retcc,
         url_acta_matrimonio: formData.doc_esposa_matrimonio, 
@@ -246,7 +272,7 @@ export default function FichaForm() {
     
     if (data) setFormData((prev:any) => ({...prev, id: data.id}))
     if (complete) return error
-    if (!error) toast.success("Progreso guardado")
+    if (!error && !silent) toast.success("Progreso guardado")
   }
 
   const finalizarFicha = async () => {
@@ -617,6 +643,7 @@ function ImageUpload({label, bucket, onUpload, currentUrl}: any) {
             console.error(error);
         } else { 
             const { data } = supabase.storage.from(bucket).getPublicUrl(fileName); 
+            // 🔴 AQUI ES CLAVE: Actualizamos el estado DEL PADRE inmediatamente
             onUpload(data.publicUrl); 
             toast.success("Documento cargado correctamente"); 
         } 
