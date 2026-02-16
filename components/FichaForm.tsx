@@ -9,7 +9,7 @@ import jsPDF from 'jspdf'
 import { 
   User, CheckCircle, ChevronRight, ChevronLeft,
   Camera, Loader2, HeartPulse, GraduationCap, Wallet,
-  HardHat, ShieldCheck, PenTool, Eraser, Users, FileBadge, Plus, Trash2, Lock, Hammer, FileText, Download, Image as ImageIcon, UploadCloud, RefreshCw, X, Calendar, Eye, RotateCw, Wand2
+  HardHat, ShieldCheck, PenTool, Eraser, Users, FileBadge, Plus, Trash2, Lock, Hammer, FileText, Download, Image as ImageIcon, UploadCloud, RefreshCw, X, Calendar, Eye, RotateCw, Wand2, ArrowRight
 } from 'lucide-react'
 
 // --- ESTRUCTURA DE PASOS ---
@@ -57,7 +57,8 @@ export default function FichaForm() {
     emergencia_nombre: '', emergencia_parentesco: '', emergencia_telefono: '',
     
     // DOCUMENTOS
-    doc_dni_trabajador: '', doc_dni_reverso: '',
+    doc_dni_trabajador: '', 
+    // doc_dni_reverso: '', // ELIMINADO: Se combina en doc_dni_trabajador
     doc_certiadulto: '', 
     doc_policiales: '', doc_penales: '',
     doc_carnet_retcc: '',
@@ -98,7 +99,7 @@ export default function FichaForm() {
                 
                 // Mapeo Correcto de URLs
                 doc_dni_trabajador: ficha.url_dni_frontal, 
-                doc_dni_reverso: ficha.url_dni_reverso,
+                // doc_dni_reverso: ficha.url_dni_reverso, // Ignoramos reverso antiguo si existe
                 doc_certiadulto: ficha.url_antecedentes,
                 doc_carnet_retcc: ficha.url_carnet,
                 doc_policiales: ficha.url_policiales,
@@ -187,8 +188,9 @@ export default function FichaForm() {
             toast.error("Los datos de contacto de emergencia son obligatorios.")
             return false
         }
-        if (!formData.doc_dni_trabajador || !formData.doc_dni_reverso) {
-             toast.error("Es obligatorio subir la foto frontal y posterior del DNI.")
+        // VALIDACIÓN MODIFICADA: Solo revisamos doc_dni_trabajador (que ahora contiene el PDF completo)
+        if (!formData.doc_dni_trabajador) {
+             toast.error("Es obligatorio subir el DNI (Frontal y Reverso).")
              return false
         }
     }
@@ -224,7 +226,8 @@ export default function FichaForm() {
         esposa: JSON.stringify(formData.esposa_datos), hijos: JSON.stringify(formData.hijos_datos),
         
         // DOCUMENTOS
-        url_dni_frontal: formData.doc_dni_trabajador, url_dni_reverso: formData.doc_dni_reverso,
+        url_dni_frontal: formData.doc_dni_trabajador, 
+        url_dni_reverso: null, // Ya no usamos este campo
         url_antecedentes: formData.doc_certiadulto, url_policiales: formData.doc_policiales, url_penales: formData.doc_penales,
         url_carnet: formData.doc_carnet_retcc,
         url_acta_matrimonio: formData.doc_esposa_matrimonio, 
@@ -359,8 +362,7 @@ export default function FichaForm() {
                         {/* 6. DOCUMENTOS */}
                         <SectionRead title="6. Documentos Adjuntos" icon={<FileBadge size={16}/>}>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                <DocRead label="DNI (Frontal)" url={formData.doc_dni_trabajador} />
-                                <DocRead label="DNI (Reverso)" url={formData.doc_dni_reverso} />
+                                <DocRead label="DNI Completo (PDF)" url={formData.doc_dni_trabajador} />
                                 <DocRead label="Antecedentes" url={formData.doc_certiadulto} />
                                 <DocRead label="Carnet RETCC" url={formData.doc_carnet_retcc} />
                                 <DocRead label="Ant. Policiales" url={formData.doc_policiales} />
@@ -512,13 +514,10 @@ export default function FichaForm() {
                     </p>
                     
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                        <ImageUpload label="DNI (Frontal o PDF)" bucket="documentos" currentUrl={formData.doc_dni_trabajador} onUpload={(u:any)=>setFormData((prev: any) => ({...prev, doc_dni_trabajador:u}))} />
-                        
-                        {!isDniPdf && (
-                            <motion.div initial={{opacity:0, scale:0.9}} animate={{opacity:1, scale:1}}>
-                                <ImageUpload label="DNI (Reverso)" bucket="documentos" currentUrl={formData.doc_dni_reverso} onUpload={(u:any)=>setFormData((prev: any) => ({...prev, doc_dni_reverso:u}))} />
-                            </motion.div>
-                        )}
+                        {/* CAMBIO: Solo un campo para DNI completo */}
+                        <div className="md:col-span-2">
+                             <ImageUpload label="DNI (Frontal y Reverso)" bucket="documentos" currentUrl={formData.doc_dni_trabajador} onUpload={(u:any)=>setFormData((prev: any) => ({...prev, doc_dni_trabajador:u}))} />
+                        </div>
                         
                         <ImageUpload label="Certiadulto (Antecedentes)" bucket="documentos" currentUrl={formData.doc_certiadulto} onUpload={(u:any)=>setFormData((prev: any) => ({...prev, doc_certiadulto:u}))} />
                         <ImageUpload label="Carnet RETCC" bucket="documentos" currentUrl={formData.doc_carnet_retcc} onUpload={(u:any)=>setFormData((prev: any) => ({...prev, doc_carnet_retcc:u}))} />
@@ -687,7 +686,7 @@ function ImageUpload({label, bucket, onUpload, currentUrl}: any) {
     )
 }
 
-// --- MODAL TIPO CAMSCANNER (CORREGIDO AL 100%) ---
+// --- MODAL TIPO CAMSCANNER (CORREGIDO AL 100% + DOBLE CARA) ---
 function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => void, onCapture: (file: File) => void, format: 'id-card' | 'a4' }) {
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -698,10 +697,21 @@ function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => voi
     const [rotation, setRotation] = useState(0);
     const [processing, setProcessing] = useState(false);
 
+    // --- NUEVO: Estado para capturas múltiples (DNI Front/Back) ---
+    const [capturedSide1, setCapturedSide1] = useState<string | null>(null);
+
     // Configuración del recuadro
     const isLandscape = format === 'id-card';
-    const guideText = isLandscape ? "Encuadra el DNI en el borde verde" : "Encuadra el documento";
     const aspectRatio = isLandscape ? 1.58 : 0.70; // 1.58 = Tarjeta, 0.70 = A4
+    
+    // Texto dinámico según el paso actual
+    let guideText = "";
+    if (format === 'a4') {
+        guideText = "Encuadra el documento completo";
+    } else {
+        // Si es DNI, mostramos Frontal o Reverso
+        guideText = capturedSide1 ? "Ahora encuadra el REVERSO" : "Encuadra la parte FRONTAL";
+    }
 
     const startCamera = async () => {
         try {
@@ -794,18 +804,18 @@ function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => voi
         }
     };
 
-    // --- PROCESAR Y GENERAR PDF ---
-    const confirmAndConvertToPdf = async () => {
+    // --- PROCESAR, CONTROLAR FLUJO DNI Y GENERAR PDF ---
+    const handleConfirmStep = async () => {
         if (!tempImage) return;
         setProcessing(true);
 
         try {
+            // 1. Procesar la imagen actual (aplicar rotación y filtros)
             const img = new Image();
             img.src = tempImage;
             await new Promise(r => img.onload = r);
 
             const canvas = document.createElement('canvas');
-            // Intercambiar dimensiones si hay rotación
             const isRotated = rotation % 180 !== 0;
             canvas.width = isRotated ? img.height : img.width;
             canvas.height = isRotated ? img.width : img.height;
@@ -813,49 +823,89 @@ function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => voi
             const ctx = canvas.getContext('2d');
             if (!ctx) throw new Error("No context");
 
-            // Aplicar rotación y filtros
             ctx.translate(canvas.width / 2, canvas.height / 2);
             ctx.rotate((rotation * Math.PI) / 180);
             
-            // Filtros visuales (emulación básica para PDF)
             if (filter === 'bw') ctx.filter = 'grayscale(100%) contrast(1.2)';
             if (filter === 'high-contrast') ctx.filter = 'grayscale(100%) contrast(2.0)';
             
             ctx.drawImage(img, -img.width / 2, -img.height / 2);
+            
+            const processedImage = canvas.toDataURL('image/jpeg', 0.85);
 
-            const finalImage = canvas.toDataURL('image/jpeg', 0.85); // Calidad 0.85 para optimizar
+            // --- LÓGICA DE DNI (DOBLE CARA) ---
+            if (format === 'id-card' && !capturedSide1) {
+                // Si es DNI y aún no tenemos la primera cara:
+                // Guardamos la primera cara, reseteamos y pedimos la segunda.
+                setCapturedSide1(processedImage);
+                setProcessing(false);
+                setStep('camera');
+                setTempImage(null);
+                setRotation(0);
+                setFilter('original');
+                
+                // Reiniciar cámara
+                startCamera(); 
+                toast.info("Frontal guardado. Ahora toma el REVERSO.");
+                return; // IMPORTANTE: Detenemos aquí para no generar PDF aún
+            }
 
-            const pdfDoc = new jsPDF(isLandscape ? 'l' : 'p', 'mm', 'a4');
+            // --- GENERAR PDF FINAL ---
+            const pdfDoc = new jsPDF('p', 'mm', 'a4'); // Siempre Portrait para DNI
             const pageWidth = pdfDoc.internal.pageSize.getWidth();
             const pageHeight = pdfDoc.internal.pageSize.getHeight();
-            
-            // Calcular ajuste "Fit to Page" con márgenes
-            const margin = 10; 
+            const margin = 10;
             const maxW = pageWidth - margin * 2;
-            const maxH = pageHeight - margin * 2;
             
-            const imgRatio = canvas.width / canvas.height;
-            const pageRatio = maxW / maxH;
-            
-            let finalW, finalH;
-            if (imgRatio > pageRatio) {
-                finalW = maxW;
-                finalH = maxW / imgRatio;
-            } else {
-                finalH = maxH;
-                finalW = maxH * imgRatio;
-            }
-            
-            const posX = (pageWidth - finalW) / 2;
-            const posY = (pageHeight - finalH) / 2;
+            // Función auxiliar para añadir imagen al PDF
+            const addImageToPdf = (imgData: string, yPos: number, maxHeight: number) => {
+                const props = pdfDoc.getImageProperties(imgData);
+                const imgRatio = props.width / props.height;
+                let finalW = maxW;
+                let finalH = maxW / imgRatio;
+                
+                if (finalH > maxHeight) {
+                    finalH = maxHeight;
+                    finalW = finalH * imgRatio;
+                }
+                const xPos = (pageWidth - finalW) / 2;
+                pdfDoc.addImage(imgData, 'JPEG', xPos, yPos, finalW, finalH);
+            };
 
-            pdfDoc.addImage(finalImage, 'JPEG', posX, posY, finalW, finalH);
+            if (format === 'id-card' && capturedSide1) {
+                // CASO DNI COMPLETO: Poner Frontal Arriba y Reverso (actual) Abajo
+                const halfHeight = (pageHeight - margin * 3) / 2; // Espacio para cada cara
+                
+                // Cara 1 (Frontal)
+                addImageToPdf(capturedSide1, margin, halfHeight);
+                
+                // Cara 2 (Reverso - la que acabamos de procesar)
+                addImageToPdf(processedImage, margin + halfHeight + 10, halfHeight);
+
+            } else {
+                // CASO DOCUMENTO SIMPLE (A4)
+                const maxH = pageHeight - margin * 2;
+                // Si la imagen es apaisada (A4 horizontal), rotamos la página del PDF
+                const props = pdfDoc.getImageProperties(processedImage);
+                if (props.width > props.height) {
+                    pdfDoc.deletePage(1);
+                    pdfDoc.addPage('a4', 'l');
+                    // Recalcular para landscape
+                    const lPageW = pdfDoc.internal.pageSize.getWidth();
+                    const lPageH = pdfDoc.internal.pageSize.getHeight();
+                     // Logica simple para landscape...
+                     pdfDoc.addImage(processedImage, 'JPEG', margin, margin, lPageW - margin*2, lPageH - margin*2, undefined, 'FAST');
+                } else {
+                    addImageToPdf(processedImage, margin, maxH);
+                }
+            }
             
             const pdfBlob = pdfDoc.output('blob');
             const fileName = `scan_${format}_${Date.now()}.pdf`;
             const file = new File([pdfBlob], fileName, { type: "application/pdf" });
 
             onCapture(file);
+
         } catch (e) {
             console.error(e);
             toast.error("Error al generar PDF");
@@ -870,7 +920,16 @@ function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => voi
                     {/* Header */}
                     <div className="absolute top-0 left-0 w-full p-4 z-20 flex justify-between items-start bg-gradient-to-b from-black/80 to-transparent">
                         <button onClick={onClose} className="text-white bg-white/10 p-2.5 rounded-full backdrop-blur-md hover:bg-white/20"><X size={20}/></button>
-                        <div className="px-4 py-1.5 bg-black/50 backdrop-blur-md rounded-full text-white/90 text-xs font-bold border border-white/10 shadow-lg">{isLandscape ? 'Modo: DNI / Tarjeta' : 'Modo: Documento A4'}</div>
+                        <div className="px-4 py-1.5 bg-black/50 backdrop-blur-md rounded-full text-white/90 text-xs font-bold border border-white/10 shadow-lg flex items-center gap-2">
+                             {format === 'id-card' ? (
+                                <>
+                                    <div className={`w-2 h-2 rounded-full ${capturedSide1 ? 'bg-slate-500' : 'bg-emerald-400'}`}></div>
+                                    <span>{capturedSide1 ? 'Paso 2: Reverso' : 'Paso 1: Frontal'}</span>
+                                </>
+                             ) : (
+                                <span>Modo Documento</span>
+                             )}
+                        </div>
                     </div>
                     
                     {/* Video - Importante: object-fit cover */}
@@ -885,19 +944,19 @@ function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => voi
                                 width: '90%',
                                 maxWidth: '448px', 
                                 aspectRatio: aspectRatio,
-                                border: '2px solid #34d399', // Emerald 400
+                                border: `2px solid ${capturedSide1 ? '#fbbf24' : '#34d399'}`, // Amarillo para reverso, Verde para frontal
                                 boxShadow: '0 0 0 9999px rgba(0, 0, 0, 0.7)' // Oscurece todo lo que no es el DNI
                             }}
                         >
                             {/* Esquinas decorativas */}
-                            <div className="absolute top-0 left-0 w-4 h-4 border-t-4 border-l-4 border-emerald-400 -mt-0.5 -ml-0.5"></div>
-                            <div className="absolute top-0 right-0 w-4 h-4 border-t-4 border-r-4 border-emerald-400 -mt-0.5 -mr-0.5"></div>
-                            <div className="absolute bottom-0 left-0 w-4 h-4 border-b-4 border-l-4 border-emerald-400 -mb-0.5 -ml-0.5"></div>
-                            <div className="absolute bottom-0 right-0 w-4 h-4 border-b-4 border-r-4 border-emerald-400 -mb-0.5 -mr-0.5"></div>
+                            <div className={`absolute top-0 left-0 w-4 h-4 border-t-4 border-l-4 -mt-0.5 -ml-0.5 ${capturedSide1 ? 'border-amber-400' : 'border-emerald-400'}`}></div>
+                            <div className={`absolute top-0 right-0 w-4 h-4 border-t-4 border-r-4 -mt-0.5 -mr-0.5 ${capturedSide1 ? 'border-amber-400' : 'border-emerald-400'}`}></div>
+                            <div className={`absolute bottom-0 left-0 w-4 h-4 border-b-4 border-l-4 -mb-0.5 -ml-0.5 ${capturedSide1 ? 'border-amber-400' : 'border-emerald-400'}`}></div>
+                            <div className={`absolute bottom-0 right-0 w-4 h-4 border-b-4 border-r-4 -mb-0.5 -mr-0.5 ${capturedSide1 ? 'border-amber-400' : 'border-emerald-400'}`}></div>
                             
                             {/* Texto guía */}
                             <div className="absolute -bottom-10 left-0 w-full text-center">
-                                <span className="text-white text-xs font-medium tracking-wide bg-black/60 px-3 py-1.5 rounded-full">{guideText}</span>
+                                <span className={`text-white text-xs font-medium tracking-wide bg-black/60 px-3 py-1.5 rounded-full ${capturedSide1 ? 'text-amber-300' : 'text-emerald-300'}`}>{guideText}</span>
                             </div>
                         </div>
                     </div>
@@ -905,7 +964,7 @@ function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => voi
                     {/* Botón de Captura */}
                     <div className="absolute bottom-0 w-full pb-10 pt-20 bg-gradient-to-t from-black via-black/60 to-transparent flex justify-center items-center z-20">
                         <button onClick={capturePhoto} className="w-18 h-18 bg-white/20 rounded-full p-1.5 backdrop-blur-sm active:scale-95 transition-all">
-                            <div className="w-16 h-16 bg-white rounded-full border-4 border-transparent ring-2 ring-emerald-500 shadow-xl"></div>
+                            <div className={`w-16 h-16 bg-white rounded-full border-4 border-transparent ring-2 shadow-xl ${capturedSide1 ? 'ring-amber-500' : 'ring-emerald-500'}`}></div>
                         </button>
                     </div>
                 </div>
@@ -941,8 +1000,16 @@ function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => voi
                             <button onClick={() => { setStep('camera'); setTempImage(null); startCamera(); }} className="flex-1 py-3.5 rounded-xl font-bold text-sm bg-slate-800 text-white hover:bg-slate-700 transition-colors border border-slate-700">
                                 <RefreshCw className="inline mr-2 -mt-0.5" size={16}/> Repetir
                             </button>
-                            <button onClick={confirmAndConvertToPdf} disabled={processing} className="flex-1 py-3.5 rounded-xl font-bold text-sm bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 transition-all active:scale-95">
-                                {processing ? <Loader2 className="animate-spin" size={18}/> : <><CheckCircle size={18}/> Usar Foto</>}
+                            <button onClick={handleConfirmStep} disabled={processing} className="flex-1 py-3.5 rounded-xl font-bold text-sm bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 transition-all active:scale-95">
+                                {processing ? <Loader2 className="animate-spin" size={18}/> : (
+                                    <>
+                                        {(format === 'id-card' && !capturedSide1) ? (
+                                            <>Siguiente <ArrowRight size={18}/></>
+                                        ) : (
+                                            <><CheckCircle size={18}/> Confirmar PDF</>
+                                        )}
+                                    </>
+                                )}
                             </button>
                         </div>
                     </div>
@@ -954,7 +1021,7 @@ function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => voi
     );
 }
 
-// --- COMPONENTES AUXILIARES ---
+// --- COMPONENTES AUXILIARES (DEFINIDOS AL FINAL PARA SOLUCIONAR ERRORES) ---
 
 function WelcomeScreen({onStart}:any) {
     return <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-6 text-center"><motion.div initial={{y:20, opacity:0}} animate={{y:0, opacity:1}} className="max-w-md w-full bg-white p-10 rounded-3xl shadow-2xl shadow-slate-200"><div className="mb-8 inline-flex p-5 bg-slate-900 text-white rounded-2xl shadow-lg shadow-slate-500/20"><FileBadge size={40} /></div><h1 className="text-3xl font-extrabold mb-3 text-slate-900">Ficha de Datos</h1><p className="text-slate-500 mb-10 leading-relaxed">Bienvenido al sistema RUAG. Ten a mano tu DNI y documentos.</p><button onClick={onStart} className="w-full bg-slate-900 text-white py-4 rounded-xl font-bold text-lg hover:scale-[1.02] transition-all shadow-xl">Comenzar</button></motion.div></div>
