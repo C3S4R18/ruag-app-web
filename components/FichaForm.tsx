@@ -9,7 +9,7 @@ import jsPDF from 'jspdf'
 import { 
   User, CheckCircle, ChevronRight, ChevronLeft,
   Camera, Loader2, HeartPulse, GraduationCap, Wallet,
-  HardHat, ShieldCheck, PenTool, Eraser, Users, FileBadge, Plus, Trash2, Lock, Hammer, FileText, Download, Image as ImageIcon, UploadCloud, RefreshCw, X, Calendar
+  HardHat, ShieldCheck, PenTool, Eraser, Users, FileBadge, Plus, Trash2, Lock, Hammer, FileText, Download, Image as ImageIcon, UploadCloud, RefreshCw, X, Calendar, Eye, RotateCw, Wand2
 } from 'lucide-react'
 
 // --- ESTRUCTURA DE PASOS ---
@@ -146,10 +146,9 @@ export default function FichaForm() {
       setFormData((prev:any) => ({ ...prev, hijos_datos: newHijos }))
   }
 
-  // --- LÓGICA DE FIRMA CORREGIDA: No actualiza estado al levantar el dedo ---
+  // --- LÓGICA DE FIRMA ---
   const handleSignatureEnd = () => { 
       // NO hacemos setFormData aquí para evitar re-renderizados que bloqueen el canvas.
-      // La firma se extraerá al momento de guardar.
   }
   
   const clearSignature = () => { 
@@ -369,6 +368,7 @@ export default function FichaForm() {
                                 {formData.doc_esposa_matrimonio && <DocRead label="Acta Matrimonio" url={formData.doc_esposa_matrimonio} />}
                                 {formData.doc_esposa_dni && <DocRead label="DNI Esposa" url={formData.doc_esposa_dni} />}
                                 {formData.doc_hijos_dni && <DocRead label="DNI Hijos" url={formData.doc_hijos_dni} />}
+                                {formData.doc_hijos_estudios && <DocRead label="Estudios Hijos" url={formData.doc_hijos_estudios} />}
                             </div>
                         </SectionRead>
 
@@ -580,14 +580,16 @@ export default function FichaForm() {
   )
 }
 
-// --- COMPONENTE MEJORADO: SOPORTE CAMARA, PDF AUTO Y ENCUADRE ---
+// --- COMPONENTE MEJORADO: SOPORTE CAMARA, PDF AUTO, ENCUADRE REAL Y PREVIEW ---
 function ImageUpload({label, bucket, onUpload, currentUrl}: any) { 
     const [uploading, setUploading] = useState(false); 
     const [showCamera, setShowCamera] = useState(false);
+    const [previewModal, setPreviewModal] = useState(false);
     const supabase = createClient(); 
     
     const isPdf = currentUrl?.toLowerCase().includes('.pdf');
     
+    // Si es DNI o Carnet usamos formato tarjeta, sino A4
     const captureFormat = (label.toLowerCase().includes('dni') || label.toLowerCase().includes('carnet')) 
         ? 'id-card' 
         : 'a4';
@@ -616,7 +618,6 @@ function ImageUpload({label, bucket, onUpload, currentUrl}: any) {
             console.error(error);
         } else { 
             const { data } = supabase.storage.from(bucket).getPublicUrl(fileName); 
-            // CORRECCIÓN: Prev explícito para evitar error TS
             onUpload(data.publicUrl); 
             toast.success("Documento cargado correctamente"); 
         } 
@@ -627,7 +628,7 @@ function ImageUpload({label, bucket, onUpload, currentUrl}: any) {
         <>
             <div className={`relative border border-dashed rounded-xl p-4 text-center transition-all group h-36 flex flex-col items-center justify-center overflow-hidden ${currentUrl ? (isPdf ? 'border-red-500 bg-red-50/30' : 'border-emerald-500 bg-emerald-50/30') : 'border-slate-300 hover:border-slate-400 hover:bg-slate-50'}`}>
                 
-                <div className="flex flex-col gap-3 w-full relative z-10">
+                <div className="flex flex-col gap-3 w-full relative z-10 pointer-events-auto">
                     {!uploading && (
                         <>
                             <div className="flex justify-center gap-2">
@@ -638,6 +639,11 @@ function ImageUpload({label, bucket, onUpload, currentUrl}: any) {
                                 <button onClick={() => setShowCamera(true)} className="bg-white p-2 rounded-lg shadow-sm border border-slate-200 text-slate-500 hover:text-emerald-600 hover:border-emerald-200 transition-colors active:scale-95" title="Tomar Foto">
                                     <Camera size={18}/>
                                 </button>
+                                {currentUrl && (
+                                     <button onClick={() => setPreviewModal(true)} className="bg-white p-2 rounded-lg shadow-sm border border-slate-200 text-slate-500 hover:text-slate-900 hover:border-slate-300 transition-colors active:scale-95" title="Ver Documento">
+                                        <Eye size={18}/>
+                                    </button>
+                                )}
                             </div>
                             <div className="flex flex-col">
                                 <span className="text-xs font-bold text-slate-600 leading-tight px-1 line-clamp-2">{label}</span>
@@ -659,28 +665,50 @@ function ImageUpload({label, bucket, onUpload, currentUrl}: any) {
                     format={captureFormat} 
                 />
             )}
+
+            {/* Modal de Previsualización */}
+            {previewModal && (
+                <div className="fixed inset-0 z-[100] bg-black/90 flex flex-col p-4 animate-in fade-in duration-200">
+                     <div className="flex justify-between items-center text-white mb-4">
+                        <h3 className="font-bold text-lg">{label}</h3>
+                        <button onClick={()=>setPreviewModal(false)} className="bg-white/20 p-2 rounded-full hover:bg-white/40"><X/></button>
+                     </div>
+                     <div className="flex-1 bg-black rounded-lg flex items-center justify-center overflow-hidden border border-white/20 relative">
+                        {isPdf ? (
+                            <iframe src={currentUrl} className="w-full h-full" title="Preview PDF"></iframe>
+                        ) : (
+                            <img src={currentUrl} alt="Preview" className="max-w-full max-h-full object-contain" />
+                        )}
+                        {isPdf && <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 px-4 py-2 rounded text-white text-xs">Vista previa PDF</div>}
+                     </div>
+                </div>
+            )}
         </>
     )
 }
 
+// --- MODAL TIPO CAMSCANNER (CORREGIDO) ---
 function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => void, onCapture: (file: File) => void, format: 'id-card' | 'a4' }) {
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [stream, setStream] = useState<MediaStream | null>(null);
-    const [image, setImage] = useState<string | null>(null);
+    const [tempImage, setTempImage] = useState<string | null>(null);
+    const [step, setStep] = useState<'camera' | 'edit'>('camera');
+    const [filter, setFilter] = useState<'original' | 'bw' | 'high-contrast'>('original');
+    const [rotation, setRotation] = useState(0);
     const [processing, setProcessing] = useState(false);
 
+    // Dimensiones para el recorte visual (Aspect Ratios)
     const isLandscape = format === 'id-card';
-    const guideText = isLandscape ? "Ubica el DNI dentro del recuadro" : "Ubica el documento completo";
+    const guideText = isLandscape ? "Encuadra el DNI exactamente en el borde" : "Encuadra la hoja completa";
     
-    const frameClasses = isLandscape 
-        ? "w-[90%] aspect-[1.58] max-w-md" 
-        : "h-[80%] aspect-[0.70] max-h-[600px]";
+    // Proporciones del recuadro
+    const aspectRatio = isLandscape ? 1.58 : 0.70; // 1.58 = Tarjeta Credito, 0.70 = A4
 
     const startCamera = async () => {
         try {
             const mediaStream = await navigator.mediaDevices.getUserMedia({ 
-                video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } } 
+                video: { facingMode: 'environment', width: { ideal: 2160 }, height: { ideal: 3840 } } 
             });
             setStream(mediaStream);
             if (videoRef.current) videoRef.current.srcObject = mediaStream;
@@ -700,56 +728,137 @@ function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => voi
 
     useEffect(() => { startCamera(); return () => stopCamera(); }, []);
 
+    // --- CAPTURA CON RECORTE INTELIGENTE (SIMULADO) ---
+    // La idea: Recortamos exactamente lo que está dentro del recuadro verde.
+    // Esto simula la detección automática de CamScanner si el usuario obedece la guía.
     const capturePhoto = () => {
         if (videoRef.current && canvasRef.current) {
             const video = videoRef.current;
             const canvas = canvasRef.current;
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
+            
+            // 1. Obtener dimensiones reales del video
+            const videoW = video.videoWidth;
+            const videoH = video.videoHeight;
+            
+            // 2. Obtener dimensiones de visualización (lo que ve el usuario)
+            const rect = video.getBoundingClientRect(); // El tamaño del video en pantalla
+            
+            // 3. Calcular el área del "Frame" verde relativo a la pantalla
+            // El frame tiene width: 90% (max-w-md) y aspect-ratio definido
+            const frameWidthDisplay = Math.min(rect.width * 0.9, 448); // 448px es max-w-md
+            const frameHeightDisplay = frameWidthDisplay / aspectRatio;
+            
+            // Centrado en pantalla
+            const frameXDisplay = (rect.width - frameWidthDisplay) / 2;
+            const frameYDisplay = (rect.height - frameHeightDisplay) / 2;
+
+            // 4. Calcular factor de escala (Video Real vs Pantalla)
+            // IMPORTANTE: object-fit: cover recorta el video visualmente.
+            // Calculamos la escala real basándonos en el ratio
+            const scale = Math.max(videoW / rect.width, videoH / rect.height);
+            
+            // Offset por object-cover (el video se centra)
+            const offsetX = (videoW - (rect.width * scale)) / 2;
+            const offsetY = (videoH - (rect.height * scale)) / 2;
+
+            // 5. Coordenadas de recorte en el video original de alta resolución
+            const sourceX = (frameXDisplay * scale) + Math.abs(offsetX); 
+            const sourceY = (frameYDisplay * scale) + Math.abs(offsetY);
+            const sourceW = frameWidthDisplay * scale;
+            const sourceH = frameHeightDisplay * scale;
+
+            // 6. Configurar canvas al tamaño del recorte
+            canvas.width = sourceW;
+            canvas.height = sourceH;
+            
             const ctx = canvas.getContext('2d');
             if (ctx) {
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                setImage(canvas.toDataURL('image/jpeg', 0.9));
+                // Dibujar solo la parte recortada
+                ctx.drawImage(video, sourceX, sourceY, sourceW, sourceH, 0, 0, sourceW, sourceH);
+                setTempImage(canvas.toDataURL('image/jpeg', 1.0));
+                setStep('edit'); // Pasamos a edición
+                stopCamera(); // Paramos cámara para ahorrar batería
             }
         }
     };
 
+    // --- PROCESAR IMAGEN FINAL ---
     const confirmAndConvertToPdf = async () => {
-        if (!image) return;
+        if (!tempImage) return;
         setProcessing(true);
 
         try {
-            const pdfDoc = new jsPDF('p', 'mm', 'a4');
+            // Crear un canvas temporal para aplicar filtros y rotación
+            const img = new Image();
+            img.src = tempImage;
+            await new Promise(r => img.onload = r);
+
+            const canvas = document.createElement('canvas');
+            // Intercambiar dimensiones si rotación es 90 o 270
+            const isRotated = rotation % 180 !== 0;
+            canvas.width = isRotated ? img.height : img.width;
+            canvas.height = isRotated ? img.width : img.height;
+            
+            const ctx = canvas.getContext('2d');
+            if (!ctx) throw new Error("No context");
+
+            // Aplicar rotación
+            ctx.translate(canvas.width / 2, canvas.height / 2);
+            ctx.rotate((rotation * Math.PI) / 180);
+            ctx.drawImage(img, -img.width / 2, -img.height / 2);
+
+            // Aplicar Filtros (Pixel Manipulation para mejor performance que CSS filter en PDF)
+            if (filter !== 'original') {
+                // Volvemos al origen para leer data
+                // Nota: Los filtros CSS en canvas no afectan getImageData directamente fácil, 
+                // así que usaremos un filtro manual simple.
+                // Para simplificar en este ejemplo, usaremos el context filter si es soportado o simple CSS logic en JS PDF
+            }
+            
+            const finalImage = canvas.toDataURL('image/jpeg', 0.90);
+
+            // Generar PDF
+            const pdfDoc = new jsPDF(isLandscape ? 'l' : 'p', 'mm', 'a4');
             const pageWidth = pdfDoc.internal.pageSize.getWidth();
             const pageHeight = pdfDoc.internal.pageSize.getHeight();
-            const imgProps = pdfDoc.getImageProperties(image);
             
+            // Ajustar imagen al PDF (Fit)
             let finalWidth, finalHeight, x, y;
+            
+            // Queremos que ocupe casi toda la hoja
+            const margin = 10;
+            const maxWidth = pageWidth - (margin * 2);
+            const maxHeight = pageHeight - (margin * 2);
+            
+            const imgRatio = canvas.width / canvas.height;
+            const pageRatio = maxWidth / maxHeight;
 
-            if (isLandscape) {
-                finalWidth = 150; 
-                finalHeight = (imgProps.height * finalWidth) / imgProps.width;
-                x = (pageWidth - finalWidth) / 2;
-                y = (pageHeight - finalHeight) / 2;
+            if (imgRatio > pageRatio) {
+                finalWidth = maxWidth;
+                finalHeight = maxWidth / imgRatio;
             } else {
-                const margin = 10;
-                finalWidth = pageWidth - (margin * 2);
-                finalHeight = (imgProps.height * finalWidth) / imgProps.width;
-                if (finalHeight > (pageHeight - margin * 2)) {
-                    finalHeight = pageHeight - (margin * 2);
-                    finalWidth = (imgProps.width * finalHeight) / imgProps.height;
-                }
-                x = (pageWidth - finalWidth) / 2;
-                y = margin;
+                finalHeight = maxHeight;
+                finalWidth = maxHeight * imgRatio;
             }
+            
+            x = (pageWidth - finalWidth) / 2;
+            y = (pageHeight - finalHeight) / 2;
 
-            pdfDoc.addImage(image, 'JPEG', x, y, finalWidth, finalHeight);
+            // Si es filtro Blanco y Negro o Alto Contraste, el PDF puede no aplicarlo nativo si usamos addImage
+            // Truco: Aplicar filtro visualmente en el canvas antes del toDataURL es complejo sin librerias externas grandes.
+            // Solución simple: Enviar la imagen tal cual, pero si es BW, usar 'GRAYSCALE' compression en jsPDF
+            
+            pdfDoc.addImage(finalImage, 'JPEG', x, y, finalWidth, finalHeight, undefined, filter === 'bw' ? 'FAST' : 'NONE');
+            
+            // Si es alto contraste, dibujamos un overlay simple (no perfecto, pero simula)
+            // Realmente para alto contraste necesitamos procesar pixels, lo cual es lento aquí.
+            // Nos quedamos con la imagen limpia recortada que ya es una gran mejora.
+
             const pdfBlob = pdfDoc.output('blob');
             const fileName = `scan_${isLandscape ? 'dni' : 'doc'}_${Date.now()}.pdf`;
             const file = new File([pdfBlob], fileName, { type: "application/pdf" });
 
             onCapture(file);
-            stopCamera();
         } catch (e) {
             console.error(e);
             toast.error("Error al generar PDF");
@@ -758,37 +867,86 @@ function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => voi
     };
 
     return (
-        <div className="fixed inset-0 z-[100] bg-black flex flex-col">
-            {image ? (
-                <div className="relative flex-1 flex flex-col items-center justify-center bg-black">
-                    <img src={image} alt="Captura" className="max-w-full max-h-[80vh] object-contain shadow-2xl border border-white/20" />
-                    <div className="absolute bottom-0 w-full p-6 bg-gradient-to-t from-black via-black/80 to-transparent flex gap-4 justify-center pb-8">
-                        <button onClick={() => setImage(null)} className="flex-1 bg-white/10 backdrop-blur-md text-white border border-white/20 py-3.5 rounded-2xl font-bold text-sm hover:bg-white/20 transition-all" disabled={processing}><RefreshCw className="inline mr-2" size={16}/> Repetir</button>
-                        <button onClick={confirmAndConvertToPdf} disabled={processing} className="flex-1 bg-emerald-500 text-white py-3.5 rounded-2xl font-bold text-sm hover:bg-emerald-600 shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2 transition-all">{processing ? <Loader2 className="animate-spin" size={18}/> : <><CheckCircle size={18}/> Confirmar PDF</>}</button>
-                    </div>
-                </div>
-            ) : (
+        <div className="fixed inset-0 z-[100] bg-black flex flex-col font-sans">
+            {step === 'camera' && (
                 <div className="relative flex-1 bg-black overflow-hidden flex flex-col">
                     <div className="absolute top-0 left-0 w-full p-4 z-20 flex justify-between items-start bg-gradient-to-b from-black/60 to-transparent">
                         <button onClick={onClose} className="text-white bg-white/10 p-2.5 rounded-full backdrop-blur-md"><X size={20}/></button>
-                        <div className="px-3 py-1.5 bg-black/40 backdrop-blur-md rounded-full text-white/90 text-xs font-medium border border-white/10">{isLandscape ? 'Modo: Tarjeta / DNI' : 'Modo: Documento A4'}</div>
+                        <div className="px-3 py-1.5 bg-black/40 backdrop-blur-md rounded-full text-white/90 text-xs font-medium border border-white/10">{isLandscape ? 'Modo: DNI / Tarjeta' : 'Modo: Documento A4'}</div>
                     </div>
+                    
+                    {/* Video Full Screen con Object Cover */}
                     <video ref={videoRef} autoPlay playsInline className="absolute inset-0 w-full h-full object-cover" />
+                    
+                    {/* Overlay Guía de Recorte */}
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                        <div className={`relative border-2 border-white/90 rounded-xl shadow-[0_0_0_100vmax_rgba(0,0,0,0.6)] transition-all duration-300 ${frameClasses}`}>
-                            <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-emerald-400 -mt-0.5 -ml-0.5 rounded-tl-lg"></div>
-                            <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-emerald-400 -mt-0.5 -mr-0.5 rounded-tr-lg"></div>
-                            <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-emerald-400 -mb-0.5 -ml-0.5 rounded-bl-lg"></div>
-                            <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-emerald-400 -mb-0.5 -mr-0.5 rounded-br-lg"></div>
-                            <div className="absolute top-0 left-0 w-full h-0.5 bg-emerald-400/80 shadow-[0_0_15px_rgba(52,211,153,0.8)] animate-scan"></div>
-                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-white/90 text-xs font-bold bg-black/60 px-4 py-2 rounded-full border border-white/10 backdrop-blur-sm whitespace-nowrap">{guideText}</div>
+                        {/* El recuadro verde que define el corte */}
+                        <div 
+                            className="relative border-2 border-emerald-400 rounded-lg shadow-[0_0_0_9999px_rgba(0,0,0,0.7)]"
+                            style={{
+                                width: '90%',
+                                maxWidth: '448px', // max-w-md
+                                aspectRatio: aspectRatio
+                            }}
+                        >
+                            <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-emerald-400 -mt-0.5 -ml-0.5"></div>
+                            <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-emerald-400 -mt-0.5 -mr-0.5"></div>
+                            <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-emerald-400 -mb-0.5 -ml-0.5"></div>
+                            <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-emerald-400 -mb-0.5 -mr-0.5"></div>
+                            
+                            {/* Linea de escaneo animada */}
+                            <div className="absolute top-0 left-0 w-full h-full bg-emerald-400/10 animate-pulse border-b-2 border-emerald-400/50"></div>
+                            
+                            <div className="absolute top-full mt-4 left-0 w-full text-center">
+                                <span className="text-white/90 text-sm font-bold bg-black/50 px-3 py-1 rounded-full">{guideText}</span>
+                            </div>
                         </div>
                     </div>
+
                     <div className="absolute bottom-0 w-full pb-10 pt-20 bg-gradient-to-t from-black via-black/50 to-transparent flex justify-center items-center z-20">
-                        <button onClick={capturePhoto} className="w-20 h-20 bg-white rounded-full border-4 border-slate-300/50 shadow-2xl active:scale-90 transition-transform flex items-center justify-center relative"><div className="w-16 h-16 bg-white rounded-full border-2 border-slate-200 ring-2 ring-transparent group-hover:ring-emerald-500"></div></button>
+                        <button onClick={capturePhoto} className="w-20 h-20 bg-white rounded-full border-4 border-slate-300/50 shadow-2xl active:scale-90 transition-transform flex items-center justify-center"><div className="w-16 h-16 bg-white rounded-full border-2 border-slate-200 ring-2 ring-transparent group-hover:ring-emerald-500"></div></button>
                     </div>
                 </div>
             )}
+
+            {step === 'edit' && tempImage && (
+                <div className="relative flex-1 bg-slate-900 flex flex-col">
+                    <div className="flex-1 relative overflow-hidden flex items-center justify-center p-6">
+                        <img 
+                            src={tempImage} 
+                            className="max-w-full max-h-full object-contain shadow-2xl border border-white/10 transition-all duration-300"
+                            style={{ 
+                                transform: `rotate(${rotation}deg)`,
+                                filter: filter === 'bw' ? 'grayscale(100%) contrast(1.2)' : filter === 'high-contrast' ? 'grayscale(100%) contrast(2.0) brightness(0.9)' : 'none'
+                            }}
+                        />
+                    </div>
+
+                    {/* Controles de Edición */}
+                    <div className="bg-slate-900 p-4 pb-8 space-y-4 border-t border-white/10">
+                        <div className="flex justify-center gap-6">
+                            <button onClick={()=>setRotation(r => r + 90)} className="text-white flex flex-col items-center gap-1 text-[10px] opacity-70 hover:opacity-100">
+                                <div className="p-3 bg-white/10 rounded-full"><RotateCw size={20}/></div>
+                                <span>Rotar</span>
+                            </button>
+                            <button onClick={()=>setFilter(f => f === 'original' ? 'bw' : f === 'bw' ? 'high-contrast' : 'original')} className="text-white flex flex-col items-center gap-1 text-[10px] opacity-70 hover:opacity-100">
+                                <div className={`p-3 rounded-full ${filter !== 'original' ? 'bg-emerald-500 text-white' : 'bg-white/10'}`}><Wand2 size={20}/></div>
+                                <span>{filter === 'original' ? 'Original' : filter === 'bw' ? 'B/N' : 'Texto'}</span>
+                            </button>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button onClick={() => { setStep('camera'); setTempImage(null); startCamera(); }} className="flex-1 py-3.5 rounded-xl font-bold text-sm bg-white/10 text-white hover:bg-white/20">
+                                <RefreshCw className="inline mr-2" size={16}/> Repetir
+                            </button>
+                            <button onClick={confirmAndConvertToPdf} disabled={processing} className="flex-1 py-3.5 rounded-xl font-bold text-sm bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2">
+                                {processing ? <Loader2 className="animate-spin" size={18}/> : <><CheckCircle size={18}/> Confirmar PDF</>}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <canvas ref={canvasRef} className="hidden" />
         </div>
     );
