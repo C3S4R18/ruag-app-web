@@ -133,7 +133,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
 
     fetchFichas()
      
-    // Listener de Fichas (Cambios en DB) - CORREGIDO PARA QUE NO BORRE LA LISTA
+    // Listener de Fichas (Cambios en DB)
     const fichasChannel = supabase.channel('realtime-fichas').on('postgres_changes', { event: '*', schema: 'public', table: 'fichas' }, (payload: any) => {
           if (payload.eventType === 'INSERT') {
              // Solo agregamos si NO es vida ley Y NO es cesado Y NO es SCTR
@@ -430,14 +430,13 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
       else setSelectedIds(prev => [...prev, id])
   }
 
-  // --- MANEJO DE DRAG START (PARA ARRASTRAR AL CENTRO DE COSTOS) ---
+  // --- DRAG START PARA LA TABLA ---
   const handleDragStart = (e: React.DragEvent, worker: any) => {
-      // Pasamos el ID del obrero
       e.dataTransfer.setData("workerId", worker.id)
-      // Efecto visual de movimiento
       e.dataTransfer.effectAllowed = "move"
   }
 
+  // --- ACCIONES MASIVAS (Eliminar, Mover, Exportar) ---
   const handleBulkDelete = async () => {
       if (!confirm(`⚠️ ¿Estás seguro de eliminar ${selectedIds.length} fichas seleccionadas?`)) return
       setDeleting(true)
@@ -450,7 +449,6 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
       } catch (error: any) { toast.error("Error: " + error.message) } finally { setDeleting(false) }
   }
 
-  // --- FUNCIÓN CLAVE: MOVER A VIDA LEY ---
   const handleMoveToVidaLey = async () => {
       if (selectedIds.length === 0) {
           toast.warning("Selecciona al menos un trabajador para mover.");
@@ -461,7 +459,6 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
 
       setMoving(true);
       try {
-          // 1. Actualizamos el campo 'in_vida_ley' a true
           const { error } = await supabase
               .from('fichas')
               .update({ in_vida_ley: true })
@@ -472,7 +469,6 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
           toast.success(`${selectedIds.length} trabajadores movidos a Vida Ley.`);
           if(onNotifyChange) onNotifyChange("movió", `${selectedIds.length} obreros a la gestión de Vida Ley`);
 
-          // 2. Actualizamos la tabla localmente (los quitamos de la vista)
           setFichas(prev => prev.filter(f => !selectedIds.includes(f.id)));
           setSelectedIds([]);
 
@@ -484,7 +480,6 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
       }
   };
 
-  // --- NUEVA FUNCIÓN: MOVER A SCTR (AGREGADO) ---
   const handleMoveToSctr = async () => {
       if (selectedIds.length === 0) { toast.warning("Selecciona trabajadores."); return; }
       if (!confirm(`¿Mover ${selectedIds.length} trabajadores a la nómina de SCTR?`)) return;
@@ -510,35 +505,28 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
       }
   };
 
-  // --- NUEVA FUNCIÓN: PASAR A CESADOS ---
   const handleMoveToCesados = async () => {
       if (selectedIds.length === 0) { toast.warning("Selecciona trabajadores."); return; }
       if (!confirm(`⚠️ ¿CONFIRMAR CESE para ${selectedIds.length} trabajadores? \n\nPasarán a la lista de Cesados y saldrán de los activos.`)) return;
 
       setCessing(true)
       try {
-          // Marcar como cesado y guardar fecha de hoy
-          // Nos aseguramos de que NO estén en vida ley para que no se mezclen
           const { error } = await supabase
             .from('fichas')
             .update({ 
                 es_cesado: true, 
                 fecha_cese: new Date().toISOString(),
                 in_vida_ley: false,
-                in_sctr: false // Limpiamos también SCTR
+                in_sctr: false 
             })
             .in('id', selectedIds)
           
           if (error) throw error
           
           toast.success(`${selectedIds.length} trabajadores dados de baja exitosamente.`)
-          
-          // Actualizar UI
           setFichas(prev => prev.filter(f => !selectedIds.includes(f.id)))
           setSelectedIds([])
-          
           if(onNotifyChange) onNotifyChange("cesó", `a ${selectedIds.length} trabajadores`)
-
       } catch (error: any) {
           toast.error("Error al cesar: " + error.message)
       } finally {
@@ -546,7 +534,6 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
       }
   }
 
-  // --- EXPORTAR EXCEL DIRECTO (SOLO SI LO NECESITAN DESDE AQUÍ TAMBIÉN) ---
   const handleExportVidaLey = () => {
       if (selectedIds.length === 0) { toast.warning("Selecciona trabajadores."); return; }
       setExporting(true); toast.info("Generando Excel...");
@@ -567,15 +554,8 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
 
   const handleResetConfirmation = async (id: string) => {
       if(!confirm("¿Deseas anular la confirmación de recepción y volver a estado Pendiente?")) return;
-      
-      const { error } = await supabase
-          .from('fichas')
-          .update({ email_confirmed_at: null }) // Lo volvemos nulo
-          .eq('id', id)
-
-      if (error) {
-          toast.error("Error al resetear: " + error.message)
-      } else {
+      const { error } = await supabase.from('fichas').update({ email_confirmed_at: null }).eq('id', id)
+      if (error) { toast.error("Error al resetear: " + error.message) } else {
           toast.success("Estado reseteado a Pendiente")
           setFichas(prev => prev.map(f => f.id === id ? { ...f, email_confirmed_at: null } : f))
       }
@@ -620,71 +600,32 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
       if (selectedDocsToPrint.length === 0) { toast.warning("Selecciona al menos un documento"); return }
       setPreparingDoc(true)
       setShowDocSelector(false) 
-
       if(onNotifyChange) onNotifyChange("está imprimiendo", `Legajo de ${workerToPrint?.nombres}`)
-
       setTimeout(async () => {
           if (!printRef.current) { toast.error("Error de renderizado"); setPreparingDoc(false); return }
-          
           try {
               const pdfDoc = new jsPDF('p', 'mm', 'a4')
               pdfDoc.deletePage(1)
-
               const elements = Array.from(printRef.current.children) as HTMLElement[]
-              
               for (let i = 0; i < elements.length; i++) {
                   const element = elements[i]
-                  // CAMBIO 1: Agregamos scale: 1.5 en lugar de 2 (reduce tamaño a la mitad)
-                  const canvas = await html2canvas(element, { 
-                      scale: 1.5, 
-                      useCORS: true, 
-                      allowTaint: true, 
-                      backgroundColor: '#ffffff', 
-                      onclone: (clonedDoc) => {
-                          const all = clonedDoc.querySelectorAll('*')
-                          all.forEach((el: any) => { 
-                              el.style.color = '#000000'; 
-                              if (getComputedStyle(el).borderColor !== 'rgba(0, 0, 0, 0)') {
-                                  el.style.borderColor = '#000000';
-                              }
-                              el.style.removeProperty('color-scheme');
-                          })
-                      }
-                  });
-
-                  // CAMBIO 2: Usamos 'image/jpeg' y calidad 0.7 (reduce tamaño un 80%)
+                  const canvas = await html2canvas(element, { scale: 1.5, useCORS: true, allowTaint: true, backgroundColor: '#ffffff', onclone: (clonedDoc) => { const all = clonedDoc.querySelectorAll('*'); all.forEach((el: any) => { el.style.color = '#000000'; if (getComputedStyle(el).borderColor !== 'rgba(0, 0, 0, 0)') { el.style.borderColor = '#000000'; } el.style.removeProperty('color-scheme'); }) } });
                   const imgData = canvas.toDataURL('image/jpeg', 0.7)
                   const imgProps = pdfDoc.getImageProperties(imgData)
                   const orientation = imgProps.width > imgProps.height ? 'l' : 'p'
                   const pdfWidth = orientation === 'p' ? 210 : 297
                   const pdfHeight = orientation === 'p' ? 297 : 210
-                  
                   pdfDoc.addPage('a4', orientation)
                   pdfDoc.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST')
               }
-
               const nombreArchivo = `Legajo_${workerToPrint?.dni}.pdf`
               const pdfBlob = pdfDoc.output('blob')
-              
-              // Validación de seguridad para que sepas si te pasaste
-              if (pdfBlob.size > 48 * 1024 * 1024) {
-                  toast.error("El archivo sigue siendo muy pesado. Intenta seleccionar menos documentos.")
-                  setPreparingDoc(false)
-                  return
-              }
-
+              if (pdfBlob.size > 48 * 1024 * 1024) { toast.error("El archivo sigue siendo muy pesado. Intenta seleccionar menos documentos."); setPreparingDoc(false); return }
               const pdfUrl = URL.createObjectURL(pdfBlob)
               const file = new File([pdfBlob], nombreArchivo, { type: 'application/pdf' })
-
               setPdfBlobUrl(pdfUrl)
               setPdfFile(file)
-
-          } catch (error: any) {
-              console.error("Error PDF:", error)
-              toast.error("Error al generar PDF: " + error.message)
-          } finally {
-              setPreparingDoc(false)
-          }
+          } catch (error: any) { console.error("Error PDF:", error); toast.error("Error al generar PDF: " + error.message) } finally { setPreparingDoc(false) }
       }, 1500) 
   }
 
@@ -884,7 +825,10 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                 <div className="flex items-center gap-2 bg-slate-50/50 p-1 rounded-xl border border-slate-200" id="tour-filters">
                     <div className="relative">
                         <Building2 size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
-                        <select className="pl-9 pr-8 py-2 bg-transparent text-sm font-semibold text-slate-600 outline-none cursor-pointer hover:text-slate-900 transition-colors appearance-none" value={filterObra} onChange={(e) => setFilterObra(e.target.value)}><option value="Todas">Todas las Obras</option>{obrasUnicas.map((obra: any) => <option key={obra} value={obra}>{obra}</option>)}</select>
+                        <select className="pl-9 pr-8 py-2 bg-transparent text-sm font-semibold text-slate-600 outline-none cursor-pointer hover:text-slate-900 transition-colors appearance-none max-w-[200px] truncate" value={filterObra} onChange={(e) => setFilterObra(e.target.value)}>
+                            <option value="Todas">Todas las Obras</option>
+                            {Array.from(new Set(fichas.map(f => f.nombre_obra).filter(Boolean))).map((obra: any) => <option key={obra} value={obra}>{obra}</option>)}
+                        </select>
                     </div>
                     <div className="w-[1px] h-5 bg-slate-200"></div>
                     <div className="relative">
@@ -898,22 +842,18 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                         <motion.div initial={{opacity:0, scale:0.9, x: 20}} animate={{opacity:1, scale:1, x: 0}} exit={{opacity:0, scale:0.9, x: 20}} className="flex items-center gap-2 bg-slate-900 p-1.5 rounded-xl shadow-xl shadow-slate-900/20" id="tour-bulk-actions">
                             <span className="text-xs font-bold text-slate-400 px-2">{selectedIds.length}</span><div className="w-[1px] h-4 bg-slate-700 mx-1"></div>
                             
-                            {/* --- BOTÓN NUEVO: CESADOS (ROJO) --- */}
                             <button onClick={handleMoveToCesados} disabled={cessing} className="flex items-center gap-2 px-3 py-2 bg-red-600 text-white rounded-lg font-bold text-xs hover:bg-red-700 transition-colors" title="Dar de Baja Definitiva">
                                 {cessing ? <Loader2 className="animate-spin" size={14}/> : <UserX size={14}/>} <span className="hidden sm:inline">DAR DE BAJA</span>
                             </button>
 
-                            {/* --- BOTÓN MOVER A SCTR (NUEVO AMBER) --- */}
                             <button onClick={handleMoveToSctr} disabled={movingSctr} className="flex items-center gap-2 px-3 py-2 bg-amber-600 text-white rounded-lg font-bold text-xs hover:bg-amber-700 transition-colors" title="Mover a SCTR">
                                 {movingSctr ? <Loader2 className="animate-spin" size={14}/> : <ShieldCheck size={14}/>} <span className="hidden sm:inline">A SCTR</span>
                             </button>
 
-                            {/* --- BOTÓN MOVER A VIDA LEY (VERDE) --- */}
                             <button onClick={handleMoveToVidaLey} disabled={moving} className="flex items-center gap-2 px-3 py-2 bg-emerald-600 text-white rounded-lg font-bold text-xs hover:bg-emerald-700 transition-colors" title="Mover a Vida Ley">
                                 {moving ? <Loader2 className="animate-spin" size={14}/> : <ArrowRightCircle size={14}/>} <span className="hidden sm:inline">A VIDA LEY</span>
                             </button>
 
-                            {/* --- BOTÓN EXPORTAR EXCEL DIRECTO (OPCIONAL) --- */}
                             <button onClick={handleExportVidaLey} disabled={exporting} className="p-2 text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-300 rounded-lg transition-colors" title="Exportar Vida Ley (Excel Directo)">
                                 {exporting ? <Loader2 className="animate-spin" size={16}/> : <FileSpreadsheet size={16}/>}
                             </button>
@@ -964,10 +904,8 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                         initial={{ opacity: 0, y: 5 }} 
                         animate={{ opacity: 1, y: 0 }} 
                         transition={{ delay: index * 0.02 }} 
-                        // --- AQUÍ ESTÁ LA MAGIA DEL DRAG & DROP ---
                         draggable={true}
                         onDragStart={(e) => handleDragStart(e as unknown as React.DragEvent<HTMLTableRowElement>, ficha)}
-                        // -------------------------------------------
                         className={`group hover:bg-slate-50/80 transition-colors cursor-move active:cursor-grabbing ${selectedIds.includes(ficha.id) ? 'bg-blue-50/30' : ''}`} 
                         onClick={() => setSelectedFicha(ficha)}
                     >

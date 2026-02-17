@@ -15,7 +15,7 @@ export default function MassImport({ onComplete }: { onComplete: () => void }) {
 
   const addLog = (msg: string) => setLogs(prev => [msg, ...prev])
 
-  // --- FUNCIÓN DE SONIDO ---
+  // --- SONIDO AL TERMINAR ---
   const playUploadSound = () => {
     const audio = new Audio('/upload_success.mp3') 
     audio.play().catch(err => console.log("Audio bloqueado", err))
@@ -29,7 +29,7 @@ export default function MassImport({ onComplete }: { onComplete: () => void }) {
         // Dividir por líneas y filtrar vacías
         resolve(text.split(/\r\n|\n/).filter(line => line.trim().length > 10))
       }
-      reader.readAsText(file, 'ISO-8859-1') // Encoding estándar T-Registro
+      reader.readAsText(file, 'ISO-8859-1') 
     })
   }
 
@@ -41,6 +41,7 @@ export default function MassImport({ onComplete }: { onComplete: () => void }) {
   }
 
   const handleProcess = async () => {
+    // Al menos necesitamos IDE o DIR para saber quién es
     if (!files.ide && !files.dir) {
         toast.error("Falta el archivo .IDE o .DIR para identificar a los trabajadores")
         return
@@ -49,7 +50,7 @@ export default function MassImport({ onComplete }: { onComplete: () => void }) {
     setProcessing(true)
     setProgress(0)
     setLogs([])
-    addLog("🚀 Iniciando procesamiento seguro...")
+    addLog("🚀 Iniciando procesamiento...")
 
     try {
         const empleados = new Map<string, any>()
@@ -57,7 +58,7 @@ export default function MassImport({ onComplete }: { onComplete: () => void }) {
         // 1. ESCANEAR IDE (Identidad + CORREO REAL)
         if (files.ide) {
             const linesIDE = await readFile(files.ide)
-            addLog(`📂 IDE: Leyendo ${linesIDE.length} filas...`)
+            addLog(`📂 IDE: Analizando ${linesIDE.length} registros...`)
             linesIDE.forEach(line => {
                 const col = line.split('|')
                 const dniIndex = col.findIndex(c => /^\d{8,12}$/.test(c.trim()))
@@ -74,10 +75,13 @@ export default function MassImport({ onComplete }: { onComplete: () => void }) {
                     const celular = col.find(c => /9\d{8}/.test(c.trim()))
                     if (celular) emp.celular = celular.trim()
 
-                    // CAPTURAR CORREO REAL DEL ARCHIVO IDE
-                    // Generalmente está en la columna 9 (índice base 0) o cerca del teléfono
-                    const email = col.find(c => c.includes('@') && c.includes('.'))
-                    if (email) emp.correo_contacto = email.trim()
+                    // --- AQUÍ CAPTURAMOS EL CORREO REAL ---
+                    // En el T-Registro suele estar en la columna 9 (índice)
+                    // Buscamos cualquier campo que tenga '@' y '.'
+                    const emailReal = col.find(c => c.includes('@') && c.includes('.'))
+                    if (emailReal) {
+                        emp.correo_contacto = emailReal.trim().toLowerCase()
+                    }
                     
                     const civil = col.find(c => ['SOLTERO', 'CASADO', 'CONVIVIENTE', 'VIUDO', 'DIVORCIADO'].includes(c.trim().toUpperCase()))
                     if (civil) emp.estado_civil = civil.trim()
@@ -85,13 +89,13 @@ export default function MassImport({ onComplete }: { onComplete: () => void }) {
                     empleados.set(dni, emp)
                 }
             })
-            addLog(`✅ IDE: ${empleados.size} trabajadores detectados.`)
+            addLog(`✅ IDE: Datos personales cargados.`)
         }
 
-        // 2. ESCANEAR DIR (Direcciones - SE JALA TODO)
+        // 2. ESCANEAR DIR (Direcciones de CASA - TODO)
         if (files.dir) {
             const linesDIR = await readFile(files.dir)
-            addLog(`📍 DIR: Procesando direcciones...`)
+            addLog(`📍 DIR: Analizando domicilios...`)
             
             linesDIR.forEach(line => {
                 const col = line.split('|')
@@ -102,32 +106,30 @@ export default function MassImport({ onComplete }: { onComplete: () => void }) {
                     let emp = empleados.get(dni)
 
                     if (!emp) {
-                        // Si no estaba en IDE, lo creamos
                         const indexDni = col.indexOf(dniRaw)
                         emp = {
                             dni,
                             apellido_paterno: col[indexDni + 1]?.trim() || '',
                             apellido_materno: col[indexDni + 2]?.trim() || '',
                             nombres: col[indexDni + 3]?.trim() || 'Nuevo',
-                            origen: 'DIR' 
                         }
                         empleados.set(dni, emp)
                     }
 
-                    // --- EXTRACCIÓN DE DIRECCIÓN ---
-                    // En T-Registro suele ser Columna 6 (Dirección) y Columna 8 (Ubigeo)
-                    // Usamos una lógica amplia para capturar la dirección de casa
+                    // --- CAPTURAR DIRECCIÓN DE CASA ---
+                    // Buscamos columnas que parezcan direcciones (AV, JR, CALLE, MZ, LT)
+                    // Ignoramos la que tenga guiones '-' porque ese es el ubigeo
                     const direccionCasa = col.find(c => 
                         c.length > 5 && 
-                        !c.includes('-') && // Evitar ubigeos
-                        (c.includes('AV.') || c.includes('JR.') || c.includes('CALLE') || c.includes('PSJ') || c.includes('URB') || c.includes('MZ') || c.includes('LT') || c.includes('BLOCK'))
+                        !c.includes('-') && 
+                        (c.includes('AV.') || c.includes('JR.') || c.includes('CALLE') || c.includes('PSJ') || c.includes('URB') || c.includes('MZ') || c.includes('LT') || c.includes('BLOCK') || c.includes('INTERIOR') || c.includes('ASOC') || c.includes('COOP'))
                     )
                     
                     if (direccionCasa) {
                         emp.direccion = direccionCasa.trim()
                     }
 
-                    // Ubigeo (formato DEPARTAMENTO-PROVINCIA-DISTRITO)
+                    // Ubigeo (DEPARTAMENTO-PROVINCIA-DISTRITO)
                     const ubicacion = col.find(c => c.includes('-') && c.split('-').length >= 3)
                     if (ubicacion) {
                         const partes = ubicacion.trim().split('-')
@@ -144,7 +146,7 @@ export default function MassImport({ onComplete }: { onComplete: () => void }) {
         // 3. ESCANEAR TRA (Laboral - SIN ESTABLECIMIENTO)
         if (files.tra) {
             const linesTRA = await readFile(files.tra)
-            addLog(`👷 TRA: Procesando datos laborales...`)
+            addLog(`👷 TRA: Analizando datos laborales...`)
             linesTRA.forEach(line => {
                 const col = line.split('|')
                 const dni = col.find(c => empleados.has(c.trim()))?.trim()
@@ -152,14 +154,17 @@ export default function MassImport({ onComplete }: { onComplete: () => void }) {
                 if (dni) {
                     const emp = empleados.get(dni)
                     
+                    // Fecha Ingreso
                     const fecha = col.find(c => /^\d{2}\/\d{2}\/\d{4}$/.test(c.trim()))
                     if (fecha) emp.fecha_ingreso = parseDate(fecha)
 
+                    // Cargo (Columna 9 aprox)
                     if (col[9] && col[9].length > 3) emp.cargo = col[9].trim()
 
-                    // ** IMPORTANTE: NO ASIGNAMOS 'nombre_obra' AQUÍ **
-                    // Ignoramos completamente la columna de establecimiento para evitar errores.
-                    
+                    // --- IMPORTANTE: IGNORAMOS ESTABLECIMIENTO ---
+                    // No asignamos 'nombre_obra' desde aquí.
+                    // El campo 'nombre_obra' se queda undefined/null para que la BD lo respete.
+
                     // Bancos y Cuentas
                     const bancos = ['BCP', 'BBVA', 'INTERBANK', 'SCOTIABANK', 'NACION']
                     const idxBanco = col.findIndex(c => bancos.some(b => c.toUpperCase().includes(b)))
@@ -179,7 +184,7 @@ export default function MassImport({ onComplete }: { onComplete: () => void }) {
         // 4. ESCANEAR SSA (Salud - TODO)
         if (files.ssa) {
             const linesSSA = await readFile(files.ssa)
-            addLog(`🏥 SSA: Completando datos de salud...`)
+            addLog(`🏥 SSA: Analizando salud y pensiones...`)
             linesSSA.forEach(line => {
                 const col = line.split('|')
                 const dni = col.find(c => empleados.has(c.trim()))?.trim()

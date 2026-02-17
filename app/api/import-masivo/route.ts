@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 
-// CLIENTE ADMIN (Necesario para gestión de usuarios)
+// CLIENTE ADMIN
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -21,21 +21,22 @@ export async function POST(request: Request) {
     for (const emp of employees) {
       const documentNumber = emp.dni.trim()
       
-      // Credenciales de ACCESO (Login) - Se mantiene tu lógica original
+      // 1. CREDENCIALES DE ACCESO (LOGIN)
+      // Se mantiene tu lógica: Usuario = DNI, Pass = DNI
       const authEmail = `${documentNumber}@ruag.sistema` 
       const password = documentNumber 
 
-      // Correo de CONTACTO (Para la ficha)
-      // Si el archivo trajo un correo real, lo usamos. Si no, usamos el generado.
+      // 2. CORREO DE CONTACTO (PARA LA FICHA)
+      // Si el archivo IDE trajo un correo real, lo usamos. Si no, queda vacío o el del sistema.
       const contactEmail = emp.correo_contacto && emp.correo_contacto.includes('@') 
                            ? emp.correo_contacto 
-                           : authEmail;
+                           : null;
 
       let userId = null;
       let isExistingUser = false;
       let currentRole = 'obrero'; 
 
-      // 1. BUSCAR SI YA EXISTE (Evitar duplicados)
+      // --- BUSCAR SI YA EXISTE (EVITA DUPLICADOS) ---
       const { data: existingProfile } = await supabaseAdmin
         .from('profiles')
         .select('id, role')
@@ -43,14 +44,14 @@ export async function POST(request: Request) {
         .single()
 
       if (existingProfile) {
-        // USUARIO EXISTENTE: Solo actualizaremos datos
+        // YA EXISTE: Solo actualizaremos datos
         userId = existingProfile.id
         isExistingUser = true;
         if (existingProfile.role) currentRole = existingProfile.role; // Preservar rol
       } else {
-        // USUARIO NUEVO: Crear cuenta de acceso
+        // NUEVO: Crear cuenta de acceso
         const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-          email: authEmail, // Login siempre con DNI@ruag.sistema
+          email: authEmail, 
           password: password,
           email_confirm: true,
           user_metadata: { full_name: emp.nombres }
@@ -59,7 +60,6 @@ export async function POST(request: Request) {
         if (!authError && authData.user) {
           userId = authData.user.id
         } else if (authError?.message?.includes('already registered')) {
-           // Caso raro de desincronización
            results.errors++
            continue
         } else {
@@ -68,7 +68,7 @@ export async function POST(request: Request) {
         }
       }
 
-      // 2. ACTUALIZAR / CREAR PERFIL
+      // --- ACTUALIZAR PERFIL ---
       if (userId) {
         await supabaseAdmin.from('profiles').upsert({
           id: userId,
@@ -80,13 +80,13 @@ export async function POST(request: Request) {
           role: currentRole 
         })
 
-        // 3. PREPARAR DATOS DE LA FICHA
+        // --- PREPARAR DATOS DE FICHA ---
         const rawFichaData: any = {
           user_id: userId,
-          // Solo marcamos completado si es nuevo para no alterar estados de flujo existentes
+          // Solo marcamos completado si es nuevo para no alterar flujos
           estado: isExistingUser ? undefined : 'completado',
           
-          // Datos personales
+          // Datos personales (IDE)
           nombres: emp.nombres,
           apellido_paterno: emp.apellido_paterno,
           apellido_materno: emp.apellido_materno,
@@ -94,25 +94,28 @@ export async function POST(request: Request) {
           fecha_nacimiento: emp.fecha_nacimiento,
           celular: emp.celular,
           estado_civil: emp.estado_civil,
-          correo: contactEmail, // Aquí va el correo real si vino del IDE
           
-          // Ubicación (Viene del DIR)
+          // AQUÍ GUARDAMOS EL CORREO REAL EN LA BASE DE DATOS
+          // (Aunque el login sea con el otro)
+          correo: contactEmail, 
+          
+          // Ubicación (DIR)
           direccion: emp.direccion,
           distrito: emp.distrito,
           provincia: emp.provincia,
           departamento: emp.departamento,
           
-          // Laboral (Viene del TRA - Sin establecimiento)
+          // Laboral (TRA)
           fecha_ingreso: emp.fecha_ingreso,
           cargo: emp.cargo,
-          // nombre_obra: NO TOCAMOS ESTO DESDE AQUÍ PARA EVITAR ERRORES DE DIRECCIÓN
+          // NOTA: NO ACTUALIZAMOS 'nombre_obra' AQUÍ PARA NO BORRAR ASIGNACIONES MANUALES
           
-          // Financiero (Viene del TRA)
+          // Financiero (TRA)
           banco: emp.banco,
           numero_cuenta: emp.numero_cuenta,
           cci: emp.cci,
           
-          // Salud (Viene del SSA)
+          // Salud (SSA)
           sistema_pension: emp.sistema_pension,
           afp_nombre: emp.afp_nombre,
           cuspp: emp.cuspp,
@@ -121,7 +124,7 @@ export async function POST(request: Request) {
         }
 
         // --- FILTRO DE LIMPIEZA ---
-        // Elimina campos vacíos para no borrar datos que ya existan en la BD
+        // Elimina campos vacíos para no borrar datos que ya existan
         const cleanFichaData = Object.fromEntries(
             Object.entries(rawFichaData).filter(([_, v]) => v != null && v !== '')
         );
