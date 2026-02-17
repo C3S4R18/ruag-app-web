@@ -15,7 +15,7 @@ export default function MassImport({ onComplete }: { onComplete: () => void }) {
 
   const addLog = (msg: string) => setLogs(prev => [msg, ...prev])
 
-  // --- SONIDO AL TERMINAR ---
+  // --- SONIDO (AL INICIO) ---
   const playUploadSound = () => {
     const audio = new Audio('/upload_success.mp3') 
     audio.play().catch(err => console.log("Audio bloqueado", err))
@@ -41,11 +41,13 @@ export default function MassImport({ onComplete }: { onComplete: () => void }) {
   }
 
   const handleProcess = async () => {
-    // Al menos necesitamos IDE o DIR para saber quién es
     if (!files.ide && !files.dir) {
         toast.error("Falta el archivo .IDE o .DIR para identificar a los trabajadores")
         return
     }
+
+    // 1. SONIDO INMEDIATO AL EMPEZAR (Como pediste)
+    playUploadSound()
 
     setProcessing(true)
     setProgress(0)
@@ -58,7 +60,7 @@ export default function MassImport({ onComplete }: { onComplete: () => void }) {
         // 1. ESCANEAR IDE (Identidad + CORREO REAL)
         if (files.ide) {
             const linesIDE = await readFile(files.ide)
-            addLog(`📂 IDE: Analizando ${linesIDE.length} registros...`)
+            addLog(`📂 IDE: Leyendo ${linesIDE.length} filas...`)
             linesIDE.forEach(line => {
                 const col = line.split('|')
                 const dniIndex = col.findIndex(c => /^\d{8,12}$/.test(c.trim()))
@@ -75,9 +77,7 @@ export default function MassImport({ onComplete }: { onComplete: () => void }) {
                     const celular = col.find(c => /9\d{8}/.test(c.trim()))
                     if (celular) emp.celular = celular.trim()
 
-                    // --- AQUÍ CAPTURAMOS EL CORREO REAL ---
-                    // En el T-Registro suele estar en la columna 9 (índice)
-                    // Buscamos cualquier campo que tenga '@' y '.'
+                    // CAPTURAR CORREO REAL DEL ARCHIVO IDE
                     const emailReal = col.find(c => c.includes('@') && c.includes('.'))
                     if (emailReal) {
                         emp.correo_contacto = emailReal.trim().toLowerCase()
@@ -89,13 +89,13 @@ export default function MassImport({ onComplete }: { onComplete: () => void }) {
                     empleados.set(dni, emp)
                 }
             })
-            addLog(`✅ IDE: Datos personales cargados.`)
+            addLog(`✅ IDE: ${empleados.size} trabajadores detectados.`)
         }
 
-        // 2. ESCANEAR DIR (Direcciones de CASA - TODO)
+        // 2. ESCANEAR DIR (Direcciones de CASA y UBIGEO)
         if (files.dir) {
             const linesDIR = await readFile(files.dir)
-            addLog(`📍 DIR: Analizando domicilios...`)
+            addLog(`📍 DIR: Procesando direcciones...`)
             
             linesDIR.forEach(line => {
                 const col = line.split('|')
@@ -112,16 +112,15 @@ export default function MassImport({ onComplete }: { onComplete: () => void }) {
                             apellido_paterno: col[indexDni + 1]?.trim() || '',
                             apellido_materno: col[indexDni + 2]?.trim() || '',
                             nombres: col[indexDni + 3]?.trim() || 'Nuevo',
+                            origen: 'DIR' 
                         }
                         empleados.set(dni, emp)
                     }
 
-                    // --- CAPTURAR DIRECCIÓN DE CASA ---
-                    // Buscamos columnas que parezcan direcciones (AV, JR, CALLE, MZ, LT)
-                    // Ignoramos la que tenga guiones '-' porque ese es el ubigeo
+                    // DIRECCIÓN DE CASA (Buscamos AV, JR, CALLE, pero NO si tiene formato de UBIGEO con guiones)
                     const direccionCasa = col.find(c => 
                         c.length > 5 && 
-                        !c.includes('-') && 
+                        !c.includes('-') && // Evitar ubigeos
                         (c.includes('AV.') || c.includes('JR.') || c.includes('CALLE') || c.includes('PSJ') || c.includes('URB') || c.includes('MZ') || c.includes('LT') || c.includes('BLOCK') || c.includes('INTERIOR') || c.includes('ASOC') || c.includes('COOP'))
                     )
                     
@@ -129,7 +128,7 @@ export default function MassImport({ onComplete }: { onComplete: () => void }) {
                         emp.direccion = direccionCasa.trim()
                     }
 
-                    // Ubigeo (DEPARTAMENTO-PROVINCIA-DISTRITO)
+                    // UBIGEO (DEPARTAMENTO-PROVINCIA-DISTRITO)
                     const ubicacion = col.find(c => c.includes('-') && c.split('-').length >= 3)
                     if (ubicacion) {
                         const partes = ubicacion.trim().split('-')
@@ -143,10 +142,10 @@ export default function MassImport({ onComplete }: { onComplete: () => void }) {
             })
         }
 
-        // 3. ESCANEAR TRA (Laboral - SIN ESTABLECIMIENTO)
+        // 3. ESCANEAR TRA (Laboral - SIN DIRECCIONES DE OBRA/ESTABLECIMIENTO)
         if (files.tra) {
             const linesTRA = await readFile(files.tra)
-            addLog(`👷 TRA: Analizando datos laborales...`)
+            addLog(`👷 TRA: Procesando datos laborales...`)
             linesTRA.forEach(line => {
                 const col = line.split('|')
                 const dni = col.find(c => empleados.has(c.trim()))?.trim()
@@ -158,12 +157,11 @@ export default function MassImport({ onComplete }: { onComplete: () => void }) {
                     const fecha = col.find(c => /^\d{2}\/\d{2}\/\d{4}$/.test(c.trim()))
                     if (fecha) emp.fecha_ingreso = parseDate(fecha)
 
-                    // Cargo (Columna 9 aprox)
+                    // Cargo
                     if (col[9] && col[9].length > 3) emp.cargo = col[9].trim()
 
-                    // --- IMPORTANTE: IGNORAMOS ESTABLECIMIENTO ---
-                    // No asignamos 'nombre_obra' desde aquí.
-                    // El campo 'nombre_obra' se queda undefined/null para que la BD lo respete.
+                    // ** NOTA: AQUÍ NO CAPTURAMOS NINGUNA DIRECCIÓN NI OBRA **
+                    // Tu pediste explícitamente ignorar el establecimiento.
 
                     // Bancos y Cuentas
                     const bancos = ['BCP', 'BBVA', 'INTERBANK', 'SCOTIABANK', 'NACION']
@@ -184,7 +182,7 @@ export default function MassImport({ onComplete }: { onComplete: () => void }) {
         // 4. ESCANEAR SSA (Salud - TODO)
         if (files.ssa) {
             const linesSSA = await readFile(files.ssa)
-            addLog(`🏥 SSA: Analizando salud y pensiones...`)
+            addLog(`🏥 SSA: Completando datos de salud...`)
             linesSSA.forEach(line => {
                 const col = line.split('|')
                 const dni = col.find(c => empleados.has(c.trim()))?.trim()
@@ -245,11 +243,12 @@ export default function MassImport({ onComplete }: { onComplete: () => void }) {
         }
 
         setProgress(100)
-        playUploadSound() 
-
+        
         addLog(`✅ PROCESO FINALIZADO.`)
         addLog(`🆕 Nuevos: ${processed} | 🔄 Actualizados: ${updated} | ❌ Errores: ${errors}`)
         toast.success(`Carga completada con éxito.`)
+        
+        // NO HAY SONIDO AL FINAL (Como pediste)
         
         setTimeout(() => {
              onComplete()
@@ -269,7 +268,7 @@ export default function MassImport({ onComplete }: { onComplete: () => void }) {
       <div className="flex items-center justify-between mb-6">
         <div>
             <h3 className="font-bold text-lg text-slate-900 flex items-center gap-2"><Database className="text-blue-600"/> Importador T-REGISTRO</h3>
-            <p className="text-xs text-slate-500 mt-1">Carga archivos planos de SUNAT. El sistema autocompletará datos faltantes sin duplicar.</p>
+            <p className="text-xs text-slate-500 mt-1">Carga archivos planos de SUNAT. El sistema ignora direcciones de obras.</p>
         </div>
         <div className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-2"><ShieldCheck size={12}/> Autocompletado Activo</div>
       </div>

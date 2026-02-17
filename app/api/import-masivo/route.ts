@@ -21,13 +21,13 @@ export async function POST(request: Request) {
     for (const emp of employees) {
       const documentNumber = emp.dni.trim()
       
-      // 1. CREDENCIALES DE ACCESO (LOGIN)
-      // Se mantiene tu lógica: Usuario = DNI, Pass = DNI
+      // 1. CREDENCIALES DE ACCESO (LOGIN) - Lógica Original
+      // Esto es SOLO para que puedan entrar al sistema
       const authEmail = `${documentNumber}@ruag.sistema` 
       const password = documentNumber 
 
-      // 2. CORREO DE CONTACTO (PARA LA FICHA)
-      // Si el archivo IDE trajo un correo real, lo usamos. Si no, queda vacío o el del sistema.
+      // 2. CORREO DE CONTACTO (PARA LA FICHA DE DATOS)
+      // Usamos el correo real extraído del IDE. Si no hay, null.
       const contactEmail = emp.correo_contacto && emp.correo_contacto.includes('@') 
                            ? emp.correo_contacto 
                            : null;
@@ -44,12 +44,12 @@ export async function POST(request: Request) {
         .single()
 
       if (existingProfile) {
-        // YA EXISTE: Solo actualizaremos datos
+        // YA EXISTE: Usamos su ID y respetamos su rol
         userId = existingProfile.id
         isExistingUser = true;
-        if (existingProfile.role) currentRole = existingProfile.role; // Preservar rol
+        if (existingProfile.role) currentRole = existingProfile.role;
       } else {
-        // NUEVO: Crear cuenta de acceso
+        // NUEVO: Creamos el usuario en Auth (Supabase Auth)
         const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
           email: authEmail, 
           password: password,
@@ -68,7 +68,7 @@ export async function POST(request: Request) {
         }
       }
 
-      // --- ACTUALIZAR PERFIL ---
+      // --- ACTUALIZAR PERFIL (Siempre se actualiza para asegurar datos frescos) ---
       if (userId) {
         await supabaseAdmin.from('profiles').upsert({
           id: userId,
@@ -80,10 +80,12 @@ export async function POST(request: Request) {
           role: currentRole 
         })
 
-        // --- PREPARAR DATOS DE FICHA ---
+        // --- PREPARAR DATOS DE LA FICHA ---
+        // Aquí NO incluimos 'nombre_obra' para que nunca lo toque.
         const rawFichaData: any = {
           user_id: userId,
-          // Solo marcamos completado si es nuevo para no alterar flujos
+          
+          // Solo marcamos completado si es nuevo. Si ya existe, no tocamos el estado.
           estado: isExistingUser ? undefined : 'completado',
           
           // Datos personales (IDE)
@@ -95,27 +97,26 @@ export async function POST(request: Request) {
           celular: emp.celular,
           estado_civil: emp.estado_civil,
           
-          // AQUÍ GUARDAMOS EL CORREO REAL EN LA BASE DE DATOS
-          // (Aunque el login sea con el otro)
+          // Guardamos el correo real en la ficha (si vino en el archivo)
           correo: contactEmail, 
           
-          // Ubicación (DIR)
+          // Ubicación (DIR) - "Que jale todo"
           direccion: emp.direccion,
           distrito: emp.distrito,
           provincia: emp.provincia,
           departamento: emp.departamento,
           
-          // Laboral (TRA)
+          // Laboral (TRA) - "Todo MENOS establecimiento"
           fecha_ingreso: emp.fecha_ingreso,
           cargo: emp.cargo,
-          // NOTA: NO ACTUALIZAMOS 'nombre_obra' AQUÍ PARA NO BORRAR ASIGNACIONES MANUALES
+          // nombre_obra: <--- ELIMINADO INTENCIONALMENTE
           
           // Financiero (TRA)
           banco: emp.banco,
           numero_cuenta: emp.numero_cuenta,
           cci: emp.cci,
           
-          // Salud (SSA)
+          // Salud (SSA) - "Que coja todo"
           sistema_pension: emp.sistema_pension,
           afp_nombre: emp.afp_nombre,
           cuspp: emp.cuspp,
@@ -124,7 +125,8 @@ export async function POST(request: Request) {
         }
 
         // --- FILTRO DE LIMPIEZA ---
-        // Elimina campos vacíos para no borrar datos que ya existan
+        // Esto elimina cualquier campo que venga null, undefined o vacío "" del objeto.
+        // Resultado: Si el archivo TXT no tiene el dato, NO BORRA el dato que ya tienes en BD.
         const cleanFichaData = Object.fromEntries(
             Object.entries(rawFichaData).filter(([_, v]) => v != null && v !== '')
         );
