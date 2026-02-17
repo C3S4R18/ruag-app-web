@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { UploadCloud, FileText, CheckCircle, Loader2, Play, RefreshCw, Server, Database, ShieldCheck, MapPin } from 'lucide-react'
+import { UploadCloud, FileText, CheckCircle, Loader2, Play, Server, Database, ShieldCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import { motion } from 'framer-motion'
 
@@ -15,11 +15,10 @@ export default function MassImport({ onComplete }: { onComplete: () => void }) {
 
   const addLog = (msg: string) => setLogs(prev => [msg, ...prev])
 
-  // --- FUNCIÓN DE SONIDO NUEVA ---
+  // --- FUNCIÓN DE SONIDO ---
   const playUploadSound = () => {
-    // Asegúrate de tener este archivo en tu carpeta /public
     const audio = new Audio('/upload_success.mp3') 
-    audio.play().catch(err => console.log("Reproducción de audio bloqueada por el navegador", err))
+    audio.play().catch(err => console.log("Audio bloqueado", err))
   }
 
   const readFile = (file: File): Promise<string[]> => {
@@ -27,9 +26,10 @@ export default function MassImport({ onComplete }: { onComplete: () => void }) {
       const reader = new FileReader()
       reader.onload = (e) => {
         const text = e.target?.result as string
+        // Dividir por líneas y filtrar vacías
         resolve(text.split(/\r\n|\n/).filter(line => line.trim().length > 10))
       }
-      reader.readAsText(file, 'ISO-8859-1') 
+      reader.readAsText(file, 'ISO-8859-1') // Encoding estándar T-Registro
     })
   }
 
@@ -49,12 +49,12 @@ export default function MassImport({ onComplete }: { onComplete: () => void }) {
     setProcessing(true)
     setProgress(0)
     setLogs([])
-    addLog("🚀 Iniciando procesamiento inteligente...")
+    addLog("🚀 Iniciando procesamiento seguro...")
 
     try {
         const empleados = new Map<string, any>()
 
-        // 1. ESCANEAR IDE (Base Maestra)
+        // 1. ESCANEAR IDE (Identidad + CORREO REAL)
         if (files.ide) {
             const linesIDE = await readFile(files.ide)
             addLog(`📂 IDE: Leyendo ${linesIDE.length} filas...`)
@@ -73,6 +73,11 @@ export default function MassImport({ onComplete }: { onComplete: () => void }) {
                     }
                     const celular = col.find(c => /9\d{8}/.test(c.trim()))
                     if (celular) emp.celular = celular.trim()
+
+                    // CAPTURAR CORREO REAL DEL ARCHIVO IDE
+                    // Generalmente está en la columna 9 (índice base 0) o cerca del teléfono
+                    const email = col.find(c => c.includes('@') && c.includes('.'))
+                    if (email) emp.correo_contacto = email.trim()
                     
                     const civil = col.find(c => ['SOLTERO', 'CASADO', 'CONVIVIENTE', 'VIUDO', 'DIVORCIADO'].includes(c.trim().toUpperCase()))
                     if (civil) emp.estado_civil = civil.trim()
@@ -80,13 +85,13 @@ export default function MassImport({ onComplete }: { onComplete: () => void }) {
                     empleados.set(dni, emp)
                 }
             })
-            addLog(`✅ IDE: ${empleados.size} trabajadores base detectados.`)
+            addLog(`✅ IDE: ${empleados.size} trabajadores detectados.`)
         }
 
-        // 2. ESCANEAR DIR (Direcciones de CASA)
+        // 2. ESCANEAR DIR (Direcciones - SE JALA TODO)
         if (files.dir) {
             const linesDIR = await readFile(files.dir)
-            addLog(`📍 DIR: Procesando ${linesDIR.length} direcciones de casa...`)
+            addLog(`📍 DIR: Procesando direcciones...`)
             
             linesDIR.forEach(line => {
                 const col = line.split('|')
@@ -96,8 +101,8 @@ export default function MassImport({ onComplete }: { onComplete: () => void }) {
                     const dni = dniRaw.trim()
                     let emp = empleados.get(dni)
 
-                    // Si es nuevo (no estaba en IDE), lo creamos
                     if (!emp) {
+                        // Si no estaba en IDE, lo creamos
                         const indexDni = col.indexOf(dniRaw)
                         emp = {
                             dni,
@@ -109,18 +114,20 @@ export default function MassImport({ onComplete }: { onComplete: () => void }) {
                         empleados.set(dni, emp)
                     }
 
-                    // --- EXTRACCIÓN SEGURA DE DIRECCIÓN DE CASA ---
+                    // --- EXTRACCIÓN DE DIRECCIÓN ---
+                    // En T-Registro suele ser Columna 6 (Dirección) y Columna 8 (Ubigeo)
+                    // Usamos una lógica amplia para capturar la dirección de casa
                     const direccionCasa = col.find(c => 
                         c.length > 5 && 
-                        !c.includes('-') && 
-                        (c.includes('AV.') || c.includes('JR.') || c.includes('CALLE') || c.includes('PSJ') || c.includes('URB') || c.includes('MZ') || c.includes('LT') || c.includes('BLOCK') || c.includes('INTERIOR'))
+                        !c.includes('-') && // Evitar ubigeos
+                        (c.includes('AV.') || c.includes('JR.') || c.includes('CALLE') || c.includes('PSJ') || c.includes('URB') || c.includes('MZ') || c.includes('LT') || c.includes('BLOCK'))
                     )
                     
                     if (direccionCasa) {
-                        emp.direccion = direccionCasa.trim() // Asignamos a 'direccion' (Casa)
+                        emp.direccion = direccionCasa.trim()
                     }
 
-                    // Ubigeo (LIMA-LIMA-SAN BORJA)
+                    // Ubigeo (formato DEPARTAMENTO-PROVINCIA-DISTRITO)
                     const ubicacion = col.find(c => c.includes('-') && c.split('-').length >= 3)
                     if (ubicacion) {
                         const partes = ubicacion.trim().split('-')
@@ -134,10 +141,10 @@ export default function MassImport({ onComplete }: { onComplete: () => void }) {
             })
         }
 
-        // 3. ESCANEAR TRA (Datos Laborales y OBRA)
+        // 3. ESCANEAR TRA (Laboral - SIN ESTABLECIMIENTO)
         if (files.tra) {
             const linesTRA = await readFile(files.tra)
-            addLog(`👷 TRA: Asignando Obras y Cargos...`)
+            addLog(`👷 TRA: Procesando datos laborales...`)
             linesTRA.forEach(line => {
                 const col = line.split('|')
                 const dni = col.find(c => empleados.has(c.trim()))?.trim()
@@ -150,19 +157,10 @@ export default function MassImport({ onComplete }: { onComplete: () => void }) {
 
                     if (col[9] && col[9].length > 3) emp.cargo = col[9].trim()
 
-                    // Buscamos la dirección larga que suele ser la de la OBRA/EMPRESA
-                    const direccionObra = col.find(c => 
-                        c.length > 20 && 
-                        (c.toUpperCase().includes('RUAG') || c.includes('AV.') || c.includes('JR.'))
-                    )
+                    // ** IMPORTANTE: NO ASIGNAMOS 'nombre_obra' AQUÍ **
+                    // Ignoramos completamente la columna de establecimiento para evitar errores.
                     
-                    if (direccionObra) {
-                        emp.nombre_obra = direccionObra.trim() 
-                    } else {
-                        if (!emp.nombre_obra) emp.nombre_obra = "RUAG - OBRA CENTRAL"
-                    }
-
-                    // Bancos
+                    // Bancos y Cuentas
                     const bancos = ['BCP', 'BBVA', 'INTERBANK', 'SCOTIABANK', 'NACION']
                     const idxBanco = col.findIndex(c => bancos.some(b => c.toUpperCase().includes(b)))
                     if (idxBanco !== -1) {
@@ -178,10 +176,10 @@ export default function MassImport({ onComplete }: { onComplete: () => void }) {
             })
         }
 
-        // 4. ESCANEAR SSA (Salud)
+        // 4. ESCANEAR SSA (Salud - TODO)
         if (files.ssa) {
             const linesSSA = await readFile(files.ssa)
-            addLog(`🏥 SSA: Cruzando datos de salud...`)
+            addLog(`🏥 SSA: Completando datos de salud...`)
             linesSSA.forEach(line => {
                 const col = line.split('|')
                 const dni = col.find(c => empleados.has(c.trim()))?.trim()
@@ -204,12 +202,13 @@ export default function MassImport({ onComplete }: { onComplete: () => void }) {
         // --- ENVÍO AL SERVIDOR ---
         const allEmployees = Array.from(empleados.values())
         const total = allEmployees.length
-        const BATCH_SIZE = 5 
+        const BATCH_SIZE = 10
         
-        addLog(`📦 Preparando carga de ${total} registros finales...`)
+        addLog(`📦 Enviando ${total} registros al servidor...`)
         
         let processed = 0
         let errors = 0
+        let updated = 0
 
         for (let i = 0; i < total; i += BATCH_SIZE) {
             const batch = allEmployees.slice(i, i + BATCH_SIZE)
@@ -226,28 +225,30 @@ export default function MassImport({ onComplete }: { onComplete: () => void }) {
                 
                 errors += result.errors
                 processed += result.success
+                updated += (result.updated || 0)
                 
                 const percent = Math.round(((i + batch.length) / total) * 100)
                 setProgress(percent)
                 
-                if (i % 20 === 0) addLog(`... Procesando registro ${i + 1}`)
+                if (i % 50 === 0) addLog(`... Progreso: ${percent}%`)
 
             } catch (err: any) {
                 console.error(err)
-                addLog(`⚠️ Error en lote ${i}: ${err.message}`)
+                addLog(`⚠️ Error lote ${i}: ${err.message}`)
                 errors += batch.length
             }
         }
 
         setProgress(100)
-        
-        // --- SONIDO DE ÉXITO AQUÍ ---
         playUploadSound() 
-        // ---------------------------
 
-        addLog(`✅ FINALIZADO. Éxito: ${processed}. Errores: ${errors}`)
-        toast.success(`Importación finalizada. ${processed} registros procesados.`)
-        onComplete()
+        addLog(`✅ PROCESO FINALIZADO.`)
+        addLog(`🆕 Nuevos: ${processed} | 🔄 Actualizados: ${updated} | ❌ Errores: ${errors}`)
+        toast.success(`Carga completada con éxito.`)
+        
+        setTimeout(() => {
+             onComplete()
+        }, 4000)
 
     } catch (error: any) {
         addLog(`❌ ERROR CRÍTICO: ${error.message}`)
@@ -263,9 +264,9 @@ export default function MassImport({ onComplete }: { onComplete: () => void }) {
       <div className="flex items-center justify-between mb-6">
         <div>
             <h3 className="font-bold text-lg text-slate-900 flex items-center gap-2"><Database className="text-blue-600"/> Importador T-REGISTRO</h3>
-            <p className="text-xs text-slate-500 mt-1">Carga archivos planos (.txt) de la SUNAT para actualizar la base de datos.</p>
+            <p className="text-xs text-slate-500 mt-1">Carga archivos planos de SUNAT. El sistema autocompletará datos faltantes sin duplicar.</p>
         </div>
-        <div className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-2"><ShieldCheck size={12}/> Modo Seguro</div>
+        <div className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-2"><ShieldCheck size={12}/> Autocompletado Activo</div>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">

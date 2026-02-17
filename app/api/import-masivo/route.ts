@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 
-// CLIENTE ADMIN
+// CLIENTE ADMIN (Necesario para gestión de usuarios)
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -20,17 +20,22 @@ export async function POST(request: Request) {
 
     for (const emp of employees) {
       const documentNumber = emp.dni.trim()
-      const generatedEmail = `${documentNumber}@ruag.sistema` 
+      
+      // Credenciales de ACCESO (Login) - Se mantiene tu lógica original
+      const authEmail = `${documentNumber}@ruag.sistema` 
       const password = documentNumber 
 
+      // Correo de CONTACTO (Para la ficha)
+      // Si el archivo trajo un correo real, lo usamos. Si no, usamos el generado.
+      const contactEmail = emp.correo_contacto && emp.correo_contacto.includes('@') 
+                           ? emp.correo_contacto 
+                           : authEmail;
+
       let userId = null;
-      let finalEmailToUse = generatedEmail; 
       let isExistingUser = false;
-      
-      // VARIABLE PARA GUARDAR EL ROL ACTUAL (IMPORTANTE PARA NO BORRAR ADMINS)
       let currentRole = 'obrero'; 
 
-      // 1. ESTRATEGIA DE BÚSQUEDA (EVITA DUPLICADOS POR DNI)
+      // 1. BUSCAR SI YA EXISTE (Evitar duplicados)
       const { data: existingProfile } = await supabaseAdmin
         .from('profiles')
         .select('id, role')
@@ -38,30 +43,14 @@ export async function POST(request: Request) {
         .single()
 
       if (existingProfile) {
-        // SI EXISTE: Actualizaremos este ID, no crearemos uno nuevo.
+        // USUARIO EXISTENTE: Solo actualizaremos datos
         userId = existingProfile.id
         isExistingUser = true;
-        
-        // PRESERVAR ROL
-        if (existingProfile.role) {
-            currentRole = existingProfile.role;
-        }
-
-        // PRESERVAR CORREO REAL SI YA TIENE UNO
-        const { data: existingFicha } = await supabaseAdmin
-            .from('fichas')
-            .select('correo')
-            .eq('user_id', userId)
-            .single()
-            
-        if (existingFicha && existingFicha.correo) {
-            finalEmailToUse = existingFicha.correo; 
-        }
-
+        if (existingProfile.role) currentRole = existingProfile.role; // Preservar rol
       } else {
-        // SI NO EXISTE: Creamos el usuario en Auth
+        // USUARIO NUEVO: Crear cuenta de acceso
         const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-          email: generatedEmail,
+          email: authEmail, // Login siempre con DNI@ruag.sistema
           password: password,
           email_confirm: true,
           user_metadata: { full_name: emp.nombres }
@@ -70,7 +59,7 @@ export async function POST(request: Request) {
         if (!authError && authData.user) {
           userId = authData.user.id
         } else if (authError?.message?.includes('already registered')) {
-           // Caso raro de desincronización, lo marcamos como error para revisar luego
+           // Caso raro de desincronización
            results.errors++
            continue
         } else {
@@ -88,15 +77,13 @@ export async function POST(request: Request) {
           apellido_paterno: emp.apellido_paterno,
           apellido_materno: emp.apellido_materno,
           telefono: emp.celular,
-          role: currentRole // Mantiene el rol existente
+          role: currentRole 
         })
 
-        // 3. PREPARAR DATOS FICHA
+        // 3. PREPARAR DATOS DE LA FICHA
         const rawFichaData: any = {
           user_id: userId,
-          
-          // Solo marcamos como completado si es nuevo, si ya existe no tocamos el estado 
-          // a menos que quieras forzarlo. Aquí lo dejo seguro:
+          // Solo marcamos completado si es nuevo para no alterar estados de flujo existentes
           estado: isExistingUser ? undefined : 'completado',
           
           // Datos personales
@@ -107,24 +94,25 @@ export async function POST(request: Request) {
           fecha_nacimiento: emp.fecha_nacimiento,
           celular: emp.celular,
           estado_civil: emp.estado_civil,
+          correo: contactEmail, // Aquí va el correo real si vino del IDE
           
-          // Ubicación
+          // Ubicación (Viene del DIR)
           direccion: emp.direccion,
           distrito: emp.distrito,
           provincia: emp.provincia,
           departamento: emp.departamento,
           
-          // Laboral
-          nombre_obra: emp.nombre_obra, 
+          // Laboral (Viene del TRA - Sin establecimiento)
           fecha_ingreso: emp.fecha_ingreso,
           cargo: emp.cargo,
+          // nombre_obra: NO TOCAMOS ESTO DESDE AQUÍ PARA EVITAR ERRORES DE DIRECCIÓN
           
-          // Financiero
+          // Financiero (Viene del TRA)
           banco: emp.banco,
           numero_cuenta: emp.numero_cuenta,
           cci: emp.cci,
           
-          // Salud
+          // Salud (Viene del SSA)
           sistema_pension: emp.sistema_pension,
           afp_nombre: emp.afp_nombre,
           cuspp: emp.cuspp,
@@ -132,22 +120,12 @@ export async function POST(request: Request) {
           updated_at: new Date().toISOString()
         }
 
-        // LÓGICA DE SEGURIDAD PARA CORREO
-        if (!isExistingUser) {
-            rawFichaData.correo = generatedEmail;
-        } else {
-            // Si ya existe, no enviamos el campo correo para que la BD mantenga el que tiene
-             // A MENOS que explicitamente queramos sobrescribirlo, pero tu pediste mantener datos
-        }
-
         // --- FILTRO DE LIMPIEZA ---
-        // Esto elimina cualquier campo que venga null, undefined o vacío "" del archivo
-        // De esta forma, si el archivo no trae el dato, NO BORRA lo que ya está en la BD.
+        // Elimina campos vacíos para no borrar datos que ya existan en la BD
         const cleanFichaData = Object.fromEntries(
             Object.entries(rawFichaData).filter(([_, v]) => v != null && v !== '')
         );
 
-        // 4. GUARDAR EN BD
         const { error: fichaError } = await supabaseAdmin.from('fichas').upsert(
             cleanFichaData, 
             { onConflict: 'user_id' }

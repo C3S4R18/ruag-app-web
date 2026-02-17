@@ -931,17 +931,25 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
 
       {/* TABLA DE DATOS */}
       <div className="flex-1 overflow-auto bg-white min-h-[500px]">
-        <table className="w-full min-w-max text-left border-collapse">
+        {/* Aquí la clave: table-fixed para que respete los anchos de columna */}
+        <table className="w-full min-w-max text-left border-collapse table-fixed">
             <thead className="bg-white sticky top-0 z-20 shadow-sm border-b border-slate-100">
                 <tr>
                     <th className="px-4 py-3 w-12 text-center"><button onClick={() => handleSelectAll(filteredAndSorted)} className="text-slate-300 hover:text-blue-600 transition-colors">{selectedIds.length > 0 && selectedIds.length === filteredAndSorted.length ? <CheckSquare size={20} className="text-blue-600"/> : <Square size={20}/>}</button></th>
-                    <th className="px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">Colaborador</th>
-                    <th className="px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">Ubicación / Cargo</th>
-                    {/* --- NUEVA COLUMNA ESTADO FICHA --- */}
-                    <th className="px-4 py-3 text-center text-[11px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">Estado Ficha</th>
-                    <th className="px-4 py-3 text-center text-[11px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">Confirmación</th>
-                    <th className="px-4 py-3 text-center text-[11px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">Biometría</th>
-                    <th className="px-4 py-3 text-right text-[11px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">Acciones</th>
+                    
+                    {/* COLABORADOR - ANCHO FIJO */}
+                    <th className="px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap w-[25%]">Colaborador</th>
+                    
+                    {/* UBICACIÓN - ANCHO FIJO */}
+                    <th className="px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap w-[20%]">Ubicación / Cargo</th>
+                    
+                    {/* NUEVAS COLUMNAS - ANCHOS FIJOS */}
+                    <th className="px-4 py-3 text-center text-[11px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap w-[15%]">Estado Ficha</th>
+                    <th className="px-4 py-3 text-center text-[11px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap w-[15%]">Confirmación</th>
+                    <th className="px-4 py-3 text-center text-[11px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap w-[10%]">Biometría</th>
+                    
+                    {/* ACCIONES - ANCHO FIJO CRUCIAL */}
+                    <th className="px-4 py-3 text-right text-[11px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap w-[140px]">Acciones</th>
                 </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -951,23 +959,46 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                     <tr><td colSpan={7} className="p-24 text-center text-slate-400"><div className="flex flex-col items-center gap-3"><div className="p-4 bg-slate-50 rounded-full"><Search size={32} className="text-slate-300"/></div><p>No se encontraron resultados.</p></div></td></tr>
                 ) : paginatedData.map((ficha, index) => (
                     <motion.tr 
-    key={ficha.id} 
-    id={index === 0 ? "tour-row-0" : undefined} 
-    initial={{ opacity: 0, y: 5 }} 
-    animate={{ opacity: 1, y: 0 }} 
-    transition={{ delay: index * 0.02 }} 
-    // --- CORRECCIÓN AQUÍ ---
-    draggable={true}
-    onDragStart={(e) => handleDragStart(e as unknown as React.DragEvent<HTMLTableRowElement>, ficha)}
-    // -----------------------
-    className={`group hover:bg-slate-50/80 transition-colors cursor-move active:cursor-grabbing ${selectedIds.includes(ficha.id) ? 'bg-blue-50/30' : ''}`} 
-    onClick={() => setSelectedFicha(ficha)}
->
+                        key={ficha.id} 
+                        id={index === 0 ? "tour-row-0" : undefined} 
+                        initial={{ opacity: 0, y: 5 }} 
+                        animate={{ opacity: 1, y: 0 }} 
+                        transition={{ delay: index * 0.02 }} 
+                        // --- AQUÍ ESTÁ LA MAGIA DEL DRAG & DROP ---
+                        draggable={true}
+                        onDragStart={(e) => handleDragStart(e as unknown as React.DragEvent<HTMLTableRowElement>, ficha)}
+                        // -------------------------------------------
+                        className={`group hover:bg-slate-50/80 transition-colors cursor-move active:cursor-grabbing ${selectedIds.includes(ficha.id) ? 'bg-blue-50/30' : ''}`} 
+                        onClick={() => setSelectedFicha(ficha)}
+                    >
                         <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}><button onClick={() => handleSelectOne(ficha.id)} className="text-slate-300 hover:text-blue-600 transition-colors">{selectedIds.includes(ficha.id) ? <CheckSquare size={20} className="text-blue-600"/> : <Square size={20}/>}</button></td>
-                        <td className="px-4 py-3"><div className="flex items-center gap-4"><div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-50 to-blue-50 flex items-center justify-center text-blue-600 font-bold text-sm border border-blue-100 shadow-sm shrink-0 uppercase relative">{ficha.nombres?.charAt(0)}{ficha.apellido_paterno?.charAt(0)}<span className="absolute -bottom-1 -right-1 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full"></span></div><div className="min-w-0"><p className="font-bold text-slate-800 text-sm truncate group-hover:text-blue-700 transition-colors">{ficha.apellido_paterno} {ficha.apellido_materno}, {ficha.nombres}</p><div className="flex items-center gap-2 mt-0.5"><span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">{ficha.dni}</span></div></div></div></td>
-                        <td className="px-4 py-3"><div className="flex flex-col gap-1"><div className="flex items-center gap-1.5 text-xs font-medium text-slate-700"><Building2 size={13} className="text-slate-400"/><span className="truncate max-w-[150px]" title={ficha.nombre_obra}>{ficha.nombre_obra || 'Sin Obra'}</span></div><div className="flex items-center gap-1.5 text-xs text-slate-500"><HardHat size={13} className="text-slate-400"/><span className="truncate capitalize">{ficha.cargo || 'Sin Cargo'}</span></div></div></td>
                         
-                        {/* --- CELDA NUEVA: ESTADO FICHA --- */}
+                        {/* COLABORADOR - TRUNCATE PARA QUE NO SE SALGA */}
+                        <td className="px-4 py-3 overflow-hidden">
+                            <div className="flex items-center gap-4 max-w-full">
+                                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-50 to-blue-50 flex items-center justify-center text-blue-600 font-bold text-sm border border-blue-100 shadow-sm shrink-0 uppercase relative">{ficha.nombres?.charAt(0)}{ficha.apellido_paterno?.charAt(0)}<span className="absolute -bottom-1 -right-1 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full"></span></div>
+                                <div className="min-w-0">
+                                    <p className="font-bold text-slate-800 text-sm truncate group-hover:text-blue-700 transition-colors">{ficha.apellido_paterno} {ficha.apellido_materno}, {ficha.nombres}</p>
+                                    <div className="flex items-center gap-2 mt-0.5"><span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">{ficha.dni}</span></div>
+                                </div>
+                            </div>
+                        </td>
+
+                        {/* UBICACIÓN - TRUNCATE Y TOOLTIP */}
+                        <td className="px-4 py-3 overflow-hidden">
+                            <div className="flex flex-col gap-1 max-w-full">
+                                <div className="flex items-center gap-1.5 text-xs font-medium text-slate-700 w-full" title={ficha.nombre_obra}>
+                                    <Building2 size={13} className="text-slate-400 shrink-0"/>
+                                    <span className="truncate block w-full">{ficha.nombre_obra || 'Sin Obra'}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5 text-xs text-slate-500 w-full">
+                                    <HardHat size={13} className="text-slate-400 shrink-0"/>
+                                    <span className="truncate block w-full capitalize">{ficha.cargo || 'Sin Cargo'}</span>
+                                </div>
+                            </div>
+                        </td>
+                        
+                        {/* ESTADO */}
                         <td className="px-4 py-3 text-center">
                             {ficha.estado === 'completado' ? (
                                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200 whitespace-nowrap">
@@ -980,6 +1011,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                             )}
                         </td>
 
+                        {/* CONFIRMACIÓN */}
                         <td className="px-4 py-3 text-center">
                             {ficha.email_confirmed_at ? (
                                 <div className="flex items-center justify-center gap-2">
@@ -1000,8 +1032,25 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                                 </div>
                             )}
                         </td>
+                        
+                        {/* BIOMETRÍA */}
                         <td className="px-4 py-3"><div className="flex items-center justify-center gap-3"><div className={`p-2 rounded-lg border transition-all ${ficha.firma_url ? 'bg-emerald-50/50 border-emerald-200 text-emerald-600' : 'bg-slate-50 border-slate-100 text-slate-300'}`} title={ficha.firma_url ? "Firma Registrada" : "Falta Firma"}><PenTool size={14}/></div><div className={`p-2 rounded-lg border transition-all ${ficha.huella_url ? 'bg-emerald-50/50 border-emerald-200 text-emerald-600' : 'bg-slate-50 border-slate-100 text-slate-300'}`} title={ficha.huella_url ? "Huella Registrada" : "Falta Huella"}><Fingerprint size={14}/></div></div></td>
-                        <td className="px-4 py-3 text-right"><div className="flex items-center justify-end gap-1 opacity-60 group-hover:opacity-100 transition-opacity"><div className="flex items-center gap-2">{onOpenChat && (<button onClick={(e) => { e.stopPropagation(); handleChatClick(ficha) }} className="relative p-2.5 text-slate-400 hover:text-white hover:bg-indigo-600 rounded-xl transition-all active:scale-95" title="Chat con trabajador"><MessageSquare size={16} />{unreadCounts[ficha.user_id] > 0 && (<span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white shadow-sm ring-2 ring-white">{unreadCounts[ficha.user_id]}</span>)}</button>)}<button onClick={(e) => { e.stopPropagation(); setSelectedFicha(ficha) }} className="p-2.5 text-slate-400 hover:text-white hover:bg-blue-600 rounded-xl transition-all active:scale-95" title="Editar Ficha"><Edit3 size={16}/></button><button onClick={(e) => { e.stopPropagation(); handleDownloadPDF(ficha) }} className="p-2.5 text-slate-400 hover:text-white hover:bg-emerald-600 rounded-xl transition-all active:scale-95" title="Descargar PDF"><Download size={16}/></button></div></div></td>
+                        
+                        {/* ACCIONES */}
+                        <td className="px-4 py-3 text-right">
+                            <div className="flex items-center justify-end gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
+                                <div className="flex items-center gap-2">
+                                    {onOpenChat && (
+                                        <button onClick={(e) => { e.stopPropagation(); handleChatClick(ficha) }} className="relative p-2.5 text-slate-400 hover:text-white hover:bg-indigo-600 rounded-xl transition-all active:scale-95" title="Chat con trabajador">
+                                            <MessageSquare size={16} />
+                                            {unreadCounts[ficha.user_id] > 0 && (<span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white shadow-sm ring-2 ring-white">{unreadCounts[ficha.user_id]}</span>)}
+                                        </button>
+                                    )}
+                                    <button onClick={(e) => { e.stopPropagation(); setSelectedFicha(ficha) }} className="p-2.5 text-slate-400 hover:text-white hover:bg-blue-600 rounded-xl transition-all active:scale-95" title="Editar Ficha"><Edit3 size={16}/></button>
+                                    <button onClick={(e) => { e.stopPropagation(); handleDownloadPDF(ficha) }} className="p-2.5 text-slate-400 hover:text-white hover:bg-emerald-600 rounded-xl transition-all active:scale-95" title="Descargar PDF"><Download size={16}/></button>
+                                </div>
+                            </div>
+                        </td>
                     </motion.tr>
                 ))}
             </tbody>
