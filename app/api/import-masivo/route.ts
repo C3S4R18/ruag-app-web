@@ -30,23 +30,24 @@ export async function POST(request: Request) {
       // VARIABLE PARA GUARDAR EL ROL ACTUAL (IMPORTANTE PARA NO BORRAR ADMINS)
       let currentRole = 'obrero'; 
 
-      // 1. ESTRATEGIA DE BÚSQUEDA
+      // 1. ESTRATEGIA DE BÚSQUEDA (EVITA DUPLICADOS POR DNI)
       const { data: existingProfile } = await supabaseAdmin
         .from('profiles')
-        .select('id, role') // <--- AQUI: TRAEMOS TAMBIÉN EL ROL
+        .select('id, role')
         .eq('dni', documentNumber)
         .single()
 
       if (existingProfile) {
+        // SI EXISTE: Actualizaremos este ID, no crearemos uno nuevo.
         userId = existingProfile.id
         isExistingUser = true;
         
-        // SI YA EXISTE, PRESERVAMOS SU ROL (Si es admin, se queda admin)
+        // PRESERVAR ROL
         if (existingProfile.role) {
             currentRole = existingProfile.role;
         }
 
-        // Recuperar email real si existe en ficha
+        // PRESERVAR CORREO REAL SI YA TIENE UNO
         const { data: existingFicha } = await supabaseAdmin
             .from('fichas')
             .select('correo')
@@ -58,7 +59,7 @@ export async function POST(request: Request) {
         }
 
       } else {
-        // --- USUARIO NUEVO ---
+        // SI NO EXISTE: Creamos el usuario en Auth
         const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
           email: generatedEmail,
           password: password,
@@ -68,10 +69,8 @@ export async function POST(request: Request) {
 
         if (!authError && authData.user) {
           userId = authData.user.id
-          // Si es nuevo, el rol se queda en 'obrero' (por defecto)
         } else if (authError?.message?.includes('already registered')) {
-           // Caso raro: Existe en Auth pero no en Profile. 
-           // Intentaremos arreglarlo, pero marcamos error por seguridad.
+           // Caso raro de desincronización, lo marcamos como error para revisar luego
            results.errors++
            continue
         } else {
@@ -89,13 +88,16 @@ export async function POST(request: Request) {
           apellido_paterno: emp.apellido_paterno,
           apellido_materno: emp.apellido_materno,
           telefono: emp.celular,
-          role: currentRole // <--- AQUI ESTÁ LA CORRECCIÓN: Usamos el rol preservado
+          role: currentRole // Mantiene el rol existente
         })
 
-        // 3. ACTUALIZAR / CREAR FICHA
-        const fichaData: any = {
+        // 3. PREPARAR DATOS FICHA
+        const rawFichaData: any = {
           user_id: userId,
-          estado: 'completado',
+          
+          // Solo marcamos como completado si es nuevo, si ya existe no tocamos el estado 
+          // a menos que quieras forzarlo. Aquí lo dejo seguro:
+          estado: isExistingUser ? undefined : 'completado',
           
           // Datos personales
           nombres: emp.nombres,
@@ -130,14 +132,24 @@ export async function POST(request: Request) {
           updated_at: new Date().toISOString()
         }
 
+        // LÓGICA DE SEGURIDAD PARA CORREO
         if (!isExistingUser) {
-            fichaData.correo = generatedEmail;
+            rawFichaData.correo = generatedEmail;
         } else {
-            fichaData.correo = finalEmailToUse; 
+            // Si ya existe, no enviamos el campo correo para que la BD mantenga el que tiene
+             // A MENOS que explicitamente queramos sobrescribirlo, pero tu pediste mantener datos
         }
 
+        // --- FILTRO DE LIMPIEZA ---
+        // Esto elimina cualquier campo que venga null, undefined o vacío "" del archivo
+        // De esta forma, si el archivo no trae el dato, NO BORRA lo que ya está en la BD.
+        const cleanFichaData = Object.fromEntries(
+            Object.entries(rawFichaData).filter(([_, v]) => v != null && v !== '')
+        );
+
+        // 4. GUARDAR EN BD
         const { error: fichaError } = await supabaseAdmin.from('fichas').upsert(
-            fichaData, 
+            cleanFichaData, 
             { onConflict: 'user_id' }
         )
 
@@ -145,7 +157,8 @@ export async function POST(request: Request) {
             console.error("Error ficha:", fichaError)
             results.errors++
         } else {
-            results.success++
+            if (isExistingUser) results.updated++
+            else results.success++
         }
       }
     }

@@ -15,6 +15,13 @@ export default function MassImport({ onComplete }: { onComplete: () => void }) {
 
   const addLog = (msg: string) => setLogs(prev => [msg, ...prev])
 
+  // --- FUNCIÓN DE SONIDO NUEVA ---
+  const playUploadSound = () => {
+    // Asegúrate de tener este archivo en tu carpeta /public
+    const audio = new Audio('/upload_success.mp3') 
+    audio.play().catch(err => console.log("Reproducción de audio bloqueada por el navegador", err))
+  }
+
   const readFile = (file: File): Promise<string[]> => {
     return new Promise((resolve) => {
       const reader = new FileReader()
@@ -103,8 +110,6 @@ export default function MassImport({ onComplete }: { onComplete: () => void }) {
                     }
 
                     // --- EXTRACCIÓN SEGURA DE DIRECCIÓN DE CASA ---
-                    // Buscamos la columna de dirección (evitando la ubicación tipo LIMA-LIMA)
-                    // Buscamos strings largos que NO tengan guiones medios (que son ubigeos)
                     const direccionCasa = col.find(c => 
                         c.length > 5 && 
                         !c.includes('-') && 
@@ -145,7 +150,6 @@ export default function MassImport({ onComplete }: { onComplete: () => void }) {
 
                     if (col[9] && col[9].length > 3) emp.cargo = col[9].trim()
 
-                    // --- AQUÍ ESTÁ LA LÓGICA IMPORTANTE ---
                     // Buscamos la dirección larga que suele ser la de la OBRA/EMPRESA
                     const direccionObra = col.find(c => 
                         c.length > 20 && 
@@ -153,10 +157,8 @@ export default function MassImport({ onComplete }: { onComplete: () => void }) {
                     )
                     
                     if (direccionObra) {
-                        // LA PONEMOS EN 'nombre_obra', NO en 'direccion'
                         emp.nombre_obra = direccionObra.trim() 
                     } else {
-                        // Si no encontramos una dirección de obra específica, asumimos Central
                         if (!emp.nombre_obra) emp.nombre_obra = "RUAG - OBRA CENTRAL"
                     }
 
@@ -238,6 +240,11 @@ export default function MassImport({ onComplete }: { onComplete: () => void }) {
         }
 
         setProgress(100)
+        
+        // --- SONIDO DE ÉXITO AQUÍ ---
+        playUploadSound() 
+        // ---------------------------
+
         addLog(`✅ FINALIZADO. Éxito: ${processed}. Errores: ${errors}`)
         toast.success(`Importación finalizada. ${processed} registros procesados.`)
         onComplete()
