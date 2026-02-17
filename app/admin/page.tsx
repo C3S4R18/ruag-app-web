@@ -25,7 +25,8 @@ import {
   UserCog, Mail, Key, Save, Send, ScanFace, Zap, Briefcase, FileBadge,
   HeartHandshake, CheckSquare, Square, ExternalLink, ArrowUpDown,
   Award, BookOpen, ShieldAlert, FileSpreadsheet, UserX, Wifi, WifiOff,
-  Building, ArrowRightCircle, PlusCircle, Maximize2, FileCheck, Layers, Eye
+  Building, ArrowRightCircle, PlusCircle, Maximize2, FileCheck, Layers, Eye,
+  Minimize2
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
@@ -87,15 +88,15 @@ export default function AdminPage() {
 
   // --- GESTIÓN DE OBRAS (CENTRO DE COSTOS) ---
   const [showCostCenter, setShowCostCenter] = useState(false)
-  const [obrasList, setObrasList] = useState<any[]>([]) // Lista completa de obras
-  const [currentObra, setCurrentObra] = useState<any>(null) // Obra seleccionada actualmente
+  const [obrasList, setObrasList] = useState<any[]>([]) 
+  const [currentObra, setCurrentObra] = useState<any>(null) 
   const [obraForm, setObraForm] = useState({ numero: '', nombre: '' })
   const [draggedWorker, setDraggedWorker] = useState<any>(null)
   
   // Obreros en la obra seleccionada
   const [workersInCurrentObra, setWorkersInCurrentObra] = useState<any[]>([])
 
-  // --- NUEVO: PANTALLA DETALLE DE OBRA ---
+  // --- PANTALLA DETALLE DE OBRA ---
   const [showObraDetails, setShowObraDetails] = useState(false)
 
   // --- NUEVO MODAL: ADMINISTRADORES ---
@@ -141,10 +142,14 @@ export default function AdminPage() {
   useEffect(() => { selectedWorkerDocsRef.current = selectedWorkerDocs }, [selectedWorkerDocs])
   useEffect(() => { selectedWorkerRRHHRef.current = selectedWorkerRRHH }, [selectedWorkerRRHH])
 
-  // Limpiar selección al cambiar de vista
+  // Limpiar selección al cambiar de vista y cerrar centro de costos
   useEffect(() => {
       setSelectedGridIds([])
       setShowMassActionModal(false)
+      // Si salimos del dashboard, cerramos el centro de costos
+      if (activeView !== 'dashboard') {
+          setShowCostCenter(false)
+      }
   }, [activeView])
 
   const playAdminSound = () => {
@@ -269,7 +274,7 @@ export default function AdminPage() {
       // 2. ADMINS
       const { data: admins } = await supabase.from('profiles').select('*').eq('role', 'admin')
 
-      // 3. OBRAS (NUEVO: CARGAR LISTA COMPLETA)
+      // 3. OBRAS
       const { data: obras } = await supabase.from('obras').select('*').order('created_at', { ascending: false })
 
       if(errorWorkers) toast.error("Error al cargar datos")
@@ -300,19 +305,27 @@ export default function AdminPage() {
             const newRow = payload.new
             setWorkersData(prev => prev.map(w => w.id === newRow.id ? newRow : w))
             
-            // Si la ficha actualizada pertenece a la obra actual, actualizamos la vista pequeña
+            // Si la ficha actualizada pertenece a la obra actual
             if (currentObra && newRow.nombre_obra === currentObra.nombre) {
                 setWorkersInCurrentObra(prev => {
                     const exists = prev.find(p => p.id === newRow.id)
-                    // Si ya existe actualizamos, si no existe (acaba de ser asignado por otro admin) lo agregamos
                     if (exists) return prev.map(p => p.id === newRow.id ? newRow : p)
                     return [...prev, newRow]
                 })
             }
         })
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'obras' }, (payload: any) => {
-            // Si alguien crea una obra nueva, la agregamos a la lista
-            setObrasList(prev => [payload.new, ...prev])
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'obras' }, (payload: any) => {
+            // Manejar cambios en la tabla de obras en tiempo real
+            if (payload.eventType === 'INSERT') {
+                setObrasList(prev => [payload.new, ...prev])
+            } else if (payload.eventType === 'DELETE') {
+                setObrasList(prev => prev.filter(o => o.id !== payload.old.id))
+                // Si eliminaron la obra que estoy viendo, limpiarla
+                if (currentObra && currentObra.id === payload.old.id) {
+                    setCurrentObra(null)
+                    setWorkersInCurrentObra([])
+                }
+            }
         })
         .subscribe()
 
@@ -345,7 +358,6 @@ export default function AdminPage() {
         return
     }
 
-    // VALIDACIÓN DE DUPLICADOS EN CLIENTE
     const duplicate = obrasList.find(o => o.nombre.toLowerCase() === obraForm.nombre.toLowerCase() || o.numero === obraForm.numero)
     if (duplicate) {
         toast.error("Ya existe una obra con ese Nombre o Número.")
@@ -360,10 +372,7 @@ export default function AdminPage() {
 
         if (error) throw error
 
-        toast.success(`Obra "${obraForm.nombre}" creada exitosamente`)
-        
-        // Agregar a la lista local y seleccionarla
-        // (El listener de realtime también lo haría, pero esto es más rápido para el UX)
+        toast.success(`Obra "${obraForm.nombre}" creada`)
         setObrasList(prev => [data, ...prev])
         setCurrentObra(data)
         setObraForm({ numero: '', nombre: '' })
@@ -374,10 +383,51 @@ export default function AdminPage() {
     }
   }
 
-  // --- SELECCIONAR OBRA DE LA LISTA ---
+  // --- ELIMINAR OBRA Y DESVINCULAR PERSONAL (ACTUALIZADO) ---
+  const handleDeleteObra = async (id: string, nombreObra: string, e: any) => {
+      e.stopPropagation() // Evitar seleccionar la obra al hacer clic en eliminar
+      
+      if (!confirm(`¿Estás seguro de ELIMINAR la obra "${nombreObra}"?\n\nEsta acción borrará la obra y DESVINCULARÁ a todos los obreros asignados a ella.`)) return
+
+      try {
+          // 1. DESVINCULAR OBREROS (Poner nombre_obra en null)
+          const { error: updateError } = await supabase
+              .from('fichas')
+              .update({ nombre_obra: null })
+              .eq('nombre_obra', nombreObra)
+
+          if (updateError) throw updateError
+
+          // 2. ELIMINAR LA OBRA
+          const { error: deleteError } = await supabase
+              .from('obras')
+              .delete()
+              .eq('id', id)
+
+          if (deleteError) throw deleteError
+          
+          toast.success("Obra eliminada y personal desvinculado")
+          
+          // 3. ACTUALIZAR ESTADO LOCAL
+          setObrasList(prev => prev.filter(o => o.id !== id))
+          
+          // Actualizar la lista de trabajadores para que se vea reflejado en la tabla principal inmediatamente
+          setWorkersData(prev => prev.map(w => 
+             w.nombre_obra === nombreObra ? { ...w, nombre_obra: null } : w
+          ))
+
+          if (currentObra?.id === id) {
+              setCurrentObra(null)
+              setWorkersInCurrentObra([])
+          }
+      } catch (err: any) {
+          console.error(err)
+          toast.error("Error al eliminar: " + err.message)
+      }
+  }
+
   const handleSelectObra = (obra: any) => {
       setCurrentObra(obra)
-      // Al seleccionar, filtramos los trabajadores que ya tienen esa obra
       const workers = workersData.filter(w => w.nombre_obra === obra.nombre)
       setWorkersInCurrentObra(workers)
   }
@@ -414,7 +464,6 @@ export default function AdminPage() {
         if (error) throw error
 
         toast.success(`${worker.nombres} asignado a ${currentObra.nombre}`)
-        // Actualización local optimista
         setWorkersInCurrentObra(prev => [...prev, { ...worker, nombre_obra: currentObra.nombre }])
         broadcastChange('asignó', `obrero a ${currentObra.nombre}`)
 
@@ -712,7 +761,7 @@ export default function AdminPage() {
         </header>
 
         {/* --- CONTENEDOR SPLIT: PRINCIPAL + CENTRO DE COSTOS --- */}
-        <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-1 overflow-hidden relative">
             
             <div className="flex-1 overflow-y-auto p-6 md:p-8 scroll-smooth">
                 
@@ -741,7 +790,7 @@ export default function AdminPage() {
                                 <UploadCloud size={18}/> CARGA MASIVA DATA
                             </button>
                             
-                            {/* --- BOTÓN NUEVO: CENTRO DE COSTO --- */}
+                            {/* --- BOTÓN NUEVO: CENTRO DE COSTO (SOLO EN DASHBOARD) --- */}
                             <button 
                                 onClick={() => setShowCostCenter(!showCostCenter)} 
                                 className={`flex items-center gap-2 px-5 py-3 border rounded-xl text-xs font-bold shadow-sm transition-all ${showCostCenter ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-indigo-700 border-indigo-200 hover:bg-indigo-50'}`}
@@ -838,14 +887,7 @@ export default function AdminPage() {
                                         </button>
                                     </>
                                 )}
-                                
-                                {/* BOTÓN CENTRO DE COSTO (Repetido aquí por comodidad si se desea) */}
-                                <button 
-                                    onClick={() => setShowCostCenter(!showCostCenter)} 
-                                    className={`flex items-center gap-2 px-3 py-2.5 border rounded-xl text-xs font-bold shadow-sm transition-all ${showCostCenter ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-indigo-700 border-indigo-200 hover:bg-indigo-50'}`}
-                                >
-                                    <Building size={16}/> {showCostCenter ? 'Ocultar C. Costo' : 'Centro de Costo'}
-                                </button>
+                                {/* BOTÓN ELIMINADO DE AQUÍ */}
                             </div>
 
                             <div className="relative w-full md:w-96 group" id="tour-search">
@@ -942,102 +984,161 @@ export default function AdminPage() {
                 {showCostCenter && (
                     <motion.div 
                         initial={{ width: 0, opacity: 0 }} 
-                        animate={{ width: 400, opacity: 1 }} 
+                        animate={{ width: currentObra ? 850 : 400, opacity: 1 }} 
                         exit={{ width: 0, opacity: 0 }}
-                        className="bg-white border-l border-slate-200 shadow-2xl h-full flex flex-col z-40 shrink-0"
+                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                        className="bg-white border-l border-slate-200 shadow-2xl h-full flex flex-col z-40 shrink-0 overflow-hidden"
                     >
-                        {/* HEADER DEL PANEL */}
-                        <div className="p-6 bg-slate-900 border-b border-slate-800 text-white">
-                            <h3 className="text-lg font-bold flex items-center gap-2">
-                                <Building size={20} className="text-indigo-400"/> Gestión de Obras
-                            </h3>
-                            <p className="text-xs text-slate-400 mt-1">Crea, selecciona y asigna personal.</p>
-                        </div>
-                        
-                        <div className="flex flex-col h-full overflow-hidden bg-slate-50">
-                            
-                            {/* 1. FORMULARIO DE CREACIÓN (SIEMPRE VISIBLE) */}
-                            <div className="p-4 border-b border-slate-200 bg-white shadow-sm z-10">
-                                <form onSubmit={handleCreateObra} className="space-y-3">
-                                    <div className="grid grid-cols-3 gap-2">
-                                        <div className="col-span-1">
-                                            <input 
-                                                type="text" 
-                                                value={obraForm.numero} 
-                                                onChange={e => setObraForm({...obraForm, numero: e.target.value})}
-                                                className="w-full px-3 py-2 bg-slate-50 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-xs font-bold"
-                                                placeholder="N° Obra"
-                                            />
-                                        </div>
-                                        <div className="col-span-2">
-                                            <input 
-                                                type="text" 
-                                                value={obraForm.nombre} 
-                                                onChange={e => setObraForm({...obraForm, nombre: e.target.value})}
-                                                className="w-full px-3 py-2 bg-slate-50 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-xs font-bold"
-                                                placeholder="Nombre de Obra"
-                                            />
-                                        </div>
-                                    </div>
-                                    <button type="submit" className="w-full py-2 bg-indigo-600 text-white font-bold rounded-lg text-xs hover:bg-indigo-700 transition-colors flex justify-center gap-2 items-center shadow-md active:scale-95">
-                                        <PlusCircle size={14}/> CREAR NUEVA OBRA
-                                    </button>
-                                </form>
-                            </div>
-
-                            {/* 2. LISTA DE OBRAS (SCROLLABLE) */}
-                            <div className="flex-1 overflow-y-auto p-4 space-y-2">
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Obras Registradas ({obrasList.length})</p>
-                                {obrasList.length === 0 ? (
-                                    <div className="text-center py-8 text-slate-400 border-2 border-dashed border-slate-200 rounded-xl">
-                                        <Layers size={24} className="mx-auto mb-2 opacity-50"/>
-                                        <p className="text-xs">No hay obras registradas</p>
-                                    </div>
-                                ) : (
-                                    obrasList.map((obra) => (
-                                        <div 
-                                            key={obra.id} 
-                                            onClick={() => handleSelectObra(obra)}
-                                            className={`p-3 rounded-xl border cursor-pointer transition-all hover:shadow-md flex items-center justify-between group ${currentObra?.id === obra.id ? 'bg-indigo-50 border-indigo-200 shadow-sm ring-1 ring-indigo-200' : 'bg-white border-slate-200 hover:border-indigo-300'}`}
-                                        >
-                                            <div className="min-w-0">
-                                                <h4 className={`font-bold text-sm truncate ${currentObra?.id === obra.id ? 'text-indigo-800' : 'text-slate-700'}`}>{obra.nombre}</h4>
-                                                <span className="text-[10px] font-mono bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200">#{obra.numero}</span>
+                        <div className="flex h-full">
+                            {/* COLUMNA IZQUIERDA: GESTIÓN DE OBRAS */}
+                            <div className="w-[400px] flex flex-col h-full border-r border-slate-200 bg-white shrink-0">
+                                {/* HEADER */}
+                                <div className="p-6 bg-slate-900 border-b border-slate-800 text-white shrink-0">
+                                    <h3 className="text-lg font-bold flex items-center gap-2">
+                                        <Building size={20} className="text-indigo-400"/> Gestión de Obras
+                                    </h3>
+                                    <p className="text-xs text-slate-400 mt-1">Crea, selecciona y asigna personal.</p>
+                                </div>
+                                
+                                {/* FORMULARIO */}
+                                <div className="p-4 border-b border-slate-200 bg-white shadow-sm z-10 shrink-0">
+                                    <form onSubmit={handleCreateObra} className="space-y-3">
+                                        <div className="grid grid-cols-3 gap-2">
+                                            <div className="col-span-1">
+                                                <input 
+                                                    type="text" 
+                                                    value={obraForm.numero} 
+                                                    onChange={e => setObraForm({...obraForm, numero: e.target.value})}
+                                                    className="w-full px-3 py-2 bg-slate-50 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-xs font-bold"
+                                                    placeholder="N° Obra"
+                                                />
                                             </div>
-                                            {currentObra?.id === obra.id && <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>}
+                                            <div className="col-span-2">
+                                                <input 
+                                                    type="text" 
+                                                    value={obraForm.nombre} 
+                                                    onChange={e => setObraForm({...obraForm, nombre: e.target.value})}
+                                                    className="w-full px-3 py-2 bg-slate-50 border rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-xs font-bold"
+                                                    placeholder="Nombre de Obra"
+                                                />
+                                            </div>
                                         </div>
-                                    ))
-                                )}
+                                        <button type="submit" className="w-full py-2 bg-indigo-600 text-white font-bold rounded-lg text-xs hover:bg-indigo-700 transition-colors flex justify-center gap-2 items-center shadow-md active:scale-95">
+                                            <PlusCircle size={14}/> CREAR NUEVA OBRA
+                                        </button>
+                                    </form>
+                                </div>
+
+                                {/* LISTA DE OBRAS */}
+                                <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Obras Registradas ({obrasList.length})</p>
+                                    {obrasList.length === 0 ? (
+                                        <div className="text-center py-8 text-slate-400 border-2 border-dashed border-slate-200 rounded-xl">
+                                            <Layers size={24} className="mx-auto mb-2 opacity-50"/>
+                                            <p className="text-xs">No hay obras registradas</p>
+                                        </div>
+                                    ) : (
+                                        obrasList.map((obra) => (
+                                            <div 
+                                                key={obra.id} 
+                                                onClick={() => setCurrentObra(obra)}
+                                                className={`p-3 rounded-xl border cursor-pointer transition-all hover:shadow-md flex items-center justify-between group ${currentObra?.id === obra.id ? 'bg-indigo-50 border-indigo-200 shadow-sm ring-1 ring-indigo-200' : 'bg-white border-slate-200 hover:border-indigo-300'}`}
+                                            >
+                                                <div className="min-w-0">
+                                                    <h4 className={`font-bold text-sm truncate ${currentObra?.id === obra.id ? 'text-indigo-800' : 'text-slate-700'}`}>{obra.nombre}</h4>
+                                                    <span className="text-[10px] font-mono bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded border border-slate-200">#{obra.numero}</span>
+                                                </div>
+                                                
+                                                <div className="flex items-center gap-2">
+                                                    {/* INDICADOR DE SELECCIÓN */}
+                                                    {currentObra?.id === obra.id && <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>}
+                                                    
+                                                    {/* BOTÓN DE ELIMINAR */}
+                                                    <button 
+                                                        onClick={(e) => handleDeleteObra(obra.id, obra.nombre, e)}
+                                                        className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                                                        title="Eliminar Obra"
+                                                    >
+                                                        <Trash2 size={14}/>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
                             </div>
 
-                            {/* 3. ZONA DE ARRASTRE DE LA OBRA ACTIVA */}
+                            {/* COLUMNA DERECHA: DETALLE Y ZONA DE ARRASTRE (VISIBLE SOLO SI HAY OBRA) */}
                             {currentObra && (
-                                <div className="p-4 bg-white border-t border-slate-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-20">
-                                    <div className="mb-2 flex justify-between items-center">
-                                        <span className="text-[10px] font-bold text-indigo-600 uppercase">Obra Activa</span>
-                                        <span className="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-500 font-bold">{workersInCurrentObra.length} Obreros</span>
-                                    </div>
+                                <div className="flex-1 flex flex-col h-full bg-slate-50 min-w-[400px]">
                                     
-                                    <div 
-                                        onDragOver={handleDragOver}
-                                        onDrop={handleDropOnObra}
-                                        className={`h-32 border-2 border-dashed rounded-xl flex flex-col items-center justify-center transition-all relative overflow-hidden group ${draggedWorker ? 'border-indigo-500 bg-indigo-50 scale-[1.02]' : 'border-slate-300 bg-slate-50'}`}
-                                    >
-                                        <UploadCloud size={24} className={`mb-1 transition-colors ${draggedWorker ? 'text-indigo-600' : 'text-slate-400'}`}/>
-                                        <p className={`text-xs font-bold ${draggedWorker ? 'text-indigo-700' : 'text-slate-500'}`}>
-                                            {draggedWorker ? '¡SUELTA AQUÍ!' : 'Arrastra obreros aquí'}
-                                        </p>
-                                        <p className="text-[9px] text-slate-400 mt-0.5 text-center px-4 truncate w-full">
-                                            Para asignar a: <span className="font-bold text-slate-600">{currentObra.nombre}</span>
-                                        </p>
+                                    {/* HEADER DE LA OBRA ACTIVA */}
+                                    <div className="p-6 border-b border-slate-200 bg-white shrink-0 flex justify-between items-start">
+                                        <div>
+                                            <div className="flex items-center gap-3 mb-1">
+                                                <div className="bg-indigo-600 text-white p-2 rounded-lg"><Building size={20}/></div>
+                                                <div>
+                                                    <h2 className="text-lg font-bold text-slate-900 leading-tight">{currentObra.nombre}</h2>
+                                                    <p className="text-xs text-slate-500 font-mono">#{currentObra.numero} • {workersInCurrentObra.length} Obreros</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <button onClick={() => setCurrentObra(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400">
+                                            <Minimize2 size={18}/>
+                                        </button>
                                     </div>
 
-                                    <button 
-                                        onClick={() => setShowObraDetails(true)} 
-                                        className="w-full mt-3 py-3 bg-slate-900 text-white text-xs font-bold rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 shadow-lg active:scale-95"
-                                    >
-                                        <Maximize2 size={14}/> VER PLANILLA COMPLETA
-                                    </button>
+                                    {/* ZONA DE ARRASTRE GRANDE */}
+                                    <div className="p-4 shrink-0 bg-white">
+                                        <div 
+                                            onDragOver={handleDragOver}
+                                            onDrop={handleDropOnObra}
+                                            className={`h-32 border-2 border-dashed rounded-xl flex flex-col items-center justify-center transition-all relative overflow-hidden group ${draggedWorker ? 'border-indigo-500 bg-indigo-50 scale-[1.02]' : 'border-slate-300 bg-slate-50'}`}
+                                        >
+                                            <UploadCloud size={32} className={`mb-2 transition-colors ${draggedWorker ? 'text-indigo-600' : 'text-slate-400'}`}/>
+                                            <p className={`text-sm font-bold ${draggedWorker ? 'text-indigo-700' : 'text-slate-500'}`}>
+                                                {draggedWorker ? '¡SUELTA EL OBRERO AQUÍ!' : 'Arrastra obreros a esta zona'}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* LISTA DE OBREROS EN TIEMPO REAL */}
+                                    <div className="flex-1 overflow-y-auto p-4">
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 pl-1">Personal Asignado</p>
+                                        {workersInCurrentObra.length === 0 ? (
+                                            <div className="h-full flex flex-col items-center justify-center text-slate-400 opacity-60">
+                                                <Users size={40} className="mb-2"/>
+                                                <p className="text-xs">Lista vacía</p>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-2">
+                                                {workersInCurrentObra.map(w => (
+                                                    <div key={w.id} className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2">
+                                                        <div className="w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-sm shrink-0 border border-indigo-100">
+                                                            {w.nombres.charAt(0)}
+                                                        </div>
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className="font-bold text-slate-800 text-xs truncate uppercase">{w.nombres} {w.apellido_paterno}</p>
+                                                            <p className="text-[10px] text-slate-500 font-mono">{w.dni}</p>
+                                                        </div>
+                                                        <div className="text-emerald-500">
+                                                            <CheckCircle size={16}/>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* BOTÓN EXTRA (SI SE NECESITA) */}
+                                    <div className="p-4 border-t border-slate-200 bg-white shrink-0">
+                                         <button 
+                                            onClick={() => setShowObraDetails(true)} 
+                                            className="w-full py-3 bg-slate-900 text-white text-xs font-bold rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-center gap-2 shadow-lg"
+                                        >
+                                            <Maximize2 size={14}/> PANTALLA COMPLETA
+                                        </button>
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -1628,7 +1729,7 @@ function AdminDocsDrawer({ worker, onClose, onUpdate }: any) {
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 <button onClick={() => resetDoc(doc.id)} className="p-2 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors" title="Reiniciar"><Trash2 size={16} /></button>
-                                                <button onClick={() => toggleLock(doc.id)} className={`p-2 rounded-lg transition-all shadow-sm ${isUnlocked ? 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-blue-200' : 'bg-white border border-slate-200 text-slate-500 hover:bg-slate-50'}`} title={isUnlocked ? "Bloquear" : "Habilitar"}>{isUnlocked ? <Unlock size={18} /> : <Lock size={18} />}</button>
+                                                <button onClick={() => toggleLock(doc.id)} className={`p-2 rounded-lg transition-all shadow-sm ${isUnlocked ? 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-purple-200' : 'bg-white border border-slate-200 text-slate-500 hover:bg-slate-50'}`} title={isUnlocked ? "Bloquear" : "Habilitar"}>{isUnlocked ? <Unlock size={18} /> : <Lock size={18} />}</button>
                                             </div>
                                     </div>
                                 ) 
