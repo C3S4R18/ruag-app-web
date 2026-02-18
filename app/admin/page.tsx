@@ -1804,11 +1804,8 @@ function AdminUploadDrawer({ worker, onClose, onUpdate }: any) {
             const fileName = `${worker.dni}/${docId}_${Date.now()}.pdf`
             
             // 1. Subir al bucket (Asumiendo que existe un bucket 'worker_docs')
-            // Si no tienes bucket creado, esto fallará, pero el código es funcional.
-            // Para testear sin bucket real, puedes comentar la subida y simular la URL.
-            
             const { data: uploadData, error: uploadError } = await supabase.storage
-                .from('worker_docs') // Asegúrate que este bucket exista en Supabase
+                .from('worker_docs') 
                 .upload(fileName, file, { upsert: true })
 
             if (uploadError) throw uploadError
@@ -1828,7 +1825,7 @@ function AdminUploadDrawer({ worker, onClose, onUpdate }: any) {
 
             const { error: dbError } = await supabase
                 .from('fichas')
-                .update({ uploads_state: newUploadState }) // Asegúrate de tener esta columna JSONB en la tabla 'fichas'
+                .update({ uploads_state: newUploadState })
                 .eq('id', worker.id)
 
             if (dbError) throw dbError
@@ -1862,6 +1859,44 @@ function AdminUploadDrawer({ worker, onClose, onUpdate }: any) {
         }
     }
 
+    // --- FUNCIÓN DE DESCARGA MASIVA ---
+    const downloadAll = async () => {
+        const files: any[] = Object.values(uploadStates).filter((f:any) => f.url);
+        
+        if (files.length === 0) {
+            toast.info("No hay archivos para descargar");
+            return;
+        }
+
+        toast.info(`Iniciando descarga de ${files.length} documentos...`);
+
+        const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+        for (const file of files) {
+            try {
+                // Forzar descarga usando fetch para obtener el blob
+                const response = await fetch(file.url);
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = file.name || 'documento.pdf'; // Usar nombre original o default
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                // Limpiar URL object
+                window.URL.revokeObjectURL(url);
+                
+                // Pequeña pausa entre descargas
+                await delay(800); 
+            } catch (e) {
+                console.error("Error descargando archivo:", file.name, e);
+            }
+        }
+    };
+
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm z-50 flex justify-end" onClick={onClose}>
             <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }} className="w-full max-w-md bg-white h-full shadow-2xl flex flex-col border-l border-slate-100" onClick={e => e.stopPropagation()}>
@@ -1878,7 +1913,19 @@ function AdminUploadDrawer({ worker, onClose, onUpdate }: any) {
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50">
-                    <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-4 pl-1">Listado de Documentos Requeridos</p>
+                    <div className="flex justify-between items-center mb-4">
+                        <p className="text-xs text-slate-500 uppercase font-bold tracking-wider pl-1">Listado de Documentos</p>
+                        {/* Botón Descarga Masiva (Header interno) */}
+                        {Object.keys(uploadStates).length > 0 && (
+                            <button 
+                                onClick={downloadAll}
+                                className="text-[10px] flex items-center gap-1 bg-white border border-slate-200 px-2 py-1 rounded-lg font-bold text-slate-600 hover:bg-slate-50 hover:text-blue-600 transition-colors shadow-sm"
+                            >
+                                <Download size={12}/> Descargar Todo
+                            </button>
+                        )}
+                    </div>
+
                     <div className="space-y-3">
                         {SSOMA_UPLOADS_CONFIG.map((doc) => {
                             const fileData = uploadStates[doc.id]
@@ -1938,8 +1985,20 @@ function AdminUploadDrawer({ worker, onClose, onUpdate }: any) {
                     </div>
                 </div>
 
-                <div className="p-6 border-t border-slate-200 bg-white">
-                    <button className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-colors shadow-lg shadow-slate-900/20" onClick={onClose}>Finalizar Carga</button>
+                <div className="p-6 border-t border-slate-200 bg-white grid grid-cols-2 gap-3">
+                    <button 
+                        className="w-full py-3 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-50 transition-colors flex items-center justify-center gap-2" 
+                        onClick={downloadAll}
+                        disabled={Object.keys(uploadStates).length === 0}
+                    >
+                        <Download size={16}/> Descargar Todo
+                    </button>
+                    <button 
+                        className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-colors shadow-lg shadow-slate-900/20" 
+                        onClick={onClose}
+                    >
+                        Finalizar
+                    </button>
                 </div>
 
             </motion.div>
