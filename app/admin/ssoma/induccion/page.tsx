@@ -3,9 +3,9 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import { 
-  Search, ShieldCheck, CheckCircle, AlertCircle, 
-  ArrowLeft, Loader2, Briefcase, ArrowUpDown,
-  Filter, User, Building2, HardHat
+  Search, ShieldCheck, CheckCircle2, 
+  ArrowLeft, Loader2, Briefcase, 
+  User, Building2, PlayCircle, GraduationCap, XCircle, Activity
 } from 'lucide-react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -18,227 +18,242 @@ export default function InduccionSSOMA() {
   const [workers, setWorkers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+  const [filter, setFilter] = useState<'todos' | 'en_curso' | 'aprobados' | 'reprobados'>('todos')
 
   // --- CARGAR DATOS ---
   const fetchWorkers = async () => {
-    setLoading(true)
-    const { data, error } = await supabase
+    const { data } = await supabase
         .from('fichas')
         .select('*')
-        .order('updated_at', { ascending: false }) // Orden inicial por fecha
+        .order('updated_at', { ascending: false }) 
     
-    if (error) {
-        toast.error("Error al cargar datos")
-    } else if (data) {
+    if (data) {
         setWorkers(data)
+        setLoading(false)
     }
-    setLoading(false)
   }
 
   useEffect(() => {
     fetchWorkers()
+
+    // --- REALTIME: ESCUCHAR CAMBIOS EN VIVO ---
+    const channel = supabase.channel('induccion-admin')
+      .on(
+        'postgres_changes', 
+        { event: 'UPDATE', schema: 'public', table: 'fichas' }, 
+        (payload: any) => {
+            // Actualización optimista de la UI
+            setWorkers((currentWorkers) => 
+                currentWorkers.map((w) => 
+                    w.id === payload.new.id ? { ...w, ...payload.new } : w
+                )
+            )
+        }
+      )
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
   }, [])
 
-  // --- LÓGICA DE FILTRADO Y ORDENAMIENTO ---
-  const processedWorkers = workers
-    .filter(worker => {
-        const term = searchTerm.toLowerCase()
-        const fullName = `${worker.apellido_paterno} ${worker.apellido_materno} ${worker.nombres}`.toLowerCase()
-        const dni = worker.dni ? worker.dni.toLowerCase() : ''
-        // Filtramos también por cargo para ser más útil
-        const cargo = worker.cargo ? worker.cargo.toLowerCase() : ''
-        return fullName.includes(term) || dni.includes(term) || cargo.includes(term)
-    })
-    .sort((a, b) => {
-        const nameA = `${a.apellido_paterno} ${a.apellido_materno} ${a.nombres}`.toLowerCase()
-        const nameB = `${b.apellido_paterno} ${b.apellido_materno} ${b.nombres}`.toLowerCase()
-        return sortOrder === 'asc' ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA)
-    })
+  // --- LÓGICA DE FILTRADO ---
+  const processedWorkers = workers.filter(worker => {
+      const term = searchTerm.toLowerCase()
+      const matchesSearch = 
+          `${worker.apellido_paterno} ${worker.nombres}`.toLowerCase().includes(term) || 
+          (worker.dni && worker.dni.includes(term))
 
-  const toggleSort = () => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')
+      const progress = worker.video_progress || 0
+      const nota = worker.examen_nota
 
-  // Cálculo de estadísticas rápidas
+      if (filter === 'en_curso') return matchesSearch && progress > 0 && progress < 100
+      if (filter === 'aprobados') return matchesSearch && nota !== null && nota >= 14
+      if (filter === 'reprobados') return matchesSearch && nota !== null && nota < 14
+      
+      return matchesSearch
+  })
+
+  // Estadísticas Rápidas
   const total = workers.length
-  const habilitados = workers.filter(w => w.ssoma_completed).length
-  const porcentaje = total > 0 ? Math.round((habilitados / total) * 100) : 0
+  const enVivo = workers.filter(w => (w.video_progress || 0) > 0 && (w.video_progress || 0) < 100).length
+  const aprobados = workers.filter(w => (w.examen_nota || 0) >= 14).length
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] font-sans text-slate-900 p-4 md:p-8 flex flex-col items-center">
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-20">
       
-      <div className="w-full max-w-6xl">
-        
-        {/* HEADER DE NAVEGACIÓN */}
-        <div className="flex justify-between items-center mb-8">
-            <Link href="/admin" className="group flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors">
-                <div className="p-1.5 bg-white border border-slate-200 rounded-lg group-hover:border-slate-300 transition-colors shadow-sm">
-                    <ArrowLeft size={16}/> 
+      <div className="bg-white/80 backdrop-blur-xl border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+          <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+                <Link href="/admin" className="group p-2.5 bg-white border border-slate-200 hover:border-slate-300 rounded-xl transition-all shadow-sm">
+                    <ArrowLeft size={20} className="text-slate-500 group-hover:text-slate-800"/> 
+                </Link>
+                <div>
+                    <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2 tracking-tight">
+                        <ShieldCheck className="text-blue-600" size={24}/> 
+                        Monitor de Inducción
+                    </h1>
                 </div>
-                Volver al Panel General
-            </Link>
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 text-xs font-bold uppercase tracking-wide rounded-full border border-blue-100">
-                <ShieldCheck size={14}/> Monitor SSOMA
+            </div>
+            
+            <div className="hidden md:flex gap-4">
+                <div className="px-5 py-2 bg-blue-50 border border-blue-100 rounded-xl flex flex-col items-center min-w-[100px]">
+                    <span className="text-[10px] font-bold text-blue-400 uppercase">Viendo Ahora</span>
+                    <span className="text-2xl font-black text-blue-700 leading-none">{enVivo}</span>
+                </div>
+                <div className="px-5 py-2 bg-emerald-50 border border-emerald-100 rounded-xl flex flex-col items-center min-w-[100px]">
+                    <span className="text-[10px] font-bold text-emerald-400 uppercase">Aprobados</span>
+                    <span className="text-2xl font-black text-emerald-700 leading-none">{aprobados}</span>
+                </div>
+                <div className="px-5 py-2 bg-white border border-slate-200 rounded-xl flex flex-col items-center min-w-[100px]">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase">Total</span>
+                    <span className="text-2xl font-black text-slate-700 leading-none">{total}</span>
+                </div>
+            </div>
+          </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto p-6 space-y-6 mt-4">
+        
+        <div className="flex flex-col md:flex-row gap-4 justify-between items-center bg-white p-3 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="relative w-full md:w-96 group ml-1">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={18} />
+                <input 
+                    type="text" 
+                    placeholder="Buscar obrero..." 
+                    className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-transparent focus:bg-white focus:border-blue-200 focus:ring-4 focus:ring-blue-50 rounded-xl outline-none text-sm font-medium transition-all"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
+            </div>
+            
+            <div className="flex bg-slate-100 p-1.5 rounded-xl gap-1 overflow-x-auto w-full md:w-auto">
+                {['todos', 'en_curso', 'aprobados', 'reprobados'].map((f) => (
+                    <button
+                        key={f}
+                        onClick={() => setFilter(f as any)}
+                        className={`px-4 py-2 rounded-lg text-xs font-bold capitalize transition-all ${filter === f ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                    >
+                        {f.replace('_', ' ')}
+                    </button>
+                ))}
             </div>
         </div>
 
-        {/* TARJETA PRINCIPAL */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-xl shadow-slate-200/50 overflow-hidden flex flex-col min-h-[700px]">
-            
-            {/* TOOLBAR SUPERIOR */}
-            <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white z-10 relative">
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Estado de Inducciones</h1>
-                    <div className="flex items-center gap-4 mt-2 text-sm">
-                        <div className="flex items-center gap-1.5 text-slate-500">
-                            <User size={14}/> Total: <span className="font-bold text-slate-900">{total}</span>
-                        </div>
-                        <div className="w-1 h-1 bg-slate-300 rounded-full"></div>
-                        <div className="flex items-center gap-1.5 text-emerald-600">
-                            <CheckCircle size={14}/> Habilitados: <span className="font-bold">{habilitados}</span>
-                        </div>
-                        <div className="w-1 h-1 bg-slate-300 rounded-full"></div>
-                        <span className="text-xs font-medium text-slate-400 bg-slate-50 px-2 py-0.5 rounded border border-slate-100">Progreso: {porcentaje}%</span>
-                    </div>
-                </div>
-
-                <div className="flex items-center gap-3 w-full md:w-auto">
-                    {/* BUSCADOR */}
-                    <div className="relative flex-1 md:w-80 group">
-                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={18} />
-                        <input 
-                            type="text" 
-                            placeholder="Buscar por nombre, DNI o cargo..." 
-                            className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:ring-2 focus:ring-blue-100 focus:border-blue-300 outline-none transition-all placeholder:text-slate-400"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                    </div>
-
-                    {/* BOTÓN ORDENAR */}
-                    <button 
-                        onClick={toggleSort}
-                        className="p-2.5 bg-white border border-slate-200 rounded-xl text-slate-500 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300 transition-all active:scale-95"
-                        title={`Ordenar ${sortOrder === 'asc' ? 'A-Z' : 'Z-A'}`}
-                    >
-                        <ArrowUpDown size={18} />
-                    </button>
-                </div>
-            </div>
-
-            {/* TABLA DE DATOS */}
-            <div className="flex-1 bg-white overflow-y-auto relative">
-                {loading ? (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 z-20">
-                        <Loader2 className="animate-spin mb-3 text-blue-500" size={32} />
-                        <p className="text-sm font-medium text-slate-500 animate-pulse">Sincronizando registros...</p>
-                    </div>
-                ) : processedWorkers.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-full py-20 text-slate-400">
-                        <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
-                            <Filter size={32} className="opacity-20 text-slate-600" />
-                        </div>
-                        <p className="text-sm font-medium text-slate-600">No se encontraron resultados</p>
-                        <p className="text-xs mt-1">Intenta con otro término de búsqueda</p>
-                    </div>
-                ) : (
-                    <table className="w-full text-left border-collapse">
-                        <thead className="bg-slate-50/80 backdrop-blur-sm sticky top-0 z-10 text-xs font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 shadow-sm">
-                            <tr>
-                                <th className="px-6 py-4 pl-8">Colaborador</th>
-                                <th className="px-6 py-4">Cargo / Obra</th>
-                                <th className="px-6 py-4">DNI</th>
-                                <th className="px-6 py-4 text-right pr-8">Estado Inducción</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-50">
-                            <AnimatePresence initial={false}>
-                                {processedWorkers.map((worker, index) => (
-                                    <motion.tr 
-                                        layout
-                                        initial={{ opacity: 0, y: 10 }} 
-                                        animate={{ opacity: 1, y: 0 }}
-                                        exit={{ opacity: 0 }}
-                                        transition={{ delay: index * 0.03 }}
-                                        key={worker.id} 
-                                        className="group hover:bg-blue-50/30 transition-colors"
-                                    >
-                                        {/* Columna Nombre */}
-                                        <td className="px-6 py-4 pl-8">
-                                            <div className="flex items-center gap-4">
-                                                <div className={`
-                                                    w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold border shrink-0 transition-transform group-hover:scale-105
-                                                    ${worker.ssoma_completed 
-                                                        ? 'bg-emerald-100 text-emerald-700 border-emerald-200 shadow-sm shadow-emerald-100' 
-                                                        : 'bg-slate-100 text-slate-500 border-slate-200'}
-                                                `}>
-                                                    {worker.nombres.charAt(0)}
-                                                </div>
-                                                <div>
-                                                    <div className="font-bold text-slate-800 text-sm group-hover:text-blue-700 transition-colors">
-                                                        {worker.apellido_paterno} {worker.apellido_materno}, {worker.nombres}
-                                                    </div>
-                                                    {/* ID opcional o email si existiera */}
-                                                </div>
-                                            </div>
-                                        </td>
-                                        
-                                        {/* Columna Cargo */}
-                                        <td className="px-6 py-4">
-                                            <div className="flex flex-col gap-1">
-                                                <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                                                    <Briefcase size={14} className="text-slate-400"/>
-                                                    <span className="truncate max-w-[180px]">{worker.cargo || 'Sin Cargo'}</span>
-                                                </div>
-                                                <div className="flex items-center gap-2 text-xs text-slate-500">
-                                                    <Building2 size={12} className="text-slate-300"/>
-                                                    <span className="truncate max-w-[180px]">{worker.nombre_obra || 'Obra Central'}</span>
-                                                </div>
-                                            </div>
-                                        </td>
-
-                                        {/* Columna DNI */}
-                                        <td className="px-6 py-4">
-                                            <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-slate-100 text-slate-600 text-xs font-mono font-bold border border-slate-200">
-                                                {worker.dni}
-                                            </span>
-                                        </td>
-
-                                        {/* Columna Estado */}
-                                        <td className="px-6 py-4 pr-8 text-right">
-                                            {worker.ssoma_completed ? (
-                                                <div className="inline-flex flex-col items-end gap-1">
-                                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-sm">
-                                                        <CheckCircle size={12} className="fill-emerald-600 text-white" />
-                                                        Habilitado
-                                                    </span>
-                                                    <span className="text-[10px] text-emerald-600 font-medium">Aprobado SSOMA</span>
-                                                </div>
-                                            ) : (
-                                                <div className="inline-flex flex-col items-end gap-1">
-                                                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600 border border-slate-200">
-                                                        <AlertCircle size={12} className="text-slate-400" />
-                                                        Pendiente
-                                                    </span>
-                                                    <span className="text-[10px] text-slate-400 font-medium">Falta Inducción</span>
-                                                </div>
-                                            )}
-                                        </td>
-                                    </motion.tr>
-                                ))}
-                            </AnimatePresence>
-                        </tbody>
-                    </table>
-                )}
-            </div>
-            
-            {/* FOOTER */}
-            <div className="px-6 py-3 bg-slate-50 border-t border-slate-200 text-[10px] text-slate-400 font-medium uppercase tracking-wider flex justify-between items-center">
-               <span>Sistema de Gestión RUAG</span>
-               <span>Mostrando {processedWorkers.length} registros</span>
-            </div>
-
+        <div className="grid grid-cols-1 gap-4">
+            {loading ? (
+                <div className="flex flex-col items-center justify-center py-32"><Loader2 className="animate-spin text-blue-500 mb-4" size={40}/><p className="text-sm text-slate-400 font-medium">Sincronizando...</p></div>
+            ) : processedWorkers.length === 0 ? (
+                <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-slate-300"><User size={40} className="mx-auto text-slate-300 mb-2"/><p className="text-slate-500 font-medium">No se encontraron trabajadores</p></div>
+            ) : (
+                <AnimatePresence mode="popLayout">
+                    {processedWorkers.map((worker) => (
+                        <WorkerCard key={worker.id} worker={worker} />
+                    ))}
+                </AnimatePresence>
+            )}
         </div>
       </div>
     </div>
   )
+}
+
+function WorkerCard({ worker }: { worker: any }) {
+    const videoProgress = worker.video_progress || 0 
+    const examenNota = worker.examen_nota 
+    const tieneNota = examenNota !== null && examenNota !== undefined
+    const aprobado = tieneNota && examenNota >= 14
+    
+    // Estado calculado
+    const isLive = videoProgress > 0 && videoProgress < 100
+    const isFinishedVideo = videoProgress === 100
+    
+    return (
+        <motion.div 
+            layout
+            initial={{ opacity: 0, scale: 0.98 }} 
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className={`group bg-white rounded-2xl border p-5 flex flex-col md:flex-row items-center gap-6 transition-all hover:shadow-lg ${isLive ? 'border-blue-300 ring-2 ring-blue-500/10' : 'border-slate-200'}`}
+        >
+            {/* 1. PERFIL */}
+            <div className="flex items-center gap-4 w-full md:w-[300px]">
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-lg font-bold border-2 shrink-0 ${isLive ? 'bg-blue-50 border-blue-200 text-blue-600' : aprobado ? 'bg-emerald-50 border-emerald-200 text-emerald-600' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
+                    {worker.nombres.charAt(0)}
+                    {isLive && <span className="absolute top-[-4px] right-[-4px] flex h-3 w-3"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span></span>}
+                </div>
+                <div className="min-w-0">
+                    <h3 className="font-bold text-slate-800 text-base truncate">{worker.apellido_paterno} {worker.apellido_materno}, {worker.nombres}</h3>
+                    <div className="flex items-center gap-2 mt-1">
+                        <span className="px-2 py-0.5 bg-slate-100 rounded text-[10px] font-mono text-slate-500 border border-slate-200">{worker.dni}</span>
+                        <span className="text-[10px] text-slate-400 truncate max-w-[120px] flex items-center gap-1"><Briefcase size={10}/> {worker.cargo || 'Obrero'}</span>
+                    </div>
+                </div>
+            </div>
+
+            {/* 2. ESTADO VIDEO (BARRA DE PROGRESO) */}
+            <div className="flex-1 w-full md:px-4">
+                <div className="flex justify-between items-end mb-2">
+                    <span className={`text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 ${isFinishedVideo ? 'text-emerald-600' : isLive ? 'text-blue-600 animate-pulse' : 'text-slate-400'}`}>
+                        {isLive ? <Activity size={12}/> : <PlayCircle size={12}/>}
+                        {isFinishedVideo ? 'Video Completado' : isLive ? 'Viendo Video...' : 'Pendiente'}
+                    </span>
+                    <span className="text-xs font-bold text-slate-700">{videoProgress}%</span>
+                </div>
+                
+                <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-200 relative">
+                    <motion.div 
+                        initial={false}
+                        animate={{ width: `${videoProgress}%` }}
+                        transition={{ type: "tween", ease: "linear", duration: 0.5 }}
+                        className={`h-full relative ${isFinishedVideo ? 'bg-emerald-500' : 'bg-blue-500'}`}
+                    >
+                        {isLive && (
+                            <div className="absolute top-0 left-0 bottom-0 right-0 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.3)_50%,transparent_75%)] bg-[length:10px_10px] animate-[pulse_1s_infinite]"></div>
+                        )}
+                    </motion.div>
+                </div>
+            </div>
+
+            {/* 3. RESULTADO EXAMEN */}
+            <div className="w-full md:w-[200px] flex justify-end">
+                {tieneNota ? (
+                    <div className={`flex flex-col items-center justify-center w-full p-3 rounded-xl border-2 ${aprobado ? 'bg-emerald-50 border-emerald-100' : 'bg-red-50 border-red-100'}`}>
+                        <span className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${aprobado ? 'text-emerald-600' : 'text-red-600'}`}>
+                            {aprobado ? 'APROBADO' : 'REPROBADO'}
+                        </span>
+                        <div className="flex items-center gap-2">
+                            {aprobado ? <CheckCircle2 size={20} className="text-emerald-500"/> : <XCircle size={20} className="text-red-500"/>}
+                            <span className={`text-2xl font-black ${aprobado ? 'text-emerald-700' : 'text-red-700'}`}>{examenNota}</span>
+                            <span className="text-xs font-medium text-slate-400 mt-1">/ 20</span>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="flex items-center justify-center gap-2 w-full p-4 rounded-xl bg-slate-50 border border-slate-200 border-dashed text-slate-400">
+                        <GraduationCap size={18}/>
+                        <span className="text-xs font-bold">Sin Examen</span>
+                    </div>
+                )}
+            </div>
+
+        </motion.div>
+    )
+}
+
+function KpiItem({ label, value, color }: any) {
+    return (
+        <div className="flex flex-col items-center">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{label}</span>
+            <span className={`text-2xl font-black ${color}`}>{value}</span>
+        </div>
+    )
+}
+
+function TabButton({ active, onClick, label }: any) {
+    return (
+        <button 
+            onClick={onClick}
+            className={`px-5 py-2 rounded-lg text-xs font-bold transition-all ${active ? 'bg-white text-indigo-600 shadow-sm ring-1 ring-black/5' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}
+        >
+            {label}
+        </button>
+    )
 }

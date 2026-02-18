@@ -5,12 +5,13 @@ import { createClient } from '@/utils/supabase/client'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 import SignatureCanvas from 'react-signature-canvas'
-import jsPDF from 'jspdf' 
+import jsPDF from 'jspdf'
 import { 
   User, CheckCircle, ChevronRight, ChevronLeft,
   Camera, Loader2, HeartPulse, GraduationCap, Wallet,
-  HardHat, ShieldCheck, PenTool, Eraser, Users, FileBadge, Plus, Trash2, Lock, Hammer, FileText, Download, Image as ImageIcon, UploadCloud, RefreshCw, X, Calendar, Eye, RotateCw, Wand2, ArrowRight
+  HardHat, ShieldCheck, PenTool, Eraser, Users, FileBadge, Plus, Trash2, Lock, Hammer, FileText, Download, Image as ImageIcon, UploadCloud, RefreshCw, X, Calendar, Eye, RotateCw, Wand2, ArrowRight, PlayCircle
 } from 'lucide-react'
+import Link from 'next/link'
 
 // --- ESTRUCTURA DE PASOS ---
 const STEPS = [
@@ -24,7 +25,7 @@ const STEPS = [
 export default function FichaForm() {
   const supabase = createClient()
   const sigPad = useRef<any>(null)
-  
+   
   const [isLoadingData, setIsLoadingData] = useState(true)
   const [hasStarted, setHasStarted] = useState(false)
   const [isCompleted, setIsCompleted] = useState(false)
@@ -68,6 +69,13 @@ export default function FichaForm() {
     // FIRMA
     url_firma: ''
   })
+  
+  // Estado local para Inducción (para mostrar en el dashboard)
+  const [induccionState, setInduccionState] = useState({
+      videoProgress: 0,
+      examenNota: null as number | null,
+      ssomaCompleted: false
+  })
 
   const isDniPdf = formData.doc_dni_trabajador && formData.doc_dni_trabajador.toLowerCase().includes('.pdf');
 
@@ -110,6 +118,13 @@ export default function FichaForm() {
                 url_firma: ficha.url_firma
             })
             
+            // Cargar estado de inducción
+            setInduccionState({
+                videoProgress: ficha.video_progress || 0,
+                examenNota: ficha.examen_nota,
+                ssomaCompleted: ficha.ssoma_completed || false
+            })
+            
             if (ficha.estado === 'completado') setIsCompleted(true)
         } else {
             const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
@@ -123,7 +138,16 @@ export default function FichaForm() {
             }
             else if (payload.new.estado === 'completado') {
                 setIsCompleted(true)
-                toast.success("Ficha validada")
+                // ELIMINADO EL TOAST "Ficha Validada" AQUÍ COMO PEDISTE
+            }
+            
+            // Actualizar estado inducción en tiempo real
+            if (payload.new.video_progress !== undefined || payload.new.examen_nota !== undefined) {
+                setInduccionState({
+                    videoProgress: payload.new.video_progress || 0,
+                    examenNota: payload.new.examen_nota,
+                    ssomaCompleted: payload.new.ssoma_completed || false
+                })
             }
         }).subscribe()
       }
@@ -166,10 +190,10 @@ export default function FichaForm() {
   ]);
 
   const handleChange = (e: any) => setFormData({ ...formData, [e.target.name]: e.target.value })
-  
+   
   // Handlers
   const handleEsposaChange = (field: string, val: string) => setFormData((prev:any) => ({ ...prev, esposa_datos: { ...prev.esposa_datos, [field]: val } }))
-  
+   
   const addHijo = () => setFormData((prev:any) => ({ ...prev, hijos_datos: [...prev.hijos_datos, { paterno: '', materno: '', nombres: '', fecha_nacimiento: '' }] }))
   const removeHijo = (idx: number) => setFormData((prev:any) => ({ ...prev, hijos_datos: prev.hijos_datos.filter((_:any, i:number) => i !== idx) }))
   const handleHijoChange = (idx: number, field: string, val: string) => {
@@ -179,14 +203,14 @@ export default function FichaForm() {
 
   // --- LÓGICA DE FIRMA ---
   const handleSignatureEnd = () => { }
-  
+   
   const clearSignature = () => { 
       if (sigPad.current) {
         sigPad.current.clear(); 
       }
       setFormData((prev:any) => ({ ...prev, url_firma: '' })) 
   }
-  
+   
   // --- LÓGICA DE VALIDACIÓN ---
   const validateCurrentStep = () => {
     if (currentStep === 1) {
@@ -295,25 +319,76 @@ export default function FichaForm() {
 
   if (isLoadingData) return <div className="h-screen flex items-center justify-center bg-slate-50"><Loader2 className="animate-spin text-slate-800" size={40}/></div>
 
-  // VISTA LECTURA (COMPLETA)
+  // --- VISTA LECTURA (COMPLETA Y HABILITADA PARA SSOMA) ---
   if (isCompleted) {
     return (
         <div className="min-h-screen bg-slate-100 py-10 px-4 flex justify-center pb-20">
             <motion.div initial={{opacity:0, y:20}} animate={{opacity:1, y:0}} className="bg-white max-w-4xl w-full rounded-3xl shadow-xl overflow-hidden border border-slate-200">
+                
+                {/* HEADER DE FICHA COMPLETADA */}
                 <div className="bg-slate-900 p-8 text-center relative overflow-hidden">
                     <div className="relative z-10 flex flex-col items-center gap-4">
-                        <div className="bg-white/10 p-4 rounded-full border border-white/20"><Hammer size={40} className="text-white animate-pulse" /></div>
+                        <div className="bg-white/10 p-4 rounded-full border border-white/20"><Hammer size={40} className="text-white" /></div>
                         <div>
-                            <h2 className="text-2xl font-bold text-white mb-2">¡Registro Exitoso!</h2>
-                            <p className="text-slate-300 max-w-lg mx-auto text-sm leading-relaxed">Tu ficha ha sido enviada. El módulo de <strong className="text-white">Inducción SSOMA</strong> estará disponible proximamente puede continuar 😸.</p>
+                            <h2 className="text-2xl font-bold text-white mb-2">¡Ficha de Datos Validada!</h2>
+                            <p className="text-slate-300 max-w-lg mx-auto text-sm leading-relaxed">Tus datos personales han sido registrados correctamente.</p>
                         </div>
-                        <div className="mt-2 px-4 py-1.5 bg-emerald-500/20 text-emerald-300 rounded-full border border-emerald-500/30 text-xs font-bold tracking-wider">FICHA COMPLETADA</div>
+                        <div className="mt-2 px-4 py-1.5 bg-emerald-500/20 text-emerald-300 rounded-full border border-emerald-500/30 text-xs font-bold tracking-wider">PASO 1 COMPLETADO</div>
                     </div>
                 </div>
 
+                {/* --- NUEVO: MÓDULO DE INDUCCIÓN SSOMA --- */}
+                <div className="p-8 border-b border-slate-100 bg-blue-50/50">
+                    <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                        <ShieldCheck className="text-blue-600"/> Inducción de Seguridad (Obligatorio)
+                    </h3>
+                    
+                    <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-center gap-6">
+                        <div className={`w-16 h-16 rounded-full flex items-center justify-center shrink-0 ${induccionState.ssomaCompleted ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-100 text-blue-600 animate-pulse'}`}>
+                            {induccionState.ssomaCompleted ? <CheckCircle size={32}/> : <PlayCircle size={32}/>}
+                        </div>
+                        <div className="flex-1">
+                            <h4 className="font-bold text-slate-800 mb-1">
+                                {induccionState.ssomaCompleted ? "Inducción Aprobada" : "Video de Inducción SSOMA"}
+                            </h4>
+                            <p className="text-sm text-slate-500 leading-relaxed mb-2">
+                                {induccionState.ssomaCompleted 
+                                    ? `¡Felicitaciones! Has aprobado el examen con nota ${induccionState.examenNota}/20.`
+                                    : "Para ingresar a obra, debes completar la inducción virtual. Este video dura 13:12 min y no se puede adelantar."
+                                }
+                            </p>
+                            <div className="flex gap-2">
+                                {induccionState.ssomaCompleted ? (
+                                    <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-1 rounded border border-emerald-200">HABILITADO</span>
+                                ) : (
+                                    <>
+                                        <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-2 py-1 rounded border border-amber-200">PENDIENTE</span>
+                                        {induccionState.videoProgress > 0 && <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-1 rounded border border-blue-200">PROGRESO: {induccionState.videoProgress}%</span>}
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                        
+                        {!induccionState.ssomaCompleted && (
+                            <Link href="/induccion">
+                                <button className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-600/30 transition-all active:scale-95 flex items-center gap-2">
+                                    {induccionState.videoProgress > 0 ? "CONTINUAR" : "INICIAR"} INDUCCIÓN <ArrowRight size={18}/>
+                                </button>
+                            </Link>
+                        )}
+                        
+                        {induccionState.ssomaCompleted && (
+                            <button disabled className="px-6 py-3 bg-emerald-600 text-white font-bold rounded-xl shadow-none opacity-80 cursor-default flex items-center gap-2">
+                                <CheckCircle size={18}/> COMPLETADO
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                {/* RESUMEN DE DATOS */}
                 <div className="p-8 bg-slate-50/50">
-                    <div className="flex items-center gap-2 mb-6 text-slate-400 font-bold uppercase text-xs tracking-widest border-b pb-2"><FileText size={14}/> Ficha de Datos Completa</div>
-                    <div className="space-y-8">
+                    <div className="flex items-center gap-2 mb-6 text-slate-400 font-bold uppercase text-xs tracking-widest border-b pb-2"><FileText size={14}/> Resumen de Datos Registrados</div>
+                    <div className="space-y-8 opacity-75 grayscale hover:grayscale-0 transition-all duration-500">
                         {/* 1. PERSONAL */}
                         <SectionRead title="1. Datos Personales" icon={<User size={16}/>}>
                             <GridRead>
@@ -454,15 +529,12 @@ export default function FichaForm() {
                         <Input label="Nombres" name="nombres" val={formData.nombres} set={handleChange} required readOnly={!!formData.nombres} />
                         <Input label="Fecha Nacimiento" type="date" name="fecha_nacimiento" val={formData.fecha_nacimiento} set={handleChange} required readOnly={!!formData.fecha_nacimiento} />
                         <Input label="DNI" name="dni" val={formData.dni} set={handleChange} required readOnly={!!formData.dni} />
-                    </div>
-                    <SectionTitle title="Contacto y Ubicación" icon={<ShieldCheck/>} />
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
-                        <Input label="Celular N°" name="celular" val={formData.celular} set={handleChange} required placeholder="999 000 000" />
-                        <Input label="Correo Electrónico" name="correo" val={formData.correo} set={handleChange} />
-                        <Input label="Dirección actual" name="direccion" val={formData.direccion} set={handleChange} required />
+                        <Input label="Dirección" name="direccion" val={formData.direccion} set={handleChange} required />
                         <Input label="Distrito" name="distrito" val={formData.distrito} set={handleChange} required />
                         <Input label="Provincia" name="provincia" val={formData.provincia} set={handleChange} required />
                         <Input label="Departamento" name="departamento" val={formData.departamento} set={handleChange} required />
+                        <Input label="Correo Electrónico" name="correo" val={formData.correo} set={handleChange} />
+                        <Input label="Celular" name="celular" val={formData.celular} set={handleChange} />
                     </div>
                     <SectionTitle title="Datos Bancarios" icon={<Wallet/>} />
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -667,8 +739,8 @@ function ImageUpload({label, bucket, onUpload, currentUrl}: any) {
                                 </button>
                                 {currentUrl && (
                                      <button onClick={() => setPreviewModal(true)} className="bg-white p-2 rounded-lg shadow-sm border border-slate-200 text-slate-500 hover:text-slate-900 hover:border-slate-300 transition-colors active:scale-95" title="Ver Documento">
-                                        <Eye size={18}/>
-                                    </button>
+                                         <Eye size={18}/>
+                                     </button>
                                 )}
                             </div>
                             <div className="flex flex-col">
