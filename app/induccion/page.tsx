@@ -5,11 +5,12 @@ import { createClient } from '@/utils/supabase/client'
 import { useRouter } from 'next/navigation'
 import { 
   Play, ShieldCheck, CheckCircle2, XCircle, 
-  AlertTriangle, Loader2, ArrowRight, Timer, Lock
+  AlertTriangle, Loader2, ArrowRight, Timer, Download, FileCheck
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import confetti from 'canvas-confetti'
+import jsPDF from 'jspdf' // Asegúrate de tener instalado: npm install jspdf
 
 // --- PREGUNTAS EXACTAS DEL EXAMEN (SG-FOR-57) ---
 const QUESTIONS = [
@@ -228,6 +229,8 @@ export default function InduccionPage() {
   const [step, setStep] = useState<'welcome' | 'video' | 'exam' | 'result'>('welcome')
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
+  const [workerName, setWorkerName] = useState('') // NOMBRE COMPLETO PARA CERTIFICADO
+  
   const [videoProgress, setVideoProgress] = useState(0)
   const [videoEnded, setVideoEnded] = useState(false)
   const [currentQuestion, setCurrentQuestion] = useState(0)
@@ -242,30 +245,31 @@ export default function InduccionPage() {
       if (!user) { router.push('/'); return }
       setUser(user)
 
-      // Consultar el estado actual de la ficha
+      // Consultar el estado actual de la ficha Y LOS NOMBRES
       const { data: ficha } = await supabase
         .from('fichas')
-        .select('video_progress, ssoma_completed, examen_nota')
+        .select('video_progress, ssoma_completed, examen_nota, nombres, apellido_paterno, apellido_materno')
         .eq('user_id', user.id)
         .single()
 
       if (ficha) {
+          // Guardamos el nombre completo para el certificado
+          const nombreCompleto = `${ficha.nombres} ${ficha.apellido_paterno} ${ficha.apellido_materno}`.toUpperCase();
+          setWorkerName(nombreCompleto);
+
           // LÓGICA DE REDIRECCIÓN AUTOMÁTICA
-          
-          // CASO A: YA APROBÓ EL CURSO (Permanencia)
           if (ficha.ssoma_completed === true) {
               setScore(ficha.examen_nota || 20)
               setStep('result')
           } 
-          // CASO B: VIDEO COMPLETADO PERO NO APROBADO AÚN (Saltar video)
           else if (ficha.video_progress === 100) {
               setVideoProgress(100)
               setVideoEnded(true)
-              setStep('welcome') // Se queda en welcome, pero el botón dirá "IR AL EXAMEN"
+              setStep('welcome') 
           }
-          // CASO C: EN PROGRESO O NUEVO
           else {
               setVideoProgress(ficha.video_progress || 0)
+              lastSavedProgress.current = ficha.video_progress || 0 
               setStep('welcome')
           }
       }
@@ -280,23 +284,18 @@ export default function InduccionPage() {
     let interval: NodeJS.Timeout
 
     if (step === 'video' && !videoEnded && user) {
-        // Ejecutar cada 2 segundos
         interval = setInterval(async () => {
             if (videoRef.current && !videoRef.current.paused) {
                 const current = videoRef.current.currentTime
                 const total = videoRef.current.duration || 1
                 const pct = Math.floor((current / total) * 100)
 
-                // Guardar en BD si avanza
                 if (pct > lastSavedProgress.current && pct < 100) {
                     lastSavedProgress.current = pct
-                    // Actualización "Fire and Forget"
                     supabase.from('fichas')
                         .update({ video_progress: pct })
                         .eq('user_id', user.id)
-                        .then(({ error }) => {
-                             if(error) console.error("Error sync video:", error)
-                        })
+                        .then(({ error }) => { if(error) console.error("Error sync video:", error) })
                 }
             }
         }, 2000)
@@ -304,7 +303,67 @@ export default function InduccionPage() {
     return () => clearInterval(interval)
   }, [step, videoEnded, user])
 
-  // Handler Visual
+  // --- REANUDAR VIDEO ---
+  const handleMetadataLoaded = (e: any) => {
+      if (videoProgress > 0 && videoProgress < 100 && !videoEnded) {
+          const duration = e.currentTarget.duration;
+          if (duration) {
+              const resumeTime = (videoProgress / 100) * duration;
+              e.currentTarget.currentTime = resumeTime;
+              toast.info(`Reanudando video desde el ${videoProgress}%`);
+          }
+      }
+  }
+
+  // --- GENERACIÓN DE CERTIFICADO ---
+  const generateCertificate = () => {
+      const doc = new jsPDF({
+          orientation: 'landscape',
+          unit: 'px',
+          format: 'a4' // 632 x 447 px aprox (depende de DPI, usaremos dimensiones internas)
+      });
+
+      // Dimensiones A4 Landscape en px (aprox)
+      const width = doc.internal.pageSize.getWidth();
+      const height = doc.internal.pageSize.getHeight();
+
+      // 1. CARGAR IMAGEN DE FONDO
+      // Asegúrate de poner tu imagen "certificado_base.jpg" en la carpeta /public
+      const img = new Image();
+      img.src = '/certificado_base.jpg'; 
+      
+      img.onload = () => {
+          // Agregar fondo
+          doc.addImage(img, 'JPEG', 0, 0, width, height);
+
+          // 2. AGREGAR NOMBRE DEL OBRERO
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(28); // Tamaño grande para el nombre
+          doc.setTextColor(0, 0, 0); // Color negro
+          
+          // Centrar texto
+          doc.text(workerName, width / 2, height / 2, { align: 'center' });
+
+          // 3. AGREGAR FECHA (Opcional, si tu diseño tiene espacio para fecha)
+          const today = new Date().toLocaleDateString('es-PE', { day: '2-digit', month: 'long', year: 'numeric' });
+          doc.setFontSize(12);
+          doc.setFont("helvetica", "normal");
+          // Ajusta estas coordenadas (x, y) según donde esté el espacio de fecha en tu imagen
+          // doc.text(`Lima, ${today}`, width / 2, height - 100, { align: 'center' });
+
+          doc.save(`Certificado_Induccion_${user?.id}.pdf`);
+          toast.success("Certificado descargado correctamente");
+      };
+
+      img.onerror = () => {
+          toast.error("Error al cargar la plantilla del certificado. Verifica que 'certificado_base.jpg' esté en la carpeta public.");
+          // Fallback por si no hay imagen: Generar uno básico en blanco
+          doc.text("CERTIFICADO DE INDUCCIÓN", width / 2, 100, { align: 'center' });
+          doc.text(workerName, width / 2, 200, { align: 'center' });
+          doc.save("Certificado_Simple.pdf");
+      }
+  }
+
   const handleVideoTimeUpdate = () => {
      if (videoRef.current) {
          const current = videoRef.current.currentTime
@@ -352,7 +411,7 @@ export default function InduccionPage() {
               await supabase.from('fichas').update({
                   examen_nota: finalScore,
                   ssoma_completed: approved,
-                  video_progress: 100 // Asegurar que quede en 100
+                  video_progress: 100 
               }).eq('user_id', user.id)
           }
 
@@ -365,10 +424,8 @@ export default function InduccionPage() {
       } catch (error) { toast.error("Error al guardar resultados") } finally { setIsSubmitting(false) }
   }
 
-  // --- LÓGICA DE REPETICIÓN (CASTIGO) ---
   const handleRetry = async () => {
       setLoading(true)
-      // Resetear estados locales
       setStep('video') 
       setVideoEnded(false)
       setVideoProgress(0)
@@ -376,7 +433,6 @@ export default function InduccionPage() {
       setAnswers([])
       setCurrentQuestion(0)
       
-      // Resetear BD (Obligatorio ver video de nuevo)
       if (user) {
           await supabase.from('fichas').update({ 
               video_progress: 0, 
@@ -387,12 +443,11 @@ export default function InduccionPage() {
       setLoading(false)
   }
 
-  // Función para iniciar desde el Welcome (inteligente)
   const handleStart = () => {
       if (videoProgress === 100) {
-          setStep('exam') // Si ya vio el video, directo al examen
+          setStep('exam') 
       } else {
-          setStep('video') // Si no, al video
+          setStep('video') 
       }
   }
 
@@ -451,7 +506,7 @@ export default function InduccionPage() {
                         <div className="text-slate-400 mb-8 text-sm leading-relaxed relative z-10 space-y-2">
                             <div className="flex items-center justify-center gap-2">
                                 <div className={`w-1.5 h-1.5 rounded-full ${videoProgress === 100 ? 'bg-emerald-500' : 'bg-blue-400'}`}></div> 
-                                {videoProgress === 100 ? 'Video Completado' : 'Video de Seguridad (13:12 min)'}
+                                {videoProgress === 100 ? 'Video Completado' : (videoProgress > 0 ? `Continuar (${videoProgress}%)` : 'Video de Seguridad (13:12 min)')}
                             </div>
                             <div className="flex items-center justify-center gap-2">
                                 <div className="w-1.5 h-1.5 rounded-full bg-indigo-400"></div> Examen de 20 preguntas
@@ -465,7 +520,7 @@ export default function InduccionPage() {
                             onClick={handleStart}
                             className="w-full py-4 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-bold rounded-xl transition-all shadow-lg shadow-emerald-500/20 active:scale-95 text-base relative z-10 flex items-center justify-center gap-2 group-hover:gap-3"
                         >
-                            {videoProgress === 100 ? 'COMENZAR EXAMEN' : 'VER VIDEO'} <ArrowRight size={18}/>
+                            {videoProgress === 100 ? 'COMENZAR EXAMEN' : (videoProgress > 0 ? 'REANUDAR VIDEO' : 'COMENZAR')} <ArrowRight size={18}/>
                         </button>
                     </motion.div>
                 )}
@@ -481,6 +536,7 @@ export default function InduccionPage() {
                                 ref={videoRef}
                                 src="/videos/induccion_ssoma.mp4" 
                                 className="w-full h-full object-cover"
+                                onLoadedMetadata={handleMetadataLoaded}
                                 onTimeUpdate={handleVideoTimeUpdate}
                                 onEnded={handleVideoEnded}
                                 controls={false} 
@@ -570,6 +626,7 @@ export default function InduccionPage() {
                     >
                         <div className={`rounded-3xl p-10 shadow-2xl border-4 backdrop-blur-xl relative overflow-hidden ${score >= 14 ? 'bg-slate-900/80 border-emerald-500/50' : 'bg-slate-900/80 border-red-500/50'}`}>
                             
+                            {/* Efecto de fondo */}
                             <div className={`absolute inset-0 opacity-20 ${score >= 14 ? 'bg-emerald-500' : 'bg-red-500'} blur-3xl`}></div>
 
                             <div className="relative z-10">
@@ -590,8 +647,16 @@ export default function InduccionPage() {
                                 {score >= 14 ? (
                                     <div className="space-y-4">
                                         <div className="p-4 bg-emerald-500/10 rounded-xl text-emerald-300 text-sm font-medium border border-emerald-500/20">
-                                            Inducción completada. Ya estás habilitado para ingresar a obra.
+                                            Inducción completada.
                                         </div>
+                                        {/* BOTÓN DE DESCARGA DEL CERTIFICADO */}
+                                        <button 
+                                            onClick={generateCertificate}
+                                            className="w-full py-4 bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold rounded-xl transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2"
+                                        >
+                                            <FileCheck size={18}/> DESCARGAR CERTIFICADO
+                                        </button>
+
                                         <button 
                                             onClick={() => router.push('/dashboard')}
                                             className="w-full py-4 bg-white text-slate-900 font-bold rounded-xl hover:bg-slate-200 transition-all shadow-lg active:scale-95"
