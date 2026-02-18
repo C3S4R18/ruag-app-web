@@ -125,7 +125,11 @@ export default function FichaForm() {
                 ssomaCompleted: ficha.ssoma_completed || false
             })
             
-            if (ficha.estado === 'completado') setIsCompleted(true)
+            // --- CORRECCIÓN CLAVE: Si ya está completado, bloquear inmediatamente ---
+            if (ficha.estado === 'completado') {
+                setIsCompleted(true)
+                setHasStarted(true) // Saltar pantalla de bienvenida si ya terminó
+            }
         } else {
             const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
             if (profile) setFormData((prev:any) => ({...prev, nombres: profile.nombres, apellido_paterno: profile.apellido_paterno, apellido_materno: profile.apellido_materno, dni: profile.dni, celular: profile.telefono, correo: user.email}))
@@ -138,7 +142,6 @@ export default function FichaForm() {
             }
             else if (payload.new.estado === 'completado') {
                 setIsCompleted(true)
-                // ELIMINADO EL TOAST "Ficha Validada" AQUÍ COMO PEDISTE
             }
             
             // Actualizar estado inducción en tiempo real
@@ -160,6 +163,9 @@ export default function FichaForm() {
   // Este useEffect vigila cambios en los documentos y los guarda automáticamente en DB
   // para que no se pierdan si se refresca la página.
   useEffect(() => {
+      // --- CORRECCIÓN CLAVE: NO AUTOGUARDAR SI YA ESTÁ COMPLETADO ---
+      if (isCompleted) return;
+
       if (user && formData.id && (
           formData.doc_dni_trabajador || 
           formData.doc_certiadulto ||
@@ -178,6 +184,8 @@ export default function FichaForm() {
           return () => clearTimeout(timer);
       }
   }, [
+      // Añadimos isCompleted a las dependencias para que el efecto reaccione al bloqueo
+      isCompleted,
       formData.doc_dni_trabajador, 
       formData.doc_certiadulto,
       formData.doc_carnet_retcc,
@@ -257,7 +265,9 @@ export default function FichaForm() {
   }
 
   const guardarProgreso = async (complete: boolean = false, silent: boolean = false) => {
-    if (!user) return
+    // --- CORRECCIÓN ADICIONAL: SEGURIDAD ---
+    // Si ya está completado en el estado local y tratamos de guardar sin completar (autoguardado), abortamos.
+    if (!user || (isCompleted && !complete)) return
 
     let currentSignature = formData.url_firma;
     if (sigPad.current && !sigPad.current.isEmpty()) {
@@ -284,7 +294,11 @@ export default function FichaForm() {
         url_esposa_dni: formData.doc_esposa_dni, 
         url_hijos_nacimiento: formData.doc_hijos_nacimiento, url_hijos_dni: formData.doc_hijos_dni, url_constancia_estudios: formData.doc_hijos_estudios,
         
-        url_firma: currentSignature, updated_at: new Date().toISOString(), estado: complete ? 'completado' : 'pendiente'
+        url_firma: currentSignature, updated_at: new Date().toISOString(), 
+        
+        // Solo cambiamos el estado si explícitamente se marca como completa (al final) o si es la primera vez.
+        // Si ya está completada, mantenemos 'completado'
+        estado: complete ? 'completado' : (isCompleted ? 'completado' : 'pendiente')
     }
     
     Object.keys(payload).forEach((key:any) => { if ((payload as any)[key] === '') (payload as any)[key] = null });
@@ -992,8 +1006,8 @@ function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => voi
                     // Recalcular para landscape
                     const lPageW = pdfDoc.internal.pageSize.getWidth();
                     const lPageH = pdfDoc.internal.pageSize.getHeight();
-                     // Logica simple para landscape...
-                     pdfDoc.addImage(processedImage, 'JPEG', margin, margin, lPageW - margin*2, lPageH - margin*2, undefined, 'FAST');
+                      // Logica simple para landscape...
+                      pdfDoc.addImage(processedImage, 'JPEG', margin, margin, lPageW - margin*2, lPageH - margin*2, undefined, 'FAST');
                 } else {
                     addImageToPdf(processedImage, margin, maxH);
                 }

@@ -8,7 +8,8 @@ import ChatSystem from '@/components/ChatSystem'
 import { 
   LogOut, Calendar, Bell, FileText, ChevronRight, Lock, 
   CheckCircle, Save, X, Loader2, AlertCircle, Eye, 
-  Menu, Home, UserCog, Key, Mail, ShieldCheck, Download, FileCheck, Briefcase, FileBadge
+  Menu, Home, UserCog, Key, Mail, ShieldCheck, Download, FileCheck, Briefcase, FileBadge,
+  FolderDown, CloudOff, ExternalLink, Clock
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
@@ -56,12 +57,12 @@ const DOC_CONTENT: Record<string, string[]> = {
         "Riesgos eléctricos.",
         "Código de colores."
     ],
-    // RRHH (Los cargos suelen ser de lectura completa, no checklist, pero dejamos la estructura)
+    // RRHH
     cargo_rit: [],
     cargo_politica_prevencion: []
 }
 
-// --- ETIQUETAS DE DOCUMENTOS ---
+// --- ETIQUETAS DE DOCUMENTOS (FIRMA DIGITAL) ---
 const DOC_LABELS_SSOMA: Record<string, string> = {
     risst: "Cargo RISST",
     capacitacion: "Registro Capacitación",
@@ -74,19 +75,30 @@ const DOC_LABELS_SSOMA: Record<string, string> = {
 const DOC_LABELS_RRHH: Record<string, string> = {
     cargo_rit: "Cargo Reglamento Interno (RIT)",
     cargo_politica_prevencion: "Cargo Política Prevención",
-    // Nota: La declaración de beneficiarios es solo descarga, no tiene cargo digital aquí
 }
 
-// --- LISTA DE CLAVES DE DESCARGA OBLIGATORIA (ACTUALIZADO) ---
-// Mapeamos la key de la BD al nombre del archivo real y etiqueta
+// --- NUEVA CONFIGURACIÓN: DOCUMENTOS SUBIDOS POR ADMIN (SOLO LECTURA/DESCARGA) ---
+const SSOMA_UPLOADS_CONFIG = [
+    { id: 'cap_iperc', label: 'CAPACITACIÓN IPERC' },
+    { id: 'cap_pets', label: 'CAPACITACIÓN PETS' },
+    { id: 'rec_sst', label: 'RECOMENDACIONES SST' },
+    { id: 'reg_induccion', label: 'REGISTRO DE INDUCCIÓN' },
+    { id: 'dif_pol_sst', label: 'DIFUSIÓN POLITICA DE SST' },
+    { id: 'cap_hostigamiento', label: 'CAPACITACIÓN HOSTIGAMIENTO SEXUAL' },
+    { id: 'reg_risst', label: 'REGISTRO RISST' },
+    { id: 'camo', label: 'CAMO' },
+    { id: 'acta_emo', label: 'ACTA DE ENTREGA EMO' },
+    { id: 'cap_covid', label: 'CAPACITACIÓN PLAN COVID' },
+    { id: 'acta_iperc', label: 'ACTA IPERC' },
+    { id: 'ficha_covid', label: 'FICHA COVID' },
+]
+
+// --- LISTA DE CLAVES DE DESCARGA OBLIGATORIA ---
 const MANDATORY_DOWNLOADS: Record<string, {file: string, label: string}> = {
-    // Documentos Previos
     'risst_pdf_download': { file: 'REGLAMENTO INTERNO DE SEGURIDAD.pdf', label: 'Reglamento Interno RISST' },
     'rit_pdf_download': { file: 'REGLAMENTO INTERNO DE TRABAJO.pdf', label: 'Reglamento Interno de Trabajo' },
     'hostigamiento_pdf_download': { file: 'POLITICA DE HOSTIGAMIENTO SEXUAL.pdf', label: 'Política de Hostigamiento' },
     'beneficiarios_pdf_download': { file: 'DECLARACION DE BENEFICIARIOS_VIDA LEY_2019.pdf', label: 'Declaración Beneficiarios Vida Ley' },
-    
-    // --- NUEVOS DOCUMENTOS (SIG) ---
     'calidad_pdf_download': { file: 'POLITICA DE CALIDAD.pdf', label: 'Política de Calidad' },
     'etica_pdf_download': { file: 'CODIGO DE ETICA Y CONDUCTA.pdf', label: 'Código de Ética y Conducta' },
     'antisoborno_pdf_download': { file: 'POLITICA ANTISOBORNO Y ANTICORRUPCIÓN.pdf', label: 'Política Antisoborno' }
@@ -103,8 +115,8 @@ export default function DashboardPage() {
   const supabase = createClient()
   const router = useRouter()
   
-  // ESTADOS PRINCIPALES
-  const [activeTab, setActiveTab] = useState<'home' | 'documents' | 'profile'>('home')
+  // ESTADOS PRINCIPALES (Agregado 'uploads')
+  const [activeTab, setActiveTab] = useState<'home' | 'documents' | 'uploads' | 'profile'>('home')
   const [isSidebarOpen, setIsSidebarOpen] = useState(false) 
   const [isDesktop, setIsDesktop] = useState(true)
 
@@ -125,7 +137,6 @@ export default function DashboardPage() {
   const [isNotifOpen, setIsNotifOpen] = useState(false)
 
   // --- COLA DE DESCARGAS OBLIGATORIAS ---
-  // Ahora manejamos un array para que salgan uno tras otro
   const [downloadQueue, setDownloadQueue] = useState<{key: string, label: string, file: string}[]>([])
 
   // --- ESTADO DEL CHAT ---
@@ -134,7 +145,7 @@ export default function DashboardPage() {
   // REFS PARA REALTIME
   const docStatesRef = useRef(docStates)
   const fichaStatusRef = useRef(fichaStatus)
-  const downloadQueueRef = useRef(downloadQueue) // Para evitar duplicados en realtime
+  const downloadQueueRef = useRef(downloadQueue)
   const isInitialLoad = useRef(true)
 
   useEffect(() => { docStatesRef.current = docStates }, [docStates])
@@ -178,7 +189,7 @@ export default function DashboardPage() {
     }
     getUserData()
 
-    // --- REALTIME LISTENER (SSOMA & RRHH) ---
+    // --- REALTIME LISTENER ---
     const channel = supabase.channel('worker-docs')
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'fichas' }, (payload: any) => {
             if (payload.new.user_id === userId) {
@@ -208,12 +219,10 @@ export default function DashboardPage() {
                         toast.warning(`🔒 Bloqueado: ${docName}`)
                     }
                     
-                    // DETECCIÓN DE DESCARGAS PENDIENTES (SSOMA + RRHH)
-                    // Si entra un nuevo documento obligatorio
+                    // DETECCIÓN DE DESCARGAS PENDIENTES
                     if (newStatus === 'pending_download' && oldStatus !== 'pending_download') {
                         const config = MANDATORY_DOWNLOADS[key]
                         if (config) {
-                            // Verificar si ya está en la cola para no duplicar
                             const alreadyInQueue = downloadQueueRef.current.some(item => item.key === key)
                             if (!alreadyInQueue) {
                                 setDownloadQueue(prev => [...prev, { key, label: config.label, file: config.file }])
@@ -223,6 +232,17 @@ export default function DashboardPage() {
                         }
                     }
                 })
+
+                // Detectar si el Admin subió un archivo nuevo en 'uploads_state'
+                const oldUploads = fullWorkerData?.uploads_state || {}
+                const newUploads = newData.uploads_state || {}
+                // Comparamos claves
+                const newKeys = Object.keys(newUploads).filter(k => !oldUploads[k])
+                if (newKeys.length > 0) {
+                    addNotification("SSOMA ha subido nuevos documentos a tu carpeta.")
+                    toast.success("📂 Nuevo archivo disponible en Archivos SSOMA")
+                    playNotificationSound()
+                }
 
                 const newFichaState = newData.estado
                 const oldFichaState = fichaStatusRef.current
@@ -276,21 +296,17 @@ export default function DashboardPage() {
       setNotifications(prev => [newNotif, ...prev])
   }
 
-  // --- FUNCIÓN GENÉRICA DE DESCARGA (PROCESA LA COLA) ---
   const handleDownloadAndNext = async () => {
-      // Tomamos el primer elemento de la cola
       const currentItem = downloadQueue[0]
       if (!currentItem) return
 
-      // 1. Iniciar descarga
       const link = document.createElement('a');
-      link.href = `/${currentItem.file}`; // Asume que están en /public
+      link.href = `/${currentItem.file}`; 
       link.download = currentItem.file;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
 
-      // 2. Actualizar estado en BD
       try {
           const { data: currentFicha } = await supabase.from('fichas').select('doc_states').eq('id', fichaId).single()
           const currentStates = currentFicha?.doc_states || {}
@@ -305,8 +321,7 @@ export default function DashboardPage() {
           
           await supabase.from('fichas').update({ doc_states: newStates }).eq('id', fichaId)
           
-          // 3. Quitar de la cola visualmente
-          const updatedQueue = downloadQueue.slice(1) // Quitamos el primero
+          const updatedQueue = downloadQueue.slice(1)
           setDownloadQueue(updatedQueue)
           
           if (updatedQueue.length > 0) {
@@ -327,17 +342,12 @@ export default function DashboardPage() {
   const unreadCount = notifications.filter(n => !n.read).length
 
   // --- CÁLCULOS DEL DASHBOARD ---
-  // Calculamos progreso combinando SSOMA y RRHH (solo los items de firma digital)
   const allDocKeys = [...Object.keys(DOC_LABELS_SSOMA), ...Object.keys(DOC_LABELS_RRHH)]
   const totalDocs = allDocKeys.length
-  
   const completedDocs = allDocKeys.filter(key => docStates[key]?.status === 'completed').length
-  
-  // Pending Docs: Incluye los desbloqueados para firma + los que están en cola de descarga
   const unlockedSignDocs = allDocKeys.filter(key => docStates[key]?.status === 'unlocked').length
   const pendingDownloadsCount = downloadQueue.length
   const totalPendingAction = unlockedSignDocs + pendingDownloadsCount
-  
   const progress = totalDocs > 0 ? Math.round((completedDocs / totalDocs) * 100) : 0
 
   return (
@@ -381,9 +391,18 @@ export default function DashboardPage() {
                 active={activeTab === 'documents'} 
                 onClick={() => { setActiveTab('documents'); if(!isDesktop) setIsSidebarOpen(false) }} 
                 icon={<FileText size={20}/>} 
-                label="Mis Documentos" 
+                label="Mis Registros" 
                 badge={totalPendingAction > 0 ? totalPendingAction : undefined}
             />
+            
+            {/* --- NUEVO ITEM SIDEBAR --- */}
+            <NavItem 
+                active={activeTab === 'uploads'} 
+                onClick={() => { setActiveTab('uploads'); if(!isDesktop) setIsSidebarOpen(false) }} 
+                icon={<FolderDown size={20}/>} 
+                label="Archivos SSOMA" 
+            />
+
             <div className="pt-4 pb-2 px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Mi Cuenta</div>
             <NavItem 
                 active={activeTab === 'profile'} 
@@ -412,7 +431,8 @@ export default function DashboardPage() {
                 </button>
                 <h2 className="text-lg font-bold text-slate-800">
                     {activeTab === 'home' && 'Bienvenido'}
-                    {activeTab === 'documents' && 'Gestión de Documentos'}
+                    {activeTab === 'documents' && 'Firmas Digitales'}
+                    {activeTab === 'uploads' && 'Documentos SSOMA'}
                     {activeTab === 'profile' && 'Configuración de Cuenta'}
                 </h2>
             </div>
@@ -484,10 +504,9 @@ export default function DashboardPage() {
                     </motion.div>
                 )}
 
-                {/* VISTA: DOCUMENTOS */}
+                {/* VISTA: DOCUMENTOS (Firmas) */}
                 {activeTab === 'documents' && (
                     <motion.div initial={{opacity:0, x: 20}} animate={{opacity:1, x: 0}} className="space-y-8 pb-20">
-                        
                         {/* SECCIÓN SSOMA */}
                         <div>
                             <div className="flex items-center gap-2 mb-4 border-b border-slate-200 pb-2">
@@ -512,7 +531,7 @@ export default function DashboardPage() {
                             </div>
                         </div>
 
-                        {/* SECCIÓN RRHH (NUEVA) */}
+                        {/* SECCIÓN RRHH */}
                         <div>
                             <div className="flex items-center gap-2 mb-4 border-b border-slate-200 pb-2">
                                 <Briefcase className="text-purple-600" size={24}/>
@@ -535,7 +554,61 @@ export default function DashboardPage() {
                                 ))}
                             </div>
                         </div>
+                    </motion.div>
+                )}
 
+                {/* --- NUEVA VISTA: DOCUMENTOS SUBIDOS POR SSOMA --- */}
+                {activeTab === 'uploads' && (
+                    <motion.div initial={{opacity:0, x: 20}} animate={{opacity:1, x: 0}} className="space-y-6 pb-20">
+                        <div className="bg-amber-50 p-6 rounded-2xl border border-amber-100 mb-6">
+                            <h2 className="text-xl font-bold text-amber-900 mb-2 flex items-center gap-2"><FolderDown/> Documentos Digitalizados</h2>
+                            <p className="text-sm text-amber-800">Aquí encontrarás los documentos escaneados o digitales subidos por el equipo de SSOMA para tu legajo personal. Puedes visualizarlos y descargarlos.</p>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {SSOMA_UPLOADS_CONFIG.map(doc => {
+                                const fileData = fullWorkerData?.uploads_state?.[doc.id]
+                                const isAvailable = !!fileData
+
+                                return (
+                                    <div key={doc.id} className={`p-5 rounded-2xl border transition-all ${isAvailable ? 'bg-white border-emerald-200 shadow-sm hover:shadow-md' : 'bg-slate-50 border-slate-200 opacity-70'}`}>
+                                        <div className="flex items-start justify-between mb-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className={`p-2.5 rounded-xl ${isAvailable ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-200 text-slate-400'}`}>
+                                                    <FileText size={22}/>
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <h3 className="font-bold text-sm text-slate-800 line-clamp-1" title={doc.label}>{doc.label}</h3>
+                                                    <p className={`text-[10px] font-bold mt-0.5 ${isAvailable ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                                        {isAvailable ? 'DISPONIBLE' : 'PENDIENTE DE CARGA'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {isAvailable ? (
+                                            <div className="space-y-3">
+                                                <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-50 p-2 rounded-lg">
+                                                    <Clock size={12}/>
+                                                    <span>Subido: {new Date(fileData.uploaded_at).toLocaleDateString()}</span>
+                                                </div>
+                                                <button 
+                                                    onClick={() => window.open(fileData.url, '_blank')}
+                                                    className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors shadow-sm active:scale-95"
+                                                >
+                                                    <ExternalLink size={14}/> VER DOCUMENTO
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-col items-center justify-center h-20 text-slate-300 border-2 border-dashed border-slate-200 rounded-xl">
+                                                <CloudOff size={20} className="mb-1"/>
+                                                <span className="text-[10px] font-medium">Aún no disponible</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                )
+                            })}
+                        </div>
                     </motion.div>
                 )}
 

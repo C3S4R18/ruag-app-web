@@ -26,7 +26,7 @@ import {
   HeartHandshake, CheckSquare, Square, ExternalLink, ArrowUpDown,
   Award, BookOpen, ShieldAlert, FileSpreadsheet, UserX, Wifi, WifiOff,
   Building, ArrowRightCircle, PlusCircle, Maximize2, FileCheck, Layers, Eye,
-  Minimize2
+  Minimize2, FolderUp, Paperclip, Download
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
@@ -39,7 +39,7 @@ interface DocDefinition {
   desc?: string;
 }
 
-// --- CONFIGURACIÓN DOCUMENTOS SSOMA ---
+// --- CONFIGURACIÓN DOCUMENTOS SSOMA (REGISTROS SIG) ---
 const DIGITAL_DOCS: DocDefinition[] = [
   { id: 'risst', label: 'Cargo RISST', type: 'lock' },
   { id: 'capacitacion', label: 'Registro Capacitación', type: 'lock' },
@@ -47,6 +47,22 @@ const DIGITAL_DOCS: DocDefinition[] = [
   { id: 'epp', label: 'Entrega de EPPs', type: 'lock' },
   { id: 'acta_derecho', label: 'Acta Derecho a Saber', type: 'lock' },
   { id: 'iperc', label: 'Entrega IPERC', type: 'lock' },
+]
+
+// --- NUEVA CONFIGURACIÓN: DOCUMENTOS PARA SUBIR (SSOMA -> OBRERO) ---
+const SSOMA_UPLOADS_CONFIG: DocDefinition[] = [
+    { id: 'cap_iperc', label: 'CAPACITACIÓN IPERC' },
+    { id: 'cap_pets', label: 'CAPACITACIÓN PETS' },
+    { id: 'rec_sst', label: 'RECOMENDACIONES SST' },
+    { id: 'reg_induccion', label: 'REGISTRO DE INDUCCIÓN' },
+    { id: 'dif_pol_sst', label: 'DIFUSIÓN POLITICA DE SST' },
+    { id: 'cap_hostigamiento', label: 'CAPACITACIÓN HOSTIGAMIENTO SEXUAL' },
+    { id: 'reg_risst', label: 'REGISTRO RISST' },
+    { id: 'camo', label: 'CAMO' },
+    { id: 'acta_emo', label: 'ACTA DE ENTREGA EMO' },
+    { id: 'cap_covid', label: 'CAPACITACIÓN PLAN COVID' },
+    { id: 'acta_iperc', label: 'ACTA IPERC' },
+    { id: 'ficha_covid', label: 'FICHA COVID' },
 ]
 
 // --- CONFIGURACIÓN DOCUMENTOS RRHH ---
@@ -76,8 +92,8 @@ export default function AdminPage() {
   const [userId, setUserId] = useState('')
   const [loading, setLoading] = useState(true)
 
-  // VISTAS
-  const [activeView, setActiveView] = useState<'dashboard' | 'biometria' | 'documentos' | 'rrhh' | 'profile' | 'vida_ley' | 'sctr' | 'cesados'>('dashboard')
+  // VISTAS (Se agregó 'upload_docs')
+  const [activeView, setActiveView] = useState<'dashboard' | 'biometria' | 'documentos' | 'upload_docs' | 'rrhh' | 'profile' | 'vida_ley' | 'sctr' | 'cesados'>('dashboard')
   
   const [isSidebarOpen, setSidebarOpen] = useState(true)
   const [isMobile, setIsMobile] = useState(false)
@@ -123,7 +139,8 @@ export default function AdminPage() {
   
   // Selección de Modales Individuales
   const [selectedWorkerBiometria, setSelectedWorkerBiometria] = useState<any>(null)
-  const [selectedWorkerDocs, setSelectedWorkerDocs] = useState<any>(null) // SSOMA
+  const [selectedWorkerDocs, setSelectedWorkerDocs] = useState<any>(null) // SSOMA REGISTROS
+  const [selectedWorkerUpload, setSelectedWorkerUpload] = useState<any>(null) // NUEVO: SSOMA SUBIDAS
   const [selectedWorkerRRHH, setSelectedWorkerRRHH] = useState<any>(null) // RRHH
   const [chatWorker, setChatWorker] = useState<any>(null)
 
@@ -135,12 +152,8 @@ export default function AdminPage() {
   const [processingMass, setProcessingMass] = useState(false)
 
   const workersDataRef = useRef(workersData)
-  const selectedWorkerDocsRef = useRef(selectedWorkerDocs)
-  const selectedWorkerRRHHRef = useRef(selectedWorkerRRHH)
 
   useEffect(() => { workersDataRef.current = workersData }, [workersData])
-  useEffect(() => { selectedWorkerDocsRef.current = selectedWorkerDocs }, [selectedWorkerDocs])
-  useEffect(() => { selectedWorkerRRHHRef.current = selectedWorkerRRHH }, [selectedWorkerRRHH])
 
   // Limpiar selección al cambiar de vista y cerrar centro de costos
   useEffect(() => {
@@ -383,9 +396,9 @@ export default function AdminPage() {
     }
   }
 
-  // --- ELIMINAR OBRA Y DESVINCULAR PERSONAL (ACTUALIZADO) ---
+  // --- ELIMINAR OBRA Y DESVINCULAR PERSONAL ---
   const handleDeleteObra = async (id: string, nombreObra: string, e: any) => {
-      e.stopPropagation() // Evitar seleccionar la obra al hacer clic en eliminar
+      e.stopPropagation() 
       
       if (!confirm(`¿Estás seguro de ELIMINAR la obra "${nombreObra}"?\n\nEsta acción borrará la obra y DESVINCULARÁ a todos los obreros asignados a ella.`)) return
 
@@ -411,7 +424,6 @@ export default function AdminPage() {
           // 3. ACTUALIZAR ESTADO LOCAL
           setObrasList(prev => prev.filter(o => o.id !== id))
           
-          // Actualizar la lista de trabajadores para que se vea reflejado en la tabla principal inmediatamente
           setWorkersData(prev => prev.map(w => 
              w.nombre_obra === nombreObra ? { ...w, nombre_obra: null } : w
           ))
@@ -424,12 +436,6 @@ export default function AdminPage() {
           console.error(err)
           toast.error("Error al eliminar: " + err.message)
       }
-  }
-
-  const handleSelectObra = (obra: any) => {
-      setCurrentObra(obra)
-      const workers = workersData.filter(w => w.nombre_obra === obra.nombre)
-      setWorkersInCurrentObra(workers)
   }
 
   // --- DRAG AND DROP HANDLERS ---
@@ -475,7 +481,6 @@ export default function AdminPage() {
 
 
   // --- RESTO DE FUNCIONES ---
-
   const openFirstWorkerDrawerForTour = () => {
       const targetWorker = filteredWorkers.length > 0 ? filteredWorkers[0] : (workersData.length > 0 ? workersData[0] : null);
       if (targetWorker) {
@@ -649,6 +654,10 @@ export default function AdminPage() {
                     <div id="nav-documentos">
                         <SidebarItem active={activeView === 'documentos'} onClick={() => handleNavClick('documentos')} icon={<HardHat size={20} className="text-blue-400"/>} label="Registros SIG" />
                     </div>
+                    <div id="nav-upload-docs">
+                         {/* --- NUEVA OPCIÓN SIDEBAR --- */}
+                        <SidebarItem active={activeView === 'upload_docs'} onClick={() => handleNavClick('upload_docs')} icon={<FolderUp size={20} className="text-amber-400"/>} label="Subir Documentos" />
+                    </div>
                     <div id="nav-sctr">
                         <SidebarItem active={activeView === 'sctr'} onClick={() => handleNavClick('sctr')} icon={<ShieldCheck size={20} className="text-amber-400"/>} label="Trama SCTR" />
                     </div>
@@ -709,6 +718,7 @@ export default function AdminPage() {
                         {activeView === 'dashboard' && 'Resumen General'}
                         {activeView === 'biometria' && 'Control Biométrico'}
                         {activeView === 'documentos' && 'Gestión Documental SSOMA'}
+                        {activeView === 'upload_docs' && 'Subir Documentos a Obrero'}
                         {activeView === 'rrhh' && 'Gestión de Recursos Humanos'}
                         {activeView === 'vida_ley' && 'Trama Vida Ley'}
                         {activeView === 'sctr' && 'Trama SCTR'}
@@ -868,8 +878,8 @@ export default function AdminPage() {
                 {activeView === 'cesados' && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full pb-20"><CesadosManager onBack={() => setActiveView('dashboard')} /></motion.div>}
                 {activeView === 'profile' && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-lg mx-auto pb-20 mt-10"><AdminProfileSettings userEmail={userEmail} supabase={supabase} /></motion.div>}
 
-                {/* --- SECCIÓN GRID/LISTA COMPARTIDA (BIOMETRIA/DOCS/RRHH) --- */}
-                {(activeView === 'biometria' || activeView === 'documentos' || activeView === 'rrhh') && (
+                {/* --- SECCIÓN GRID/LISTA COMPARTIDA (BIOMETRIA/DOCS/RRHH/UPLOAD) --- */}
+                {(activeView === 'biometria' || activeView === 'documentos' || activeView === 'rrhh' || activeView === 'upload_docs') && (
                     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6 h-full flex flex-col max-w-7xl mx-auto">
                         
                         {/* HEADER DE CONTROL */}
@@ -887,7 +897,6 @@ export default function AdminPage() {
                                         </button>
                                     </>
                                 )}
-                                {/* BOTÓN ELIMINADO DE AQUÍ */}
                             </div>
 
                             <div className="relative w-full md:w-96 group" id="tour-search">
@@ -949,24 +958,36 @@ export default function AdminPage() {
                                         {filteredWorkers.map((worker, index) => {
                                             const isSelected = selectedGridIds.includes(worker.id);
                                             const isRRHH = activeView === 'rrhh';
+                                            const isUpload = activeView === 'upload_docs';
                                             return (
                                                 <div 
                                                     key={worker.id}
                                                     draggable={true}
                                                     onDragStart={(e) => handleDragStart(e, worker)}
                                                     className={`group flex items-center justify-between p-4 bg-white rounded-xl border transition-all hover:shadow-md cursor-move active:cursor-grabbing ${isSelected ? 'border-blue-500 bg-blue-50/20' : 'border-slate-200 hover:border-blue-300'}`}
-                                                    onClick={() => { if (activeView === 'documentos') setSelectedWorkerDocs(worker); else if (activeView === 'rrhh') setSelectedWorkerRRHH(worker) }}
+                                                    onClick={() => { 
+                                                        if (activeView === 'documentos') setSelectedWorkerDocs(worker); 
+                                                        else if (activeView === 'rrhh') setSelectedWorkerRRHH(worker);
+                                                        else if (activeView === 'upload_docs') setSelectedWorkerUpload(worker);
+                                                    }}
                                                 >
                                                     {/* ... Contenido de la fila ... */}
                                                     <div className="flex items-center gap-4 flex-1 min-w-0">
-                                                        <div onClick={(e) => { e.stopPropagation(); handleGridSelect(worker.id); }} className="text-slate-300 hover:text-blue-600 transition-colors p-2 -ml-2">{isSelected ? <CheckSquare size={20} className="text-blue-600"/> : <Square size={20}/>}</div>
-                                                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold border ${isRRHH ? 'bg-purple-50 text-purple-600 border-purple-100' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>{worker.nombres?.charAt(0)}{worker.apellido_paterno?.charAt(0)}</div>
+                                                        {(activeView !== 'upload_docs') && (
+                                                            <div onClick={(e) => { e.stopPropagation(); handleGridSelect(worker.id); }} className="text-slate-300 hover:text-blue-600 transition-colors p-2 -ml-2">{isSelected ? <CheckSquare size={20} className="text-blue-600"/> : <Square size={20}/>}</div>
+                                                        )}
+                                                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold border ${isRRHH ? 'bg-purple-50 text-purple-600 border-purple-100' : isUpload ? 'bg-amber-50 text-amber-600 border-amber-100' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>{worker.nombres?.charAt(0)}{worker.apellido_paterno?.charAt(0)}</div>
                                                         <div className="min-w-0">
                                                             <div className="flex items-baseline gap-2"><h4 className="font-bold text-slate-800 text-sm truncate uppercase group-hover:text-blue-700 transition-colors">{worker.apellido_paterno}, {worker.nombres}</h4><span className="text-xs text-slate-400 font-mono hidden sm:inline">{worker.dni}</span></div>
                                                             <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5"><HardHat size={12}/><span className="truncate max-w-[150px]">{worker.cargo || 'Sin Cargo'}</span><span className="text-slate-300 mx-1">|</span><span>{worker.nombre_obra || 'Sin Obra'}</span></div>
                                                         </div>
                                                     </div>
-                                                    <div className="ml-4 shrink-0"><button className={`px-4 py-2 rounded-lg text-xs font-bold border transition-colors flex items-center gap-2 ${isRRHH ? 'bg-purple-50 text-purple-700 border-purple-100 group-hover:bg-purple-600 group-hover:text-white group-hover:border-purple-600' : 'bg-blue-50 text-blue-700 border-blue-100 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600'}`}>{isRRHH ? <Briefcase size={14}/> : <FileText size={14}/>}<span className="hidden sm:inline">{isRRHH ? 'Gestionar RRHH' : 'Gestionar Docs'}</span></button></div>
+                                                    <div className="ml-4 shrink-0">
+                                                        <button className={`px-4 py-2 rounded-lg text-xs font-bold border transition-colors flex items-center gap-2 ${isRRHH ? 'bg-purple-50 text-purple-700 border-purple-100 group-hover:bg-purple-600 group-hover:text-white group-hover:border-purple-600' : isUpload ? 'bg-amber-50 text-amber-700 border-amber-100 group-hover:bg-amber-500 group-hover:text-white group-hover:border-amber-500' : 'bg-blue-50 text-blue-700 border-blue-100 group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600'}`}>
+                                                            {isRRHH ? <Briefcase size={14}/> : isUpload ? <FolderUp size={14}/> : <FileText size={14}/>}
+                                                            <span className="hidden sm:inline">{isRRHH ? 'Gestionar RRHH' : isUpload ? 'Subir Archivos' : 'Gestionar Docs'}</span>
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             )
                                         })}
@@ -1237,6 +1258,17 @@ export default function AdminPage() {
         <AnimatePresence>
             {selectedWorkerDocs && (
                 <AdminDocsDrawer worker={selectedWorkerDocs} onClose={() => setSelectedWorkerDocs(null)} onUpdate={() => fetchData()} />
+            )}
+        </AnimatePresence>
+
+        {/* --- NUEVO DRAWER: CARGA DE DOCUMENTOS --- */}
+        <AnimatePresence>
+            {selectedWorkerUpload && (
+                <AdminUploadDrawer 
+                    worker={selectedWorkerUpload} 
+                    onClose={() => setSelectedWorkerUpload(null)} 
+                    onUpdate={() => fetchData()} 
+                />
             )}
         </AnimatePresence>
 
@@ -1741,6 +1773,172 @@ function AdminDocsDrawer({ worker, onClose, onUpdate }: any) {
                 <div className="p-6 border-t border-slate-200 bg-white">
                     <button className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-colors shadow-lg shadow-slate-900/20" onClick={onClose}>Cerrar Panel</button>
                 </div>
+            </motion.div>
+        </motion.div>
+    )
+}
+
+// --- NUEVO COMPONENTE: DRAWER PARA SUBIR DOCUMENTOS (SSOMA) ---
+function AdminUploadDrawer({ worker, onClose, onUpdate }: any) {
+    const supabase = createClient()
+    const [uploadStates, setUploadStates] = useState<any>(worker.uploads_state || {})
+    const [uploadingId, setUploadingId] = useState<string | null>(null)
+
+    useEffect(() => { setUploadStates(worker.uploads_state || {}) }, [worker])
+
+    const handleFileUpload = async (e: any, docId: string, label: string) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+
+        if (file.type !== 'application/pdf') {
+            toast.error("Solo se permiten archivos PDF")
+            return
+        }
+
+        setUploadingId(docId)
+
+        try {
+            const fileName = `${worker.dni}/${docId}_${Date.now()}.pdf`
+            
+            // 1. Subir al bucket (Asumiendo que existe un bucket 'worker_docs')
+            // Si no tienes bucket creado, esto fallará, pero el código es funcional.
+            // Para testear sin bucket real, puedes comentar la subida y simular la URL.
+            
+            const { data: uploadData, error: uploadError } = await supabase.storage
+                .from('worker_docs') // Asegúrate que este bucket exista en Supabase
+                .upload(fileName, file, { upsert: true })
+
+            if (uploadError) throw uploadError
+
+            const { data: { publicUrl } } = supabase.storage.from('worker_docs').getPublicUrl(fileName)
+
+            // 2. Actualizar estado en la base de datos
+            const newUploadState = {
+                ...uploadStates,
+                [docId]: {
+                    status: 'uploaded',
+                    url: publicUrl,
+                    uploaded_at: new Date().toISOString(),
+                    name: file.name
+                }
+            }
+
+            const { error: dbError } = await supabase
+                .from('fichas')
+                .update({ uploads_state: newUploadState }) // Asegúrate de tener esta columna JSONB en la tabla 'fichas'
+                .eq('id', worker.id)
+
+            if (dbError) throw dbError
+
+            setUploadStates(newUploadState)
+            toast.success(`Archivo para ${label} subido correctamente`)
+            onUpdate()
+
+        } catch (error: any) {
+            console.error(error)
+            toast.error("Error al subir archivo: " + error.message)
+        } finally {
+            setUploadingId(null)
+        }
+    }
+
+    const deleteFile = async (docId: string) => {
+        if(!confirm("¿Estás seguro de eliminar este archivo?")) return
+
+        const newUploadState = { ...uploadStates }
+        delete newUploadState[docId]
+
+        try {
+            const { error } = await supabase.from('fichas').update({ uploads_state: newUploadState }).eq('id', worker.id)
+            if (error) throw error
+            setUploadStates(newUploadState)
+            toast.success("Archivo eliminado")
+            onUpdate()
+        } catch(e: any) {
+            toast.error("Error al eliminar: " + e.message)
+        }
+    }
+
+    return (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/30 backdrop-blur-sm z-50 flex justify-end" onClick={onClose}>
+            <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }} className="w-full max-w-md bg-white h-full shadow-2xl flex flex-col border-l border-slate-100" onClick={e => e.stopPropagation()}>
+                
+                <div className="h-20 px-6 border-b border-slate-100 flex justify-between items-center bg-white shrink-0">
+                    <div>
+                        <h2 className="font-bold text-slate-900 text-xl tracking-tight">Carga de Documentos</h2>
+                        <div className="flex items-center gap-2 mt-1">
+                            <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
+                            <p className="text-xs text-slate-500 font-medium">Archivos para: {worker.nombres}</p>
+                        </div>
+                    </div>
+                    <button onClick={onClose} className="p-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-full transition-colors"><X size={20}/></button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-6 bg-slate-50/50">
+                    <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-4 pl-1">Listado de Documentos Requeridos</p>
+                    <div className="space-y-3">
+                        {SSOMA_UPLOADS_CONFIG.map((doc) => {
+                            const fileData = uploadStates[doc.id]
+                            const isUploaded = !!fileData
+
+                            return (
+                                <div key={doc.id} className={`p-4 rounded-2xl border transition-all ${isUploaded ? 'bg-white border-emerald-200 shadow-sm' : 'bg-white border-slate-200 shadow-sm'}`}>
+                                    <div className="flex justify-between items-start mb-3">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`p-2 rounded-lg ${isUploaded ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
+                                                {isUploaded ? <CheckCircle size={18}/> : <FileText size={18}/>}
+                                            </div>
+                                            <div>
+                                                <h4 className="font-bold text-sm text-slate-800 line-clamp-1 w-48" title={doc.label}>{doc.label}</h4>
+                                                <p className={`text-[10px] font-bold ${isUploaded ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                                    {isUploaded ? 'ARCHIVO CARGADO' : 'PENDIENTE DE CARGA'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        {isUploaded && (
+                                            <button onClick={() => deleteFile(doc.id)} className="text-slate-400 hover:text-red-500 transition-colors p-1">
+                                                <Trash2 size={16}/>
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    {isUploaded ? (
+                                        <div className="flex items-center gap-2 bg-emerald-50 p-2 rounded-lg border border-emerald-100">
+                                            <Paperclip size={14} className="text-emerald-500 shrink-0"/>
+                                            <span className="text-xs text-emerald-700 truncate flex-1 font-medium">{fileData.name || 'documento.pdf'}</span>
+                                            <a href={fileData.url} target="_blank" rel="noreferrer" className="p-1 bg-white rounded text-emerald-600 hover:text-emerald-800 shadow-sm border border-emerald-100">
+                                                <ExternalLink size={12}/>
+                                            </a>
+                                        </div>
+                                    ) : (
+                                        <div className="mt-2">
+                                            <label className={`flex items-center justify-center gap-2 w-full py-2.5 border-2 border-dashed rounded-xl cursor-pointer transition-all ${uploadingId === doc.id ? 'bg-slate-100 border-slate-300' : 'border-amber-200 bg-amber-50 hover:bg-amber-100 hover:border-amber-300'}`}>
+                                                {uploadingId === doc.id ? (
+                                                    <Loader2 size={16} className="animate-spin text-slate-500"/>
+                                                ) : (
+                                                    <UploadCloud size={16} className="text-amber-600"/>
+                                                )}
+                                                <span className="text-xs font-bold text-amber-700">{uploadingId === doc.id ? 'Subiendo...' : 'Subir PDF'}</span>
+                                                <input 
+                                                    type="file" 
+                                                    className="hidden" 
+                                                    accept="application/pdf"
+                                                    disabled={!!uploadingId}
+                                                    onChange={(e) => handleFileUpload(e, doc.id, doc.label)}
+                                                />
+                                            </label>
+                                        </div>
+                                    )}
+                                </div>
+                            )
+                        })}
+                    </div>
+                </div>
+
+                <div className="p-6 border-t border-slate-200 bg-white">
+                    <button className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-colors shadow-lg shadow-slate-900/20" onClick={onClose}>Finalizar Carga</button>
+                </div>
+
             </motion.div>
         </motion.div>
     )
