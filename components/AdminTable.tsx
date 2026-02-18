@@ -35,7 +35,7 @@ import {
   FileCheck, MessageSquare, Filter, ScanFace, Briefcase, 
   HeartPulse, GraduationCap, UploadCloud, Plus, Users, Zap, Mail,
   MailCheck, Clock, AlertCircle, RotateCcw, Monitor, ArrowUpDown,
-  ArrowRightCircle, FileSpreadsheet, UserX, Cake, CalendarClock, Ban, Check 
+  ArrowRightCircle, FileSpreadsheet, UserX, Cake, CalendarClock, Ban, Check, History 
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -110,12 +110,37 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
   // Audio y Notificaciones
   const [audioEnabled, setAudioEnabled] = useState(false) 
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({})
+  
+  // --- AQUI ESTÁ EL CAMBIO PARA PERSISTENCIA ---
   const [notifications, setNotifications] = useState<any[]>([]) 
+  const [isNotifInitialized, setIsNotifInitialized] = useState(false) // Para evitar sobrescribir al cargar
+
   const [showNotifDropdown, setShowNotifDropdown] = useState(false)
 
   // --- NUEVA LÓGICA: ALERTAS DE HIJOS MAYORES DE EDAD ---
   const [adultChildrenAlerts, setAdultChildrenAlerts] = useState<any[]>([])
   const [showBirthdayDropdown, setShowBirthdayDropdown] = useState(false)
+
+  // --- 1. CARGAR NOTIFICACIONES GUARDADAS AL INICIO ---
+  useEffect(() => {
+    const saved = localStorage.getItem('ruag_notifications')
+    if (saved) {
+        try {
+            setNotifications(JSON.parse(saved))
+        } catch (e) {
+            console.error("Error cargando notificaciones", e)
+        }
+    }
+    setIsNotifInitialized(true)
+  }, [])
+
+  // --- 2. GUARDAR NOTIFICACIONES CADA VEZ QUE CAMBIEN ---
+  useEffect(() => {
+    if (isNotifInitialized) {
+        localStorage.setItem('ruag_notifications', JSON.stringify(notifications))
+    }
+  }, [notifications, isNotifInitialized])
+
 
   // --- EFECTO REFRESH AUTOMÁTICO ---
   useEffect(() => {
@@ -132,7 +157,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
     }
 
     fetchFichas()
-     
+      
     // Listener de Fichas (Cambios en DB)
     const fichasChannel = supabase.channel('realtime-fichas').on('postgres_changes', { event: '*', schema: 'public', table: 'fichas' }, (payload: any) => {
           if (payload.eventType === 'INSERT') {
@@ -207,7 +232,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                 setNotifications(prev => [
                     { 
                         id: newMsg.id, 
-                        type: 'chat',
+                        type: 'chat', // TIPO CHAT (SE PUEDE BORRAR)
                         worker_id: newMsg.worker_id,
                         msg: newMsg.content || 'Adjunto enviado',
                         time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
@@ -222,7 +247,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
         .on('broadcast', { event: 'admin_action' }, ({ payload }) => {
             const newLog = {
                 id: Date.now().toString(),
-                type: 'action',
+                type: 'action', // TIPO ACCIÓN (PERMANENTE/HISTORIAL)
                 user: payload.user,
                 msg: `${payload.action}`,
                 details: payload.details,
@@ -239,7 +264,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
     }
   }, [])
 
-  // --- FUNCIÓN PARA DETECTAR HIJOS Y GESTIONAR ESTADOS (ACTUALIZADO) ---
+  // --- FUNCIÓN PARA DETECTAR HIJOS Y GESTIONAR ESTADOS ---
   const checkForAdultChildren = (data: any[]) => {
       const alerts: any[] = []
       
@@ -261,21 +286,13 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                                   age--
                               }
 
-                              // REGLA DE NEGOCIO:
-                              // - Si tiene < 18: No es alerta.
-                              // - Si tiene >= 18 Y < 25: Es alerta A MENOS QUE ya esté extendido o dado de baja.
-                              // - Si tiene >= 25: Ya no hay beneficio automático.
-                              
-                              // Flags internos del objeto hijo
-                              const isExtended = hijo.extension_estudios === true; // Ya validado hasta los 24
-                              const isRemoved = hijo.baja_beneficio === true; // Ya se le quitó el beneficio
+                              const isExtended = hijo.extension_estudios === true;
+                              const isRemoved = hijo.baja_beneficio === true; 
                               const requestDate = hijo.fecha_solicitud_constancia ? new Date(hijo.fecha_solicitud_constancia) : null;
 
                               if (age >= 18 && age < 25 && !isExtended && !isRemoved) {
-                                  
-                                  // Calcular días de retraso si ya se pidió
                                   let daysWaiting = 0;
-                                  let status = 'new'; // 'new', 'waiting'
+                                  let status = 'new'; 
 
                                   if (requestDate) {
                                       const diffTime = Math.abs(today.getTime() - requestDate.getTime());
@@ -284,7 +301,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                                   }
 
                                   alerts.push({
-                                      id: `${worker.id}-${index}`, // ID único
+                                      id: `${worker.id}-${index}`, 
                                       workerId: worker.id,
                                       workerName: `${worker.nombres} ${worker.apellido_paterno}`,
                                       childIndex: index,
@@ -306,7 +323,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
       setAdultChildrenAlerts(alerts)
   }
 
-  // --- FUNCIÓN PARA ACTUALIZAR ESTADO DEL HIJO (ACTUALIZADO) ---
+  // --- FUNCIÓN PARA ACTUALIZAR ESTADO DEL HIJO ---
   const updateChildStatus = async (alertItem: any, action: 'request' | 'extend' | 'remove') => {
       const worker = fichas.find(f => f.id === alertItem.workerId);
       if (!worker) return;
@@ -314,28 +331,22 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
       let hijosArray = typeof worker.hijos === 'string' ? JSON.parse(worker.hijos) : worker.hijos;
       if (!Array.isArray(hijosArray)) hijosArray = [];
 
-      // Encontrar el hijo por índice (más seguro si hay nombres repetidos)
       const hijo = hijosArray[alertItem.childIndex];
       if (!hijo) return;
 
-      // Aplicar lógica según acción
       if (action === 'request') {
-          // Marcar fecha en que RRHH pidió el documento
           hijo.fecha_solicitud_constancia = new Date().toISOString();
           toast.info(`Se marcó como solicitado para ${hijo.nombres}`);
       } else if (action === 'extend') {
-          // El obrero trajo el papel -> Extender hasta los 24
           hijo.extension_estudios = true;
-          hijo.fecha_solicitud_constancia = null; // Limpiar solicitud
+          hijo.fecha_solicitud_constancia = null; 
           toast.success(`Beneficio extendido para ${hijo.nombres} (Estudios)`);
       } else if (action === 'remove') {
-          // No estudia -> Quitar beneficio
           hijo.baja_beneficio = true;
           hijo.fecha_solicitud_constancia = null;
           toast.error(`Beneficio retirado para ${hijo.nombres}`);
       }
 
-      // Guardar en Supabase
       const { error } = await supabase
           .from('fichas')
           .update({ hijos: JSON.stringify(hijosArray) })
@@ -344,10 +355,9 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
       if (error) {
           toast.error("Error al actualizar: " + error.message);
       } else {
-          // Actualizar estado local inmediatamente para reflejar cambio en UI
           const updatedFichas = fichas.map(f => f.id === worker.id ? { ...f, hijos: hijosArray } : f);
           setFichas(updatedFichas);
-          checkForAdultChildren(updatedFichas); // Re-calcular alertas
+          checkForAdultChildren(updatedFichas); 
       }
   };
 
@@ -359,10 +369,10 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
         .is('es_cesado', false) 
         .is('in_sctr', false)
         .order('updated_at', { ascending: false })
-     
+      
     if (data) {
         setFichas(data)
-        checkForAdultChildren(data) // Ejecutamos la revisión de edades
+        checkForAdultChildren(data) 
     }
     setLoading(false)
   }
@@ -413,11 +423,21 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
           if (worker) {
               handleChatClick(worker)
               setShowNotifDropdown(false)
-              setNotifications(prev => prev.filter(n => n.id !== notif.id))
+              // Al hacer clic, borramos ese mensaje específico
+              const newNotifs = notifications.filter(n => n.id !== notif.id)
+              setNotifications(newNotifs)
           } else {
               toast.error("El trabajador no se encuentra en la lista actual.")
           }
       } 
+  }
+
+  // --- LÓGICA: BORRAR SOLO MENSAJES (MANTENER HISTORIAL ADMIN) ---
+  const handleClearChats = () => {
+      // Filtramos para quedarnos SOLO con los de tipo 'action'
+      const onlyActions = notifications.filter(n => n.type === 'action')
+      setNotifications(onlyActions)
+      toast.success("Mensajes leídos eliminados")
   }
 
   const handleSelectAll = (filteredData: any[]) => {
@@ -520,7 +540,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                 in_sctr: false 
             })
             .in('id', selectedIds)
-          
+           
           if (error) throw error
           
           toast.success(`${selectedIds.length} trabajadores dados de baja exitosamente.`)
@@ -646,6 +666,10 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
   const totalPages = Math.ceil(filteredAndSorted.length / itemsPerPage)
   const paginatedData = filteredAndSorted.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
   const workerToPrint = fichas.find(f => f.id === selectedIds[0])
+  
+  // SEPARAR NOTIFICACIONES PARA RENDERIZAR
+  const chatNotifs = notifications.filter(n => n.type === 'chat')
+  const actionNotifs = notifications.filter(n => n.type === 'action')
 
   useEffect(() => { setCurrentPage(1) }, [searchTerm, filterObra, filterEstado])
 
@@ -773,44 +797,83 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                     </AnimatePresence>
                 </div>
 
+                {/* --- CAMPANA DE NOTIFICACIONES MODIFICADA --- */}
                 <div className="relative" id="tour-notifications">
                     <button onClick={() => setShowNotifDropdown(!showNotifDropdown)} className={`relative p-2.5 rounded-xl border transition-all ${showNotifDropdown ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
                         <Bell size={18} />
-                        {notifications.length > 0 && <span className="absolute top-1.5 right-2 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full animate-pulse"></span>}
+                        {(chatNotifs.length + actionNotifs.length) > 0 && <span className="absolute top-1.5 right-2 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full animate-pulse"></span>}
                     </button>
                     <AnimatePresence>
                         {showNotifDropdown && (
-                            <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }} className="absolute right-0 top-full mt-3 w-80 bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden z-50 origin-top-right">
-                                <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-                                    <h4 className="font-bold text-slate-800 text-sm">Actividad y Alertas</h4>
-                                    <button onClick={() => setNotifications([])} className="text-xs text-blue-600 font-bold hover:underline">Borrar todo</button>
+                            <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }} className="absolute right-0 top-full mt-3 w-96 bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden z-50 origin-top-right">
+                                {/* Cabecera Principal */}
+                                <div className="p-4 border-b border-slate-100 bg-white flex justify-between items-center">
+                                    <h4 className="font-bold text-slate-800 text-sm">Centro de Notificaciones</h4>
+                                    <button onClick={() => setShowNotifDropdown(false)}><X size={16} className="text-slate-400 hover:text-slate-600"/></button>
                                 </div>
-                                <div className="max-h-60 overflow-y-auto">
-                                    {notifications.length === 0 ? (
-                                        <div className="p-8 text-center text-slate-400"><Bell size={24} className="mx-auto mb-2 opacity-20"/><p className="text-xs font-medium">Sin novedades</p></div>
-                                    ) : (
-                                        notifications.map((notif) => {
-                                            if (notif.type === 'chat') {
-                                                const w = fichas.find(f => f.user_id === notif.worker_id); const name = w ? w.nombres.split(' ')[0] : 'Obrero'
-                                                return <div key={notif.id} onClick={() => handleNotificationClick(notif)} className="p-4 hover:bg-blue-50 transition-colors border-b border-slate-50 last:border-0 cursor-pointer group"><div className="flex items-start gap-3"><div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold shrink-0">{name.charAt(0)}</div><div><p className="text-sm font-bold text-slate-800 group-hover:text-blue-700 transition-colors">{name}</p><p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{notif.msg}</p><p className="text-[10px] text-slate-400 mt-1">{notif.time}</p></div></div></div>
-                                            } else {
-                                                return (
-                                                    <div key={notif.id} className="p-4 bg-slate-50/50 hover:bg-slate-100 transition-colors border-b border-slate-100 last:border-0 cursor-default">
+
+                                <div className="max-h-[400px] overflow-y-auto bg-slate-50/50">
+                                    
+                                    {/* SECCIÓN 1: MENSAJES (Borrables) */}
+                                    {chatNotifs.length > 0 && (
+                                        <div className="mb-2">
+                                            <div className="px-4 py-2 bg-blue-50/80 border-b border-blue-100 flex justify-between items-center sticky top-0 backdrop-blur-sm z-10">
+                                                <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider flex items-center gap-1"><MessageSquare size={12}/> Mensajes Recientes</span>
+                                                <button onClick={handleClearChats} className="text-[10px] text-blue-600 font-bold hover:underline cursor-pointer">Borrar Leídos</button>
+                                            </div>
+                                            <div>
+                                                {chatNotifs.map((notif) => {
+                                                    const w = fichas.find(f => f.user_id === notif.worker_id); 
+                                                    const name = w ? w.nombres.split(' ')[0] : 'Obrero';
+                                                    return (
+                                                        <div key={notif.id} onClick={() => handleNotificationClick(notif)} className="p-3 hover:bg-blue-50 transition-colors border-b border-slate-100 cursor-pointer group bg-white">
+                                                            <div className="flex items-start gap-3">
+                                                                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold shrink-0">{name.charAt(0)}</div>
+                                                                <div className="min-w-0">
+                                                                    <p className="text-sm font-bold text-slate-800 group-hover:text-blue-700 transition-colors">{name}</p>
+                                                                    <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{notif.msg}</p>
+                                                                    <p className="text-[10px] text-slate-400 mt-1">{notif.time}</p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    )
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* SECCIÓN 2: HISTORIAL ADMIN (Permanente) */}
+                                    {actionNotifs.length > 0 && (
+                                        <div>
+                                            <div className="px-4 py-2 bg-amber-50/80 border-b border-amber-100 border-t border-slate-200 sticky top-0 backdrop-blur-sm z-10">
+                                                <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider flex items-center gap-1"><History size={12}/> Historial de Cambios</span>
+                                            </div>
+                                            <div className="divide-y divide-slate-100">
+                                                {actionNotifs.map((notif) => (
+                                                    <div key={notif.id} className="p-3 bg-white/60 hover:bg-white transition-colors cursor-default">
                                                         <div className="flex items-start gap-3">
                                                             <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center text-xs font-bold shrink-0">
                                                                 <Zap size={14}/>
                                                             </div>
                                                             <div>
-                                                                <p className="text-sm font-bold text-slate-800"><span className="text-amber-600">{notif.user}</span> {notif.msg}</p>
-                                                                <p className="text-xs text-slate-500 mt-0.5 italic">"{notif.details}"</p>
-                                                                <p className="text-[10px] text-slate-400 mt-1">{notif.time}</p>
+                                                                <p className="text-xs font-bold text-slate-700"><span className="text-amber-600">{notif.user}</span> {notif.msg}</p>
+                                                                <p className="text-[11px] text-slate-500 mt-0.5 italic">"{notif.details}"</p>
+                                                                <p className="text-[9px] text-slate-400 mt-1">{notif.time}</p>
                                                             </div>
                                                         </div>
                                                     </div>
-                                                )
-                                            }
-                                        })
+                                                ))}
+                                            </div>
+                                        </div>
                                     )}
+
+                                    {notifications.length === 0 && (
+                                        <div className="p-8 text-center text-slate-400">
+                                            <Bell size={24} className="mx-auto mb-2 opacity-20"/>
+                                            <p className="text-xs font-medium">Sin novedades</p>
+                                        </div>
+                                    )}
+
                                 </div>
                             </motion.div>
                         )}
