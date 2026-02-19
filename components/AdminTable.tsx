@@ -121,6 +121,38 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
   const [adultChildrenAlerts, setAdultChildrenAlerts] = useState<any[]>([])
   const [showBirthdayDropdown, setShowBirthdayDropdown] = useState(false)
 
+  // --- NUEVA FUNCIÓN PARA ENVIAR NOTIFICACIONES A TODOS ---
+  const emitAdminAction = async (action: string, details: string) => {
+      // 1. Obtener el usuario actual para saber quién hizo la acción
+      const { data } = await supabase.auth.getUser();
+      const adminName = data?.user?.email?.split('@')[0].toUpperCase() || 'ADMIN';
+
+      // 2. Enviar el broadcast a todos los demás admins conectados
+      supabase.channel('admin_room').send({
+          type: 'broadcast',
+          event: 'admin_action',
+          payload: {
+              user: adminName,
+              action: action,
+              details: details
+          }
+      });
+
+      // 3. Agregar la notificación a nosotros mismos localmente
+      const newLog = {
+          id: Date.now().toString(),
+          type: 'action',
+          user: adminName,
+          msg: action,
+          details: details,
+          time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+      };
+      setNotifications(prev => [newLog, ...prev]);
+
+      // 4. Ejecutar el prop original por si el componente padre lo necesita
+      if (onNotifyChange) onNotifyChange(action, details);
+  };
+
   // --- 1. CARGAR NOTIFICACIONES GUARDADAS AL INICIO ---
   useEffect(() => {
     const saved = localStorage.getItem('ruag_notifications')
@@ -464,7 +496,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
           const { error } = await supabase.from('fichas').delete().in('id', selectedIds)
           if (error) throw error
           toast.success("Registros eliminados correctamente")
-          if(onNotifyChange) onNotifyChange("eliminó", `${selectedIds.length} fichas de trabajadores`)
+          emitAdminAction("eliminó", `${selectedIds.length} fichas de trabajadores`)
           setSelectedIds([])
       } catch (error: any) { toast.error("Error: " + error.message) } finally { setDeleting(false) }
   }
@@ -487,7 +519,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
           if (error) throw error;
 
           toast.success(`${selectedIds.length} trabajadores movidos a Vida Ley.`);
-          if(onNotifyChange) onNotifyChange("movió", `${selectedIds.length} obreros a la gestión de Vida Ley`);
+          emitAdminAction("movió", `${selectedIds.length} obreros a la gestión de Vida Ley`);
 
           setFichas(prev => prev.filter(f => !selectedIds.includes(f.id)));
           setSelectedIds([]);
@@ -514,7 +546,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
           if (error) throw error;
 
           toast.success(`${selectedIds.length} trabajadores movidos a SCTR.`);
-          if(onNotifyChange) onNotifyChange("movió", `${selectedIds.length} obreros a SCTR`);
+          emitAdminAction("movió", `${selectedIds.length} obreros a SCTR`);
 
           setFichas(prev => prev.filter(f => !selectedIds.includes(f.id)));
           setSelectedIds([]);
@@ -540,13 +572,13 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                 in_sctr: false 
             })
             .in('id', selectedIds)
-           
+            
           if (error) throw error
           
           toast.success(`${selectedIds.length} trabajadores dados de baja exitosamente.`)
           setFichas(prev => prev.filter(f => !selectedIds.includes(f.id)))
           setSelectedIds([])
-          if(onNotifyChange) onNotifyChange("cesó", `a ${selectedIds.length} trabajadores`)
+          emitAdminAction("cesó", `a ${selectedIds.length} trabajadores`)
       } catch (error: any) {
           toast.error("Error al cesar: " + error.message)
       } finally {
@@ -568,7 +600,8 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
           const worksheet = XLSX.utils.json_to_sheet(excelData); const workbook = XLSX.utils.book_new();
           XLSX.utils.book_append_sheet(workbook, worksheet, "Planilla Vida Ley");
           XLSX.writeFile(workbook, `Trama_Vida_Ley_${new Date().toLocaleDateString().replace(/\//g, '-')}.xlsx`);
-          toast.success("Exportado."); if(onNotifyChange) onNotifyChange("exportó", `Excel de ${selectedIds.length} trabajadores`);
+          toast.success("Exportado."); 
+          emitAdminAction("exportó", `Excel de ${selectedIds.length} trabajadores`);
       } catch (error: any) { toast.error("Error al generar el Excel."); } finally { setExporting(false); }
   };
 
@@ -620,7 +653,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
       if (selectedDocsToPrint.length === 0) { toast.warning("Selecciona al menos un documento"); return }
       setPreparingDoc(true)
       setShowDocSelector(false) 
-      if(onNotifyChange) onNotifyChange("está imprimiendo", `Legajo de ${workerToPrint?.nombres}`)
+      emitAdminAction("está imprimiendo", `Legajo de ${workerToPrint?.nombres}`)
       setTimeout(async () => {
           if (!printRef.current) { toast.error("Error de renderizado"); setPreparingDoc(false); return }
           try {
@@ -1059,7 +1092,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
       </div>
 
       {/* --- DRAWER Y MODALES --- */}
-      <AnimatePresence>{selectedFicha && (<FichaDrawer ficha={selectedFicha} onClose={() => setSelectedFicha(null)} onUpdate={fetchFichas} onDelete={handleDeleteLocal} onDownload={() => handleDownloadPDF(selectedFicha)} downloading={downloadingPdf} onPrintPreview={(img) => setPrintImage(img)} onNotifyChange={onNotifyChange} />)}</AnimatePresence>
+      <AnimatePresence>{selectedFicha && (<FichaDrawer ficha={selectedFicha} onClose={() => setSelectedFicha(null)} onUpdate={fetchFichas} onDelete={handleDeleteLocal} onDownload={() => handleDownloadPDF(selectedFicha)} downloading={downloadingPdf} onPrintPreview={(img) => setPrintImage(img)} onNotifyChange={emitAdminAction} />)}</AnimatePresence>
 
       <AnimatePresence>
         {showDocSelector && (
