@@ -106,6 +106,12 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
   const [movingSctr, setMovingSctr] = useState(false) // Para SCTR
   const [cessing, setCessing] = useState(false) // Para Cesados (NUEVO)
   const [exporting, setExporting] = useState(false)
+  const [openingFichas, setOpeningFichas] = useState(false) // Para Abrir Fichas Masivo (NUEVO)
+
+  // ESTADO DEL MODAL DE CONFIRMACIÓN PERSONALIZADO
+  const [confirmDialog, setConfirmDialog] = useState<{
+      isOpen: boolean; title: string; message: string; confirmText: string; confirmColor: string; icon: any; onConfirm: () => void;
+  }>({ isOpen: false, title: '', message: '', confirmText: 'Aceptar', confirmColor: 'bg-blue-600', icon: null, onConfirm: () => {} });
 
   // Audio y Notificaciones
   const [audioEnabled, setAudioEnabled] = useState(false) 
@@ -121,36 +127,86 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
   const [adultChildrenAlerts, setAdultChildrenAlerts] = useState<any[]>([])
   const [showBirthdayDropdown, setShowBirthdayDropdown] = useState(false)
 
-  // --- NUEVA FUNCIÓN PARA ENVIAR NOTIFICACIONES A TODOS ---
+  // --- NUEVA FUNCIÓN PARA ENVIAR NOTIFICACIONES A TODOS SIN DUPLICAR Y CON NOMBRE CORRECTO ---
   const emitAdminAction = async (action: string, details: string) => {
-      // 1. Obtener el usuario actual para saber quién hizo la acción
+      // 1. Obtener el usuario actual
       const { data } = await supabase.auth.getUser();
-      const adminName = data?.user?.email?.split('@')[0].toUpperCase() || 'ADMIN';
+      let adminName = 'ADMIN';
 
-      // 2. Enviar el broadcast a todos los demás admins conectados
-      supabase.channel('admin_room').send({
-          type: 'broadcast',
-          event: 'admin_action',
-          payload: {
-              user: adminName,
-              action: action,
-              details: details
+      if (data?.user) {
+          // Intentar sacar el nombre de user_metadata
+          const meta = data.user.user_metadata || {};
+          let rawName = meta.nombres || meta.nombre || meta.name || meta.full_name || meta.first_name;
+
+          // Si no está en metadata, consultamos la tabla perfiles directamente
+          if (!rawName) {
+              try {
+                  const { data: profileData } = await supabase
+                      .from('profiles')
+                      .select('*')
+                      .eq('id', data.user.id)
+                      .single();
+                  
+                  if (profileData) {
+                      rawName = profileData.nombres || profileData.nombre || profileData.name || profileData.full_name;
+                  }
+              } catch (error) {
+                  // Silencioso por si no existe la tabla
+              }
           }
-      });
 
-      // 3. Agregar la notificación a nosotros mismos localmente
+          // Si aún no hay nombre, usamos el correo sin el @
+          if (!rawName && data.user.email) {
+              rawName = data.user.email.split('@')[0];
+          }
+
+          // EXCEPCIÓN FORZADA: Si el usuario es fabrigc18, forzamos el nombre JORGAN
+          if (data.user?.email?.toLowerCase().includes('fabrigc18') || (rawName && rawName.toLowerCase() === 'fabrigc18')) {
+              rawName = 'JORGAN';
+          }
+
+          // Tomamos solo el primer nombre y lo ponemos en mayúsculas
+          adminName = (rawName || 'ADMIN').split(' ')[0].toUpperCase();
+      }
+
+      // 2. Crear ID único para evitar rebotes/duplicados en Supabase
+      const actionId = Date.now().toString() + '-' + Math.random().toString(36).substring(2, 6);
+
       const newLog = {
-          id: Date.now().toString(),
+          id: actionId,
           type: 'action',
           user: adminName,
           msg: action,
           details: details,
           time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
       };
-      setNotifications(prev => [newLog, ...prev]);
 
-      // 4. Ejecutar el prop original por si el componente padre lo necesita
+      // 3. Agregar la notificación a nosotros mismos localmente SIN DUPLICAR
+      setNotifications(prev => {
+          if (prev.some(n => n.id === actionId || (n.msg === action && n.details === details && n.time === newLog.time))) return prev;
+          return [newLog, ...prev];
+      });
+
+      // 4. Enviar el broadcast a todos los demás admins conectados usando EXACTAMENTE el mismo ID
+      supabase.channel('admin_room').send({
+          type: 'broadcast',
+          event: 'admin_action',
+          payload: newLog
+      });
+
+      // 5. Ejecutar el prop original para Google Sheets
       if (onNotifyChange) onNotifyChange(action, details);
+  };
+
+  // --- HELPER PARA ESTILOS DINÁMICOS DE NOTIFICACIONES ---
+  const getActionStyle = (actionMsg: string) => {
+      const msg = actionMsg.toLowerCase();
+      if (msg.includes('validó')) return { icon: <CheckCircle size={14}/>, bg: 'bg-emerald-50', text: 'text-emerald-600', border: 'border-emerald-200' };
+      if (msg.includes('reabrió') || msg.includes('editó')) return { icon: <Unlock size={14}/>, bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-amber-200' };
+      if (msg.includes('eliminó') || msg.includes('cesó') || msg.includes('baja')) return { icon: <Trash2 size={14}/>, bg: 'bg-red-50', text: 'text-red-600', border: 'border-red-200' };
+      if (msg.includes('exportó')) return { icon: <FileSpreadsheet size={14}/>, bg: 'bg-indigo-50', text: 'text-indigo-600', border: 'border-indigo-200' };
+      if (msg.includes('imprimiendo')) return { icon: <Printer size={14}/>, bg: 'bg-slate-100', text: 'text-slate-600', border: 'border-slate-300' };
+      return { icon: <Zap size={14}/>, bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-200' }; // Default (ej. movió a SCTR)
   };
 
   // --- 1. CARGAR NOTIFICACIONES GUARDADAS AL INICIO ---
@@ -158,7 +214,10 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
     const saved = localStorage.getItem('ruag_notifications')
     if (saved) {
         try {
-            setNotifications(JSON.parse(saved))
+            const parsed = JSON.parse(saved);
+            // Filtro extra por si quedaron duplicados viejos guardados
+            const unique = parsed.filter((v: any, i: number, a: any[]) => a.findIndex(t => t.id === v.id) === i);
+            setNotifications(unique);
         } catch (e) {
             console.error("Error cargando notificaciones", e)
         }
@@ -277,15 +336,13 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
 
     const adminActivityChannel = supabase.channel('admin_room')
         .on('broadcast', { event: 'admin_action' }, ({ payload }) => {
-            const newLog = {
-                id: Date.now().toString(),
-                type: 'action', // TIPO ACCIÓN (PERMANENTE/HISTORIAL)
-                user: payload.user,
-                msg: `${payload.action}`,
-                details: payload.details,
-                time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-            }
-            setNotifications(prev => [newLog, ...prev])
+            setNotifications(prev => {
+                // Evitar duplicados por si el broadcast hace eco al remitente
+                if (prev.some(n => n.id === payload.id || (n.msg === payload.msg && n.details === payload.details && n.time === payload.time))) {
+                    return prev;
+                }
+                return [payload, ...prev];
+            });
         })
         .subscribe()
 
@@ -464,12 +521,17 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
       } 
   }
 
-  // --- LÓGICA: BORRAR SOLO MENSAJES (MANTENER HISTORIAL ADMIN) ---
+  // --- LÓGICA: BORRAR SOLO MENSAJES ---
   const handleClearChats = () => {
-      // Filtramos para quedarnos SOLO con los de tipo 'action'
       const onlyActions = notifications.filter(n => n.type === 'action')
       setNotifications(onlyActions)
       toast.success("Mensajes leídos eliminados")
+  }
+
+  // --- NUEVA LÓGICA: BORRAR TODO EL HISTORIAL DE CAMBIOS ---
+  const handleClearHistory = () => {
+      setNotifications(prev => prev.filter(n => n.type !== 'action'))
+      toast.success("Historial de cambios limpiado")
   }
 
   const handleSelectAll = (filteredData: any[]) => {
@@ -488,102 +550,124 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
       e.dataTransfer.effectAllowed = "move"
   }
 
-  // --- ACCIONES MASIVAS (Eliminar, Mover, Exportar) ---
+  // --- ACCIONES MASIVAS (Eliminar, Mover, Exportar, Abrir Fichas) ---
   const handleBulkDelete = async () => {
-      if (!confirm(`⚠️ ¿Estás seguro de eliminar ${selectedIds.length} fichas seleccionadas?`)) return
-      setDeleting(true)
-      try {
-          const { error } = await supabase.from('fichas').delete().in('id', selectedIds)
-          if (error) throw error
-          toast.success("Registros eliminados correctamente")
-          emitAdminAction("eliminó", `${selectedIds.length} fichas de trabajadores`)
-          setSelectedIds([])
-      } catch (error: any) { toast.error("Error: " + error.message) } finally { setDeleting(false) }
+      if (selectedIds.length === 0) return;
+      setConfirmDialog({
+          isOpen: true,
+          title: 'Eliminar Fichas',
+          message: `⚠️ ¿Estás seguro de eliminar ${selectedIds.length} fichas seleccionadas?\n\nEsta acción eliminará todos los datos y no se podrá deshacer.`,
+          confirmText: 'Sí, Eliminar',
+          confirmColor: 'bg-red-600 hover:bg-red-700 text-white',
+          icon: <Trash2 className="text-red-500" size={32}/>,
+          onConfirm: async () => {
+              setConfirmDialog(prev => ({...prev, isOpen: false}));
+              setDeleting(true)
+              try {
+                  const { error } = await supabase.from('fichas').delete().in('id', selectedIds)
+                  if (error) throw error
+                  toast.success("Registros eliminados correctamente")
+                  emitAdminAction("eliminó", `${selectedIds.length} fichas de trabajadores`)
+                  setSelectedIds([])
+              } catch (error: any) { toast.error("Error: " + error.message) } finally { setDeleting(false) }
+          }
+      });
   }
 
+  const handleBulkOpenFichas = async () => {
+      if (selectedIds.length === 0) return;
+      setConfirmDialog({
+          isOpen: true,
+          title: 'Reabrir Fichas',
+          message: `¿Estás seguro de ABRIR y cambiar a estado Pendiente las ${selectedIds.length} fichas seleccionadas?\n\nEsto permitirá a los trabajadores editar nuevamente su información.`,
+          confirmText: 'Reabrir Fichas',
+          confirmColor: 'bg-blue-600 hover:bg-blue-700 text-white',
+          icon: <Unlock className="text-blue-500" size={32}/>,
+          onConfirm: async () => {
+              setConfirmDialog(prev => ({...prev, isOpen: false}));
+              setOpeningFichas(true);
+              try {
+                  const { error } = await supabase.from('fichas').update({ estado: 'pendiente' }).in('id', selectedIds);
+                  if (error) throw error;
+                  toast.success(`${selectedIds.length} fichas reabiertas correctamente.`);
+                  emitAdminAction("reabrió", `${selectedIds.length} fichas de trabajadores`);
+                  setFichas(prev => prev.map(f => selectedIds.includes(f.id) ? { ...f, estado: 'pendiente' } : f));
+                  setSelectedIds([]);
+              } catch (error: any) { toast.error("Error al abrir fichas: " + error.message); } finally { setOpeningFichas(false); }
+          }
+      });
+  };
+
   const handleMoveToVidaLey = async () => {
-      if (selectedIds.length === 0) {
-          toast.warning("Selecciona al menos un trabajador para mover.");
-          return;
-      }
-
-      if (!confirm(`¿Estás seguro de mover ${selectedIds.length} trabajadores a la gestión de VIDA LEY?\n\nDesaparecerán de esta lista principal y pasarán al módulo de bajas para su gestión en Excel.`)) return;
-
-      setMoving(true);
-      try {
-          const { error } = await supabase
-              .from('fichas')
-              .update({ in_vida_ley: true })
-              .in('id', selectedIds);
-
-          if (error) throw error;
-
-          toast.success(`${selectedIds.length} trabajadores movidos a Vida Ley.`);
-          emitAdminAction("movió", `${selectedIds.length} obreros a la gestión de Vida Ley`);
-
-          setFichas(prev => prev.filter(f => !selectedIds.includes(f.id)));
-          setSelectedIds([]);
-
-      } catch (error: any) {
-          console.error("Error moviendo a vida ley:", error);
-          toast.error("Error al mover: " + error.message);
-      } finally {
-          setMoving(false);
-      }
+      if (selectedIds.length === 0) { toast.warning("Selecciona al menos un trabajador para mover."); return; }
+      setConfirmDialog({
+          isOpen: true,
+          title: 'Mover a Vida Ley',
+          message: `¿Estás seguro de mover ${selectedIds.length} trabajadores a la gestión de VIDA LEY?\n\nDesaparecerán de esta lista principal y pasarán al módulo de bajas para su gestión en Excel.`,
+          confirmText: 'Mover a Vida Ley',
+          confirmColor: 'bg-emerald-600 hover:bg-emerald-700 text-white',
+          icon: <ArrowRightCircle className="text-emerald-500" size={32}/>,
+          onConfirm: async () => {
+              setConfirmDialog(prev => ({...prev, isOpen: false}));
+              setMoving(true);
+              try {
+                  const { error } = await supabase.from('fichas').update({ in_vida_ley: true }).in('id', selectedIds);
+                  if (error) throw error;
+                  toast.success(`${selectedIds.length} trabajadores movidos a Vida Ley.`);
+                  emitAdminAction("movió", `${selectedIds.length} obreros a la gestión de Vida Ley`);
+                  setFichas(prev => prev.filter(f => !selectedIds.includes(f.id)));
+                  setSelectedIds([]);
+              } catch (error: any) { console.error(error); toast.error("Error al mover: " + error.message); } finally { setMoving(false); }
+          }
+      });
   };
 
   const handleMoveToSctr = async () => {
       if (selectedIds.length === 0) { toast.warning("Selecciona trabajadores."); return; }
-      if (!confirm(`¿Mover ${selectedIds.length} trabajadores a la nómina de SCTR?`)) return;
-
-      setMovingSctr(true);
-      try {
-          const { error } = await supabase
-              .from('fichas')
-              .update({ in_sctr: true })
-              .in('id', selectedIds);
-
-          if (error) throw error;
-
-          toast.success(`${selectedIds.length} trabajadores movidos a SCTR.`);
-          emitAdminAction("movió", `${selectedIds.length} obreros a SCTR`);
-
-          setFichas(prev => prev.filter(f => !selectedIds.includes(f.id)));
-          setSelectedIds([]);
-      } catch (error: any) {
-          toast.error("Error: " + error.message);
-      } finally {
-          setMovingSctr(false);
-      }
+      setConfirmDialog({
+          isOpen: true,
+          title: 'Mover a SCTR',
+          message: `¿Deseas mover a los ${selectedIds.length} trabajadores seleccionados a la nómina de SCTR?\n\nSerán transferidos a esa sección.`,
+          confirmText: 'Mover a SCTR',
+          confirmColor: 'bg-amber-600 hover:bg-amber-700 text-white',
+          icon: <ShieldCheck className="text-amber-500" size={32}/>,
+          onConfirm: async () => {
+              setConfirmDialog(prev => ({...prev, isOpen: false}));
+              setMovingSctr(true);
+              try {
+                  const { error } = await supabase.from('fichas').update({ in_sctr: true }).in('id', selectedIds);
+                  if (error) throw error;
+                  toast.success(`${selectedIds.length} trabajadores movidos a SCTR.`);
+                  emitAdminAction("movió", `${selectedIds.length} obreros a SCTR`);
+                  setFichas(prev => prev.filter(f => !selectedIds.includes(f.id)));
+                  setSelectedIds([]);
+              } catch (error: any) { toast.error("Error: " + error.message); } finally { setMovingSctr(false); }
+          }
+      });
   };
 
   const handleMoveToCesados = async () => {
       if (selectedIds.length === 0) { toast.warning("Selecciona trabajadores."); return; }
-      if (!confirm(`⚠️ ¿CONFIRMAR CESE para ${selectedIds.length} trabajadores? \n\nPasarán a la lista de Cesados y saldrán de los activos.`)) return;
-
-      setCessing(true)
-      try {
-          const { error } = await supabase
-            .from('fichas')
-            .update({ 
-                es_cesado: true, 
-                fecha_cese: new Date().toISOString(),
-                in_vida_ley: false,
-                in_sctr: false 
-            })
-            .in('id', selectedIds)
-            
-          if (error) throw error
-          
-          toast.success(`${selectedIds.length} trabajadores dados de baja exitosamente.`)
-          setFichas(prev => prev.filter(f => !selectedIds.includes(f.id)))
-          setSelectedIds([])
-          emitAdminAction("cesó", `a ${selectedIds.length} trabajadores`)
-      } catch (error: any) {
-          toast.error("Error al cesar: " + error.message)
-      } finally {
-          setCessing(false)
-      }
+      setConfirmDialog({
+          isOpen: true,
+          title: 'Dar de Baja',
+          message: `⚠️ ¿CONFIRMAR CESE para ${selectedIds.length} trabajadores? \n\nPasarán a la lista de Cesados y saldrán de los activos definitivamente.`,
+          confirmText: 'Confirmar Cese',
+          confirmColor: 'bg-red-600 hover:bg-red-700 text-white',
+          icon: <UserX className="text-red-500" size={32}/>,
+          onConfirm: async () => {
+              setConfirmDialog(prev => ({...prev, isOpen: false}));
+              setCessing(true)
+              try {
+                  const { error } = await supabase.from('fichas').update({ es_cesado: true, fecha_cese: new Date().toISOString(), in_vida_ley: false, in_sctr: false }).in('id', selectedIds)
+                  if (error) throw error
+                  toast.success(`${selectedIds.length} trabajadores dados de baja exitosamente.`)
+                  setFichas(prev => prev.filter(f => !selectedIds.includes(f.id)))
+                  setSelectedIds([])
+                  emitAdminAction("cesó", `a ${selectedIds.length} trabajadores`)
+              } catch (error: any) { toast.error("Error al cesar: " + error.message) } finally { setCessing(false) }
+          }
+      });
   }
 
   const handleExportVidaLey = () => {
@@ -606,12 +690,22 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
   };
 
   const handleResetConfirmation = async (id: string) => {
-      if(!confirm("¿Deseas anular la confirmación de recepción y volver a estado Pendiente?")) return;
-      const { error } = await supabase.from('fichas').update({ email_confirmed_at: null }).eq('id', id)
-      if (error) { toast.error("Error al resetear: " + error.message) } else {
-          toast.success("Estado reseteado a Pendiente")
-          setFichas(prev => prev.map(f => f.id === id ? { ...f, email_confirmed_at: null } : f))
-      }
+      setConfirmDialog({
+          isOpen: true,
+          title: 'Resetear Confirmación',
+          message: '¿Deseas anular la confirmación de recepción y volver a poner el estado en Pendiente?',
+          confirmText: 'Resetear',
+          confirmColor: 'bg-amber-600 hover:bg-amber-700 text-white',
+          icon: <RotateCcw className="text-amber-500" size={32}/>,
+          onConfirm: async () => {
+              setConfirmDialog(prev => ({...prev, isOpen: false}));
+              const { error } = await supabase.from('fichas').update({ email_confirmed_at: null }).eq('id', id)
+              if (error) { toast.error("Error al resetear: " + error.message) } else {
+                  toast.success("Estado reseteado a Pendiente")
+                  setFichas(prev => prev.map(f => f.id === id ? { ...f, email_confirmed_at: null } : f))
+              }
+          }
+      });
   }
 
   const handleDownloadPDF = async (ficha: any) => {
@@ -650,7 +744,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
   }
 
   const handleGenerateCombinedDocs = async () => {
-      if (selectedDocsToPrint.length === 0) { toast.warning("Selecciona al menos un documento"); return }
+      if (selectedDocsToPrint.length === 0) { toast.warning("Selecciona al least un documento"); return }
       setPreparingDoc(true)
       setShowDocSelector(false) 
       emitAdminAction("está imprimiendo", `Legajo de ${workerToPrint?.nombres}`)
@@ -709,6 +803,22 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
   return (
     <div className="flex flex-col h-full w-full bg-white rounded-3xl border border-slate-200/60 shadow-xl shadow-slate-200/40 overflow-hidden relative font-sans">
       
+      {/* MODAL DE CONFIRMACIÓN GLOBAL ADMIN TABLE */}
+      <AnimatePresence>
+          {confirmDialog.isOpen && (
+              <ConfirmModal 
+                  isOpen={confirmDialog.isOpen} 
+                  onClose={() => setConfirmDialog(prev => ({...prev, isOpen: false}))}
+                  title={confirmDialog.title}
+                  message={confirmDialog.message}
+                  confirmText={confirmDialog.confirmText}
+                  confirmColor={confirmDialog.confirmColor}
+                  icon={confirmDialog.icon}
+                  onConfirm={confirmDialog.onConfirm}
+              />
+          )}
+      </AnimatePresence>
+
       {/* CONTENEDOR OCULTO DE IMPRESIÓN */}
       <div className="fixed top-0 left-0 pointer-events-none opacity-0 overflow-hidden" style={{ zIndex: -100 }}>
           <div ref={printRef} style={{ width: 'fit-content', backgroundColor: '#ffffff', color: '#000000' }}>
@@ -838,39 +948,43 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                     </button>
                     <AnimatePresence>
                         {showNotifDropdown && (
-                            <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }} className="absolute right-0 top-full mt-3 w-96 bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden z-50 origin-top-right">
+                            <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }} className="absolute right-0 top-full mt-3 w-[400px] bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden z-50 origin-top-right">
                                 {/* Cabecera Principal */}
                                 <div className="p-4 border-b border-slate-100 bg-white flex justify-between items-center">
                                     <h4 className="font-bold text-slate-800 text-sm">Centro de Notificaciones</h4>
-                                    <button onClick={() => setShowNotifDropdown(false)}><X size={16} className="text-slate-400 hover:text-slate-600"/></button>
+                                    <button onClick={() => setShowNotifDropdown(false)} className="p-1 hover:bg-slate-100 rounded-md transition-colors"><X size={16} className="text-slate-400 hover:text-slate-600"/></button>
                                 </div>
 
-                                <div className="max-h-[400px] overflow-y-auto bg-slate-50/50">
+                                <div className="max-h-[400px] overflow-y-auto bg-slate-50/80">
                                     
                                     {/* SECCIÓN 1: MENSAJES (Borrables) */}
                                     {chatNotifs.length > 0 && (
                                         <div className="mb-2">
-                                            <div className="px-4 py-2 bg-blue-50/80 border-b border-blue-100 flex justify-between items-center sticky top-0 backdrop-blur-sm z-10">
-                                                <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider flex items-center gap-1"><MessageSquare size={12}/> Mensajes Recientes</span>
-                                                <button onClick={handleClearChats} className="text-[10px] text-blue-600 font-bold hover:underline cursor-pointer">Borrar Leídos</button>
+                                            <div className="px-4 py-2.5 bg-blue-50/90 border-b border-blue-100 flex justify-between items-center sticky top-0 backdrop-blur-md z-10 shadow-sm">
+                                                <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider flex items-center gap-1.5"><MessageSquare size={14}/> Mensajes Recientes</span>
+                                                <button onClick={handleClearChats} className="text-[10px] bg-white border border-blue-200 px-2 py-1 rounded-md text-blue-600 font-bold hover:bg-blue-600 hover:text-white transition-colors shadow-sm active:scale-95">Limpiar</button>
                                             </div>
-                                            <div>
-                                                {chatNotifs.map((notif) => {
-                                                    const w = fichas.find(f => f.user_id === notif.worker_id); 
-                                                    const name = w ? w.nombres.split(' ')[0] : 'Obrero';
-                                                    return (
-                                                        <div key={notif.id} onClick={() => handleNotificationClick(notif)} className="p-3 hover:bg-blue-50 transition-colors border-b border-slate-100 cursor-pointer group bg-white">
-                                                            <div className="flex items-start gap-3">
-                                                                <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold shrink-0">{name.charAt(0)}</div>
-                                                                <div className="min-w-0">
-                                                                    <p className="text-sm font-bold text-slate-800 group-hover:text-blue-700 transition-colors">{name}</p>
-                                                                    <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{notif.msg}</p>
-                                                                    <p className="text-[10px] text-slate-400 mt-1">{notif.time}</p>
+                                            <div className="p-2 space-y-2">
+                                                <AnimatePresence mode="popLayout">
+                                                    {chatNotifs.map((notif) => {
+                                                        const w = fichas.find(f => f.user_id === notif.worker_id); 
+                                                        const name = w ? w.nombres.split(' ')[0] : 'Obrero';
+                                                        return (
+                                                            <motion.div layout initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, scale: 0.9, x: 20 }} key={notif.id} onClick={() => handleNotificationClick(notif)} className="p-3 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-blue-300 transition-all cursor-pointer group">
+                                                                <div className="flex items-start gap-3">
+                                                                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-100 to-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center text-sm font-bold shrink-0 shadow-inner">{name.charAt(0)}</div>
+                                                                    <div className="min-w-0 flex-1">
+                                                                        <div className="flex justify-between items-start">
+                                                                            <p className="text-sm font-bold text-slate-800 group-hover:text-blue-700 transition-colors truncate pr-2">{name}</p>
+                                                                            <span className="text-[9px] font-medium text-slate-400 whitespace-nowrap bg-slate-100 px-1.5 py-0.5 rounded">{notif.time}</span>
+                                                                        </div>
+                                                                        <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">{notif.msg}</p>
+                                                                    </div>
                                                                 </div>
-                                                            </div>
-                                                        </div>
-                                                    )
-                                                })}
+                                                            </motion.div>
+                                                        )
+                                                    })}
+                                                </AnimatePresence>
                                             </div>
                                         </div>
                                     )}
@@ -878,24 +992,32 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                                     {/* SECCIÓN 2: HISTORIAL ADMIN (Permanente) */}
                                     {actionNotifs.length > 0 && (
                                         <div>
-                                            <div className="px-4 py-2 bg-amber-50/80 border-b border-amber-100 border-t border-slate-200 sticky top-0 backdrop-blur-sm z-10">
-                                                <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider flex items-center gap-1"><History size={12}/> Historial de Cambios</span>
+                                            <div className="px-4 py-2.5 bg-slate-100/90 border-y border-slate-200 sticky top-0 backdrop-blur-md z-10 shadow-sm flex justify-between items-center">
+                                                <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5"><History size={14}/> Historial de Cambios</span>
+                                                <button onClick={handleClearHistory} className="text-[10px] bg-white border border-slate-300 px-2 py-1 rounded-md text-slate-600 font-bold hover:bg-slate-200 transition-colors shadow-sm active:scale-95">Limpiar</button>
                                             </div>
-                                            <div className="divide-y divide-slate-100">
-                                                {actionNotifs.map((notif) => (
-                                                    <div key={notif.id} className="p-3 bg-white/60 hover:bg-white transition-colors cursor-default">
-                                                        <div className="flex items-start gap-3">
-                                                            <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center text-xs font-bold shrink-0">
-                                                                <Zap size={14}/>
-                                                            </div>
-                                                            <div>
-                                                                <p className="text-xs font-bold text-slate-700"><span className="text-amber-600">{notif.user}</span> {notif.msg}</p>
-                                                                <p className="text-[11px] text-slate-500 mt-0.5 italic">"{notif.details}"</p>
-                                                                <p className="text-[9px] text-slate-400 mt-1">{notif.time}</p>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ))}
+                                            <div className="p-2 space-y-2">
+                                                <AnimatePresence mode="popLayout">
+                                                    {actionNotifs.map((notif) => {
+                                                        const style = getActionStyle(notif.msg);
+                                                        return (
+                                                            <motion.div layout initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} key={notif.id} className="p-3 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all cursor-default group">
+                                                                <div className="flex items-start gap-3">
+                                                                    <div className={`w-9 h-9 rounded-full ${style.bg} ${style.text} flex items-center justify-center text-xs font-bold shrink-0 border ${style.border} shadow-inner group-hover:scale-110 transition-transform`}>
+                                                                        {style.icon}
+                                                                    </div>
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <div className="flex justify-between items-start">
+                                                                            <p className="text-sm font-bold text-slate-700 leading-tight"><span className={style.text}>{notif.user}</span> <span className="font-medium text-slate-600">{notif.msg}</span></p>
+                                                                            <span className="text-[9px] font-medium text-slate-400 flex items-center gap-1 bg-slate-100 px-1.5 py-0.5 rounded shrink-0 ml-2"><Clock size={10}/> {notif.time}</span>
+                                                                        </div>
+                                                                        <p className="text-[11px] text-slate-500 mt-1 italic leading-relaxed border-l-2 border-slate-200 pl-2 ml-0.5">"{notif.details}"</p>
+                                                                    </div>
+                                                                </div>
+                                                            </motion.div>
+                                                        )
+                                                    })}
+                                                </AnimatePresence>
                                             </div>
                                         </div>
                                     )}
@@ -938,6 +1060,11 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                         <motion.div initial={{opacity:0, scale:0.9, x: 20}} animate={{opacity:1, scale:1, x: 0}} exit={{opacity:0, scale:0.9, x: 20}} className="flex items-center gap-2 bg-slate-900 p-1.5 rounded-xl shadow-xl shadow-slate-900/20" id="tour-bulk-actions">
                             <span className="text-xs font-bold text-slate-400 px-2">{selectedIds.length}</span><div className="w-[1px] h-4 bg-slate-700 mx-1"></div>
                             
+                            {/* NUEVO BOTÓN: ABRIR FICHAS (MASIVO) */}
+                            <button onClick={handleBulkOpenFichas} disabled={openingFichas} className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg font-bold text-xs hover:bg-blue-700 transition-colors" title="Abrir Fichas (Pendiente)">
+                                {openingFichas ? <Loader2 className="animate-spin" size={14}/> : <Unlock size={14}/>} <span className="hidden sm:inline">ABRIR FICHAS</span>
+                            </button>
+
                             <button onClick={handleMoveToCesados} disabled={cessing} className="flex items-center gap-2 px-3 py-2 bg-red-600 text-white rounded-lg font-bold text-xs hover:bg-red-700 transition-colors" title="Dar de Baja Definitiva">
                                 {cessing ? <Loader2 className="animate-spin" size={14}/> : <UserX size={14}/>} <span className="hidden sm:inline">DAR DE BAJA</span>
                             </button>
@@ -1192,6 +1319,12 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
     }))
     const [saving, setSaving] = useState(false)
     const [loadingAction, setLoadingAction] = useState(false)
+
+    // ESTADO DEL MODAL DE CONFIRMACIÓN EN EL DRAWER
+    const [confirmDialog, setConfirmDialog] = useState<{
+        isOpen: boolean; title: string; message: string; confirmText: string; confirmColor: string; icon: any; onConfirm: () => void;
+    }>({ isOpen: false, title: '', message: '', confirmText: 'Aceptar', confirmColor: 'bg-blue-600', icon: null, onConfirm: () => {} });
+
     useEffect(() => {
         let esposaObj = { paterno: '', materno: '', nombres: '', dni: '' }
         let hijosArr: any[] = []
@@ -1226,14 +1359,24 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
         } catch (error: any) { toast.error("Error: " + error.message) } finally { setLoadingAction(false) }
     }
     const handleDeleteDoc = async (field: string) => {
-        if (!confirm("¿Eliminar este documento?")) return
-        const { error } = await supabase.from('fichas').update({ [field]: null }).eq('id', ficha.id)
-        if (error) toast.error("Error al eliminar")
-        else {
-            toast.success("Documento eliminado")
-            setFormData((prev: any) => ({ ...prev, [field]: null }))
-            onUpdate() 
-        }
+        setConfirmDialog({
+            isOpen: true,
+            title: 'Eliminar Documento',
+            message: '¿Estás seguro de eliminar este documento adjunto?\n\nEsta acción no se puede deshacer y el archivo se perderá.',
+            confirmText: 'Eliminar',
+            confirmColor: 'bg-red-600 hover:bg-red-700 text-white',
+            icon: <Trash2 className="text-red-500" size={32}/>,
+            onConfirm: async () => {
+                setConfirmDialog(prev => ({...prev, isOpen: false}));
+                const { error } = await supabase.from('fichas').update({ [field]: null }).eq('id', ficha.id)
+                if (error) toast.error("Error al eliminar")
+                else {
+                    toast.success("Documento eliminado")
+                    setFormData((prev: any) => ({ ...prev, [field]: null }))
+                    onUpdate() 
+                }
+            }
+        });
     }
     const handleEsposaChange = (field: string, val: string) => setFormData((prev:any) => ({ ...prev, esposa_datos: { ...prev.esposa_datos, [field]: val } }))
     const addHijo = () => setFormData((prev:any) => ({ ...prev, hijos_datos: [...prev.hijos_datos, { paterno: '', materno: '', nombres: '', fecha_nacimiento: '' }] }))
@@ -1259,7 +1402,24 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
     }
     return (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex justify-end" onClick={onClose}>
-            <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", damping: 30, stiffness: 300 }} className="w-full max-w-2xl bg-white h-full shadow-2xl flex flex-col border-l border-white/20" onClick={e => e.stopPropagation()}>
+            <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", damping: 30, stiffness: 300 }} className="w-full max-w-2xl bg-white h-full shadow-2xl flex flex-col border-l border-white/20 relative" onClick={e => e.stopPropagation()}>
+                
+                {/* MODAL DE CONFIRMACIÓN DEL DRAWER */}
+                <AnimatePresence>
+                    {confirmDialog.isOpen && (
+                        <ConfirmModal 
+                            isOpen={confirmDialog.isOpen} 
+                            onClose={() => setConfirmDialog(prev => ({...prev, isOpen: false}))}
+                            title={confirmDialog.title}
+                            message={confirmDialog.message}
+                            confirmText={confirmDialog.confirmText}
+                            confirmColor={confirmDialog.confirmColor}
+                            icon={confirmDialog.icon}
+                            onConfirm={confirmDialog.onConfirm}
+                        />
+                    )}
+                </AnimatePresence>
+
                 <div id="drawer-header" className="h-24 px-8 border-b border-slate-100 flex justify-between items-center bg-white z-10 shrink-0 relative overflow-hidden">
                     <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none"><ShieldCheck size={120} /></div>
                     <div className="flex items-center gap-5 relative z-10">
@@ -1523,3 +1683,31 @@ function DocCard({label, url, onDelete, isEditing, onUpload}: any) { const fileR
 function PrintPreviewModal({ image, onClose }: { image: string, onClose: () => void }) {
     const handlePrint = () => { const iframe = document.createElement('iframe'); iframe.style.position = 'absolute'; iframe.width='0'; iframe.height='0'; iframe.style.border='none'; document.body.appendChild(iframe); const doc = iframe.contentWindow?.document; if (doc) { doc.open(); doc.write(`<html><body onload="window.print()"><img src="${image}" style="width:100%"/></body></html>`); doc.close(); setTimeout(() => document.body.removeChild(iframe), 5000); } };
     return (<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={onClose}><motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-white rounded-3xl overflow-hidden shadow-2xl max-w-lg w-full flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}><div className="p-5 border-b flex justify-between items-center bg-white"><h3 className="font-bold text-slate-800 flex items-center gap-2"><Printer size={20} className="text-blue-600"/> Vista Previa</h3><button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20}/></button></div><div className="flex-1 overflow-y-auto p-8 bg-slate-50 flex justify-center"><div className="bg-white shadow-xl p-2 rounded-lg border border-slate-100"><img src={image} className="w-full h-auto max-w-[300px] object-contain" /></div></div><div className="p-5 border-t bg-white flex gap-3"><button onClick={onClose} className="flex-1 py-3.5 rounded-xl font-bold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">Cancelar</button><button onClick={handlePrint} className="flex-1 py-3.5 rounded-xl font-bold bg-slate-900 text-white hover:bg-slate-800 shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95"><Printer size={18}/> Imprimir</button></div></motion.div></motion.div>) }
+
+// --- NUEVO MODAL DE CONFIRMACIÓN PERSONALIZADO ---
+function ConfirmModal({ isOpen, onClose, title, message, confirmText, confirmColor, icon, onConfirm }: any) {
+    if (!isOpen) return null;
+    return (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" onClick={onClose}>
+            <motion.div 
+                initial={{ opacity: 0, scale: 0.95, y: 10 }} 
+                animate={{ opacity: 1, scale: 1, y: 0 }} 
+                exit={{ opacity: 0, scale: 0.95, y: 10 }} 
+                className="bg-white rounded-3xl shadow-2xl overflow-hidden w-full max-w-sm flex flex-col"
+                onClick={e => e.stopPropagation()}
+            >
+                <div className="p-6 text-center flex flex-col items-center gap-4">
+                    <div className={`p-4 rounded-full bg-slate-50 border border-slate-100 shadow-sm`}>
+                        {icon || <AlertCircle size={32} className="text-amber-500" />}
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-800">{title}</h3>
+                    <p className="text-sm text-slate-500 font-medium whitespace-pre-wrap leading-relaxed">{message}</p>
+                </div>
+                <div className="p-4 bg-slate-50 border-t border-slate-100 flex gap-3">
+                    <button onClick={onClose} className="flex-1 py-3 rounded-xl font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-100 transition-colors">Cancelar</button>
+                    <button onClick={onConfirm} className={`flex-1 py-3 rounded-xl font-bold shadow-md hover:shadow-lg transition-all active:scale-95 ${confirmColor}`}>{confirmText}</button>
+                </div>
+            </motion.div>
+        </div>
+    )
+}
