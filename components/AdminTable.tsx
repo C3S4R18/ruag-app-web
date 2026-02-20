@@ -379,6 +379,9 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                               const isRemoved = hijo.baja_beneficio === true; 
                               const requestDate = hijo.fecha_solicitud_constancia ? new Date(hijo.fecha_solicitud_constancia) : null;
 
+                              // LÓGICA MEJORADA: 
+                              // Solo entra si tiene 18 o más, PERO menos de 25 años.
+                              // Además, si ya marcaste "isExtended" o "isRemoved", NO DEBE SALIR EN LA LISTA.
                               if (age >= 18 && age < 25 && !isExtended && !isRemoved) {
                                   let daysWaiting = 0;
                                   let status = 'new'; 
@@ -444,6 +447,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
       if (error) {
           toast.error("Error al actualizar: " + error.message);
       } else {
+          // Actualizamos la ficha localmente y luego RE-EVALUAMOS todo para que desaparezca
           const updatedFichas = fichas.map(f => f.id === worker.id ? { ...f, hijos: hijosArray } : f);
           setFichas(updatedFichas);
           checkForAdultChildren(updatedFichas); 
@@ -1682,7 +1686,8 @@ function DocCard({label, url, onDelete, isEditing, onUpload}: any) { const fileR
 
 function PrintPreviewModal({ image, onClose }: { image: string, onClose: () => void }) {
     const handlePrint = () => { const iframe = document.createElement('iframe'); iframe.style.position = 'absolute'; iframe.width='0'; iframe.height='0'; iframe.style.border='none'; document.body.appendChild(iframe); const doc = iframe.contentWindow?.document; if (doc) { doc.open(); doc.write(`<html><body onload="window.print()"><img src="${image}" style="width:100%"/></body></html>`); doc.close(); setTimeout(() => document.body.removeChild(iframe), 5000); } };
-    return (<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={onClose}><motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-white rounded-3xl overflow-hidden shadow-2xl max-w-lg w-full flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}><div className="p-5 border-b flex justify-between items-center bg-white"><h3 className="font-bold text-slate-800 flex items-center gap-2"><Printer size={20} className="text-blue-600"/> Vista Previa</h3><button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20}/></button></div><div className="flex-1 overflow-y-auto p-8 bg-slate-50 flex justify-center"><div className="bg-white shadow-xl p-2 rounded-lg border border-slate-100"><img src={image} className="w-full h-auto max-w-[300px] object-contain" /></div></div><div className="p-5 border-t bg-white flex gap-3"><button onClick={onClose} className="flex-1 py-3.5 rounded-xl font-bold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">Cancelar</button><button onClick={handlePrint} className="flex-1 py-3.5 rounded-xl font-bold bg-slate-900 text-white hover:bg-slate-800 shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95"><Printer size={18}/> Imprimir</button></div></motion.div></motion.div>) }
+    return (<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4" onClick={onClose}><motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="bg-white rounded-3xl overflow-hidden shadow-2xl max-w-lg w-full flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}><div className="p-5 border-b flex justify-between items-center bg-white"><h3 className="font-bold text-slate-800 flex items-center gap-2"><Printer size={20} className="text-blue-600"/> Vista Previa</h3><button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X size={20}/></button></div><div className="flex-1 overflow-y-auto p-8 bg-slate-50 flex justify-center"><div className="bg-white shadow-xl p-2 rounded-lg border border-slate-100"><img src={image} className="w-full h-auto max-w-[300px] object-contain" /></div></div><div className="p-5 border-t bg-white flex gap-3"><button onClick={onClose} className="flex-1 py-3.5 rounded-xl font-bold border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">Cancelar</button><button onClick={handlePrint} className="flex-1 py-3.5 rounded-xl font-bold bg-slate-900 text-white hover:bg-slate-800 shadow-lg flex items-center justify-center gap-2 transition-transform active:scale-95"><Printer size={18}/> Imprimir</button></div></motion.div></motion.div>) 
+}
 
 // --- NUEVO MODAL DE CONFIRMACIÓN PERSONALIZADO ---
 function ConfirmModal({ isOpen, onClose, title, message, confirmText, confirmColor, icon, onConfirm }: any) {
