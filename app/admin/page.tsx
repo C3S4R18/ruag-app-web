@@ -280,11 +280,10 @@ export default function AdminPage() {
   const fetchData = async () => {
       if (workersData.length === 0) setLoadingData(true)
       
-      // 1. OBREROS
+      // 1. OBREROS (Modificado: Se quitó el filtro que excluía a los admins, ahora trae TODOS los registros de 'fichas')
       const { data: workers, error: errorWorkers } = await supabase
         .from('fichas')
-        .select('*, profiles!inner(role)')
-        .neq('profiles.role', 'admin')
+        .select('*')
         .order('updated_at', { ascending: false })
       
       // 2. ADMINS
