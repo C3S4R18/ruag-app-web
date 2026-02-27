@@ -4,7 +4,64 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import { toast } from 'sonner'
 import * as XLSX from 'xlsx'
-import { Save, FileSpreadsheet, Loader2, Search, RotateCcw } from 'lucide-react'
+import { Save, FileSpreadsheet, Loader2, Search, RotateCcw, AlertTriangle } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+
+// --- COMPONENTE DE ALERTA MODERNA Y ANIMADA (CORREGIDO CON TYPESCRIPT) ---
+interface ModernConfirmDialogProps {
+    isOpen: boolean;
+    onClose: () => void;
+    onConfirm: () => void;
+    title: string;
+    description: string;
+}
+
+const ModernConfirmDialog = ({ isOpen, onClose, onConfirm, title, description }: ModernConfirmDialogProps) => {
+    return (
+        <AnimatePresence>
+            {isOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
+                    {/* Overlay de fondo con animación */}
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="absolute inset-0 bg-black/30"
+                        onClick={onClose}
+                    />
+
+                    {/* Contenedor del diálogo con animación */}
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                        transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                        className="w-full max-w-md bg-slate-950 p-7 rounded-3xl border border-slate-800 shadow-2xl relative z-10"
+                    >
+                        <div className="flex items-start gap-4">
+                            <div className="p-3 bg-red-950 rounded-full border border-red-800 flex-shrink-0">
+                                <AlertTriangle className="text-red-500" size={26}/>
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold text-white leading-tight">{title}</h3>
+                                <p className="text-slate-400 mt-2 text-sm leading-relaxed">{description}</p>
+                            </div>
+                        </div>
+                        <div className="flex justify-end gap-3 mt-9">
+                            <button onClick={onClose} className="px-6 py-3 rounded-xl border border-slate-800 text-slate-300 font-semibold hover:bg-slate-800 transition text-sm">
+                                Cancelar
+                            </button>
+                            <button onClick={onConfirm} className="px-6 py-3 rounded-xl bg-red-600 text-white font-bold hover:bg-red-700 transition shadow-lg shadow-red-600/20 text-sm">
+                                Aceptar y Continuar
+                            </button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
+        </AnimatePresence>
+    );
+};
+// -----------------------------------------------------
 
 export default function VidaLeyManager() {
     const supabase = createClient()
@@ -12,6 +69,13 @@ export default function VidaLeyManager() {
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [searchTerm, setSearchTerm] = useState('')
+    
+    // --- NUEVO ESTADO: SELECCIÓN MÚLTIPLE ---
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+
+    // --- ESTADOS PARA CONTROLAR LOS DIÁLOGOS DE CONFIRMACIÓN ---
+    const [confirmSingleId, setConfirmSingleId] = useState<string | null>(null);
+    const [confirmMultipleOpen, setConfirmMultipleOpen] = useState(false);
 
     // Cargar trabajadores que están en "Vida Ley"
     const fetchWorkers = async () => {
@@ -44,6 +108,7 @@ export default function VidaLeyManager() {
                 }
             })
             setWorkers(mapped)
+            setSelectedIds(new Set()) // Limpiar selección al recargar
         }
         setLoading(false)
     }
@@ -99,10 +164,16 @@ export default function VidaLeyManager() {
         toast.success("Excel descargado correctamente")
     }
 
-    // --- FUNCIÓN PARA REGRESAR A LA TABLA PRINCIPAL ---
-    const handleRemoveFromVidaLey = async (id: string) => {
-        if(!confirm("¿Regresar este trabajador a la lista principal de activos?")) return
-        
+    // --- FUNCIÓN PARA REGRESAR A LA TABLA PRINCIPAL (UNO SOLO) ---
+    const handleRemoveFromVidaLeyClick = (id: string) => {
+        setConfirmSingleId(id);
+    };
+
+    const confirmSingleAction = async () => {
+        if (!confirmSingleId) return;
+        const id = confirmSingleId;
+        setConfirmSingleId(null); 
+
         // Al poner in_vida_ley en false, vuelve a aparecer en AdminTable
         const { error } = await supabase.from('fichas').update({ in_vida_ley: false, datos_vida_ley: null }).eq('id', id)
         
@@ -110,32 +181,69 @@ export default function VidaLeyManager() {
             toast.error("Error al mover el trabajador")
         } else {
             toast.success("Trabajador regresado a lista principal")
-            // Lo sacamos de la vista actual
             setWorkers(prev => prev.filter(w => w.id !== id))
+            setSelectedIds(prev => { const next = new Set(prev); next.delete(id); return next; })
         }
+    };
+
+    // --- NUEVA FUNCIÓN: REGRESAR MASIVAMENTE ---
+    const handleRemoveMultipleClick = () => {
+        if (selectedIds.size === 0) return;
+        setConfirmMultipleOpen(true);
+    };
+
+    const confirmMultipleAction = async () => {
+        setConfirmMultipleOpen(false);
+        const idsArray = Array.from(selectedIds);
+        
+        const { error } = await supabase
+            .from('fichas')
+            .update({ in_vida_ley: false, datos_vida_ley: null })
+            .in('id', idsArray)
+        
+        if(error) {
+            toast.error("Error al mover trabajadores")
+        } else {
+            toast.success(`${selectedIds.size} trabajadores regresados a lista principal`)
+            setWorkers(prev => prev.filter(w => !selectedIds.has(w.id)))
+            setSelectedIds(new Set()) 
+        }
+    };
+
+    // --- MANEJO DE CHECKBOXES ---
+    const handleSelectAll = (checked: boolean) => {
+        if (checked) {
+            setSelectedIds(new Set(filteredWorkers.map(w => w.id)))
+        } else {
+            setSelectedIds(new Set())
+        }
+    }
+
+    const handleSelectOne = (id: string, checked: boolean) => {
+        setSelectedIds(prev => {
+            const next = new Set(prev)
+            if (checked) next.add(id)
+            else next.delete(id)
+            return next
+        })
     }
 
     // --- NUEVO: FUNCIÓN PARA ENVIAR POR OUTLOOK ---
     const handleEnviarOutlook = () => {
-        // 1. Descargar el Excel primero
         handleExportExcel();
 
-        // 2. Preparar los datos del correo
         const destinatario = "emision@atlanticcorredores.com";
         const fecha = new Date().toLocaleDateString('es-PE');
         const asunto = `Envío de Trama Vida Ley - ${fecha}`;
         const cuerpo = `Estimados,\n\nAdjunto sírvanse encontrar la trama Vida Ley actualizada.\n\nAtentamente,\nAdministración RUAG`;
 
-        // 3. Crear el link mailto
         const mailtoLink = `mailto:${destinatario}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`;
 
-        // 4. Abrir Outlook (con un pequeño retraso para que no interrumpa la descarga)
         setTimeout(() => {
             window.location.href = mailtoLink;
             toast.info("Outlook abierto. Por favor adjunta el Excel descargado.", { duration: 5000, icon: '📧' });
         }, 1000);
     }
-    // ----------------------------------------------
 
     const filteredWorkers = workers.filter(w => 
         (w.nombres || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -161,6 +269,19 @@ export default function VidaLeyManager() {
                 </div>
                 
                 <div className="flex gap-3 items-center">
+                    
+                    {/* BOTÓN MASIVO CONDICIONAL */}
+                    {selectedIds.size > 0 && (
+                        <button 
+                            onClick={handleRemoveMultipleClick}
+                            className="flex items-center gap-2 bg-red-100 text-red-600 px-4 py-2.5 rounded-xl font-bold text-sm hover:bg-red-200 transition-colors mr-2 border border-red-200"
+                            title="Regresar seleccionados al Dashboard"
+                        >
+                            <RotateCcw size={16}/> 
+                            Regresar Seleccionados ({selectedIds.size})
+                        </button>
+                    )}
+
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16}/>
                         <input 
@@ -180,17 +301,14 @@ export default function VidaLeyManager() {
                         <FileSpreadsheet size={16}/> Excel
                     </button>
 
-                    {/* --- BOTÓN NUEVO: ENVIAR OUTLOOK --- */}
                     <button 
                         onClick={handleEnviarOutlook}
                         className="flex items-center gap-2 px-4 py-2.5 bg-[#0078D4] hover:bg-[#005a9e] text-white rounded-xl font-bold text-sm shadow-lg shadow-blue-900/20 transition-all active:scale-95 border border-white/10"
                         title="Descargar y abrir Outlook"
                     >
-                        {/* Icono Outlook/Mail */}
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
                         <span className="hidden xl:inline">Enviar a Atlantic</span>
                     </button>
-                    {/* ----------------------------------- */}
                 </div>
             </div>
 
@@ -200,6 +318,14 @@ export default function VidaLeyManager() {
                     <table className="w-full text-xs text-left border-collapse">
                         <thead className="bg-slate-800 text-white sticky top-0 z-10">
                             <tr>
+                                <th className="p-3 border-r border-slate-600 w-10 text-center">
+                                    <input 
+                                        type="checkbox" 
+                                        className="cursor-pointer"
+                                        checked={filteredWorkers.length > 0 && selectedIds.size === filteredWorkers.length}
+                                        onChange={(e) => handleSelectAll(e.target.checked)}
+                                    />
+                                </th>
                                 <th className="p-3 border-r border-slate-600 w-10 text-center">#</th>
                                 <th className="p-3 border-r border-slate-600 min-w-[150px]">Nombres</th>
                                 <th className="p-3 border-r border-slate-600 min-w-[120px]">Paterno</th>
@@ -217,10 +343,18 @@ export default function VidaLeyManager() {
                         </thead>
                         <tbody className="divide-y divide-slate-200">
                             {filteredWorkers.map((w, idx) => (
-                                <tr key={w.id} className="hover:bg-blue-50/50 group">
+                                <tr key={w.id} className={`hover:bg-blue-50/50 group ${selectedIds.has(w.id) ? 'bg-blue-50/30' : ''}`}>
+                                    <td className="p-1 border-r text-center">
+                                        <input 
+                                            type="checkbox" 
+                                            className="cursor-pointer"
+                                            checked={selectedIds.has(w.id)}
+                                            onChange={(e) => handleSelectOne(w.id, e.target.checked)}
+                                        />
+                                    </td>
+                                    
                                     <td className="p-1 border-r text-center text-slate-400 font-mono">{idx + 1}</td>
                                     
-                                    {/* Inputs Editables */}
                                     <td className="p-0 border-r"><input type="text" className="w-full h-full p-2 outline-none bg-transparent focus:bg-blue-50 focus:ring-2 focus:ring-inset focus:ring-blue-500" value={w.nombres} onChange={(e) => handleCellChange(w.id, 'nombres', e.target.value)}/></td>
                                     <td className="p-0 border-r"><input type="text" className="w-full h-full p-2 outline-none bg-transparent focus:bg-blue-50 focus:ring-2 focus:ring-inset focus:ring-blue-500" value={w.paterno} onChange={(e) => handleCellChange(w.id, 'paterno', e.target.value)}/></td>
                                     <td className="p-0 border-r"><input type="text" className="w-full h-full p-2 outline-none bg-transparent focus:bg-blue-50 focus:ring-2 focus:ring-inset focus:ring-blue-500" value={w.materno} onChange={(e) => handleCellChange(w.id, 'materno', e.target.value)}/></td>
@@ -239,7 +373,7 @@ export default function VidaLeyManager() {
                                     
                                     <td className="p-0 text-center border-l border-slate-200">
                                         <button 
-                                            onClick={() => handleRemoveFromVidaLey(w.id)} 
+                                            onClick={() => handleRemoveFromVidaLeyClick(w.id)}
                                             className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors w-full h-full flex items-center justify-center" 
                                             title="Regresar a lista principal"
                                         >
@@ -253,6 +387,24 @@ export default function VidaLeyManager() {
                 </div>
                 {filteredWorkers.length === 0 && <div className="text-center p-10 text-slate-400">No hay trabajadores en la lista de Vida Ley. Agrégalos desde el Panel Principal.</div>}
             </div>
+
+            {/* Diálogo para confirmación individual */}
+            <ModernConfirmDialog 
+                isOpen={confirmSingleId !== null}
+                onClose={() => setConfirmSingleId(null)}
+                onConfirm={confirmSingleAction}
+                title="¿Regresar trabajador?"
+                description="¿Estás seguro de regresar este trabajador a la lista principal de activos? Dejará de aparecer en esta trama."
+            />
+
+            {/* Diálogo para confirmación masiva */}
+            <ModernConfirmDialog 
+                isOpen={confirmMultipleOpen}
+                onClose={() => setConfirmMultipleOpen(false)}
+                onConfirm={confirmMultipleAction}
+                title={`¿Regresar ${selectedIds.size} trabajadores?`}
+                description={`¿Estás seguro de regresar los ${selectedIds.size} trabajadores seleccionados a la lista principal de activos? Dejarán de aparecer en esta trama.`}
+            />
         </div>
     )
 }

@@ -2,15 +2,70 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/utils/supabase/client'
-// CAMBIO: Usamos ExcelJS para estilos avanzados (Colores, Bordes, WrapText)
 import ExcelJS from 'exceljs'
 import { saveAs } from 'file-saver'
 import { 
     Loader2, FileSpreadsheet, Search, ArrowLeft, 
-    ShieldCheck, AlertCircle, Users, Trash2
+    ShieldCheck, AlertCircle, Users, Trash2, RotateCcw, AlertTriangle
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
+
+// --- COMPONENTE DE ALERTA MODERNA Y ANIMADA (CORREGIDO CON TYPESCRIPT) ---
+interface ModernConfirmDialogProps {
+    isOpen: boolean;
+    onClose: () => void;
+    onConfirm: () => void;
+    title: string;
+    description: string;
+}
+
+const ModernConfirmDialog = ({ isOpen, onClose, onConfirm, title, description }: ModernConfirmDialogProps) => {
+    return (
+        <AnimatePresence>
+            {isOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
+                    {/* Overlay de fondo con animación */}
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="absolute inset-0 bg-black/30"
+                        onClick={onClose}
+                    />
+
+                    {/* Contenedor del diálogo con animación */}
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                        transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                        className="w-full max-w-md bg-slate-950 p-7 rounded-3xl border border-slate-800 shadow-2xl relative z-10"
+                    >
+                        <div className="flex items-start gap-4">
+                            <div className="p-3 bg-red-950 rounded-full border border-red-800 flex-shrink-0">
+                                <AlertTriangle className="text-red-500" size={26}/>
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-bold text-white leading-tight">{title}</h3>
+                                <p className="text-slate-400 mt-2 text-sm leading-relaxed">{description}</p>
+                            </div>
+                        </div>
+                        <div className="flex justify-end gap-3 mt-9">
+                            <button onClick={onClose} className="px-6 py-3 rounded-xl border border-slate-800 text-slate-300 font-semibold hover:bg-slate-800 transition text-sm">
+                                Cancelar
+                            </button>
+                            <button onClick={onConfirm} className="px-6 py-3 rounded-xl bg-red-600 text-white font-bold hover:bg-red-700 transition shadow-lg shadow-red-600/20 text-sm">
+                                Aceptar y Continuar
+                            </button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
+        </AnimatePresence>
+    );
+};
+// -----------------------------------------------------
 
 export default function SctrManager({ onBack }: { onBack?: () => void }) {
     const supabase = createClient()
@@ -18,6 +73,13 @@ export default function SctrManager({ onBack }: { onBack?: () => void }) {
     const [loading, setLoading] = useState(true)
     const [exporting, setExporting] = useState(false)
     const [search, setSearch] = useState('')
+
+    // --- NUEVO ESTADO: SELECCIÓN MÚLTIPLE ---
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+
+    // --- ESTADOS PARA CONTROLAR LOS DIÁLOGOS DE CONFIRMACIÓN ---
+    const [confirmSingleId, setConfirmSingleId] = useState<string | null>(null);
+    const [confirmMultipleOpen, setConfirmMultipleOpen] = useState(false);
 
     // Cargar trabajadores que están en SCTR
     const fetchSctrWorkers = async () => {
@@ -46,6 +108,7 @@ export default function SctrManager({ onBack }: { onBack?: () => void }) {
                 nivel_riesgo: '04'
             }))
             setRows(formattedData)
+            setSelectedIds(new Set()) // Limpiar selección al recargar
         }
         setLoading(false)
     }
@@ -58,25 +121,76 @@ export default function SctrManager({ onBack }: { onBack?: () => void }) {
         ))
     }
 
-    const handleRemoveFromSctr = async (id: string) => {
-        if(!confirm("¿Quitar de la lista SCTR? Volverá al Dashboard.")) return;
+    // --- FUNCIÓN PARA REGRESAR A LA TABLA PRINCIPAL (UNO SOLO) ---
+    const handleRemoveFromSctrClick = (id: string) => {
+        setConfirmSingleId(id);
+    };
+
+    const confirmSingleAction = async () => {
+        if (!confirmSingleId) return;
+        const id = confirmSingleId;
+        setConfirmSingleId(null); 
+
         const { error } = await supabase.from('fichas').update({ in_sctr: false }).eq('id', id)
-        if(error) toast.error("Error")
-        else {
+        
+        if(error) {
+            toast.error("Error al remover")
+        } else {
             toast.success("Trabajador removido de SCTR")
             setRows(prev => prev.filter(w => w.id !== id))
+            setSelectedIds(prev => { const next = new Set(prev); next.delete(id); return next; })
+        }
+    };
+
+    // --- NUEVA FUNCIÓN: REGRESAR MASIVAMENTE ---
+    const handleRemoveMultipleClick = () => {
+        if (selectedIds.size === 0) return;
+        setConfirmMultipleOpen(true);
+    };
+
+    const confirmMultipleAction = async () => {
+        setConfirmMultipleOpen(false);
+        const idsArray = Array.from(selectedIds);
+        
+        const { error } = await supabase
+            .from('fichas')
+            .update({ in_sctr: false })
+            .in('id', idsArray)
+        
+        if(error) {
+            toast.error("Error al remover trabajadores")
+        } else {
+            toast.success(`${selectedIds.size} trabajadores removidos de SCTR`)
+            setRows(prev => prev.filter(w => !selectedIds.has(w.id)))
+            setSelectedIds(new Set()) 
+        }
+    };
+
+    // --- MANEJO DE CHECKBOXES ---
+    const handleSelectAll = (checked: boolean) => {
+        if (checked) {
+            setSelectedIds(new Set(filteredRows.map(w => w.id)))
+        } else {
+            setSelectedIds(new Set())
         }
     }
 
-    // --- FUNCIÓN DE EXPORTACIÓN AVANZADA (DISEÑO EXACTO) ---
+    const handleSelectOne = (id: string, checked: boolean) => {
+        setSelectedIds(prev => {
+            const next = new Set(prev)
+            if (checked) next.add(id)
+            else next.delete(id)
+            return next
+        })
+    }
+
+    // --- FUNCIÓN DE EXPORTACIÓN AVANZADA ---
     const handleExportExcel = async () => {
         setExporting(true)
         try {
-            // 1. Crear Workbook y Hoja
             const workbook = new ExcelJS.Workbook();
             const worksheet = workbook.addWorksheet('Hoja1');
 
-            // 2. Definir Columnas y Anchos
             worksheet.columns = [
                 { key: 'tipo_doc', width: 25 },
                 { key: 'num_doc', width: 20 },
@@ -90,7 +204,6 @@ export default function SctrManager({ onBack }: { onBack?: () => void }) {
                 { key: 'nivel_riesgo', width: 15 },
             ];
 
-            // 3. Definir los Encabezados Largos (Con saltos de línea)
             const headers = [
                 "Tipo de Documento de Identidad\n\nSólo se permite número 1:DNI, 2:CE, 3:OTROS 4:PAS",
                 "Número de Documento\n\nPara DNI: 8 dígitos; Otros: 12 dígitos",
@@ -104,42 +217,16 @@ export default function SctrManager({ onBack }: { onBack?: () => void }) {
                 "Nivel de Riesgo\n\n*Obligatorio para contratos emitidos con más de 1 riesgo"
             ];
 
-            // 4. Agregar Fila de Encabezados
             const headerRow = worksheet.addRow(headers);
-            
-            // 5. ESTILAR ENCABEZADOS (Aquí está la magia del diseño)
-            headerRow.height = 160; // Altura grande para que entre el texto
+            headerRow.height = 160; 
             
             headerRow.eachCell((cell) => {
-                // Color de Fondo Amarillo (FFD966 es similar al Excel estándar)
-                cell.fill = {
-                    type: 'pattern',
-                    pattern: 'solid',
-                    fgColor: { argb: 'FFFFD966' } 
-                };
-                // Borde Negro Fino
-                cell.border = {
-                    top: { style: 'thin' },
-                    left: { style: 'thin' },
-                    bottom: { style: 'thin' },
-                    right: { style: 'thin' }
-                };
-                // Fuente Negrita
-                cell.font = {
-                    name: 'Arial',
-                    size: 8, // Letra pequeña como en la trama
-                    bold: true,
-                    color: { argb: 'FF000000' }
-                };
-                // Alineación: Centrado y Ajuste de Texto (Wrap)
-                cell.alignment = {
-                    vertical: 'middle',
-                    horizontal: 'center',
-                    wrapText: true
-                };
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFD966' } };
+                cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                cell.font = { name: 'Arial', size: 8, bold: true, color: { argb: 'FF000000' } };
+                cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
             });
 
-            // 6. Agregar Datos de Filas
             rows.forEach((r) => {
                 const row = worksheet.addRow({
                     tipo_doc: r.tipo_doc,
@@ -150,24 +237,17 @@ export default function SctrManager({ onBack }: { onBack?: () => void }) {
                     fec_nac: r.fec_nac,
                     nacionalidad: r.nacionalidad,
                     sexo: r.sexo,
-                    sueldo: parseFloat(r.sueldo).toFixed(2), // Formato 0.00
+                    sueldo: parseFloat(r.sueldo).toFixed(2), 
                     nivel_riesgo: r.nivel_riesgo
                 });
 
-                // Estilar celdas de datos (Bordes y Fuente)
                 row.eachCell((cell) => {
-                    cell.border = {
-                        top: { style: 'thin' },
-                        left: { style: 'thin' },
-                        bottom: { style: 'thin' },
-                        right: { style: 'thin' }
-                    };
+                    cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
                     cell.font = { name: 'Arial', size: 9 };
                     cell.alignment = { vertical: 'middle', horizontal: 'left' };
                 });
             });
 
-            // 7. Generar Buffer y Descargar
             const buffer = await workbook.xlsx.writeBuffer();
             const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
             
@@ -183,27 +263,21 @@ export default function SctrManager({ onBack }: { onBack?: () => void }) {
         }
     }
 
-    // --- NUEVO: FUNCIÓN PARA ENVIAR POR OUTLOOK ---
     const handleEnviarOutlook = () => {
-        // 1. Ejecutar descarga
         handleExportExcel();
 
-        // 2. Preparar correo
         const destinatario = "emision@atlanticcorredores.com";
         const fecha = new Date().toLocaleDateString('es-PE');
         const asunto = `Envío de Trama SCTR - ${fecha}`;
         const cuerpo = `Estimados,\n\nAdjunto sírvanse encontrar la trama SCTR actualizada.\n\nAtentamente,\nAdministración RUAG`;
 
-        // 3. Crear link mailto
         const mailtoLink = `mailto:${destinatario}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`;
 
-        // 4. Abrir Outlook (con timeout para que primero inicie la descarga)
         setTimeout(() => {
             window.location.href = mailtoLink;
             toast.info("Outlook abierto. No olvides adjuntar el Excel descargado.", { duration: 5000, icon: '📧' });
         }, 1000);
     }
-    // ----------------------------------------------
 
     const filteredRows = rows.filter(r => 
         (r.nombres + r.ape_paterno + r.num_doc).toLowerCase().includes(search.toLowerCase())
@@ -231,6 +305,19 @@ export default function SctrManager({ onBack }: { onBack?: () => void }) {
                 </div>
 
                 <div className="flex gap-3 w-full md:w-auto">
+
+                    {/* BOTÓN MASIVO CONDICIONAL */}
+                    {selectedIds.size > 0 && (
+                        <button 
+                            onClick={handleRemoveMultipleClick}
+                            className="flex items-center gap-2 bg-red-100 text-red-600 px-4 py-3 rounded-xl font-bold text-sm hover:bg-red-200 transition-colors mr-2 border border-red-200"
+                            title="Regresar seleccionados al Dashboard"
+                        >
+                            <Trash2 size={16}/> 
+                            Quitar Seleccionados ({selectedIds.size})
+                        </button>
+                    )}
+
                     <div className="relative group flex-1 md:w-64">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-amber-500 transition-colors" size={18}/>
                         <input 
@@ -251,18 +338,15 @@ export default function SctrManager({ onBack }: { onBack?: () => void }) {
                         <span className="hidden sm:inline">Exportar Excel</span>
                     </button>
 
-                    {/* --- BOTÓN NUEVO: ENVIAR OUTLOOK --- */}
                     <button 
                         onClick={handleEnviarOutlook}
                         disabled={exporting || rows.length === 0}
                         className="flex items-center gap-2 px-4 py-3 bg-[#0078D4] hover:bg-[#005a9e] text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-900/20 transition-all active:scale-95 border border-white/10 disabled:opacity-50"
                         title="Descargar y enviar por Outlook"
                     >
-                        {/* Icono Outlook/Mail */}
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
                         <span className="hidden xl:inline">Enviar a Atlantic</span>
                     </button>
-                    {/* ----------------------------------- */}
                 </div>
             </div>
 
@@ -278,6 +362,14 @@ export default function SctrManager({ onBack }: { onBack?: () => void }) {
                         <table className="w-full text-left text-sm">
                             <thead className="bg-slate-100 text-slate-600 font-bold uppercase text-[10px] tracking-wider sticky top-0 z-10 shadow-sm">
                                 <tr>
+                                    <th className="px-3 py-4 w-12 text-center">
+                                        <input 
+                                            type="checkbox" 
+                                            className="cursor-pointer"
+                                            checked={filteredRows.length > 0 && selectedIds.size === filteredRows.length}
+                                            onChange={(e) => handleSelectAll(e.target.checked)}
+                                        />
+                                    </th>
                                     <th className="px-3 py-4 w-12 text-center">#</th>
                                     <th className="px-3 py-4 min-w-[80px]">Tipo Doc</th>
                                     <th className="px-3 py-4 min-w-[100px]">Núm Doc</th>
@@ -293,10 +385,19 @@ export default function SctrManager({ onBack }: { onBack?: () => void }) {
                             </thead>
                             <tbody className="divide-y divide-slate-100">
                                 {filteredRows.map((r, index) => (
-                                    <tr key={r.id} className="hover:bg-amber-50/30 transition-colors group">
+                                    <tr key={r.id} className={`hover:bg-amber-50/30 transition-colors group ${selectedIds.has(r.id) ? 'bg-amber-50/20' : ''}`}>
+                                        
+                                        <td className="px-3 py-2 text-center">
+                                            <input 
+                                                type="checkbox" 
+                                                className="cursor-pointer"
+                                                checked={selectedIds.has(r.id)}
+                                                onChange={(e) => handleSelectOne(r.id, e.target.checked)}
+                                            />
+                                        </td>
+
                                         <td className="px-3 py-2 text-center text-slate-400 text-xs font-mono">{index + 1}</td>
                                         
-                                        {/* TIPO DOC */}
                                         <td className="px-2 py-1">
                                             <input 
                                                 type="text" value={r.tipo_doc} 
@@ -305,7 +406,6 @@ export default function SctrManager({ onBack }: { onBack?: () => void }) {
                                             />
                                         </td>
                                         
-                                        {/* NUM DOC */}
                                         <td className="px-2 py-1">
                                             <input 
                                                 type="text" value={r.num_doc} 
@@ -314,7 +414,6 @@ export default function SctrManager({ onBack }: { onBack?: () => void }) {
                                             />
                                         </td>
 
-                                        {/* NOMBRES */}
                                         <td className="px-2 py-1">
                                             <input 
                                                 type="text" value={r.nombres} 
@@ -323,7 +422,6 @@ export default function SctrManager({ onBack }: { onBack?: () => void }) {
                                             />
                                         </td>
 
-                                        {/* PATERNO */}
                                         <td className="px-2 py-1">
                                             <input 
                                                 type="text" value={r.ape_paterno} 
@@ -332,7 +430,6 @@ export default function SctrManager({ onBack }: { onBack?: () => void }) {
                                             />
                                         </td>
 
-                                        {/* MATERNO */}
                                         <td className="px-2 py-1">
                                             <input 
                                                 type="text" value={r.ape_materno} 
@@ -341,7 +438,6 @@ export default function SctrManager({ onBack }: { onBack?: () => void }) {
                                             />
                                         </td>
 
-                                        {/* FECHA NAC */}
                                         <td className="px-2 py-1">
                                             <input 
                                                 type="text" value={r.fec_nac} 
@@ -351,7 +447,6 @@ export default function SctrManager({ onBack }: { onBack?: () => void }) {
                                             />
                                         </td>
 
-                                        {/* NACIONALIDAD */}
                                         <td className="px-2 py-1">
                                             <input 
                                                 type="text" value={r.nacionalidad} 
@@ -360,7 +455,6 @@ export default function SctrManager({ onBack }: { onBack?: () => void }) {
                                             />
                                         </td>
 
-                                        {/* SEXO */}
                                         <td className="px-2 py-1">
                                             <select 
                                                 value={r.sexo} 
@@ -372,7 +466,6 @@ export default function SctrManager({ onBack }: { onBack?: () => void }) {
                                             </select>
                                         </td>
 
-                                        {/* SUELDO */}
                                         <td className="px-2 py-1">
                                             <input 
                                                 type="number" value={r.sueldo} 
@@ -381,10 +474,9 @@ export default function SctrManager({ onBack }: { onBack?: () => void }) {
                                             />
                                         </td>
 
-                                        {/* ACCIONES */}
                                         <td className="px-3 py-2 text-center">
                                             <button 
-                                                onClick={() => handleRemoveFromSctr(r.id)}
+                                                onClick={() => handleRemoveFromSctrClick(r.id)}
                                                 className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                                                 title="Quitar de SCTR (Volver a Dashboard)"
                                             >
@@ -399,7 +491,6 @@ export default function SctrManager({ onBack }: { onBack?: () => void }) {
                 )}
             </div>
 
-            {/* Footer Informativo */}
             <div className="p-4 border-t border-slate-200 bg-white text-xs text-slate-500 flex justify-between items-center">
                 <div className="flex items-center gap-2">
                    <AlertCircle size={14} className="text-amber-500"/>
@@ -409,6 +500,26 @@ export default function SctrManager({ onBack }: { onBack?: () => void }) {
                     Total: {filteredRows.length}
                 </div>
             </div>
+
+            {/* --- COMPONENTES DE ALERTA MODERNA (AÑADIDO) --- */}
+            {/* Diálogo para confirmación individual */}
+            <ModernConfirmDialog 
+                isOpen={confirmSingleId !== null}
+                onClose={() => setConfirmSingleId(null)}
+                onConfirm={confirmSingleAction}
+                title="¿Quitar trabajador?"
+                description="¿Estás seguro de quitar este trabajador de la lista SCTR? Volverá a aparecer en el Dashboard principal."
+            />
+
+            {/* Diálogo para confirmación masiva */}
+            <ModernConfirmDialog 
+                isOpen={confirmMultipleOpen}
+                onClose={() => setConfirmMultipleOpen(false)}
+                onConfirm={confirmMultipleAction}
+                title={`¿Quitar ${selectedIds.size} trabajadores?`}
+                description={`¿Estás seguro de quitar los ${selectedIds.size} trabajadores seleccionados de la lista SCTR? Volverán a aparecer en el Dashboard principal.`}
+            />
+            {/* ------------------------------------------------ */}
         </div>
     )
 }
