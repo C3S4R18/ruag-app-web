@@ -1102,10 +1102,14 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
         <table className="w-full min-w-max text-left border-collapse table-fixed">
             <thead className="bg-white sticky top-0 z-20 shadow-sm border-b border-slate-100">
                 <tr>
-                    <th className="px-4 py-3 w-12 text-center"><button onClick={() => handleSelectAll(filteredAndSorted)} className="text-slate-300 hover:text-blue-600 transition-colors">{selectedIds.length > 0 && selectedIds.length === filteredAndSorted.length ? <CheckSquare size={20} className="text-blue-600"/> : <Square size={20}/>}</button></th>
+                    <th className="px-4 py-3 w-12 text-center"><button onClick={() => handleSelectAll(paginatedData)} className="text-slate-300 hover:text-blue-600 transition-colors">{selectedIds.length > 0 && paginatedData.every(w => selectedIds.includes(w.id)) ? <CheckSquare size={20} className="text-blue-600"/> : <Square size={20}/>}</button></th>
                     
                     {/* COLABORADOR - ANCHO FIJO */}
-                    <th className="px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap w-[25%]">Colaborador</th>
+                    <th className="px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap w-[25%] cursor-pointer hover:text-blue-600 transition-colors" onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}>
+                        <div className="flex items-center gap-2">
+                            Colaborador {sortOrder === 'asc' ? <ArrowUpDown size={12}/> : <ArrowUpDown size={12}/>}
+                        </div>
+                    </th>
                     
                     {/* UBICACIÓN - ANCHO FIJO */}
                     <th className="px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap w-[20%]">Ubicación / Cargo</th>
@@ -1221,6 +1225,34 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
             </tbody>
         </table>
       </div>
+
+      {/* --- CONTROLES DE PAGINACIÓN DE LA TABLA --- */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between border-t border-slate-200 pt-4 pb-4 px-6 bg-white rounded-b-3xl shrink-0 shadow-[0_-10px_20px_-15px_rgba(0,0,0,0.1)] z-20">
+            <p className="text-xs text-slate-500 font-medium">
+                Mostrando <span className="font-bold text-slate-800">{(currentPage - 1) * itemsPerPage + 1}</span> a <span className="font-bold text-slate-800">{Math.min(currentPage * itemsPerPage, filteredAndSorted.length)}</span> de <span className="font-bold text-slate-800">{filteredAndSorted.length}</span> resultados
+            </p>
+            <div className="flex gap-2">
+                <button 
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-blue-600 disabled:opacity-50 disabled:hover:text-slate-600 disabled:hover:bg-white transition-colors"
+                >
+                    <ChevronLeft size={14}/> Anterior
+                </button>
+                <div className="flex items-center px-3 text-xs font-bold text-slate-400 border border-slate-100 bg-slate-50 rounded-lg">
+                    {currentPage} / {totalPages}
+                </div>
+                <button 
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50 hover:text-blue-600 disabled:opacity-50 disabled:hover:text-slate-600 disabled:hover:bg-white transition-colors"
+                >
+                    Siguiente <ChevronRight size={14}/>
+                </button>
+            </div>
+        </div>
+      )}
 
       {/* --- DRAWER Y MODALES --- */}
       <AnimatePresence>{selectedFicha && (<FichaDrawer ficha={selectedFicha} onClose={() => setSelectedFicha(null)} onUpdate={fetchFichas} onDelete={handleDeleteLocal} onDownload={() => handleDownloadPDF(selectedFicha)} downloading={downloadingPdf} onPrintPreview={(img) => setPrintImage(img)} onNotifyChange={emitAdminAction} />)}</AnimatePresence>
@@ -1693,24 +1725,31 @@ function PrintPreviewModal({ image, onClose }: { image: string, onClose: () => v
 function ConfirmModal({ isOpen, onClose, title, message, confirmText, confirmColor, icon, onConfirm }: any) {
     if (!isOpen) return null;
     return (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm" onClick={onClose}>
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={onClose}>
             <motion.div 
-                initial={{ opacity: 0, scale: 0.95, y: 10 }} 
+                initial={{ opacity: 0, scale: 0.9, y: 20 }} 
                 animate={{ opacity: 1, scale: 1, y: 0 }} 
-                exit={{ opacity: 0, scale: 0.95, y: 10 }} 
-                className="bg-white rounded-3xl shadow-2xl overflow-hidden w-full max-w-sm flex flex-col"
+                exit={{ opacity: 0, scale: 0.9, y: 20 }} 
+                transition={{ type: "spring", damping: 25, stiffness: 300 }}
+                className="w-full max-w-md bg-slate-950 p-7 rounded-3xl border border-slate-800 shadow-2xl relative"
                 onClick={e => e.stopPropagation()}
             >
-                <div className="p-6 text-center flex flex-col items-center gap-4">
-                    <div className={`p-4 rounded-full bg-slate-50 border border-slate-100 shadow-sm`}>
-                        {icon || <AlertCircle size={32} className="text-amber-500" />}
+                <div className="flex items-start gap-4">
+                    <div className="p-3 bg-slate-900 rounded-full border border-slate-800 flex-shrink-0">
+                        {icon || <AlertCircle size={26} className="text-amber-500" />}
                     </div>
-                    <h3 className="text-xl font-bold text-slate-800">{title}</h3>
-                    <p className="text-sm text-slate-500 font-medium whitespace-pre-wrap leading-relaxed">{message}</p>
+                    <div>
+                        <h3 className="text-xl font-bold text-white leading-tight">{title}</h3>
+                        <p className="text-slate-400 mt-2 text-sm leading-relaxed whitespace-pre-wrap">{message}</p>
+                    </div>
                 </div>
-                <div className="p-4 bg-slate-50 border-t border-slate-100 flex gap-3">
-                    <button onClick={onClose} className="flex-1 py-3 rounded-xl font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-100 transition-colors">Cancelar</button>
-                    <button onClick={onConfirm} className={`flex-1 py-3 rounded-xl font-bold shadow-md hover:shadow-lg transition-all active:scale-95 ${confirmColor}`}>{confirmText}</button>
+                <div className="flex justify-end gap-3 mt-9">
+                    <button onClick={onClose} className="px-6 py-3 rounded-xl border border-slate-800 text-slate-300 font-semibold hover:bg-slate-800 transition text-sm">
+                        Cancelar
+                    </button>
+                    <button onClick={onConfirm} className={`px-6 py-3 rounded-xl font-bold shadow-lg transition text-sm ${confirmColor}`}>
+                        {confirmText}
+                    </button>
                 </div>
             </motion.div>
         </div>

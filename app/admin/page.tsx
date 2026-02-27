@@ -26,7 +26,7 @@ import {
   HeartHandshake, CheckSquare, Square, ExternalLink, ArrowUpDown,
   Award, BookOpen, ShieldAlert, FileSpreadsheet, UserX, Wifi, WifiOff,
   Building, ArrowRightCircle, PlusCircle, Maximize2, FileCheck, Layers, Eye,
-  Minimize2, FolderUp, Paperclip, Download
+  Minimize2, FolderUp, Paperclip, Download, ChevronLeft
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
@@ -137,8 +137,10 @@ export default function AdminPage() {
   const [loadingData, setLoadingData] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   
-  // --- ORDENAMIENTO ---
+  // --- ORDENAMIENTO Y PAGINACIÓN ---
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+  const [currentPage, setCurrentPage] = useState(1) // ESTADO DE PAGINACIÓN AÑADIDO
+  const itemsPerPage = 20 // Cantidad de trabajadores por página
   
   // Selección de Modales Individuales
   const [selectedWorkerBiometria, setSelectedWorkerBiometria] = useState<any>(null)
@@ -158,15 +160,16 @@ export default function AdminPage() {
 
   useEffect(() => { workersDataRef.current = workersData }, [workersData])
 
-  // Limpiar selección al cambiar de vista y cerrar centro de costos
+  // Limpiar selección al cambiar de vista, reiniciar página y cerrar centro de costos
   useEffect(() => {
       setSelectedGridIds([])
       setShowMassActionModal(false)
+      setCurrentPage(1) // REINICIAR PÁGINA AL CAMBIAR VISTA
       // Si salimos del dashboard, cerramos el centro de costos
       if (activeView !== 'dashboard') {
           setShowCostCenter(false)
       }
-  }, [activeView])
+  }, [activeView, searchQuery]) // SE AÑADIÓ searchQuery PARA RESETEAR PÁGINA AL BUSCAR
 
   const playAdminSound = () => {
       const isAudioEnabled = localStorage.getItem('admin_audio_enabled') === 'true'
@@ -347,7 +350,7 @@ export default function AdminPage() {
       return () => { supabase.removeChannel(channel) }
   }, [currentObra])
 
-  // --- FILTRO Y ORDENAMIENTO ---
+  // --- FILTRO, ORDENAMIENTO Y PAGINACIÓN ---
   const filteredWorkers = workersData.filter(worker => 
       (worker.nombres || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
       (worker.apellido_paterno || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -359,6 +362,13 @@ export default function AdminPage() {
       if (sortOrder === 'asc') return nameA.localeCompare(nameB);
       else return nameB.localeCompare(nameA);
   });
+
+  // LÓGICA DE PAGINACIÓN AÑADIDA
+  const totalPages = Math.ceil(filteredWorkers.length / itemsPerPage)
+  const currentWorkers = filteredWorkers.slice(
+      (currentPage - 1) * itemsPerPage,
+      currentPage * itemsPerPage
+  )
 
   const handleNavClick = (view: any) => {
       setActiveView(view)
@@ -510,10 +520,15 @@ export default function AdminPage() {
   }
 
   const handleGridSelectAll = () => {
-      if (selectedGridIds.length === filteredWorkers.length) {
-          setSelectedGridIds([])
+      // SELECCIONA O DESELECCIONA TODOS LOS VISIBLES EN LA PÁGINA ACTUAL
+      const currentPageIds = currentWorkers.map(w => w.id)
+      const allSelected = currentPageIds.every(id => selectedGridIds.includes(id))
+
+      if (allSelected) {
+          setSelectedGridIds(prev => prev.filter(id => !currentPageIds.includes(id)))
       } else {
-          setSelectedGridIds(filteredWorkers.map(w => w.id))
+          const newSelection = new Set([...selectedGridIds, ...currentPageIds])
+          setSelectedGridIds(Array.from(newSelection))
       }
   }
 
@@ -886,13 +901,12 @@ export default function AdminPage() {
                         
                         {/* HEADER DE CONTROL */}
                         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4 justify-between items-center sticky top-0 z-10">
-                             {/* ... botones de selección y orden ... */}
                             <div className="flex items-center gap-4 mr-4">
                                 {(activeView === 'documentos' || activeView === 'rrhh') && (
                                     <>
                                         <button onClick={handleGridSelectAll} className="flex items-center gap-2 text-slate-500 hover:text-blue-600 font-bold text-xs bg-slate-50 px-3 py-2.5 rounded-xl border border-slate-100 hover:border-blue-200 transition-all">
-                                            {selectedGridIds.length === filteredWorkers.length && filteredWorkers.length > 0 ? <CheckSquare size={18} className="text-blue-600"/> : <Square size={18}/>}
-                                            {selectedGridIds.length > 0 ? `${selectedGridIds.length} Seleccionados` : 'Todos'}
+                                            {selectedGridIds.length === currentWorkers.length && currentWorkers.length > 0 ? <CheckSquare size={18} className="text-blue-600"/> : <Square size={18}/>}
+                                            {selectedGridIds.length > 0 ? `${selectedGridIds.length} Seleccionados` : 'Seleccionar en Pág'}
                                         </button>
                                         <button onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')} className="flex items-center gap-2 text-slate-500 hover:text-indigo-600 font-bold text-xs bg-slate-50 px-3 py-2.5 rounded-xl border border-slate-100 hover:border-indigo-200 transition-all">
                                             <ArrowUpDown size={16} /> {sortOrder === 'asc' ? 'A - Z' : 'Z - A'}
@@ -921,23 +935,22 @@ export default function AdminPage() {
                             )}
                         </AnimatePresence>
 
-                        {/* LISTA DE TRABAJADORES (DRAGGABLE) */}
+                        {/* LISTA DE TRABAJADORES (DRAGGABLE Y PAGINADA) */}
                         {loadingData ? (
                             <div className="flex-1 flex flex-col items-center justify-center text-slate-400 py-20"><Loader2 size={48} className="animate-spin mb-4 text-blue-500"/><p className="font-medium animate-pulse">Consultando trabajadores...</p></div>
-                        ) : filteredWorkers.length === 0 ? (
+                        ) : currentWorkers.length === 0 ? (
                             <div className="flex-1 flex flex-col items-center justify-center text-slate-400 border-2 border-dashed border-slate-200 rounded-3xl p-16 bg-slate-50/50"><div className="bg-white p-4 rounded-full shadow-sm mb-4"><Search size={32} className="text-slate-300"/></div><p className="font-bold text-slate-600 text-lg">No hay coincidencias</p></div>
                         ) : (
                             <>
                                 {activeView === 'biometria' ? (
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 pb-20" id="tour-biometria-grid">
-                                        {filteredWorkers.map((worker, index) => (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5" id="tour-biometria-grid">
+                                        {currentWorkers.map((worker, index) => (
                                             <div 
                                                 key={worker.id} 
                                                 draggable={true}
                                                 onDragStart={(e) => handleDragStart(e, worker)}
                                                 className="group bg-white rounded-2xl p-5 border border-slate-200 shadow-sm transition-all hover:shadow-xl hover:-translate-y-1 relative overflow-hidden cursor-move active:cursor-grabbing"
                                             >
-                                                {/* Contenido Card (Igual que antes) */}
                                                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-400 to-indigo-500 transition-opacity opacity-0 group-hover:opacity-100"></div>
                                                 <div className="flex items-start gap-4 mb-5 cursor-pointer" onClick={() => setSelectedWorkerBiometria(worker)}>
                                                     <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center text-slate-600 font-bold text-xl border border-white shadow-inner transition-colors group-hover:from-blue-50 group-hover:to-blue-100 group-hover:text-blue-600">{worker.nombres?.charAt(0)}{worker.apellido_paterno?.charAt(0)}</div>
@@ -947,7 +960,6 @@ export default function AdminPage() {
                                                         <span className="text-[10px] font-mono font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200 group-hover:bg-blue-50 group-hover:text-blue-600 group-hover:border-blue-100 transition-colors">{worker.dni}</span>
                                                     </div>
                                                 </div>
-                                                {/* Iconos Firma/Huella */}
                                                 <div className="grid grid-cols-2 gap-2 cursor-pointer" onClick={() => setSelectedWorkerBiometria(worker)}>
                                                     <div className={`py-2.5 rounded-xl text-[10px] font-bold text-center border flex flex-col items-center justify-center gap-1 transition-colors ${worker.firma_url ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-400 border-slate-100'}`}><PenTool size={14} className={worker.firma_url ? "text-emerald-500" : "text-slate-300"}/> {worker.firma_url ? 'FIRMA OK' : 'SIN FIRMA'}</div>
                                                     <div className={`py-2.5 rounded-xl text-[10px] font-bold text-center border flex flex-col items-center justify-center gap-1 transition-colors ${worker.huella_url ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-400 border-slate-100'}`}><Fingerprint size={14} className={worker.huella_url ? "text-emerald-500" : "text-slate-300"}/> {worker.huella_url ? 'HUELLA OK' : 'SIN HUELLA'}</div>
@@ -956,8 +968,8 @@ export default function AdminPage() {
                                         ))}
                                     </div>
                                 ) : (
-                                    <div className="flex flex-col gap-2 pb-20" id="tour-docs-list">
-                                        {filteredWorkers.map((worker, index) => {
+                                    <div className="flex flex-col gap-2" id="tour-docs-list">
+                                        {currentWorkers.map((worker, index) => {
                                             const isSelected = selectedGridIds.includes(worker.id);
                                             const isRRHH = activeView === 'rrhh';
                                             const isUpload = activeView === 'upload_docs';
@@ -973,7 +985,6 @@ export default function AdminPage() {
                                                         else if (activeView === 'upload_docs') setSelectedWorkerUpload(worker);
                                                     }}
                                                 >
-                                                    {/* ... Contenido de la fila ... */}
                                                     <div className="flex items-center gap-4 flex-1 min-w-0">
                                                         {(activeView !== 'upload_docs') && (
                                                             <div onClick={(e) => { e.stopPropagation(); handleGridSelect(worker.id); }} className="text-slate-300 hover:text-blue-600 transition-colors p-2 -ml-2">{isSelected ? <CheckSquare size={20} className="text-blue-600"/> : <Square size={20}/>}</div>
@@ -993,6 +1004,31 @@ export default function AdminPage() {
                                                 </div>
                                             )
                                         })}
+                                    </div>
+                                )}
+                                
+                                {/* --- CONTROLES DE PAGINACIÓN --- */}
+                                {totalPages > 1 && (
+                                    <div className="flex items-center justify-between border-t border-slate-200 pt-6 pb-20 mt-4">
+                                        <p className="text-sm text-slate-500 font-medium">
+                                            Mostrando <span className="font-bold text-slate-800">{(currentPage - 1) * itemsPerPage + 1}</span> a <span className="font-bold text-slate-800">{Math.min(currentPage * itemsPerPage, filteredWorkers.length)}</span> de <span className="font-bold text-slate-800">{filteredWorkers.length}</span> trabajadores
+                                        </p>
+                                        <div className="flex gap-2">
+                                            <button 
+                                                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                                disabled={currentPage === 1}
+                                                className="flex items-center gap-1 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors"
+                                            >
+                                                <ChevronLeft size={16}/> Anterior
+                                            </button>
+                                            <button 
+                                                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                                disabled={currentPage === totalPages}
+                                                className="flex items-center gap-1 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors"
+                                            >
+                                                Siguiente <ChevronRight size={16}/>
+                                            </button>
+                                        </div>
                                     </div>
                                 )}
                             </>
