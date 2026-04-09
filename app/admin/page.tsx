@@ -36,8 +36,9 @@ import { toast } from 'sonner'
 interface DocDefinition {
   id: string;
   label: string;
-  type?: string;
+  type?: 'lock' | 'pdf';
   desc?: string;
+  fileName?: string;
 }
 
 // --- CONFIGURACIÓN DOCUMENTOS SSOMA (REGISTROS SIG) ---
@@ -48,6 +49,12 @@ const DIGITAL_DOCS: DocDefinition[] = [
   { id: 'epp', label: 'Entrega de EPPs', type: 'lock' },
   { id: 'acta_derecho', label: 'Acta Derecho a Saber', type: 'lock' },
   { id: 'iperc', label: 'Entrega IPERC', type: 'lock' },
+]
+
+const SSOMA_DOCS_CONFIG: DocDefinition[] = [
+  { id: 'risst_pdf_download', label: 'Reglamento Interno (RISST)', type: 'pdf', fileName: 'REGLAMENTO INTERNO DE SEGURIDAD.pdf', desc: 'Lectura obligatoria de seguridad.' },
+  { id: 'calidad_pdf_download', label: 'Política de Calidad', type: 'pdf', fileName: 'POLITICA DE CALIDAD.pdf', desc: 'Estándares de calidad de la empresa.' },
+  ...DIGITAL_DOCS,
 ]
 
 // --- NUEVA CONFIGURACIÓN: DOCUMENTOS PARA SUBIR (SSOMA -> OBRERO) ---
@@ -71,11 +78,11 @@ const SSOMA_UPLOADS_CONFIG: DocDefinition[] = [
 
 // --- CONFIGURACIÓN DOCUMENTOS RRHH ---
 const RRHH_DOCS_CONFIG: DocDefinition[] = [
-  { id: 'rit_pdf_download', label: 'Reglamento Interno Trabajo (RIT)', type: 'pdf' },
-  { id: 'hostigamiento_pdf_download', label: 'Política Hostigamiento', type: 'pdf' },
-  { id: 'beneficiarios_pdf_download', label: 'Declaración Beneficiarios', type: 'pdf' },
-  { id: 'etica_pdf_download', label: 'Código de Ética y Conducta', type: 'pdf' },
-  { id: 'antisoborno_pdf_download', label: 'Política Antisoborno', type: 'pdf' },
+  { id: 'rit_pdf_download', label: 'Reglamento Interno Trabajo (RIT)', type: 'pdf', fileName: 'REGLAMENTO INTERNO DE TRABAJO.pdf' },
+  { id: 'hostigamiento_pdf_download', label: 'Política Hostigamiento', type: 'pdf', fileName: 'POLITICA DE HOSTIGAMIENTO SEXUAL.pdf' },
+  { id: 'beneficiarios_pdf_download', label: 'Declaración Beneficiarios', type: 'pdf', fileName: 'DECLARACION DE BENEFICIARIOS_VIDA LEY_2019.pdf' },
+  { id: 'etica_pdf_download', label: 'Código de Ética y Conducta', type: 'pdf', fileName: 'CODIGO DE ETICA Y CONDUCTA.pdf' },
+  { id: 'antisoborno_pdf_download', label: 'Política Antisoborno', type: 'pdf', fileName: 'POLITICA ANTISOBORNO Y ANTICORRUPCIÓN.pdf' },
   { id: 'cargo_politica_prevencion', label: 'Cargo Política Prevención', type: 'lock' },
   { id: 'cargo_rit', label: 'Cargo Reglamento Trabajo', type: 'lock' },
 ]
@@ -105,6 +112,12 @@ export default function AdminPage() {
   // --- MODALES DE IMPORTACIÓN ---
   const [showImport, setShowImport] = useState(false)
   const [showBioImport, setShowBioImport] = useState(false)
+  const [showDocumentCenter, setShowDocumentCenter] = useState(false)
+  const [documentCenterType, setDocumentCenterType] = useState<'ssoma' | 'rrhh'>('ssoma')
+  const [documentCenterSearch, setDocumentCenterSearch] = useState('')
+  const [documentCenterSelectedWorkerId, setDocumentCenterSelectedWorkerId] = useState<string | null>(null)
+  const [documentCenterSelectedDocs, setDocumentCenterSelectedDocs] = useState<string[]>([])
+  const [documentCenterProcessing, setDocumentCenterProcessing] = useState(false)
 
   // --- GESTIÓN DE OBRAS (CENTRO DE COSTOS) ---
   const [showCostCenter, setShowCostCenter] = useState(false)
@@ -371,6 +384,100 @@ export default function AdminPage() {
       currentPage * itemsPerPage
   )
 
+  const documentCenterWorkers = workersData.filter(worker => {
+      const term = documentCenterSearch.toLowerCase().trim()
+      if (!term) return true
+
+      return (
+          (worker.nombres || '').toLowerCase().includes(term) ||
+          (worker.apellido_paterno || '').toLowerCase().includes(term) ||
+          (worker.apellido_materno || '').toLowerCase().includes(term) ||
+          (worker.dni || '').includes(term) ||
+          (worker.cargo || '').toLowerCase().includes(term)
+      )
+  }).sort((a, b) => {
+      const nameA = `${a.apellido_paterno || ''} ${a.nombres || ''}`.toLowerCase()
+      const nameB = `${b.apellido_paterno || ''} ${b.nombres || ''}`.toLowerCase()
+      return nameA.localeCompare(nameB)
+  })
+
+  const documentCenterSelectedWorker = workersData.find(worker => worker.id === documentCenterSelectedWorkerId) || null
+  const documentCenterDocOptions = documentCenterType === 'ssoma' ? SSOMA_DOCS_CONFIG : RRHH_DOCS_CONFIG
+
+  const applyDocumentsToWorker = async (worker: any, docsToProcess: DocDefinition[]) => {
+      const currentStates = worker.doc_states || {}
+      const newStates = { ...currentStates }
+
+      docsToProcess.forEach(doc => {
+          if (doc.type === 'pdf') {
+              newStates[doc.id] = {
+                  ...(newStates[doc.id] || {}),
+                  status: 'pending_download',
+                  sent_at: new Date().toISOString(),
+                  label: doc.label,
+                  file: doc.fileName || ''
+              }
+              return
+          }
+
+          if (newStates[doc.id]?.status !== 'completed') {
+              newStates[doc.id] = {
+                  ...(newStates[doc.id] || {}),
+                  status: 'unlocked',
+                  updated_at: new Date().toISOString()
+              }
+          }
+      })
+
+      const { error } = await supabase.from('fichas').update({ doc_states: newStates }).eq('id', worker.id)
+      return { error, newStates }
+  }
+
+  const handleDocumentCenterToggleDoc = (docId: string) => {
+      if (documentCenterSelectedDocs.includes(docId)) {
+          setDocumentCenterSelectedDocs(prev => prev.filter(id => id !== docId))
+          return
+      }
+
+      setDocumentCenterSelectedDocs(prev => [...prev, docId])
+  }
+
+  const handleDocumentCenterToggleAll = () => {
+      const allIds = documentCenterDocOptions.map(doc => doc.id)
+      const allSelected = allIds.every(id => documentCenterSelectedDocs.includes(id))
+      setDocumentCenterSelectedDocs(allSelected ? [] : allIds)
+  }
+
+  const handleDocumentCenterApply = async () => {
+      if (!documentCenterSelectedWorker) {
+          toast.warning("Primero selecciona un trabajador.")
+          return
+      }
+
+      if (documentCenterSelectedDocs.length === 0) {
+          toast.warning("Selecciona al menos un documento.")
+          return
+      }
+
+      setDocumentCenterProcessing(true)
+
+      const docsToProcess = documentCenterDocOptions.filter(doc => documentCenterSelectedDocs.includes(doc.id))
+      const { error, newStates } = await applyDocumentsToWorker(documentCenterSelectedWorker, docsToProcess)
+
+      setDocumentCenterProcessing(false)
+
+      if (error) {
+          toast.error("No se pudo aplicar la gestión documental.")
+          return
+      }
+
+      setWorkersData(prev => prev.map(worker => worker.id === documentCenterSelectedWorker.id ? { ...worker, doc_states: newStates } : worker))
+      toast.success(`Documentos actualizados para ${documentCenterSelectedWorker.nombres}.`)
+      broadcastChange('gestionó', `${documentCenterType === 'rrhh' ? 'RRHH' : 'Registros SIG'} de ${documentCenterSelectedWorker.nombres}`)
+      setDocumentCenterSelectedDocs([])
+      fetchData()
+  }
+
   const handleNavClick = (view: any) => {
       setActiveView(view)
       if (isMobile) setSidebarOpen(false)
@@ -533,6 +640,18 @@ export default function AdminPage() {
       }
   }
 
+  const openDocumentCenter = (type: 'ssoma' | 'rrhh' = documentCenterType) => {
+      setDocumentCenterType(type)
+      setDocumentCenterSearch('')
+      setDocumentCenterSelectedWorkerId(null)
+      setDocumentCenterSelectedDocs([])
+      setShowDocumentCenter(true)
+  }
+
+  const handleDocumentCenterWorkerSelect = (worker: any) => {
+      setDocumentCenterSelectedWorkerId(worker.id)
+  }
+
   const handleOpenMassAction = () => {
       if (activeView === 'documentos') setMassActionType('ssoma')
       else if (activeView === 'rrhh') setMassActionType('rrhh')
@@ -551,7 +670,7 @@ export default function AdminPage() {
       if (selectedMassDocs.length === 0) { toast.warning("Selecciona al menos un documento"); return }
       setProcessingMass(true)
 
-      const docConfigList = massActionType === 'ssoma' ? DIGITAL_DOCS : RRHH_DOCS_CONFIG
+      const docConfigList = massActionType === 'ssoma' ? SSOMA_DOCS_CONFIG : RRHH_DOCS_CONFIG
       const docsToProcess = docConfigList.filter(d => selectedMassDocs.includes(d.id))
 
       let successCount = 0
@@ -748,7 +867,14 @@ export default function AdminPage() {
             </div>
 
             <div className="flex items-center gap-6">
-                
+                <button
+                    onClick={() => openDocumentCenter()}
+                    className="flex items-center gap-2 px-3 md:px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 shadow-sm hover:border-blue-300 hover:text-blue-600 hover:shadow-md transition-all"
+                >
+                    <Layers size={16}/>
+                    <span className="hidden md:inline">Centro Documental</span>
+                </button>
+                 
                 {/* ADMINS CONECTADOS */}
                 <div className="flex items-center gap-2">
                     <span className="text-[10px] font-bold text-slate-400 uppercase mr-1 hidden md:inline">En línea:</span>
@@ -797,6 +923,13 @@ export default function AdminPage() {
                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-8 pb-20 max-w-7xl mx-auto">
                         
                         <div className="flex flex-wrap justify-end gap-3">
+                            <button
+                                onClick={() => openDocumentCenter()}
+                                className="flex items-center gap-2 px-5 py-3 bg-white text-slate-700 border border-slate-200 rounded-xl text-xs font-bold shadow-sm hover:border-blue-300 hover:text-blue-600 hover:shadow-md transition-all"
+                            >
+                                <Layers size={18}/> CENTRO DOCUMENTAL
+                            </button>
+
                             <Link href="/admin/ssoma/induccion">
                                 <div className="flex items-center gap-2 px-5 py-3 rounded-xl bg-slate-900 text-white text-xs font-bold shadow-xl shadow-slate-900/20 hover:scale-105 transition-all cursor-pointer border border-slate-700">
                                     <HardHat size={18}/> Gestion SSOMA
@@ -1247,6 +1380,30 @@ export default function AdminPage() {
             )}
         </AnimatePresence>
 
+        <AnimatePresence>
+            {showDocumentCenter && (
+                <DocumentCenterModal
+                    mode={documentCenterType}
+                    workers={documentCenterWorkers}
+                    selectedWorker={documentCenterSelectedWorker}
+                    selectedDocs={documentCenterSelectedDocs}
+                    processing={documentCenterProcessing}
+                    docs={documentCenterDocOptions}
+                    search={documentCenterSearch}
+                    onSearchChange={setDocumentCenterSearch}
+                    onModeChange={(type: 'ssoma' | 'rrhh') => {
+                        setDocumentCenterType(type)
+                        setDocumentCenterSelectedDocs([])
+                    }}
+                    onClose={() => setShowDocumentCenter(false)}
+                    onSelectWorker={handleDocumentCenterWorkerSelect}
+                    onToggleDoc={handleDocumentCenterToggleDoc}
+                    onToggleAll={handleDocumentCenterToggleAll}
+                    onApply={handleDocumentCenterApply}
+                />
+            )}
+        </AnimatePresence>
+
         {/* MODAL ACCIONES MASIVAS */}
         <AnimatePresence>
             {showMassActionModal && (
@@ -1373,6 +1530,235 @@ export default function AdminPage() {
       </main>
     </div>
   )
+}
+
+function DocumentCenterModal({ mode, workers, selectedWorker, selectedDocs, processing, docs, search, onSearchChange, onModeChange, onClose, onSelectWorker, onToggleDoc, onToggleAll, onApply }: any) {
+    const title = mode === 'rrhh' ? 'Gestión RRHH' : 'Registros SIG'
+    const subtitle = mode === 'rrhh'
+        ? 'Envía documentos de lectura y habilita cargos de RRHH.'
+        : 'Habilita registros de firma y gestiona envíos SSOMA.'
+
+    const accent = mode === 'rrhh'
+        ? { border: 'border-purple-500', soft: 'bg-purple-50', softBorder: 'border-purple-100', text: 'text-purple-700', icon: 'bg-purple-600 text-white', button: 'bg-purple-600 hover:bg-purple-700' }
+        : { border: 'border-blue-500', soft: 'bg-blue-50', softBorder: 'border-blue-100', text: 'text-blue-700', icon: 'bg-blue-600 text-white', button: 'bg-blue-600 hover:bg-blue-700' }
+    const allSelected = docs.length > 0 && docs.every((doc: DocDefinition) => selectedDocs.includes(doc.id))
+    const selectedWorkerDocStates = selectedWorker?.doc_states || {}
+
+    return (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[80] flex items-center justify-center p-4" onClick={onClose}>
+            <motion.div initial={{ scale: 0.96, y: 12 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.96, y: 12 }} className="bg-white w-full max-w-6xl rounded-3xl shadow-2xl border border-white/20 overflow-hidden" onClick={e => e.stopPropagation()}>
+                <div className="p-6 border-b border-slate-100 bg-slate-50/60 flex justify-between items-start gap-4">
+                    <div>
+                        <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2"><Layers size={20} className="text-blue-600"/> Centro Documental</h3>
+                        <p className="text-xs text-slate-500 mt-1">Elige el modulo, busca al trabajador y gestiona todo desde esta misma ventana.</p>
+                    </div>
+                    <button onClick={onClose} className="p-2 hover:bg-white rounded-full transition-colors text-slate-400"><X size={20}/></button>
+                </div>
+
+                <div className="p-6 space-y-5">
+                    <div className="grid grid-cols-2 gap-3">
+                        <button onClick={() => onModeChange('ssoma')} className={`relative rounded-2xl border p-4 text-left transition-all ${mode === 'ssoma' ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'}`}>
+                            <div className="flex items-center gap-3 mb-2">
+                                <div className={`p-2 rounded-xl ${mode === 'ssoma' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500'}`}><HardHat size={18}/></div>
+                                <div className="font-bold text-sm text-slate-800">Registros SIG</div>
+                            </div>
+                            <p className="text-[11px] text-slate-500 leading-relaxed">Habilita documentos SSOMA y envía lecturas al trabajador.</p>
+                            {mode === 'ssoma' && <div className="absolute top-3 right-3 text-blue-600"><CheckCircle size={16}/></div>}
+                        </button>
+
+                        <button onClick={() => onModeChange('rrhh')} className={`relative rounded-2xl border p-4 text-left transition-all ${mode === 'rrhh' ? 'border-purple-500 bg-purple-50' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'}`}>
+                            <div className="flex items-center gap-3 mb-2">
+                                <div className={`p-2 rounded-xl ${mode === 'rrhh' ? 'bg-purple-600 text-white' : 'bg-slate-100 text-slate-500'}`}><Briefcase size={18}/></div>
+                                <div className="font-bold text-sm text-slate-800">Gestión RRHH</div>
+                            </div>
+                            <p className="text-[11px] text-slate-500 leading-relaxed">Envía PDFs obligatorios y habilita cargos de confirmación.</p>
+                            {mode === 'rrhh' && <div className="absolute top-3 right-3 text-purple-600"><CheckCircle size={16}/></div>}
+                        </button>
+                    </div>
+
+                    <div className={`rounded-2xl border px-4 py-3 ${mode === 'rrhh' ? 'border-purple-100 bg-purple-50/60' : 'border-blue-100 bg-blue-50/60'}`}>
+                        <div className={`text-[10px] font-bold uppercase tracking-wider ${mode === 'rrhh' ? 'text-purple-600' : 'text-blue-600'}`}>{title}</div>
+                        <p className="text-xs text-slate-600 mt-1">{subtitle}</p>
+                    </div>
+
+                    <div className="grid lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] gap-5 items-start">
+                        <div className="space-y-4">
+                            <div className="relative group">
+                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors" size={18}/>
+                                <input
+                                    type="text"
+                                    value={search}
+                                    onChange={e => onSearchChange(e.target.value)}
+                                    placeholder="Buscar por DNI, nombre, apellido o cargo..."
+                                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-medium focus:bg-white focus:ring-4 focus:ring-blue-50 focus:border-blue-300 outline-none transition-all"
+                                />
+                            </div>
+
+                            <div className="rounded-2xl border border-slate-200 overflow-hidden">
+                                <div className="px-4 py-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                                    <div className="text-xs font-bold text-slate-600">Trabajadores encontrados</div>
+                                    <div className="text-[10px] font-bold text-slate-400 uppercase">{workers.length} resultados</div>
+                                </div>
+
+                                <div className="max-h-[460px] overflow-y-auto divide-y divide-slate-100">
+                                    {workers.length === 0 ? (
+                                        <div className="py-14 px-6 text-center text-slate-400">
+                                            <Search size={28} className="mx-auto mb-3 text-slate-300"/>
+                                            <p className="font-bold text-slate-600">No encontre trabajadores con ese filtro</p>
+                                            <p className="text-xs mt-1">Prueba con DNI, apellido o cargo.</p>
+                                        </div>
+                                    ) : (
+                                        workers.map((worker: any) => (
+                                            <button key={worker.id} onClick={() => onSelectWorker(worker)} className={`w-full px-4 py-3 flex items-center justify-between gap-4 text-left transition-colors border-l-4 ${selectedWorker?.id === worker.id ? `${accent.border} ${accent.soft}` : 'border-transparent hover:bg-slate-50'}`}>
+                                                <div className="min-w-0 flex items-center gap-3">
+                                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold border ${mode === 'rrhh' ? 'bg-purple-50 text-purple-600 border-purple-100' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>
+                                                        {worker.nombres?.charAt(0)}{worker.apellido_paterno?.charAt(0)}
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <div className="font-bold text-sm text-slate-800 truncate uppercase">{worker.apellido_paterno} {worker.apellido_materno}, {worker.nombres}</div>
+                                                        <div className="text-xs text-slate-500 mt-0.5 flex flex-wrap items-center gap-2">
+                                                            <span className="font-mono">{worker.dni || 'Sin DNI'}</span>
+                                                            <span className="text-slate-300">|</span>
+                                                            <span className="truncate">{worker.cargo || 'Sin cargo'}</span>
+                                                            <span className="text-slate-300">|</span>
+                                                            <span className="truncate">{worker.nombre_obra || 'Sin obra'}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className={`shrink-0 px-3 py-2 rounded-xl text-[11px] font-bold border transition-colors ${selectedWorker?.id === worker.id ? `${accent.soft} ${accent.text} ${accent.softBorder}` : mode === 'rrhh' ? 'bg-purple-50 text-purple-700 border-purple-100' : 'bg-blue-50 text-blue-700 border-blue-100'}`}>
+                                                    {selectedWorker?.id === worker.id ? 'Seleccionado' : 'Elegir'}
+                                                </div>
+                                            </button>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div className={`rounded-2xl border p-4 ${selectedWorker ? `${accent.soft} ${accent.softBorder}` : 'border-slate-200 bg-slate-50'}`}>
+                                {selectedWorker ? (
+                                    <div className="flex items-start justify-between gap-4">
+                                        <div className="min-w-0">
+                                            <div className={`text-[10px] font-bold uppercase tracking-wider ${accent.text}`}>Trabajador seleccionado</div>
+                                            <div className="mt-2 font-bold text-slate-800 uppercase truncate">{selectedWorker.apellido_paterno} {selectedWorker.apellido_materno}, {selectedWorker.nombres}</div>
+                                            <div className="mt-2 text-xs text-slate-600 flex flex-wrap items-center gap-2">
+                                                <span className="font-mono">{selectedWorker.dni || 'Sin DNI'}</span>
+                                                <span className="text-slate-300">|</span>
+                                                <span>{selectedWorker.cargo || 'Sin cargo'}</span>
+                                                <span className="text-slate-300">|</span>
+                                                <span>{selectedWorker.nombre_obra || 'Sin obra'}</span>
+                                            </div>
+                                        </div>
+                                        <div className={`shrink-0 px-3 py-2 rounded-xl text-[11px] font-bold border ${accent.soft} ${accent.text} ${accent.softBorder}`}>
+                                            Listo para gestionar
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-5">
+                                        <Users size={24} className="mx-auto mb-3 text-slate-300"/>
+                                        <p className="font-bold text-slate-600">Selecciona un trabajador</p>
+                                        <p className="text-xs text-slate-500 mt-1">Al elegirlo aqui mismo podras marcar y enviar sus documentos.</p>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="rounded-2xl border border-slate-200 overflow-hidden">
+                                <div className="px-4 py-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between gap-3">
+                                    <div>
+                                        <div className="text-xs font-bold text-slate-600">Documentos para gestionar</div>
+                                        <div className="text-[10px] font-bold text-slate-400 uppercase mt-1">{selectedDocs.length} seleccionados</div>
+                                    </div>
+                                    <button
+                                        onClick={onToggleAll}
+                                        className={`px-3 py-2 rounded-xl text-[11px] font-bold border transition-colors ${mode === 'rrhh' ? 'bg-purple-50 text-purple-700 border-purple-100 hover:bg-purple-100' : 'bg-blue-50 text-blue-700 border-blue-100 hover:bg-blue-100'}`}
+                                    >
+                                        {allSelected ? 'Quitar todos' : 'Marcar todos'}
+                                    </button>
+                                </div>
+
+                                {!selectedWorker ? (
+                                    <div className="py-14 px-6 text-center text-slate-400">
+                                        <FileText size={28} className="mx-auto mb-3 text-slate-300"/>
+                                        <p className="font-bold text-slate-600">Primero elige al trabajador</p>
+                                        <p className="text-xs mt-1">Luego podras seleccionar los documentos y aplicarlos desde aqui.</p>
+                                    </div>
+                                ) : (
+                                    <div className="max-h-[460px] overflow-y-auto p-4 space-y-3">
+                                        {docs.map((doc: DocDefinition) => {
+                                            const docState = selectedWorkerDocStates[doc.id] || {}
+                                            const status = docState.status || 'locked'
+                                            const isSelected = selectedDocs.includes(doc.id)
+                                            const isPdf = doc.type === 'pdf'
+                                            const isCompleted = status === 'completed'
+                                            const isPending = status === 'pending_download'
+                                            const isUnlocked = status === 'unlocked'
+                                            const statusText = isCompleted
+                                                ? 'Completado'
+                                                : isPending
+                                                    ? 'Pendiente de lectura'
+                                                    : isUnlocked
+                                                        ? 'Habilitado'
+                                                        : 'Bloqueado'
+
+                                            return (
+                                                <label key={doc.id} className={`block rounded-2xl border p-4 cursor-pointer transition-all ${isSelected ? `${accent.border} ${accent.soft} shadow-sm` : 'border-slate-200 hover:bg-slate-50'}`}>
+                                                    <div className="flex items-start gap-3">
+                                                        <div className={`mt-0.5 w-5 h-5 rounded-md border flex items-center justify-center transition-all ${isSelected ? accent.icon : 'bg-white border-slate-300 text-transparent'}`}>
+                                                            {isSelected ? <CheckSquare size={12} className="text-white"/> : <Square size={12} className="text-slate-300"/>}
+                                                        </div>
+                                                        <input type="checkbox" className="hidden" checked={isSelected} onChange={() => onToggleDoc(doc.id)} />
+                                                        <div className={`p-2 rounded-xl ${isPdf ? 'bg-amber-50 text-amber-600' : mode === 'rrhh' ? 'bg-purple-50 text-purple-600' : 'bg-blue-50 text-blue-600'}`}>
+                                                            {isPdf ? <Send size={16}/> : isCompleted ? <CheckCircle size={16}/> : isUnlocked ? <Unlock size={16}/> : <Lock size={16}/>}
+                                                        </div>
+                                                        <div className="min-w-0 flex-1">
+                                                            <div className="flex flex-wrap items-center gap-2">
+                                                                <p className="font-bold text-sm text-slate-800">{doc.label}</p>
+                                                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${isPdf ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}`}>
+                                                                    {isPdf ? 'PDF' : 'Firma'}
+                                                                </span>
+                                                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${isCompleted ? 'bg-emerald-100 text-emerald-700' : isPending ? 'bg-amber-100 text-amber-700' : isUnlocked ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'}`}>
+                                                                    {statusText}
+                                                                </span>
+                                                            </div>
+                                                            <p className="text-xs text-slate-500 mt-1 leading-relaxed">{doc.desc || (isPdf ? 'Se enviara al trabajador para lectura y descarga.' : 'Se habilitara para firma o registro digital.')}</p>
+                                                            {docState.sent_at && (
+                                                                <p className="text-[11px] text-slate-400 mt-2">Ultimo envio: {new Date(docState.sent_at).toLocaleString('es-PE')}</p>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </label>
+                                            )
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                                <div>
+                                    <div className="text-xs font-bold text-slate-600">Accion lista para enviar</div>
+                                    <p className="text-sm text-slate-500 mt-1">
+                                        {selectedWorker
+                                            ? `${selectedDocs.length} documento(s) para ${selectedWorker.nombres || 'el trabajador seleccionado'}.`
+                                            : 'Selecciona un trabajador y al menos un documento.'}
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={onApply}
+                                    disabled={processing || !selectedWorker || selectedDocs.length === 0}
+                                    className={`w-full sm:w-auto px-5 py-3.5 text-white rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${accent.button}`}
+                                >
+                                    {processing ? <Loader2 className="animate-spin" size={18}/> : <Send size={18}/>}
+                                    {processing ? 'Aplicando...' : mode === 'rrhh' ? 'Enviar / habilitar RRHH' : 'Enviar / habilitar SIG'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </motion.div>
+        </motion.div>
+    )
 }
 
 function SidebarItem({ active, onClick, icon, label }: any) {
