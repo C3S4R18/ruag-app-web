@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/utils/supabase/client'
+import { buildBiometricUpdate } from '@/utils/biometric'
 import { UploadCloud, X, CheckCircle, AlertCircle, FileText, ScanFace, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -103,7 +104,7 @@ export default function BiometricBatchUpload({ onComplete }: { onComplete: () =>
             // E. Actualizar Ficha del Trabajador
             const { error: dbError } = await supabase
                 .from('fichas')
-                .update({ [targetColumn]: publicUrl })
+                .update(buildBiometricUpdate(targetColumn as 'firma_url' | 'huella_url', publicUrl))
                 .eq('id', worker.id)
 
             if (dbError) {

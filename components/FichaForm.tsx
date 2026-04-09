@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/utils/supabase/client'
+import { getSignatureUrl } from '@/utils/biometric'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 import SignatureCanvas from 'react-signature-canvas'
@@ -115,7 +116,7 @@ export default function FichaForm() {
                 doc_hijos_nacimiento: ficha.url_hijos_nacimiento,
                 doc_hijos_dni: ficha.url_hijos_dni, 
                 doc_hijos_estudios: ficha.url_constancia_estudios,
-                url_firma: ficha.url_firma
+                url_firma: getSignatureUrl(ficha)
             })
             
             // Cargar estado de inducción
@@ -294,7 +295,7 @@ export default function FichaForm() {
         url_esposa_dni: formData.doc_esposa_dni, 
         url_hijos_nacimiento: formData.doc_hijos_nacimiento, url_hijos_dni: formData.doc_hijos_dni, url_constancia_estudios: formData.doc_hijos_estudios,
         
-        url_firma: currentSignature, updated_at: new Date().toISOString(), 
+        url_firma: currentSignature, firma_url: currentSignature, updated_at: new Date().toISOString(), 
         
         // Solo cambiamos el estado si explícitamente se marca como completa (al final) o si es la primera vez.
         // Si ya está completada, mantenemos 'completado'

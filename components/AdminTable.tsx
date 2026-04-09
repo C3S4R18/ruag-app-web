@@ -12,6 +12,7 @@ import * as XLSX from 'xlsx'
 // --- COMPONENTES BIOMÉTRICOS ---
 import BiometricSignature from './ssoma/BiometricSignature' 
 import BiometricFingerprint from './ssoma/BiometricFingerprint'
+import { getSignatureUrl, normalizeBiometricFields } from '@/utils/biometric'
 
 // --- DOCUMENTOS IMPRIMIBLES SSOMA ---
 import { CargoRisstPrintable } from './CargoRisstPrintable'
@@ -255,7 +256,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
              // Solo agregamos si NO es vida ley Y NO es cesado Y NO es SCTR
              if (!payload.new.in_vida_ley && !payload.new.es_cesado && !payload.new.in_sctr) {
                  setFichas((prev) => {
-                     const updated = [payload.new, ...prev]
+                      const updated = [normalizeBiometricFields(payload.new), ...prev]
                      checkForAdultChildren(updated)
                      return updated
                  })
@@ -268,7 +269,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                     return prev.filter(f => f.id !== payload.new.id)
                 } else {
                     // Mantenemos los datos del perfil anterior (si existían) mezclando el objeto
-                    const updatedList = prev.map(f => f.id === payload.new.id ? { ...f, ...payload.new } : f)
+                    const updatedList = prev.map(f => f.id === payload.new.id ? normalizeBiometricFields({ ...f, ...payload.new }) : f)
                     checkForAdultChildren(updatedList)
                     return updatedList
                 }
@@ -282,7 +283,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                         return null; 
                     }
                     // Si no, actualizar datos (incluidos nuevos documentos)
-                    return { ...currentSelected, ...payload.new }
+                    return normalizeBiometricFields({ ...currentSelected, ...payload.new })
                 }
                 return currentSelected
              })
@@ -464,8 +465,9 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
         .order('updated_at', { ascending: false })
       
     if (data) {
-        setFichas(data)
-        checkForAdultChildren(data) 
+        const normalizedFichas = data.map(normalizeBiometricFields)
+        setFichas(normalizedFichas)
+        checkForAdultChildren(normalizedFichas) 
     }
     setLoading(false)
   }
@@ -828,8 +830,8 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
           <div ref={printRef} style={{ width: 'fit-content', backgroundColor: '#ffffff', color: '#000000' }}>
               {workerToPrint && selectedDocsToPrint.map((docId) => {
                   const fichaForPrint = includeSignatures 
-                      ? workerToPrint 
-                      : { ...workerToPrint, firma_url: null, huella_url: null };
+                      ? normalizeBiometricFields(workerToPrint)
+                      : { ...normalizeBiometricFields(workerToPrint), firma_url: null, url_firma: null, huella_url: null };
 
                   return (
                       <div key={docId} style={{ padding: 0, margin: 0, backgroundColor: '#ffffff' }}> 
@@ -1203,7 +1205,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                         </td>
                         
                         {/* BIOMETRÍA */}
-                        <td className="px-4 py-3"><div className="flex items-center justify-center gap-3"><div className={`p-2 rounded-lg border transition-all ${ficha.firma_url ? 'bg-emerald-50/50 border-emerald-200 text-emerald-600' : 'bg-slate-50 border-slate-100 text-slate-300'}`} title={ficha.firma_url ? "Firma Registrada" : "Falta Firma"}><PenTool size={14}/></div><div className={`p-2 rounded-lg border transition-all ${ficha.huella_url ? 'bg-emerald-50/50 border-emerald-200 text-emerald-600' : 'bg-slate-50 border-slate-100 text-slate-300'}`} title={ficha.huella_url ? "Huella Registrada" : "Falta Huella"}><Fingerprint size={14}/></div></div></td>
+                        <td className="px-4 py-3"><div className="flex items-center justify-center gap-3"><div className={`p-2 rounded-lg border transition-all ${getSignatureUrl(ficha) ? 'bg-emerald-50/50 border-emerald-200 text-emerald-600' : 'bg-slate-50 border-slate-100 text-slate-300'}`} title={getSignatureUrl(ficha) ? "Firma Registrada" : "Falta Firma"}><PenTool size={14}/></div><div className={`p-2 rounded-lg border transition-all ${ficha.huella_url ? 'bg-emerald-50/50 border-emerald-200 text-emerald-600' : 'bg-slate-50 border-slate-100 text-slate-300'}`} title={ficha.huella_url ? "Huella Registrada" : "Falta Huella"}><Fingerprint size={14}/></div></div></td>
                         
                         {/* ACCIONES */}
                         <td className="px-4 py-3 text-right">
@@ -1570,8 +1572,8 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
                         </Section>
                         <Section title="Firma Registrada" icon={<PenTool size={18}/>}>
                              <div className="border border-dashed border-slate-300 rounded-lg p-4 bg-slate-50 flex justify-center">
-                                {formData.url_firma ? (
-                                    <img src={formData.url_firma} alt="Firma" className="max-h-24 object-contain" />
+                                {getSignatureUrl(formData) ? (
+                                    <img src={getSignatureUrl(formData) || ''} alt="Firma" className="max-h-24 object-contain" />
                                 ) : <span className="text-slate-400 text-xs">Sin firma registrada</span>}
                              </div>
                         </Section>
