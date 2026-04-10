@@ -791,6 +791,11 @@ export default function AdminPage() {
                     <div id="nav-documentos">
                         <SidebarItem active={activeView === 'documentos'} onClick={() => handleNavClick('documentos')} icon={<HardHat size={20} className="text-blue-400"/>} label="Registros SIG" />
                     </div>
+                    <Link href="/admin/ssoma/reporte-estadistico" className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-all duration-200 group">
+                        <FileSpreadsheet size={20} className="text-cyan-300"/>
+                        <span className="tracking-wide">Reporte Estadistico</span>
+                        <ChevronRight size={14} className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity -translate-x-2 group-hover:translate-x-0"/>
+                    </Link>
                     <div id="nav-upload-docs">
                          {/* --- NUEVA OPCIÓN SIDEBAR --- */}
                         <SidebarItem active={activeView === 'upload_docs'} onClick={() => handleNavClick('upload_docs')} icon={<FolderUp size={20} className="text-amber-400"/>} label="Subir Documentos" />
@@ -933,6 +938,12 @@ export default function AdminPage() {
                             <Link href="/admin/ssoma/induccion">
                                 <div className="flex items-center gap-2 px-5 py-3 rounded-xl bg-slate-900 text-white text-xs font-bold shadow-xl shadow-slate-900/20 hover:scale-105 transition-all cursor-pointer border border-slate-700">
                                     <HardHat size={18}/> Gestion SSOMA
+                                </div>
+                            </Link>
+
+                            <Link href="/admin/ssoma/reporte-estadistico">
+                                <div className="flex items-center gap-2 px-5 py-3 rounded-xl bg-cyan-600 text-white text-xs font-bold shadow-xl shadow-cyan-600/20 hover:scale-105 transition-all cursor-pointer border border-cyan-500">
+                                    <FileSpreadsheet size={18}/> REPORTE ESTADISTICO
                                 </div>
                             </Link>
                             
