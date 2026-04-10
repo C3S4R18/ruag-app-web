@@ -27,7 +27,7 @@ import {
   HeartHandshake, CheckSquare, Square, ExternalLink, ArrowUpDown,
   Award, BookOpen, ShieldAlert, FileSpreadsheet, UserX, Wifi, WifiOff,
   Building, ArrowRightCircle, PlusCircle, Maximize2, FileCheck, Layers, Eye,
-  Minimize2, FolderUp, Paperclip, Download, ChevronLeft
+  Minimize2, FolderUp, Paperclip, Download, ChevronLeft, Wrench, ChevronDown
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
@@ -113,6 +113,7 @@ export default function AdminPage() {
   const [showImport, setShowImport] = useState(false)
   const [showBioImport, setShowBioImport] = useState(false)
   const [showDocumentCenter, setShowDocumentCenter] = useState(false)
+  const [showToolsMenu, setShowToolsMenu] = useState(false)
   const [documentCenterType, setDocumentCenterType] = useState<'ssoma' | 'rrhh'>('ssoma')
   const [documentCenterSearch, setDocumentCenterSearch] = useState('')
   const [documentCenterSelectedWorkerId, setDocumentCenterSelectedWorkerId] = useState<string | null>(null)
@@ -184,14 +185,6 @@ export default function AdminPage() {
           setShowCostCenter(false)
       }
   }, [activeView, searchQuery]) // SE AÑADIÓ searchQuery PARA RESETEAR PÁGINA AL BUSCAR
-
-  const playAdminSound = () => {
-      const isAudioEnabled = localStorage.getItem('admin_audio_enabled') === 'true'
-      if (isAudioEnabled) {
-        const audio = new Audio('/notification.mp3')
-        audio.play().catch(e => console.log("Audio admin bloqueado:", e))
-      }
-  }
 
   // Notificar cambios a otros admins
   const broadcastChange = async (action: string, details: string) => {
@@ -363,6 +356,7 @@ export default function AdminPage() {
 
       return () => { supabase.removeChannel(channel) }
   }, [currentObra])
+
 
   // --- FILTRO, ORDENAMIENTO Y PAGINACIÓN ---
   const filteredWorkers = workersData.filter(worker => 
@@ -927,7 +921,7 @@ export default function AdminPage() {
                 {activeView === 'dashboard' && (
                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-8 pb-20 max-w-7xl mx-auto">
                         
-                        <div className="flex flex-wrap justify-end gap-3">
+                        <div className="flex flex-wrap gap-4">
                             <button
                                 onClick={() => openDocumentCenter()}
                                 className="flex items-center gap-2 px-5 py-3 bg-white text-slate-700 border border-slate-200 rounded-xl text-xs font-bold shadow-sm hover:border-blue-300 hover:text-blue-600 hover:shadow-md transition-all"
@@ -935,20 +929,82 @@ export default function AdminPage() {
                                 <Layers size={18}/> CENTRO DOCUMENTAL
                             </button>
 
-                            <Link href="/admin/ssoma/induccion">
+                            <Link href="/admin/ssoma/induccion" className="flex items-center gap-2 px-5 py-3 rounded-xl bg-slate-900 text-white text-xs font-bold shadow-xl shadow-slate-900/20 hover:scale-[1.02] transition-all cursor-pointer border border-slate-700">
+                                <HardHat size={18}/> Gestion SSOMA
+                            </Link>
+
+                            <Link href="/admin/ssoma/reporte-estadistico" className="flex items-center gap-2 px-5 py-3 rounded-xl bg-cyan-600 text-white text-xs font-bold shadow-xl shadow-cyan-600/20 hover:scale-[1.02] transition-all cursor-pointer border border-cyan-500">
+                                <FileSpreadsheet size={18}/> REPORTE ESTADISTICO
+                            </Link>
+
+                            <button
+                                onClick={() => setShowBioImport(true)}
+                                className="flex items-center gap-2 px-5 py-3 bg-blue-600 text-white border border-blue-500 rounded-xl text-xs font-bold shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all"
+                            >
+                                <ScanFace size={18}/> IMPORTAR FIRMAS/HUELLAS
+                            </button>
+
+                            <button
+                                id="tour-import"
+                                onClick={() => setShowImport(true)}
+                                className="flex items-center gap-2 px-5 py-3 bg-white text-slate-700 border border-slate-200 rounded-xl text-xs font-bold shadow-sm hover:border-blue-300 hover:text-blue-600 hover:shadow-md transition-all"
+                            >
+                                <UploadCloud size={18}/> CARGA MASIVA DATA
+                            </button>
+
+                            <button
+                                onClick={() => setShowCostCenter(!showCostCenter)}
+                                className={`flex items-center gap-2 px-5 py-3 border rounded-xl text-xs font-bold shadow-sm transition-all ${showCostCenter ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-indigo-700 border-indigo-200 hover:bg-indigo-50'}`}
+                            >
+                                <Building size={18}/> CENTRO DE COSTO
+                            </button>
+                        </div>
+
+                        <div className="hidden">
+                            <button
+                                onClick={() => setShowToolsMenu(prev => !prev)}
+                                className="group inline-flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 shadow-sm transition-all hover:border-blue-300 hover:text-blue-600 hover:shadow-md"
+                            >
+                                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-lg shadow-slate-900/15">
+                                    <Wrench size={18}/>
+                                </div>
+                                <div className="text-left">
+                                    <div>Herramientas</div>
+                                    <div className="text-[11px] font-medium text-slate-400 group-hover:text-blue-400">Panel compacto de accesos</div>
+                                </div>
+                                <ChevronDown size={18} className={`transition-transform ${showToolsMenu ? 'rotate-180 text-blue-500' : 'text-slate-400'}`}/>
+                            </button>
+
+                            <AnimatePresence>
+                                {showToolsMenu && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: -12, scale: 0.98 }}
+                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                        exit={{ opacity: 0, y: -10, scale: 0.98 }}
+                                        transition={{ duration: 0.22, ease: "easeOut" }}
+                                        className="flex flex-wrap justify-end gap-3 rounded-[28px] border border-slate-200 bg-white/95 p-4 shadow-2xl shadow-slate-200/70 backdrop-blur-xl"
+                                    >
+                            <button
+                                onClick={() => openDocumentCenter()}
+                                className="flex items-center gap-2 px-5 py-3 bg-white text-slate-700 border border-slate-200 rounded-xl text-xs font-bold shadow-sm hover:border-blue-300 hover:text-blue-600 hover:shadow-md transition-all"
+                            >
+                                <Layers size={18}/> CENTRO DOCUMENTAL
+                            </button>
+
+                            <Link href="/admin/ssoma/induccion" onClick={() => setShowToolsMenu(false)}>
                                 <div className="flex items-center gap-2 px-5 py-3 rounded-xl bg-slate-900 text-white text-xs font-bold shadow-xl shadow-slate-900/20 hover:scale-105 transition-all cursor-pointer border border-slate-700">
                                     <HardHat size={18}/> Gestion SSOMA
                                 </div>
                             </Link>
 
-                            <Link href="/admin/ssoma/reporte-estadistico">
+                            <Link href="/admin/ssoma/reporte-estadistico" onClick={() => setShowToolsMenu(false)}>
                                 <div className="flex items-center gap-2 px-5 py-3 rounded-xl bg-cyan-600 text-white text-xs font-bold shadow-xl shadow-cyan-600/20 hover:scale-105 transition-all cursor-pointer border border-cyan-500">
                                     <FileSpreadsheet size={18}/> REPORTE ESTADISTICO
                                 </div>
                             </Link>
                             
                             <button 
-                                onClick={() => setShowBioImport(true)} 
+                                onClick={() => { setShowToolsMenu(false); setShowBioImport(true) }} 
                                 className="flex items-center gap-2 px-5 py-3 bg-blue-600 text-white border border-blue-500 rounded-xl text-xs font-bold shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all"
                             >
                                 <ScanFace size={18}/> IMPORTAR FIRMAS/HUELLAS
@@ -956,7 +1012,7 @@ export default function AdminPage() {
 
                             <button 
                                 id="tour-import"
-                                onClick={() => setShowImport(true)} 
+                                onClick={() => { setShowToolsMenu(false); setShowImport(true) }} 
                                 className="flex items-center gap-2 px-5 py-3 bg-white text-slate-700 border border-slate-200 rounded-xl text-xs font-bold shadow-sm hover:border-blue-300 hover:text-blue-600 hover:shadow-md transition-all"
                             >
                                 <UploadCloud size={18}/> CARGA MASIVA DATA
@@ -964,11 +1020,14 @@ export default function AdminPage() {
                             
                             {/* --- BOTÓN NUEVO: CENTRO DE COSTO (SOLO EN DASHBOARD) --- */}
                             <button 
-                                onClick={() => setShowCostCenter(!showCostCenter)} 
+                                onClick={() => { setShowToolsMenu(false); setShowCostCenter(!showCostCenter) }} 
                                 className={`flex items-center gap-2 px-5 py-3 border rounded-xl text-xs font-bold shadow-sm transition-all ${showCostCenter ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-indigo-700 border-indigo-200 hover:bg-indigo-50'}`}
                             >
                                 <Building size={18}/> CENTRO DE COSTO
                             </button>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </div>
 
                         {/* ... Tarjetas de Estadísticas ... */}

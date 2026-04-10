@@ -169,6 +169,8 @@ function WorkerCard({ worker }: { worker: any }) {
     const examenNota = worker.examen_nota 
     const tieneNota = examenNota !== null && examenNota !== undefined
     const aprobado = tieneNota && examenNota >= 14
+    const workerDisplayName = [worker.apellido_paterno, worker.apellido_materno, worker.nombres].filter(Boolean).join(' ') || worker.dni || 'Trabajador sin nombre'
+    const workerInitial = String(worker.nombres || worker.apellido_paterno || worker.dni || '?').charAt(0).toUpperCase()
     
     const isLive = videoProgress > 0 && videoProgress < 100
     const isFinishedVideo = videoProgress === 100
@@ -240,11 +242,11 @@ function WorkerCard({ worker }: { worker: any }) {
             {/* 1. PERFIL */}
             <div className="flex items-center gap-4 w-full lg:w-[280px]">
                 <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-lg font-bold border-2 shrink-0 ${isLive ? 'bg-blue-50 border-blue-200 text-blue-600' : aprobado ? 'bg-emerald-50 border-emerald-200 text-emerald-600' : 'bg-slate-50 border-slate-200 text-slate-500'}`}>
-                    {worker.nombres.charAt(0)}
+                    {workerInitial}
                     {isLive && <span className="absolute top-[-4px] right-[-4px] flex h-3 w-3"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span><span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span></span>}
                 </div>
                 <div className="min-w-0">
-                    <h3 className="font-bold text-slate-800 text-base truncate">{worker.apellido_paterno} {worker.apellido_materno}, {worker.nombres}</h3>
+                    <h3 className="font-bold text-slate-800 text-base truncate">{workerDisplayName}</h3>
                     <div className="flex items-center gap-2 mt-1">
                         <span className="px-2 py-0.5 bg-slate-100 rounded text-[10px] font-mono text-slate-500 border border-slate-200">{worker.dni}</span>
                         <span className="text-[10px] text-slate-400 truncate max-w-[120px] flex items-center gap-1"><Briefcase size={10}/> {worker.cargo || 'Obrero'}</span>

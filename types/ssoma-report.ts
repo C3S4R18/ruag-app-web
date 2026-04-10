@@ -1,9 +1,13 @@
 export const WEEK_KEYS = ['SEMANA 01', 'SEMANA 02', 'SEMANA 03', 'SEMANA 04', 'SEMANA 05'] as const
 export const DAY_KEYS = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'] as const
+export const REPORT_STATUS_KEYS = ['draft', 'in_review', 'approved', 'rejected'] as const
+export const TRAINING_TYPE_OPTIONS = ['Charla diaria', 'Charla semanal', 'Capacitación específica', 'Inducción'] as const
+export const EVIDENCE_CATEGORY_KEYS = ['accidents', 'lostDays', 'incidents', 'admonitions'] as const
 
 export type WeekKey = (typeof WEEK_KEYS)[number]
 export type DayKey = (typeof DAY_KEYS)[number]
-export type ReportStatus = 'draft' | 'submitted'
+export type ReportStatus = (typeof REPORT_STATUS_KEYS)[number]
+export type EvidenceCategoryKey = (typeof EVIDENCE_CATEGORY_KEYS)[number]
 
 export interface DayValues {
   lunes: string
@@ -53,6 +57,19 @@ export interface WasteRow {
   volumeM3: string
 }
 
+export interface SsomaEvidenceAttachment {
+  id: string
+  name: string
+  url: string
+  path: string
+  contentType: string
+  size: number
+  uploadedAt: string
+  category: EvidenceCategoryKey
+}
+
+export type WeeklyEvidenceMap = Record<EvidenceCategoryKey, SsomaEvidenceAttachment[]>
+
 export interface WeeklyReportData {
   subcontractors: CompanyCountRow[]
   trainings: TrainingRow[]
@@ -69,6 +86,7 @@ export interface WeeklyReportData {
   admonitions: DailyCounterRow[]
   managementDocuments: DailyCounterRow[]
   inspections: DailyCounterRow[]
+  evidence: WeeklyEvidenceMap
 }
 
 export interface MonthlyReportData {
@@ -115,4 +133,7 @@ export interface SsomaStatisticalReportRecord {
   created_at: string
   updated_at: string
   submitted_at: string | null
+  reviewed_at: string | null
+  reviewed_by: string | null
+  review_notes: string | null
 }

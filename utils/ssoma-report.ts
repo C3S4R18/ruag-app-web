@@ -9,15 +9,17 @@ import type {
   CompanyCountRow,
   DailyCounterRow,
   DayValues,
+  ReportStatus,
   MonthlyReportData,
   SsomaStatisticalReportData,
   SsomaStatisticalReportRecord,
   TrainingRow,
   WasteRow,
   WeekKey,
+  WeeklyEvidenceMap,
   WeeklyReportData,
 } from '@/types/ssoma-report'
-import { WEEK_KEYS } from '@/types/ssoma-report'
+import { EVIDENCE_CATEGORY_KEYS, WEEK_KEYS } from '@/types/ssoma-report'
 
 const DAY_COLUMN_MAP = ['D', 'E', 'F', 'G', 'H', 'I', 'J'] as const
 
@@ -153,6 +155,16 @@ function createWasteRows(total: number): WasteRow[] {
   }))
 }
 
+function createEmptyWeeklyEvidenceMap(): WeeklyEvidenceMap {
+  return EVIDENCE_CATEGORY_KEYS.reduce(
+    (accumulator, key) => ({
+      ...accumulator,
+      [key]: [],
+    }),
+    {} as WeeklyEvidenceMap
+  )
+}
+
 export function createEmptyWeeklyReportData(): WeeklyReportData {
   return {
     subcontractors: createCompanyRows(8),
@@ -170,6 +182,7 @@ export function createEmptyWeeklyReportData(): WeeklyReportData {
     admonitions: createDailyCounterRows(ADMONITION_LABELS),
     managementDocuments: createDailyCounterRows(MANAGEMENT_DOCUMENT_LABELS),
     inspections: createDailyCounterRows(INSPECTION_LABELS),
+    evidence: createEmptyWeeklyEvidenceMap(),
   }
 }
 
@@ -216,17 +229,43 @@ export function buildInitialReportPayload(input?: Partial<SsomaStatisticalReport
 
   if (!input) return base
 
+  const mergeWeeklyReportData = (week?: Partial<WeeklyReportData>): WeeklyReportData => {
+    const baseWeek = createEmptyWeeklyReportData()
+
+    return {
+      ...baseWeek,
+      ...week,
+      evidence: {
+        ...baseWeek.evidence,
+        ...(week?.evidence || {}),
+      },
+    }
+  }
+
+  const mergeMonthlyReportData = (monthly?: Partial<MonthlyReportData>): MonthlyReportData => {
+    const baseMonthly = createEmptyMonthlyReportData()
+
+    return {
+      ...baseMonthly,
+      ...monthly,
+      environment: {
+        ...baseMonthly.environment,
+        ...(monthly?.environment || {}),
+      },
+    }
+  }
+
   return {
     ...base,
     ...input,
     weeks: {
-      ...base.weeks,
-      ...(input.weeks || {}),
+      'SEMANA 01': mergeWeeklyReportData(input.weeks?.['SEMANA 01']),
+      'SEMANA 02': mergeWeeklyReportData(input.weeks?.['SEMANA 02']),
+      'SEMANA 03': mergeWeeklyReportData(input.weeks?.['SEMANA 03']),
+      'SEMANA 04': mergeWeeklyReportData(input.weeks?.['SEMANA 04']),
+      'SEMANA 05': mergeWeeklyReportData(input.weeks?.['SEMANA 05']),
     },
-    monthly: {
-      ...base.monthly,
-      ...(input.monthly || {}),
-    },
+    monthly: mergeMonthlyReportData(input.monthly),
   }
 }
 
@@ -246,6 +285,40 @@ export function buildReportShareUrl(origin: string | undefined, token: string) {
   }
 
   return `${baseUrl}/ssoma/reporte-estadistico/${token}`
+}
+
+export function getReportStatusMeta(status: ReportStatus) {
+  switch (status) {
+    case 'in_review':
+      return {
+        label: 'En revision',
+        shortLabel: 'REVISION',
+        badgeClassName: 'bg-blue-100 text-blue-700',
+        panelClassName: 'bg-blue-50 border-blue-200 text-blue-800',
+      }
+    case 'approved':
+      return {
+        label: 'Aprobado',
+        shortLabel: 'APROBADO',
+        badgeClassName: 'bg-emerald-100 text-emerald-700',
+        panelClassName: 'bg-emerald-50 border-emerald-200 text-emerald-800',
+      }
+    case 'rejected':
+      return {
+        label: 'Rechazado',
+        shortLabel: 'RECHAZADO',
+        badgeClassName: 'bg-rose-100 text-rose-700',
+        panelClassName: 'bg-rose-50 border-rose-200 text-rose-800',
+      }
+    case 'draft':
+    default:
+      return {
+        label: 'Borrador',
+        shortLabel: 'BORRADOR',
+        badgeClassName: 'bg-amber-100 text-amber-700',
+        panelClassName: 'bg-amber-50 border-amber-200 text-amber-800',
+      }
+  }
 }
 
 function parseNumericInput(value: string | number | null | undefined) {
