@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(wc -l components/*.tsx app/**/*.tsx)"
+      "Bash(wc -l components/*.tsx app/**/*.tsx)",
+      "Bash(wc -l /c/Users/cesar/ruag-webapp/components/*.tsx /c/Users/cesar/ruag-webapp/components/ssoma/*.tsx /c/Users/cesar/ruag-webapp/app/**/*.tsx /c/Users/cesar/ruag-webapp/utils/*.ts /c/Users/cesar/ruag-webapp/types/*.ts)",
+      "mcp__Claude_Preview__preview_start"
     ]
   }
 }

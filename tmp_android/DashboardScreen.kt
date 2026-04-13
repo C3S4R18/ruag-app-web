@@ -1,4 +1,4 @@
-﻿package com.ruag.digital.ui.screens
+package com.ruag.digital.ui.screens
 
 import android.Manifest
 import android.app.NotificationChannel
@@ -878,7 +878,7 @@ fun DashboardScreen(navController: NavController) {
 }
 
 // --------------------------------------------------------
-// VISTAS PRINCIPALES REDISEÃ‘ADAS
+// VISTAS PRINCIPALES REDISEÑADAS
 // --------------------------------------------------------
 
 @Composable
@@ -908,8 +908,8 @@ fun HomeView(navController: NavController, name: String, initial: String, stats:
                                 }
                             }
                             Spacer(modifier = Modifier.height(16.dp))
-                            Text(text = "Hola, $name ðŸ‘‹", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
-                            Text(text = "AquÃ­ tienes un resumen de tu avance.", color = Blue100, fontSize = 14.sp, modifier = Modifier.padding(top=4.dp))
+                            Text(text = "Hola, $name 👋", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
+                            Text(text = "Aquí tienes un resumen de tu avance.", color = Blue100, fontSize = 14.sp, modifier = Modifier.padding(top=4.dp))
 
                             Spacer(Modifier.height(32.dp))
 
@@ -921,7 +921,7 @@ fun HomeView(navController: NavController, name: String, initial: String, stats:
                                 }
                                 Spacer(Modifier.width(16.dp))
                                 Column {
-                                    Text("DOCUMENTACIÃ“N", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Emerald400, letterSpacing = 1.sp)
+                                    Text("DOCUMENTACIÓN", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Emerald400, letterSpacing = 1.sp)
                                     Text("${stats["completed"]} de ${stats["total"]} completados", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
                                 }
                             }
@@ -932,11 +932,11 @@ fun HomeView(navController: NavController, name: String, initial: String, stats:
         }
         item {
             Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp)) {
-                Text("Accesos RÃ¡pidos", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Slate900)
+                Text("Accesos Rápidos", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Slate900)
                 Spacer(modifier = Modifier.height(16.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     ModernActionButton(Modifier.weight(1f), "Actualizar Ficha", "Tus datos", Icons.Outlined.Badge, Blue600, Blue50) { navController.navigate("worker_form") }
-                    // ModernActionButton(Modifier.weight(1f), "InducciÃ³n", "SSOMA Video", Icons.Outlined.Shield, Emerald600, Emerald50) { navController.navigate("induccion") }
+                    // ModernActionButton(Modifier.weight(1f), "Inducción", "SSOMA Video", Icons.Outlined.Shield, Emerald600, Emerald50) { navController.navigate("induccion") }
                 }
             }
         }
@@ -1241,14 +1241,14 @@ fun HelpCenterSheet(onDismiss: () -> Unit) {
                 Spacer(Modifier.width(16.dp))
                 Column {
                     Text("Centro de Ayuda", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Slate900)
-                    Text("Â¿Necesitas soporte tÃ©cnico?", fontSize = 13.sp, color = Slate500)
+                    Text("¿Necesitas soporte técnico?", fontSize = 13.sp, color = Slate500)
                 }
             }
 
             Spacer(Modifier.height(32.dp))
 
             // Preguntas Frecuentes
-            Row(Modifier.fillMaxWidth().clickable { Toast.makeText(context, "MÃ³dulo en construcciÃ³n", Toast.LENGTH_SHORT).show() }.background(Slate50, RoundedCornerShape(16.dp)).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().clickable { Toast.makeText(context, "Módulo en construcción", Toast.LENGTH_SHORT).show() }.background(Slate50, RoundedCornerShape(16.dp)).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Outlined.QuestionAnswer, null, tint = Slate600, modifier = Modifier.size(24.dp))
                 Spacer(Modifier.width(16.dp))
                 Column(Modifier.weight(1f)) {
@@ -1266,7 +1266,7 @@ fun HelpCenterSheet(onDismiss: () -> Unit) {
                 Spacer(Modifier.width(16.dp))
                 Column(Modifier.weight(1f)) {
                     Text("Soporte SSOMA Directo", fontWeight = FontWeight.Bold, color = Emerald600, fontSize = 15.sp)
-                    Text("ContÃ¡ctanos vÃ­a WhatsApp", color = Emerald600.copy(0.7f), fontSize = 12.sp)
+                    Text("Contáctanos vía WhatsApp", color = Emerald600.copy(0.7f), fontSize = 12.sp)
                 }
             }
 
@@ -1316,7 +1316,7 @@ fun DocItem(doc: DocStatus, onClick: (DocStatus) -> Unit) {
             Spacer(Modifier.width(16.dp))
             Column(Modifier.weight(1f)) {
                 Text(doc.label, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = if(doc.status=="locked") Slate400 else Slate900)
-                Text(if (isCompleted) "Firmado y enviado" else if (isUnlocked) "Requiere tu firma" else "AÃºn no disponible", fontSize = 12.sp, color = if(isCompleted) Emerald600 else if(isUnlocked) color else Slate400, fontWeight = FontWeight.Medium)
+                Text(if (isCompleted) "Firmado y enviado" else if (isUnlocked) "Requiere tu firma" else "Aún no disponible", fontSize = 12.sp, color = if(isCompleted) Emerald600 else if(isUnlocked) color else Slate400, fontWeight = FontWeight.Medium)
             }
             if(isUnlocked) Icon(Icons.Default.ChevronRight, null, tint = Slate400)
         }
@@ -1367,7 +1367,7 @@ fun DocumentModal(title: String, content: @Composable () -> Unit, onClose: () ->
                         Row(Modifier.padding(bottom = 16.dp).background(Blue50, RoundedCornerShape(12.dp)).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Outlined.Info, null, tint = Blue600, modifier = Modifier.size(20.dp))
                             Spacer(Modifier.width(12.dp))
-                            Text("Declaro bajo juramento haber leÃ­do y comprendido el documento.", fontSize = 13.sp, color = Blue700, fontWeight = FontWeight.Medium)
+                            Text("Declaro bajo juramento haber leído y comprendido el documento.", fontSize = 13.sp, color = Blue700, fontWeight = FontWeight.Medium)
                         }
                         Button(onClick = onConfirm, modifier = Modifier.fillMaxWidth().height(56.dp), shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(containerColor = Slate900)) {
                             Icon(Icons.Outlined.Edit, null, modifier = Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)); Text("FIRMAR DIGITALMENTE", fontWeight = FontWeight.Bold, fontSize = 15.sp)
@@ -1455,7 +1455,7 @@ fun ChatBottomSheet(userId: String, messages: List<ChatMessage>, onSendMessage: 
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
                 Box(Modifier.size(50.dp).background(Blue50, CircleShape), contentAlignment = Alignment.Center) { Icon(Icons.Outlined.SupportAgent, null, tint = Blue600, modifier = Modifier.size(28.dp)) }
                 Spacer(Modifier.width(16.dp))
-                Column { Text("Soporte SSOMA", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Slate900); Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) { Box(Modifier.size(8.dp).background(Emerald500, CircleShape)); Text("En lÃ­nea", fontSize = 13.sp, color = Slate500, fontWeight = FontWeight.Medium) } }
+                Column { Text("Soporte SSOMA", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Slate900); Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) { Box(Modifier.size(8.dp).background(Emerald500, CircleShape)); Text("En línea", fontSize = 13.sp, color = Slate500, fontWeight = FontWeight.Medium) } }
             }
             HorizontalDivider(color = Slate100)
             LazyColumn(state = listState, modifier = Modifier.weight(1f).padding(vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp), reverseLayout = true) {
@@ -1480,7 +1480,7 @@ fun ChatBottomSheet(userId: String, messages: List<ChatMessage>, onSendMessage: 
 
 @Composable
 fun CargoPoliticaPrevencionLayout(ficha: JsonObject?) {
-    // FunciÃ³n segura para extraer datos
+    // Función segura para extraer datos
     fun getStr(key: String): String {
         val element = ficha?.get(key)
         return if (element != null && element !is kotlinx.serialization.json.JsonNull) {
@@ -1530,24 +1530,24 @@ fun CargoPoliticaPrevencionLayout(ficha: JsonObject?) {
                     .height(IntrinsicSize.Min)
                     .border(1.dp, Color.Black)
             ) {
-                // Col 1: VersiÃ³n
+                // Col 1: Versión
                 Box(
                     modifier = Modifier.weight(0.2f).fillMaxHeight().padding(4.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("VersiÃ³n 01", fontWeight = FontWeight.Bold, color = Color.Black, fontSize = 10.sp)
+                    Text("Versión 01", fontWeight = FontWeight.Bold, color = Color.Black, fontSize = 10.sp)
                 }
 
                 Box(modifier = Modifier.width(1.dp).fillMaxHeight().background(Color.Black))
 
-                // Col 2: TÃ­tulo Central
+                // Col 2: Título Central
                 Column(
                     modifier = Modifier.weight(0.55f).fillMaxHeight().padding(8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    Text("POLÃTICA", fontWeight = FontWeight.Bold, color = Color.Black, fontSize = 10.sp, textAlign = TextAlign.Center)
-                    Text("DE PREVENCIÃ“N Y SANCIÃ“N DEL\nHOSTIGAMIENTO SEXUAL LABORAL", fontWeight = FontWeight.Bold, color = Color.Black, fontSize = 12.sp, textAlign = TextAlign.Center)
+                    Text("POLÍTICA", fontWeight = FontWeight.Bold, color = Color.Black, fontSize = 10.sp, textAlign = TextAlign.Center)
+                    Text("DE PREVENCIÓN Y SANCIÓN DEL\nHOSTIGAMIENTO SEXUAL LABORAL", fontWeight = FontWeight.Bold, color = Color.Black, fontSize = 12.sp, textAlign = TextAlign.Center)
                 }
 
                 Box(modifier = Modifier.width(1.dp).fillMaxHeight().background(Color.Black))
@@ -1563,7 +1563,7 @@ fun CargoPoliticaPrevencionLayout(ficha: JsonObject?) {
 
             Spacer(Modifier.height(48.dp))
 
-            // --- 2. TÃTULO DEL DOCUMENTO ---
+            // --- 2. TÍTULO DEL DOCUMENTO ---
             Text(
                 text = "CARGO",
                 modifier = Modifier.fillMaxWidth(),
@@ -1582,7 +1582,7 @@ fun CargoPoliticaPrevencionLayout(ficha: JsonObject?) {
                 horizontalArrangement = Arrangement.Start,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // PÃ¡rrafo 1
+                // Párrafo 1
                 Text("Yo", fontSize = 14.sp, color = Color.Black, modifier = Modifier.align(Alignment.Bottom))
                 Spacer(Modifier.width(8.dp))
                 SolidLineText(text = fullName, minWidth = 150.dp, modifier = Modifier.weight(1f).align(Alignment.Bottom))
@@ -1601,7 +1601,7 @@ fun CargoPoliticaPrevencionLayout(ficha: JsonObject?) {
                 horizontalArrangement = Arrangement.Start,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // PÃ¡rrafo 2
+                // Párrafo 2
                 Text("colaborador de RUAG S.R.L., ocupando el cargo de", fontSize = 14.sp, color = Color.Black, modifier = Modifier.align(Alignment.Bottom))
                 Spacer(Modifier.width(8.dp))
                 SolidLineText(text = cargo, minWidth = 120.dp, modifier = Modifier.weight(1f).align(Alignment.Bottom))
@@ -1614,15 +1614,15 @@ fun CargoPoliticaPrevencionLayout(ficha: JsonObject?) {
             Column(Modifier.padding(start = 24.dp, end = 8.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
                 Row(verticalAlignment = Alignment.Top) {
                     Text("1.", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.Black, modifier = Modifier.width(24.dp))
-                    Text("Haber recibido la PolÃ­tica de PrevenciÃ³n y SanciÃ³n del Hostigamiento Sexual Laboral.", fontSize = 14.sp, color = Color.Black, textAlign = TextAlign.Justify)
+                    Text("Haber recibido la Política de Prevención y Sanción del Hostigamiento Sexual Laboral.", fontSize = 14.sp, color = Color.Black, textAlign = TextAlign.Justify)
                 }
                 Row(verticalAlignment = Alignment.Top) {
                     Text("2.", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.Black, modifier = Modifier.width(24.dp))
-                    Text("Haber leÃ­do y entendido el contenido de la PolÃ­tica de PrevenciÃ³n y SanciÃ³n del Hostigamiento Sexual Laboral.", fontSize = 14.sp, color = Color.Black, textAlign = TextAlign.Justify)
+                    Text("Haber leído y entendido el contenido de la Política de Prevención y Sanción del Hostigamiento Sexual Laboral.", fontSize = 14.sp, color = Color.Black, textAlign = TextAlign.Justify)
                 }
                 Row(verticalAlignment = Alignment.Top) {
                     Text("3.", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.Black, modifier = Modifier.width(24.dp))
-                    Text("Encontrarme conforme con todos sus tÃ©rminos.", fontSize = 14.sp, color = Color.Black)
+                    Text("Encontrarme conforme con todos sus términos.", fontSize = 14.sp, color = Color.Black)
                 }
             }
 
@@ -1697,7 +1697,7 @@ fun CargoPoliticaPrevencionLayout(ficha: JsonObject?) {
 
 @Composable
 fun CargoRitLayout(ficha: JsonObject?) {
-    // FunciÃ³n segura para extraer datos
+    // Función segura para extraer datos
     fun getStr(key: String): String {
         val element = ficha?.get(key)
         return if (element != null && element !is kotlinx.serialization.json.JsonNull) {
@@ -1721,7 +1721,7 @@ fun CargoRitLayout(ficha: JsonObject?) {
 
     val today = LocalDate.now()
     val day = today.dayOfMonth.toString()
-    // Mes en espaÃ±ol
+    // Mes en español
     val monthNames = arrayOf("enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre")
     val month = monthNames[today.monthValue - 1]
     val yearTwoDigits = (today.year % 100).toString()
@@ -1748,17 +1748,17 @@ fun CargoRitLayout(ficha: JsonObject?) {
                     .height(IntrinsicSize.Min)
                     .border(1.dp, Color.Black)
             ) {
-                // Col 1: VersiÃ³n
+                // Col 1: Versión
                 Box(
                     modifier = Modifier.weight(0.2f).fillMaxHeight().padding(4.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("VersiÃ³n 01", fontWeight = FontWeight.Bold, color = Color.Black, fontSize = 10.sp)
+                    Text("Versión 01", fontWeight = FontWeight.Bold, color = Color.Black, fontSize = 10.sp)
                 }
 
                 Box(modifier = Modifier.width(1.dp).fillMaxHeight().background(Color.Black))
 
-                // Col 2: TÃ­tulo Central
+                // Col 2: Título Central
                 Box(
                     modifier = Modifier.weight(0.55f).fillMaxHeight().padding(4.dp),
                     contentAlignment = Alignment.Center
@@ -1779,7 +1779,7 @@ fun CargoRitLayout(ficha: JsonObject?) {
 
             Spacer(Modifier.height(48.dp))
 
-            // --- 2. TÃTULO DEL DOCUMENTO ---
+            // --- 2. TÍTULO DEL DOCUMENTO ---
             Text(
                 text = "CARGO",
                 modifier = Modifier.fillMaxWidth(),
@@ -1805,7 +1805,7 @@ fun CargoRitLayout(ficha: JsonObject?) {
                 Text(",", fontSize = 14.sp, color = Color.Black, modifier = Modifier.align(Alignment.Bottom))
                 Spacer(Modifier.width(4.dp))
 
-                Text("identificado con DNI NÂ°", fontSize = 14.sp, color = Color.Black, modifier = Modifier.align(Alignment.Bottom))
+                Text("identificado con DNI N°", fontSize = 14.sp, color = Color.Black, modifier = Modifier.align(Alignment.Bottom))
                 Spacer(Modifier.width(4.dp))
                 Text(dni, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.Black, modifier = Modifier.align(Alignment.Bottom))
                 Text(",", fontSize = 14.sp, color = Color.Black, modifier = Modifier.align(Alignment.Bottom))
@@ -1824,17 +1824,17 @@ fun CargoRitLayout(ficha: JsonObject?) {
 
             // Lista de declaraciones
             Column(Modifier.padding(start = 24.dp, end = 8.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                Row(verticalAlignment = Alignment.Top) { // <-- CAMBIADO AQUÃ
+                Row(verticalAlignment = Alignment.Top) { // <-- CAMBIADO AQUÍ
                     Text("1.", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.Black, modifier = Modifier.width(24.dp))
                     Text("Haber recibido el Reglamento Interno de Trabajo.", fontSize = 14.sp, color = Color.Black)
                 }
-                Row(verticalAlignment = Alignment.Top) { // <-- CAMBIADO AQUÃ
+                Row(verticalAlignment = Alignment.Top) { // <-- CAMBIADO AQUÍ
                     Text("2.", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.Black, modifier = Modifier.width(24.dp))
-                    Text("Haber leÃ­do y entendido el contenido del Reglamento Interno de Trabajo.", fontSize = 14.sp, color = Color.Black)
+                    Text("Haber leído y entendido el contenido del Reglamento Interno de Trabajo.", fontSize = 14.sp, color = Color.Black)
                 }
-                Row(verticalAlignment = Alignment.Top) { // <-- CAMBIADO AQUÃ
+                Row(verticalAlignment = Alignment.Top) { // <-- CAMBIADO AQUÍ
                     Text("3.", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.Black, modifier = Modifier.width(24.dp))
-                    Text("Encontrarme conforme con todos sus tÃ©rminos.", fontSize = 14.sp, color = Color.Black)
+                    Text("Encontrarme conforme con todos sus términos.", fontSize = 14.sp, color = Color.Black)
                 }
             }
 
@@ -1907,7 +1907,7 @@ fun CargoRitLayout(ficha: JsonObject?) {
 
 @Composable
 fun ActaEntregaIpercLayout(ficha: JsonObject?) {
-    // FunciÃ³n segura para extraer datos
+    // Función segura para extraer datos
     fun getStr(key: String): String {
         val element = ficha?.get(key)
         return if (element != null && element !is kotlinx.serialization.json.JsonNull) {
@@ -1957,7 +1957,7 @@ fun ActaEntregaIpercLayout(ficha: JsonObject?) {
                 }
                 Box(modifier = Modifier.width(1.dp).fillMaxHeight().background(Color.Black))
 
-                // TÃ­tulo
+                // Título
                 Column(modifier = Modifier.weight(0.60f).fillMaxHeight().padding(4.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                     Text("ACTA DE ENTREGA DE IPERC", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.Black, textAlign = TextAlign.Center)
                     Spacer(Modifier.height(4.dp))
@@ -1968,11 +1968,11 @@ fun ActaEntregaIpercLayout(ficha: JsonObject?) {
                 // Detalles
                 Column(modifier = Modifier.weight(0.20f).fillMaxHeight()) {
                     Row(Modifier.weight(1f).fillMaxWidth().border(0.5.dp, Color.Black).padding(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text("CÃ“DIGO:", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Color.Black, modifier = Modifier.weight(1f))
+                        Text("CÓDIGO:", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Color.Black, modifier = Modifier.weight(1f))
                         Text("SG-FOR-112", fontSize = 8.sp, color = Color.Black)
                     }
                     Row(Modifier.weight(1f).fillMaxWidth().border(0.5.dp, Color.Black).padding(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text("REVISIÃ“N:", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Color.Black, modifier = Modifier.weight(1f))
+                        Text("REVISIÓN:", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Color.Black, modifier = Modifier.weight(1f))
                         Text("01", fontSize = 8.sp, color = Color.Black)
                     }
                     Row(Modifier.weight(1f).fillMaxWidth().border(0.5.dp, Color.Black).padding(4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -1980,7 +1980,7 @@ fun ActaEntregaIpercLayout(ficha: JsonObject?) {
                         Text("1/08/2024", fontSize = 8.sp, color = Color.Black)
                     }
                     Row(Modifier.weight(1f).fillMaxWidth().border(0.5.dp, Color.Black).padding(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text("PÃGINA:", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Color.Black, modifier = Modifier.weight(1f))
+                        Text("PÁGINA:", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Color.Black, modifier = Modifier.weight(1f))
                         Text("01 / 01", fontSize = 8.sp, color = Color.Black)
                     }
                 }
@@ -1990,8 +1990,8 @@ fun ActaEntregaIpercLayout(ficha: JsonObject?) {
 
             // --- 2. CUERPO DEL TEXTO ---
 
-            // PÃ¡rrafo 1 (Intercalando texto con lÃ­neas de campos)
-            // Usamos un componente personalizado de Flujo (FlowRow) que simula texto en lÃ­nea.
+            // Párrafo 1 (Intercalando texto con líneas de campos)
+            // Usamos un componente personalizado de Flujo (FlowRow) que simula texto en línea.
             @OptIn(ExperimentalLayoutApi::class)
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
@@ -2003,12 +2003,12 @@ fun ActaEntregaIpercLayout(ficha: JsonObject?) {
                 DottedLineText(text = fullName, minWidth = 200.dp, modifier = Modifier.align(Alignment.Bottom))
                 Spacer(Modifier.width(4.dp))
 
-                Text(", identificado con DNI/CE/Pasaporte NÂº", fontSize = 12.sp, color = Color.Black, modifier = Modifier.align(Alignment.Bottom))
+                Text(", identificado con DNI/CE/Pasaporte Nº", fontSize = 12.sp, color = Color.Black, modifier = Modifier.align(Alignment.Bottom))
                 Spacer(Modifier.width(4.dp))
                 DottedLineText(text = dni, minWidth = 80.dp, modifier = Modifier.align(Alignment.Bottom))
                 Spacer(Modifier.width(4.dp))
 
-                Text(", desempeÃ±o el cargo de", fontSize = 12.sp, color = Color.Black, modifier = Modifier.align(Alignment.Bottom))
+                Text(", desempeño el cargo de", fontSize = 12.sp, color = Color.Black, modifier = Modifier.align(Alignment.Bottom))
                 Spacer(Modifier.width(4.dp))
                 DottedLineText(text = cargo, minWidth = 100.dp, modifier = Modifier.align(Alignment.Bottom))
                 Spacer(Modifier.width(4.dp))
@@ -2027,7 +2027,7 @@ fun ActaEntregaIpercLayout(ficha: JsonObject?) {
             Spacer(Modifier.height(20.dp))
 
             Text(
-                "Por medio de la presente declaro haber recibido copia de la Matriz de IdentificaciÃ³n de Peligros, EvaluaciÃ³n de Riesgos y Controles (IPERC) de mi puesto de trabajo de parte de RUAG S.R.L.",
+                "Por medio de la presente declaro haber recibido copia de la Matriz de Identificación de Peligros, Evaluación de Riesgos y Controles (IPERC) de mi puesto de trabajo de parte de RUAG S.R.L.",
                 fontSize = 12.sp, color = Color.Black, textAlign = TextAlign.Justify, lineHeight = 18.sp
             )
 
@@ -2041,13 +2041,13 @@ fun ActaEntregaIpercLayout(ficha: JsonObject?) {
             Spacer(Modifier.height(20.dp))
 
             Text(
-                "En conformidad con lo mencionado y recepciÃ³n,",
+                "En conformidad con lo mencionado y recepción,",
                 fontSize = 12.sp, color = Color.Black
             )
 
             Spacer(Modifier.height(80.dp))
 
-            // --- 3. SECCIÃ“N DE FIRMA ---
+            // --- 3. SECCIÓN DE FIRMA ---
             Column(Modifier.padding(start = 32.dp)) {
                 // Firma
                 Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.padding(bottom = 24.dp)) {
@@ -2089,7 +2089,7 @@ fun ActaEntregaIpercLayout(ficha: JsonObject?) {
 
 @Composable
 fun ActaDerechoSaberLayout(ficha: JsonObject?) {
-    // FunciÃ³n segura para extraer datos
+    // Función segura para extraer datos
     fun getStr(key: String): String {
         val element = ficha?.get(key)
         return if (element != null && element !is kotlinx.serialization.json.JsonNull) {
@@ -2118,20 +2118,20 @@ fun ActaDerechoSaberLayout(ficha: JsonObject?) {
     val risks = listOf(
         "Ley de Accidentes del trabajo y Enfermedades profesionales; Ley 29783; RM 480-2008-SA",
         "Reglamento Interno de Seguridad.",
-        "PolÃ­ticas de Seguridad y Salud Ocupacional y Medio Ambiente.",
-        "OrganizaciÃ³n del sistema de gestiÃ³n de la seguridad y salud en el trabajo en la obra.",
+        "Políticas de Seguridad y Salud Ocupacional y Medio Ambiente.",
+        "Organización del sistema de gestión de la seguridad y salud en el trabajo en la obra.",
         "Derechos y obligaciones de los/las trabajadores/as y supervisores/as.",
-        "Conceptos bÃ¡sicos de seguridad y salud en el trabajo.",
-        "Reglas de trÃ¡nsito (de ser aplicable a la obra).",
-        "Conceptos bÃ¡sicos de seguridad y salud en el trabajo (Repaso).",
-        "Plan de Seguridad y Salud Ocupacional, Plan de PrevenciÃ³n Ambiental",
-        "Reconocimiento del Ã¡rea de trabajo.",
-        "Elementos de protecciÃ³n personal, tipos requeridos, manejo correcto, Obligatoriedad y protecciones colectivas.",
-        "Control de Emergencias, Incendios, Uso de Extintores, Primeros Auxilios, AtenciÃ³n de lesionados.",
-        "Procedimiento Trabajo en Altura, Procedimientos de Trabajo Seguro, uso correcto de arnÃ©s de seguridad.",
+        "Conceptos básicos de seguridad y salud en el trabajo.",
+        "Reglas de tránsito (de ser aplicable a la obra).",
+        "Conceptos básicos de seguridad y salud en el trabajo (Repaso).",
+        "Plan de Seguridad y Salud Ocupacional, Plan de Prevención Ambiental",
+        "Reconocimiento del área de trabajo.",
+        "Elementos de protección personal, tipos requeridos, manejo correcto, Obligatoriedad y protecciones colectivas.",
+        "Control de Emergencias, Incendios, Uso de Extintores, Primeros Auxilios, Atención de lesionados.",
+        "Procedimiento Trabajo en Altura, Procedimientos de Trabajo Seguro, uso correcto de arnés de seguridad.",
         "Superficies de Trabajo; andamios, escaleras, plataformas, elevadores de personas, etc.",
         "Manejo de materiales; maniobras, trabajo con equipos de levante (Tirford, tecles, estrobos, etc.).",
-        "Riesgos elÃ©ctricos, equipos energizados.",
+        "Riesgos eléctricos, equipos energizados.",
         "Esmeril angular; uso seguro.",
         "Oxicorte; uso, riesgos y medidas preventivas.",
         "Cilindros de Gases Comprimidos; manejo, almacenamiento y transporte.",
@@ -2139,24 +2139,24 @@ fun ActaDerechoSaberLayout(ficha: JsonObject?) {
         "Excavaciones, Entibaciones, Fortificaciones y Taludes.",
         "Vaciado de Concreto.",
         "Housekeeping (Orden y Aseo).",
-        "CÃ³digo de colores y seÃ±alizaciÃ³n.",
-        "ExposiciÃ³n a Ruidos, polvo y vibraciones.",
-        "Desplazamientos por Ã¡reas de trabajo.",
+        "Código de colores y señalización.",
+        "Exposición a Ruidos, polvo y vibraciones.",
+        "Desplazamientos por áreas de trabajo.",
         "Higiene Personal, Recomendaciones.",
         "Control, Manejo, uso y transporte de sustancias peligrosas.",
         "Sistemas de bloqueos y uso de Tarjeta de Seguridad.",
         "Procedimiento Operacional de Equipos, Maquinarias y Herramientas, uso de canastillo.",
         "Combustibles; Manejo, Almacenamiento y Transporte.",
         "Cambio de conducta, Autocuidado, Reconocimiento, Sanciones, Contacto Personal.",
-        "ProhibiciÃ³n de ingreso al Proyecto bajo la influencia de alcohol y/o drogas.",
-        "IdentificaciÃ³n de Aspectos e Impactos Ambientales.",
+        "Prohibición de ingreso al Proyecto bajo la influencia de alcohol y/o drogas.",
+        "Identificación de Aspectos e Impactos Ambientales.",
         "Sobre Riesgos Ambientales, Manejo de residuos.",
         "Equipos Radioactivos.",
-        "PreparaciÃ³n y respuesta ante emergencias.",
+        "Preparación y respuesta ante emergencias.",
         "Trabajos de alto riesgo."
     )
 
-    // Agregamos "RowScope." aquÃ­ ðŸ‘‡
+    // Agregamos "RowScope." aquí 👇
     @Composable
     fun RowScope.TableCell(
         modifier: Modifier = Modifier,
@@ -2212,11 +2212,11 @@ fun ActaDerechoSaberLayout(ficha: JsonObject?) {
                     // Meta (Codigo, Revision, Fecha)
                     Column(Modifier.weight(0.22f)) {
                         Row(Modifier.weight(1f)) {
-                            TableCell(weight = 0.4f, bgColor = Color(0xFFF2F2F2)) { Text("CÃ³digo", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Color.Black) }
+                            TableCell(weight = 0.4f, bgColor = Color(0xFFF2F2F2)) { Text("Código", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Color.Black) }
                             TableCell(weight = 0.6f, contentAlignment = Alignment.Center) { Text("SG-FOR-110", fontSize = 8.sp, color = Color.Black) }
                         }
                         Row(Modifier.weight(1f)) {
-                            TableCell(weight = 0.4f, bgColor = Color(0xFFF2F2F2)) { Text("RevisiÃ³n", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Color.Black) }
+                            TableCell(weight = 0.4f, bgColor = Color(0xFFF2F2F2)) { Text("Revisión", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Color.Black) }
                             TableCell(weight = 0.6f, contentAlignment = Alignment.Center) { Text("0", fontSize = 8.sp, color = Color.Black) }
                         }
                         Row(Modifier.weight(1f)) {
@@ -2248,7 +2248,7 @@ fun ActaDerechoSaberLayout(ficha: JsonObject?) {
                     TableCell(weight = 0.65f) { Text(dni, fontSize = 8.sp, color = Color.Black) }
                 }
 
-                // Bloque complejo: Especialidad a la izquierda (con mÃ¡s filas debajo) y Firma a la derecha ocupando el resto del alto
+                // Bloque complejo: Especialidad a la izquierda (con más filas debajo) y Firma a la derecha ocupando el resto del alto
                 Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
                     Column(Modifier.weight(0.65f)) {
                         Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
@@ -2264,7 +2264,7 @@ fun ActaDerechoSaberLayout(ficha: JsonObject?) {
                             TableCell(weight = 0.46f) { Text(today, fontSize = 8.sp, color = Color.Black) }
                         }
                         Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
-                            TableCell(weight = 0.54f, bgColor = Color(0xFFF2F2F2)) { Text("DURACIÃ“N DE LA CHARLA:", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Color.Black) }
+                            TableCell(weight = 0.54f, bgColor = Color(0xFFF2F2F2)) { Text("DURACIÓN DE LA CHARLA:", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Color.Black) }
                             TableCell(weight = 0.46f) { Text("1.5 Hrs.", fontSize = 8.sp, color = Color.Black) }
                         }
                     }
@@ -2297,7 +2297,7 @@ fun ActaDerechoSaberLayout(ficha: JsonObject?) {
                 }
                 Column(Modifier.padding(8.dp)) {
                     Text(
-                        "A travÃ©s de esta acta declaro haber sido informado acerca de todos los riesgos que entraÃ±an las labores que desarrollarÃ© en mi trabajo, asÃ­ como las medidas preventivas que debo tomar para hacer de esto un mÃ©todo seguro de trabajo, ademÃ¡s aquellos aspectos ambientales que tengan relaciÃ³n con mi puesto y Ã¡rea de trabajo.",
+                        "A través de esta acta declaro haber sido informado acerca de todos los riesgos que entrañan las labores que desarrollaré en mi trabajo, así como las medidas preventivas que debo tomar para hacer de esto un método seguro de trabajo, además aquellos aspectos ambientales que tengan relación con mi puesto y área de trabajo.",
                         fontSize = 9.sp, color = Color.Black, textAlign = TextAlign.Justify, lineHeight = 12.sp, modifier = Modifier.padding(bottom = 8.dp)
                     )
 
@@ -2341,7 +2341,7 @@ fun ActaDerechoSaberLayout(ficha: JsonObject?) {
 
 @Composable
 fun EntregaEppLayout(ficha: JsonObject?) {
-    // FunciÃ³n segura para extraer datos
+    // Función segura para extraer datos
     fun getStr(key: String): String {
         val element = ficha?.get(key)
         return if (element != null && element !is kotlinx.serialization.json.JsonNull) {
@@ -2371,7 +2371,7 @@ fun EntregaEppLayout(ficha: JsonObject?) {
         "OVEROL O UNIFORME", "OTROS"
     )
 
-    // Agregamos "RowScope." aquÃ­ ðŸ‘‡
+    // Agregamos "RowScope." aquí 👇
     @Composable
     fun RowScope.TableCell(
         modifier: Modifier = Modifier,
@@ -2422,16 +2422,16 @@ fun EntregaEppLayout(ficha: JsonObject?) {
                 }
                 Column(Modifier.weight(0.15f).fillMaxHeight()) {
                     Box(Modifier.weight(1f).fillMaxWidth().border(0.5.dp, Color.Black).padding(4.dp), contentAlignment = Alignment.CenterStart) {
-                        Text("CÃ“DIGO: SG-FOR-08", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                        Text("CÓDIGO: SG-FOR-08", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Color.Black)
                     }
                     Box(Modifier.weight(1f).fillMaxWidth().border(0.5.dp, Color.Black).padding(4.dp), contentAlignment = Alignment.CenterStart) {
-                        Text("REVISIÃ“N: 03", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                        Text("REVISIÓN: 03", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Color.Black)
                     }
                     Box(Modifier.weight(1f).fillMaxWidth().border(0.5.dp, Color.Black).padding(4.dp), contentAlignment = Alignment.CenterStart) {
                         Text("FECHA: 12/12/2025", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Color.Black)
                     }
                     Box(Modifier.weight(1f).fillMaxWidth().border(0.5.dp, Color.Black).padding(4.dp), contentAlignment = Alignment.CenterStart) {
-                        Text("PÃGINA: 01/01", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                        Text("PÁGINA: 01/01", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Color.Black)
                     }
                 }
             }
@@ -2446,18 +2446,18 @@ fun EntregaEppLayout(ficha: JsonObject?) {
                 // Cabeceras (Fila 1)
                 Column(Modifier.weight(1f)) {
                     Row(Modifier.fillMaxWidth().background(Color(0xFFE5E5E5)).height(IntrinsicSize.Min)) {
-                        TableCell(weight = 0.25f, contentAlignment = Alignment.Center) { Text("RAZÃ“N SOCIAL O DENOMINACIÃ“N SOCIAL", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Color.Black, textAlign = TextAlign.Center) }
+                        TableCell(weight = 0.25f, contentAlignment = Alignment.Center) { Text("RAZÓN SOCIAL O DENOMINACIÓN SOCIAL", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Color.Black, textAlign = TextAlign.Center) }
                         TableCell(weight = 0.15f, contentAlignment = Alignment.Center) { Text("RUC", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Color.Black, textAlign = TextAlign.Center) }
-                        TableCell(weight = 0.35f, contentAlignment = Alignment.Center) { Text("DOMICILIO (DirecciÃ³n, distrito, departamento, provincia)", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Color.Black, textAlign = TextAlign.Center) }
-                        TableCell(weight = 0.10f, contentAlignment = Alignment.Center) { Text("ACTIVIDAD ECONÃ“MICA", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Color.Black, textAlign = TextAlign.Center) }
-                        TableCell(weight = 0.15f, contentAlignment = Alignment.Center) { Text("NÂº TRABAJADORES", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Color.Black, textAlign = TextAlign.Center) }
+                        TableCell(weight = 0.35f, contentAlignment = Alignment.Center) { Text("DOMICILIO (Dirección, distrito, departamento, provincia)", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Color.Black, textAlign = TextAlign.Center) }
+                        TableCell(weight = 0.10f, contentAlignment = Alignment.Center) { Text("ACTIVIDAD ECONÓMICA", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Color.Black, textAlign = TextAlign.Center) }
+                        TableCell(weight = 0.15f, contentAlignment = Alignment.Center) { Text("Nº TRABAJADORES", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Color.Black, textAlign = TextAlign.Center) }
                     }
                     // Valores (Fila 2)
                     Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
                         TableCell(weight = 0.25f, contentAlignment = Alignment.Center) { Text("RUAG S.R.L. TDA.", fontSize = 9.sp, color = Color.Black, textAlign = TextAlign.Center) }
                         TableCell(weight = 0.15f, contentAlignment = Alignment.Center) { Text("20343680580", fontSize = 9.sp, color = Color.Black, textAlign = TextAlign.Center) }
                         TableCell(weight = 0.35f, contentAlignment = Alignment.Center) { Text("Av. Paseo de la Republica No 4956 , Miraflores - Lima", fontSize = 9.sp, color = Color.Black, textAlign = TextAlign.Center) }
-                        TableCell(weight = 0.10f, contentAlignment = Alignment.Center) { Text("ConstrucciÃ³n", fontSize = 9.sp, color = Color.Black, textAlign = TextAlign.Center) }
+                        TableCell(weight = 0.10f, contentAlignment = Alignment.Center) { Text("Construcción", fontSize = 9.sp, color = Color.Black, textAlign = TextAlign.Center) }
                         TableCell(weight = 0.15f, contentAlignment = Alignment.Center) { Text("", fontSize = 9.sp, color = Color.Black, textAlign = TextAlign.Center) }
                     }
                 }
@@ -2516,7 +2516,7 @@ fun EntregaEppLayout(ficha: JsonObject?) {
                 epps.forEach { epp ->
                     Row(Modifier.fillMaxWidth().height(24.dp)) {
                         TableCell(weight = 0.20f, contentAlignment = Alignment.CenterStart) { Text(epp, fontSize = 8.sp, color = Color.Black) }
-                        // Celdas vacÃ­as para fechas y firmas
+                        // Celdas vacías para fechas y firmas
                         for (i in 1..8) {
                             TableCell(weight = 0.10f) { }
                         }
@@ -2555,7 +2555,7 @@ fun EntregaEppLayout(ficha: JsonObject?) {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun InduccionHombreNuevoLayout(ficha: JsonObject?) {
-    // FunciÃ³n segura para extraer datos
+    // Función segura para extraer datos
     fun getStr(key: String): String {
         val element = ficha?.get(key)
         return if (element != null && element !is kotlinx.serialization.json.JsonNull) {
@@ -2580,17 +2580,17 @@ fun InduccionHombreNuevoLayout(ficha: JsonObject?) {
     val docData = ficha?.get("doc_states")?.jsonObject?.get("induccion")?.jsonObject?.get("data")?.jsonObject
 
     val topics = listOf(
-        "PolÃ­tica de Seguridad y Salud en el Trabajo.",
-        "OrganizaciÃ³n del sistema de gestiÃ³n de la seguridad y salud en el trabajo.",
+        "Política de Seguridad y Salud en el Trabajo.",
+        "Organización del sistema de gestión de la seguridad y salud en el trabajo.",
         "Reglamento interno de Seguridad y Salud en el trabajo.",
         "Derecho y obligaciones de los trabajadores (as) y supervisores (as).",
-        "Conceptos bÃ¡sicos de la seguridad y salud en el trabajo.",
+        "Conceptos básicos de la seguridad y salud en el trabajo.",
         "Reglas de Transito (de ser aplicables a la obra).",
         "Trabajos de alto riesgo.",
-        "CÃ³digo de Colores y SeÃ±alizaciÃ³n.",
+        "Código de Colores y Señalización.",
         "Control de sustancias peligrosas.",
-        "PreparaciÃ³n y respuesta ante emergencias.",
-        "Equipos de protecciÃ³n personal y protecciones colectivas."
+        "Preparación y respuesta ante emergencias.",
+        "Equipos de protección personal y protecciones colectivas."
     )
 
     Column(
@@ -2621,20 +2621,20 @@ fun InduccionHombreNuevoLayout(ficha: JsonObject?) {
                 }
                 Box(modifier = Modifier.width(1.dp).fillMaxHeight().background(Color.Black))
 
-                // TÃ­tulo
+                // Título
                 Box(modifier = Modifier.weight(0.55f).fillMaxHeight().padding(4.dp), contentAlignment = Alignment.Center) {
-                    Text("INDUCCIÃ“N HOMBRE NUEVO", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.Black, textAlign = TextAlign.Center)
+                    Text("INDUCCIÓN HOMBRE NUEVO", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.Black, textAlign = TextAlign.Center)
                 }
                 Box(modifier = Modifier.width(1.dp).fillMaxHeight().background(Color.Black))
 
                 // Detalles
                 Column(modifier = Modifier.weight(0.25f).fillMaxHeight()) {
                     Row(Modifier.weight(1f).fillMaxWidth().border(0.5.dp, Color.Black).padding(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text("CÃ“DIGO:", fontSize = 7.sp, fontWeight = FontWeight.Bold, color = Color.Black, modifier = Modifier.weight(1f))
+                        Text("CÓDIGO:", fontSize = 7.sp, fontWeight = FontWeight.Bold, color = Color.Black, modifier = Modifier.weight(1f))
                         Text("SG-FOR-06", fontSize = 7.sp, color = Color.Black)
                     }
                     Row(Modifier.weight(1f).fillMaxWidth().border(0.5.dp, Color.Black).padding(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text("REVISIÃ“N:", fontSize = 7.sp, fontWeight = FontWeight.Bold, color = Color.Black, modifier = Modifier.weight(1f))
+                        Text("REVISIÓN:", fontSize = 7.sp, fontWeight = FontWeight.Bold, color = Color.Black, modifier = Modifier.weight(1f))
                         Text("01", fontSize = 7.sp, color = Color.Black)
                     }
                     Row(Modifier.weight(1f).fillMaxWidth().border(0.5.dp, Color.Black).padding(4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -2642,7 +2642,7 @@ fun InduccionHombreNuevoLayout(ficha: JsonObject?) {
                         Text("04/01/2024", fontSize = 7.sp, color = Color.Black)
                     }
                     Row(Modifier.weight(1f).fillMaxWidth().border(0.5.dp, Color.Black).padding(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text("PÃGINA:", fontSize = 7.sp, fontWeight = FontWeight.Bold, color = Color.Black, modifier = Modifier.weight(1f))
+                        Text("PÁGINA:", fontSize = 7.sp, fontWeight = FontWeight.Bold, color = Color.Black, modifier = Modifier.weight(1f))
                         Text("01 / 01", fontSize = 7.sp, color = Color.Black)
                     }
                 }
@@ -2747,7 +2747,7 @@ fun InduccionHombreNuevoLayout(ficha: JsonObject?) {
                         drawLine(color = Color.Black, start = Offset(0f, 0f), end = Offset(size.width, 0f), pathEffect = PathEffect.dashPathEffect(floatArrayOf(5f, 5f)))
                     }
                     Text(
-                        "VÂ°BÂ° del Supervisor de Seguridad y\nSalud en el Trabajo o Prevencionista de Riesgos",
+                        "V°B° del Supervisor de Seguridad y\nSalud en el Trabajo o Prevencionista de Riesgos",
                         fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.Black, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 4.dp)
                     )
                 }
@@ -2758,7 +2758,7 @@ fun InduccionHombreNuevoLayout(ficha: JsonObject?) {
 
 @Composable
 fun RegistroCapacitacionLayout(ficha: JsonObject?) {
-    // FunciÃ³n segura para extraer datos
+    // Función segura para extraer datos
     fun getStr(key: String): String {
         val element = ficha?.get(key)
         return if (element != null && element !is kotlinx.serialization.json.JsonNull) {
@@ -2783,7 +2783,7 @@ fun RegistroCapacitacionLayout(ficha: JsonObject?) {
 
     // Helper para las celdas de la tabla
     @Composable
-    fun RowScope.TableCell( // <--- Â¡AQUÃ ESTÃ LA MAGIA (AÃ±adir RowScope.)!
+    fun RowScope.TableCell( // <--- ¡AQUÍ ESTÁ LA MAGIA (Añadir RowScope.)!
         modifier: Modifier = Modifier,
         weight: Float? = null,
         border: Boolean = true,
@@ -2838,27 +2838,27 @@ fun RegistroCapacitacionLayout(ficha: JsonObject?) {
                 TableCell(weight = 0.15f, contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("RUAG", fontWeight = FontWeight.Black, color = Color.Black, fontSize = 18.sp)
-                        Text("construcciÃ³n", fontSize = 8.sp, color = Color.Black)
+                        Text("construcción", fontSize = 8.sp, color = Color.Black)
                     }
                 }
                 TableCell(weight = 0.70f, contentAlignment = Alignment.Center) {
                     Text(
-                        "REGISTRO DE INDUCCIÃ“N, CAPACITACIÃ“N, ENTRENAMIENTO, SIMULACROS DE EMERGENCIA Y OTROS",
+                        "REGISTRO DE INDUCCIÓN, CAPACITACIÓN, ENTRENAMIENTO, SIMULACROS DE EMERGENCIA Y OTROS",
                         fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color.Black, textAlign = TextAlign.Center
                     )
                 }
                 Column(Modifier.weight(0.15f).fillMaxHeight()) {
                     Box(Modifier.weight(1f).fillMaxWidth().border(0.5.dp, Color.Black).padding(4.dp), contentAlignment = Alignment.CenterStart) {
-                        Text("CÃ“DIGO: SG-FOR-01", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                        Text("CÓDIGO: SG-FOR-01", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Color.Black)
                     }
                     Box(Modifier.weight(1f).fillMaxWidth().border(0.5.dp, Color.Black).padding(4.dp), contentAlignment = Alignment.CenterStart) {
-                        Text("REVISIÃ“N: 01", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                        Text("REVISIÓN: 01", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Color.Black)
                     }
                     Box(Modifier.weight(1f).fillMaxWidth().border(0.5.dp, Color.Black).padding(4.dp), contentAlignment = Alignment.CenterStart) {
                         Text("FECHA: 04/01/2024", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Color.Black)
                     }
                     Box(Modifier.weight(1f).fillMaxWidth().border(0.5.dp, Color.Black).padding(4.dp), contentAlignment = Alignment.CenterStart) {
-                        Text("PÃGINA: 01/01", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                        Text("PÁGINA: 01/01", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Color.Black)
                     }
                 }
             }
@@ -2869,7 +2869,7 @@ fun RegistroCapacitacionLayout(ficha: JsonObject?) {
             Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min).border(1.dp, Color.Black)) {
                 TableCell(weight = 0.20f, contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("RAZÃ“N SOCIAL O DENOMINACIÃ“N SOCIAL:", fontWeight = FontWeight.Bold, fontSize = 8.sp, color = Color.Black, textAlign = TextAlign.Center)
+                        Text("RAZÓN SOCIAL O DENOMINACIÓN SOCIAL:", fontWeight = FontWeight.Bold, fontSize = 8.sp, color = Color.Black, textAlign = TextAlign.Center)
                         Text("RUAG S.R.L. TDA.", fontSize = 9.sp, color = Color.Black, modifier = Modifier.padding(top = 2.dp))
                     }
                 }
@@ -2881,19 +2881,19 @@ fun RegistroCapacitacionLayout(ficha: JsonObject?) {
                 }
                 TableCell(weight = 0.35f, contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("DOMICILIO (DirecciÃ³n, distrito, departamento, provincia)", fontWeight = FontWeight.Bold, fontSize = 8.sp, color = Color.Black)
+                        Text("DOMICILIO (Dirección, distrito, departamento, provincia)", fontWeight = FontWeight.Bold, fontSize = 8.sp, color = Color.Black)
                         Text("Av. Paseo de la Republica No 4956 Miraflores - Lima", fontSize = 9.sp, color = Color.Black, modifier = Modifier.padding(top = 2.dp))
                     }
                 }
                 TableCell(weight = 0.15f, contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("ACTIVIDAD ECONÃ“MICA:", fontWeight = FontWeight.Bold, fontSize = 8.sp, color = Color.Black)
-                        Text("CONSTRUCCIÃ“N", fontSize = 9.sp, color = Color.Black, modifier = Modifier.padding(top = 2.dp))
+                        Text("ACTIVIDAD ECONÓMICA:", fontWeight = FontWeight.Bold, fontSize = 8.sp, color = Color.Black)
+                        Text("CONSTRUCCIÓN", fontSize = 9.sp, color = Color.Black, modifier = Modifier.padding(top = 2.dp))
                     }
                 }
                 TableCell(weight = 0.15f, contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("NÂ° TRABAJADORES EN EL CENTRO LABORAL:", fontWeight = FontWeight.Bold, fontSize = 8.sp, color = Color.Black, textAlign = TextAlign.Center)
+                        Text("N° TRABAJADORES EN EL CENTRO LABORAL:", fontWeight = FontWeight.Bold, fontSize = 8.sp, color = Color.Black, textAlign = TextAlign.Center)
                         Text("________________", fontSize = 9.sp, color = Color.Black, modifier = Modifier.padding(top = 2.dp))
                     }
                 }
@@ -2901,15 +2901,15 @@ fun RegistroCapacitacionLayout(ficha: JsonObject?) {
 
             Spacer(Modifier.height(8.dp))
 
-            // --- 3. DETALLES DE LA CAPACITACIÃ“N ---
+            // --- 3. DETALLES DE LA CAPACITACIÓN ---
             Column(Modifier.fillMaxWidth().border(1.dp, Color.Black)) {
                 // Checks
                 Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
-                    TableCell(weight = 0.15f) { CheckBoxLabel("INDUCCIÃ“N:", false) }
+                    TableCell(weight = 0.15f) { CheckBoxLabel("INDUCCIÓN:", false) }
                     TableCell(weight = 0.20f) { CheckBoxLabel("CHARLA DE SEGURIDAD:", false) }
                     TableCell(weight = 0.20f) { CheckBoxLabel("ENTRENAMIENTO:", false) }
                     TableCell(weight = 0.25f) { CheckBoxLabel("SIMULACRO DE EMERGENCIA:", false) }
-                    TableCell(weight = 0.20f) { CheckBoxLabel("CAPACITACIÃ“N:", true) }
+                    TableCell(weight = 0.20f) { CheckBoxLabel("CAPACITACIÓN:", true) }
                 }
                 // Otros / Lugar
                 Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
@@ -2930,7 +2930,7 @@ fun RegistroCapacitacionLayout(ficha: JsonObject?) {
                     TableCell(weight = 1f) {
                         Row {
                             Text("TEMA: ", fontWeight = FontWeight.Bold, fontSize = 9.sp, color = Color.Black)
-                            Text("INDUCCIÃ“N GENERAL SSOMA", fontSize = 9.sp, color = Color.Black)
+                            Text("INDUCCIÓN GENERAL SSOMA", fontSize = 9.sp, color = Color.Black)
                         }
                     }
                 }
@@ -2962,9 +2962,9 @@ fun RegistroCapacitacionLayout(ficha: JsonObject?) {
             Column(Modifier.fillMaxWidth().border(1.dp, Color.Black)) {
                 // Header Tabla
                 Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min).background(Color(0xFFF2F2F2))) {
-                    TableCell(weight = 0.05f, contentAlignment = Alignment.Center) { Text("NÂ°", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.Black) }
+                    TableCell(weight = 0.05f, contentAlignment = Alignment.Center) { Text("N°", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.Black) }
                     TableCell(weight = 0.40f, contentAlignment = Alignment.Center) { Text("APELLIDOS Y NOMBRES DE LOS CAPACITADOS", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.Black) }
-                    TableCell(weight = 0.15f, contentAlignment = Alignment.Center) { Text("NÂ° DNI", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.Black) }
+                    TableCell(weight = 0.15f, contentAlignment = Alignment.Center) { Text("N° DNI", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.Black) }
                     TableCell(weight = 0.20f, contentAlignment = Alignment.Center) { Text("ESPECIALIDAD/EMPRESA", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.Black) }
                     TableCell(weight = 0.20f, contentAlignment = Alignment.Center) { Text("FIRMA", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = Color.Black) }
                 }
@@ -2987,7 +2987,7 @@ fun RegistroCapacitacionLayout(ficha: JsonObject?) {
                     }
                 }
 
-                // Filas vacÃ­as para rellenar
+                // Filas vacías para rellenar
                 for (i in 2..15) {
                     Row(Modifier.fillMaxWidth().height(24.dp)) {
                         TableCell(weight = 0.05f, contentAlignment = Alignment.Center) { Text("$i", fontSize = 9.sp, color = Color.Black) }
@@ -3029,7 +3029,7 @@ fun RegistroCapacitacionLayout(ficha: JsonObject?) {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun CargoRisstLayout(ficha: JsonObject?) {
-    // FunciÃ³n segura para extraer datos del JSON
+    // Función segura para extraer datos del JSON
     fun getStr(key: String): String {
         val element = ficha?.get(key)
         return if (element != null && element !is kotlinx.serialization.json.JsonNull) {
@@ -3037,7 +3037,7 @@ fun CargoRisstLayout(ficha: JsonObject?) {
         } else ""
     }
 
-    // ExtracciÃ³n de datos
+    // Extracción de datos
     val nombres = getStr("nombres")
     val apellidoPaterno = getStr("apellido_paterno")
     val apellidoMaterno = getStr("apellido_materno")
@@ -3087,13 +3087,13 @@ fun CargoRisstLayout(ficha: JsonObject?) {
                 // Divisor
                 Box(modifier = Modifier.width(1.dp).fillMaxHeight().background(Color.Black))
 
-                // Col 2: TÃ­tulos
+                // Col 2: Títulos
                 Column(
                     modifier = Modifier.weight(0.5f).fillMaxHeight().padding(4.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    Text("SISTEMA DE GESTIÃ“N INTEGRADOS", fontSize = 9.sp, color = Color.Black, textAlign = TextAlign.Center)
+                    Text("SISTEMA DE GESTIÓN INTEGRADOS", fontSize = 9.sp, color = Color.Black, textAlign = TextAlign.Center)
                     Spacer(Modifier.height(4.dp))
                     Text("REGLAMENTO INTERNO DE SEGURIDAD Y SALUD EN EL TRABAJO", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.Black, textAlign = TextAlign.Center)
                 }
@@ -3103,21 +3103,21 @@ fun CargoRisstLayout(ficha: JsonObject?) {
 
                 // Col 3: Detalles
                 Column(modifier = Modifier.weight(0.25f).fillMaxHeight()) {
-                    HeaderDetailRow("CÃ“DIGO:", "SG-RIT-01")
+                    HeaderDetailRow("CÓDIGO:", "SG-RIT-01")
                     Box(Modifier.fillMaxWidth().height(1.dp).background(Color.Black))
-                    HeaderDetailRow("REVISIÃ“N:", "01")
+                    HeaderDetailRow("REVISIÓN:", "01")
                     Box(Modifier.fillMaxWidth().height(1.dp).background(Color.Black))
                     HeaderDetailRow("FECHA:", "04/01/2024")
                     Box(Modifier.fillMaxWidth().height(1.dp).background(Color.Black))
-                    HeaderDetailRow("PÃGINA:", "54 de 54")
+                    HeaderDetailRow("PÁGINA:", "54 de 54")
                 }
             }
 
             Spacer(Modifier.height(20.dp))
 
-            // TÃ­tulo Central
+            // Título Central
             Text(
-                text = "ANEXO NÂ° 3 COMPROMISO",
+                text = "ANEXO N° 3 COMPROMISO",
                 modifier = Modifier.fillMaxWidth(),
                 textAlign = TextAlign.Center,
                 fontWeight = FontWeight.Bold,
@@ -3137,7 +3137,7 @@ fun CargoRisstLayout(ficha: JsonObject?) {
                 Column(Modifier.fillMaxWidth()) {
 
                     Text(
-                        text = "REGLAMENTO INTERNO DE SEGURIDAD, SALUD OCUPACIONAL Y MEDIO AMBIENTE\n\nRECEPCIÃ“N DEL REGLAMENTO Y COMPROMISO DE SEGURIDAD, SALUD OCUPACIONAL Y MEDIO AMBIENTE",
+                        text = "REGLAMENTO INTERNO DE SEGURIDAD, SALUD OCUPACIONAL Y MEDIO AMBIENTE\n\nRECEPCIÓN DEL REGLAMENTO Y COMPROMISO DE SEGURIDAD, SALUD OCUPACIONAL Y MEDIO AMBIENTE",
                         textAlign = TextAlign.Center,
                         fontWeight = FontWeight.Bold,
                         fontSize = 11.sp,
@@ -3148,7 +3148,7 @@ fun CargoRisstLayout(ficha: JsonObject?) {
 
                     Spacer(Modifier.height(32.dp))
 
-                    // Lugar y Fecha (AQUÃ SE APLICÃ“ EL FLOWROW PARA EVITAR EL APILAMIENTO)
+                    // Lugar y Fecha (AQUÍ SE APLICÓ EL FLOWROW PARA EVITAR EL APILAMIENTO)
                     FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Row(verticalAlignment = Alignment.Bottom) {
                             Text("Lugar: ", fontSize = 11.sp, color = Color.Black)
@@ -3163,7 +3163,7 @@ fun CargoRisstLayout(ficha: JsonObject?) {
                     Spacer(Modifier.height(24.dp))
 
                     Text(
-                        text = "He recibido el Reglamento Interno de Seguridad, Salud Ocupacional y Medio Ambiente de RUAG SRL, comprendo las disposiciones allÃ­ establecidas y me comprometo a cumplirlas siendo Ã©stas condiciÃ³n de empleo.\n\nAsÃ­ mismo, ratifico mi Compromiso con el cumplimiento de la PolÃ­tica de Seguridad, Salud Ocupacional y Medio Ambiente establecidos por RUAG SRL. FAVOR, ESCRIBIR CON LETRA IMPRENTA Y CLARA.",
+                        text = "He recibido el Reglamento Interno de Seguridad, Salud Ocupacional y Medio Ambiente de RUAG SRL, comprendo las disposiciones allí establecidas y me comprometo a cumplirlas siendo éstas condición de empleo.\n\nAsí mismo, ratifico mi Compromiso con el cumplimiento de la Política de Seguridad, Salud Ocupacional y Medio Ambiente establecidos por RUAG SRL. FAVOR, ESCRIBIR CON LETRA IMPRENTA Y CLARA.",
                         textAlign = TextAlign.Justify,
                         fontSize = 11.sp,
                         color = Color.Black,
@@ -3211,7 +3211,7 @@ fun CargoRisstLayout(ficha: JsonObject?) {
                                     )
                                 }
                             }
-                            // LÃ­nea de firma punteada
+                            // Línea de firma punteada
                             Canvas(modifier = Modifier.fillMaxWidth().height(1.dp)) {
                                 drawLine(
                                     color = Color.Black,
@@ -3263,7 +3263,7 @@ fun HeaderDetailRow(label: String, value: String) {
     }
 }
 
-// Â¡PÃ‰GALO AQUÃ!
+// ¡PÉGALO AQUÍ!
 @Composable
 fun SolidLineText(text: String, minWidth: androidx.compose.ui.unit.Dp, modifier: Modifier = Modifier) {
     Column(modifier = modifier.widthIn(min = minWidth), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -3281,7 +3281,7 @@ fun SolidLineText(text: String, minWidth: androidx.compose.ui.unit.Dp, modifier:
     }
 }
 
-// LÃNEA PUNTEADA (CORREGIDA)
+// LÍNEA PUNTEADA (CORREGIDA)
 @Composable
 fun DottedLineText(text: String, minWidth: androidx.compose.ui.unit.Dp, modifier: Modifier = Modifier) {
     Column(modifier = modifier.widthIn(min = minWidth), horizontalAlignment = Alignment.CenterHorizontally) {

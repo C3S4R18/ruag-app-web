@@ -1,4 +1,4 @@
-﻿package com.ruag.digital.ui.screens
+package com.ruag.digital.ui.screens
 
 // IMPORTS ANDROID / JAVA
 
@@ -16,6 +16,9 @@ import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.pdf.PdfDocument
 import android.media.ExifInterface
+import android.net.Uri
+import android.provider.OpenableColumns
+import android.webkit.MimeTypeMap
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -133,6 +136,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -189,6 +193,12 @@ private val Red500 = Color(0xFFEF4444)
 private val Red50 = Color(0xFFFEF2F2)
 private val Amber400 = Color(0xFFFBBF24)
 
+private data class DocumentUploadTarget(
+    val field: String,
+    val format: String,
+    val label: String
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WorkerFormScreen(navController: NavController) {
@@ -218,7 +228,7 @@ fun WorkerFormScreen(navController: NavController) {
                     ficha = Ficha(userId = uid, correo = userEmail)
                 }
             } catch (e: Exception) {
-                Toast.makeText(context, "Error de conexiÃ³n", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Error de conexión", Toast.LENGTH_SHORT).show()
             } finally { isLoading = false }
         }
     }
@@ -252,7 +262,7 @@ fun WorkerFormScreen(navController: NavController) {
                 SupabaseClient.client.from("fichas").upsert(fichaToSave, onConflict = "user_id")
                 if (finish) {
                     isCompleted = true
-                    Toast.makeText(context, "Â¡Ficha enviada correctamente!", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, "¡Ficha enviada correctamente!", Toast.LENGTH_LONG).show()
                 }
             } catch (e: Exception) {
                 Toast.makeText(context, "Error al guardar: ${e.message}", Toast.LENGTH_SHORT).show()
@@ -297,7 +307,7 @@ fun WorkerFormScreen(navController: NavController) {
                 Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     if (currentStep > 1) {
                         OutlinedButton(onClick = { currentStep-- }, modifier = Modifier.weight(1f).height(56.dp), shape = RoundedCornerShape(14.dp), border = BorderStroke(1.dp, Slate200), colors = ButtonDefaults.outlinedButtonColors(contentColor = Slate500)) {
-                            Icon(Icons.Default.ChevronLeft, null); Spacer(Modifier.width(4.dp)); Text("AtrÃ¡s", fontWeight = FontWeight.Bold)
+                            Icon(Icons.Default.ChevronLeft, null); Spacer(Modifier.width(4.dp)); Text("Atrás", fontWeight = FontWeight.Bold)
                         }
                     } else { Spacer(Modifier.weight(1f)) }
 
@@ -308,7 +318,7 @@ fun WorkerFormScreen(navController: NavController) {
                                 currentStep++
                             } else {
                                 if (ficha.urlFirma == null) Toast.makeText(context, "Debes guardar tu firma para continuar", Toast.LENGTH_SHORT).show()
-                                else if (!declaracionAceptada) Toast.makeText(context, "Acepta la declaraciÃ³n", Toast.LENGTH_SHORT).show()
+                                else if (!declaracionAceptada) Toast.makeText(context, "Acepta la declaración", Toast.LENGTH_SHORT).show()
                                 else saveProgress(true)
                             }
                         },
@@ -390,7 +400,7 @@ fun ReadModeScreen(ficha: Ficha, navController: NavController, onBack: () -> Uni
                         Box(Modifier.weight(1f)) { ReadOnlyField("DNI", ficha.dni) }
                         Box(Modifier.weight(1f)) { ReadOnlyField("Celular", ficha.celular) }
                     }
-                    ReadOnlyField("DirecciÃ³n", ficha.direccion, true)
+                    ReadOnlyField("Dirección", ficha.direccion, true)
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                         Box(Modifier.weight(1f)) { ReadOnlyField("Distrito", ficha.distrito) }
                         Box(Modifier.weight(1f)) { ReadOnlyField("F. Nacimiento", ficha.fechaNacimiento) }
@@ -399,7 +409,7 @@ fun ReadModeScreen(ficha: Ficha, navController: NavController, onBack: () -> Uni
 
                 // 2. FAMILIA
                 ReadOnlyCard("Familia y Contacto", Icons.Default.Groups) {
-                    ReadOnlyField("Esposa/o / CÃ³nyuge", ficha.esposa?.nombres?.ifBlank { null } ?: "No registrado", true)
+                    ReadOnlyField("Esposa/o / Cónyuge", ficha.esposa?.nombres?.ifBlank { null } ?: "No registrado", true)
                     Text("Hijos Registrados", fontSize = 11.sp, color = Slate400, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top=8.dp, bottom=4.dp))
                     if (ficha.hijos.isNullOrEmpty()) {
                         Text("Sin hijos registrados", fontSize = 13.sp, color = Slate500, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
@@ -414,23 +424,23 @@ fun ReadModeScreen(ficha: Ficha, navController: NavController, onBack: () -> Uni
                     }
                     Divider(Modifier.padding(vertical = 12.dp), color = Slate100)
                     ReadOnlyField("Contacto Emergencia", ficha.emergenciaNombre ?: "-", true)
-                    ReadOnlyField("TelÃ©fono Emergencia", ficha.emergenciaCelular ?: "-")
+                    ReadOnlyField("Teléfono Emergencia", ficha.emergenciaCelular ?: "-")
                 }
 
                 // 4. LABORAL
-                ReadOnlyCard("InformaciÃ³n Laboral", Icons.Default.Engineering) {
+                ReadOnlyCard("Información Laboral", Icons.Default.Engineering) {
                     ReadOnlyField("Cargo", ficha.cargo, true)
                     ReadOnlyField("Obra / Proyecto", ficha.nombreObra, true)
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                         Box(Modifier.weight(1f)) { ReadOnlyField("Fecha Ingreso", ficha.fechaIngreso) }
-                        Box(Modifier.weight(1f)) { ReadOnlyField("RÃ©gimen", ficha.sistemaPension) }
+                        Box(Modifier.weight(1f)) { ReadOnlyField("Régimen", ficha.sistemaPension) }
                     }
                 }
 
                 // 5. DOCUMENTOS
-                ReadOnlyCard("DocumentaciÃ³n", Icons.Default.FolderOpen) {
+                ReadOnlyCard("Documentación", Icons.Default.FolderOpen) {
                     // Documentos Principales
-                    DocCheckItem("DNI Completo (PDF)", ficha.urlDniFrontal) // Usamos el Frontal porque ahÃ­ se guardÃ³ el PDF unido
+                    DocCheckItem("DNI Completo (PDF)", ficha.urlDniFrontal) // Usamos el Frontal porque ahí se guardó el PDF unido
                     DocCheckItem("Antecedentes", ficha.urlAntecedentes)
                     DocCheckItem("Carnet RETCC", ficha.urlCarnet)
                     DocCheckItem("Ant. Policiales", ficha.urlPoliciales)
@@ -442,6 +452,9 @@ fun ReadModeScreen(ficha: Ficha, navController: NavController, onBack: () -> Uni
                     }
                     if (!ficha.urlEsposaDni.isNullOrBlank()) {
                         DocCheckItem("DNI Esposo/a", ficha.urlEsposaDni)
+                    }
+                    if (!ficha.urlHijosNacimiento.isNullOrBlank()) {
+                        DocCheckItem("Partida Nacimiento Hijos", ficha.urlHijosNacimiento)
                     }
                     if (!ficha.urlHijosDni.isNullOrBlank()) {
                         DocCheckItem("DNI Hijos/Hijas", ficha.urlHijosDni)
@@ -482,7 +495,7 @@ fun ReadModeScreen(ficha: Ficha, navController: NavController, onBack: () -> Uni
 
 @Composable
 fun StepPersonal(ficha: Ficha, update: (Ficha) -> Unit) {
-    SectionTitle("InformaciÃ³n Personal", Icons.Default.Badge)
+    SectionTitle("Información Personal", Icons.Default.Badge)
     CardInputContainer {
         AppInput("Apellido Paterno", ficha.apellidoPaterno ?: "", true) { update(ficha.copy(apellidoPaterno = it)) }
         AppInput("Apellido Materno", ficha.apellidoMaterno ?: "", true) { update(ficha.copy(apellidoMaterno = it)) }
@@ -492,8 +505,8 @@ fun StepPersonal(ficha: Ficha, update: (Ficha) -> Unit) {
             Box(Modifier.weight(1f)) { AppInput("F. Nacimiento", ficha.fechaNacimiento ?: "", false) { update(ficha.copy(fechaNacimiento = it)) } }
         }
         AppInput("Celular", ficha.celular ?: "", false, KeyboardOptions(keyboardType = KeyboardType.Phone)) { update(ficha.copy(celular = it)) }
-        AppInput("Correo ElectrÃ³nico", ficha.correo ?: "") { update(ficha.copy(correo = it)) }
-        AppInput("DirecciÃ³n", ficha.direccion ?: "") { update(ficha.copy(direccion = it)) }
+        AppInput("Correo Electrónico", ficha.correo ?: "") { update(ficha.copy(correo = it)) }
+        AppInput("Dirección", ficha.direccion ?: "") { update(ficha.copy(direccion = it)) }
         AppInput("Distrito", ficha.distrito ?: "") { update(ficha.copy(distrito = it)) }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Box(Modifier.weight(1f)) { AppInput("Provincia", ficha.provincia ?: "") { update(ficha.copy(provincia = it)) } }
@@ -503,8 +516,8 @@ fun StepPersonal(ficha: Ficha, update: (Ficha) -> Unit) {
     SectionTitle("Datos Bancarios", Icons.Default.AccountBalanceWallet)
     CardInputContainer {
         AppInput("Banco", ficha.banco ?: "") { update(ficha.copy(banco = it)) }
-        AppInput("NÂ° Cuenta", ficha.numeroCuenta ?: "") { update(ficha.copy(numeroCuenta = it)) }
-        AppInput("CCI (20 dÃ­gitos)", ficha.cci ?: "") { update(ficha.copy(cci = it)) }
+        AppInput("N° Cuenta", ficha.numeroCuenta ?: "") { update(ficha.copy(numeroCuenta = it)) }
+        AppInput("CCI (20 dígitos)", ficha.cci ?: "") { update(ficha.copy(cci = it)) }
         Text("Sistema de Pensiones", fontSize = 11.sp, color = Slate400, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp, bottom = 4.dp))
         Row(Modifier.fillMaxWidth().background(Slate50, RoundedCornerShape(12.dp)).padding(4.dp)) {
             PensionOption("ONP", ficha.sistemaPension == "ONP") { update(ficha.copy(sistemaPension = "ONP", afpNombre = "")) }
@@ -571,24 +584,24 @@ fun StepFamilia(ficha: Ficha, update: (Ficha) -> Unit) {
 
 @Composable
 fun StepLaboral(ficha: Ficha, update: (Ficha) -> Unit) {
-    SectionTitle("InformaciÃ³n Laboral", Icons.Default.Work)
+    SectionTitle("Información Laboral", Icons.Default.Work)
     CardInputContainer {
         AppInput("Cargo", ficha.cargo ?: "") { update(ficha.copy(cargo = it)) }
         AppInput("Obra / Proyecto", ficha.nombreObra ?: "") { update(ficha.copy(nombreObra = it)) }
-        AppInput("CategorÃ­a", ficha.categoria ?: "") { update(ficha.copy(categoria = it)) }
+        AppInput("Categoría", ficha.categoria ?: "") { update(ficha.copy(categoria = it)) }
         AppInput("Fecha Ingreso", ficha.fechaIngreso ?: "") { update(ficha.copy(fechaIngreso = it)) }
     }
-    SectionTitle("FormaciÃ³n AcadÃ©mica", Icons.Default.School)
+    SectionTitle("Formación Académica", Icons.Default.School)
     CardInputContainer {
         AppInput("Nivel Educativo", ficha.nivelEducacion ?: "") { update(ficha.copy(nivelEducacion = it)) }
         AppInput("Carrera / Oficio", ficha.carrera ?: "") { update(ficha.copy(carrera = it)) }
-        AppInput("InstituciÃ³n Educativa", ficha.universidad ?: "") { update(ficha.copy(universidad = it)) }
+        AppInput("Institución Educativa", ficha.universidad ?: "") { update(ficha.copy(universidad = it)) }
     }
     SectionTitle("Contacto Emergencia", Icons.Default.MedicalServices)
     CardInputContainer {
         AppInput("Nombre Contacto", ficha.emergenciaNombre ?: "") { update(ficha.copy(emergenciaNombre = it)) }
         AppInput("Parentesco", ficha.emergenciaRelacion ?: "") { update(ficha.copy(emergenciaRelacion = it)) }
-        AppInput("TelÃ©fono", ficha.emergenciaCelular ?: "", false, KeyboardOptions(keyboardType = KeyboardType.Phone)) { update(ficha.copy(emergenciaCelular = it)) }
+        AppInput("Teléfono", ficha.emergenciaCelular ?: "", false, KeyboardOptions(keyboardType = KeyboardType.Phone)) { update(ficha.copy(emergenciaCelular = it)) }
     }
 }
 
@@ -596,70 +609,165 @@ fun StepLaboral(ficha: Ficha, update: (Ficha) -> Unit) {
 fun StepDocumentos(context: Context, ficha: Ficha, update: (Ficha) -> Unit, setUploading: (Boolean) -> Unit) {
     val scope = rememberCoroutineScope()
     var showCamera by remember { mutableStateOf(false) }
-    var targetField by remember { mutableStateOf("") }
-    var captureFormat by remember { mutableStateOf("id") }
+    var showSourceDialog by remember { mutableStateOf(false) }
+    var selectedTarget by remember { mutableStateOf<DocumentUploadTarget?>(null) }
 
-    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { if(it) showCamera = true }
-
-    fun launchScan(field: String, format: String) {
-        targetField = field
-        captureFormat = format
-        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) showCamera = true
-        else permissionLauncher.launch(Manifest.permission.CAMERA)
+    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        if (it) {
+            showCamera = true
+        }
     }
 
-    if (showCamera) {
+    fun updateDocumentUrl(targetField: String, url: String) {
+        when (targetField) {
+            "dni_f" -> update(ficha.copy(urlDniFrontal = url))
+            "dni_r" -> update(ficha.copy(urlDniReverso = url))
+            "cert" -> update(ficha.copy(urlAntecedentes = url))
+            "carnet" -> update(ficha.copy(urlCarnet = url))
+            "pol" -> update(ficha.copy(urlPoliciales = url))
+            "pen" -> update(ficha.copy(urlPenales = url))
+            "mat" -> update(ficha.copy(urlActaMatrimonio = url))
+            "esp_dni" -> update(ficha.copy(urlEsposaDni = url))
+            "hij_dni" -> update(ficha.copy(urlHijosDni = url))
+            "hij_est" -> update(ficha.copy(urlConstanciaEstudios = url))
+        }
+    }
+
+    fun uploadDocumentBytes(bytes: ByteArray, extension: String) {
+        val activeTarget = selectedTarget ?: return
+        setUploading(true)
+        scope.launch(Dispatchers.IO) {
+            try {
+                val safeExtension = extension.ifBlank { "pdf" }
+                val fileName = "${UUID.randomUUID()}.$safeExtension"
+                val bucket = SupabaseClient.client.storage.from("documentos")
+                bucket.upload(fileName, bytes, upsert = true)
+                val url = bucket.publicUrl(fileName)
+                withContext(Dispatchers.Main) {
+                    updateDocumentUrl(activeTarget.field, url)
+                    setUploading(false)
+                    selectedTarget = null
+                    Toast.makeText(context, "Documento subido con exito", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    setUploading(false)
+                    Toast.makeText(context, "Error al subir documento", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    val filePickerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri == null) {
+            selectedTarget = null
+            return@rememberLauncherForActivityResult
+        }
+
+        val extension = resolveDocumentExtension(context, uri)
+        scope.launch(Dispatchers.IO) {
+            try {
+                val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                    ?: throw IllegalStateException("No se pudo leer el archivo seleccionado")
+                withContext(Dispatchers.Main) {
+                    uploadDocumentBytes(bytes, extension)
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    selectedTarget = null
+                    setUploading(false)
+                    Toast.makeText(context, "No se pudo leer el archivo", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    fun openDocumentOptions(field: String, format: String, label: String) {
+        selectedTarget = DocumentUploadTarget(field = field, format = format, label = label)
+        showSourceDialog = true
+    }
+
+    fun launchScan() {
+        if (selectedTarget == null) return
+        showSourceDialog = false
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+            showCamera = true
+        } else {
+            permissionLauncher.launch(Manifest.permission.CAMERA)
+        }
+    }
+
+    fun launchFilePicker() {
+        if (selectedTarget == null) return
+        showSourceDialog = false
+        filePickerLauncher.launch("*/*")
+    }
+
+    if (showSourceDialog && selectedTarget != null) {
+        DocumentSourceDialog(
+            label = selectedTarget!!.label,
+            onDismiss = {
+                showSourceDialog = false
+                selectedTarget = null
+            },
+            onTakePhoto = { launchScan() },
+            onPickFile = { launchFilePicker() }
+        )
+    }
+
+    if (showCamera && selectedTarget != null) {
         SmartScannerDialog(
-            format = captureFormat,
-            onClose = { showCamera = false },
+            format = selectedTarget!!.format,
+            onClose = {
+                showCamera = false
+                selectedTarget = null
+            },
             onCapture = { file ->
                 showCamera = false
-                setUploading(true)
-                scope.launch(Dispatchers.IO) {
-                    try {
-                        val fileName = "${UUID.randomUUID()}.pdf"
-                        val bucket = SupabaseClient.client.storage.from("documentos")
-                        bucket.upload(fileName, file.readBytes(), upsert = true)
-                        val url = bucket.publicUrl(fileName)
-                        withContext(Dispatchers.Main) {
-                            when(targetField) {
-                                "dni_f" -> update(ficha.copy(urlDniFrontal = url)) // Ahora guarda el pdf completo en Frontal (si uniste 2 caras)
-                                "dni_r" -> update(ficha.copy(urlDniReverso = url))
-                                "cert" -> update(ficha.copy(urlAntecedentes = url))
-                                "carnet" -> update(ficha.copy(urlCarnet = url))
-                                "pol" -> update(ficha.copy(urlPoliciales = url))
-                                "pen" -> update(ficha.copy(urlPenales = url))
-                                "mat" -> update(ficha.copy(urlActaMatrimonio = url))
-                                "esp_dni" -> update(ficha.copy(urlEsposaDni = url))
-                                "hij_dni" -> update(ficha.copy(urlHijosDni = url))
-                                "hij_est" -> update(ficha.copy(urlConstanciaEstudios = url))
-                            }
-                            setUploading(false)
-                            Toast.makeText(context, "Documento subido con Ã©xito", Toast.LENGTH_SHORT).show()
-                        }
-                    } catch (e: Exception) { withContext(Dispatchers.Main) { setUploading(false); Toast.makeText(context, "Error subida", Toast.LENGTH_SHORT).show() } }
-                }
+                uploadDocumentBytes(file.readBytes(), "pdf")
             }
         )
     }
 
     SectionTitle("Documentos del Trabajador", Icons.Default.FolderOpen)
-    Text("ðŸ’¡ Toca para escanear. El DNI requiere capturar ambas caras.", fontSize = 12.sp, color = Slate500, modifier = Modifier.padding(bottom = 16.dp))
+    Text(
+        "Toca un documento para elegir si deseas tomar foto o subir un archivo. El DNI requiere ambas caras en un solo PDF.",
+        fontSize = 12.sp,
+        color = Slate500,
+        modifier = Modifier.padding(bottom = 16.dp)
+    )
 
     DocGrid {
-        // En Nextjs lo unificaste en "doc_dni_trabajador", aquÃ­ mantenemos Frontal para guardar el PDF combinado.
-        DocItem("DNI Completo (Frontal y Reverso)", ficha.urlDniFrontal) { launchScan("dni_f", "id") }
-        DocItem("Certiadulto", ficha.urlAntecedentes) { launchScan("cert", "a4") }
-        DocItem("Carnet RETCC", ficha.urlCarnet) { launchScan("carnet", "id") }
-        DocItem("Ant. Policiales", ficha.urlPoliciales) { launchScan("pol", "a4") }
-        DocItem("Ant. Penales", ficha.urlPenales) { launchScan("pen", "a4") }
+        DocItem("DNI Completo (Frontal y Reverso)", ficha.urlDniFrontal) {
+            openDocumentOptions("dni_f", "id", "DNI Completo")
+        }
+        DocItem("Certiadulto", ficha.urlAntecedentes) {
+            openDocumentOptions("cert", "a4", "Certiadulto")
+        }
+        DocItem("Carnet RETCC", ficha.urlCarnet) {
+            openDocumentOptions("carnet", "id", "Carnet RETCC")
+        }
+        DocItem("Ant. Policiales", ficha.urlPoliciales) {
+            openDocumentOptions("pol", "a4", "Antecedentes Policiales")
+        }
+        DocItem("Ant. Penales", ficha.urlPenales) {
+            openDocumentOptions("pen", "a4", "Antecedentes Penales")
+        }
     }
     SectionTitle("Documentos Familiares", Icons.Default.FamilyRestroom)
     DocGrid {
-        DocItem("Acta Matrimonio", ficha.urlActaMatrimonio) { launchScan("mat", "a4") }
-        DocItem("DNI Esposa", ficha.urlEsposaDni) { launchScan("esp_dni", "id") }
-        DocItem("DNI Hijos", ficha.urlHijosDni) { launchScan("hij_dni", "id") }
-        DocItem("Estudios Hijos", ficha.urlConstanciaEstudios) { launchScan("hij_est", "a4") }
+        DocItem("Acta Matrimonio", ficha.urlActaMatrimonio) {
+            openDocumentOptions("mat", "a4", "Acta Matrimonio")
+        }
+        DocItem("DNI Esposa", ficha.urlEsposaDni) {
+            openDocumentOptions("esp_dni", "id", "DNI Esposa")
+        }
+        DocItem("DNI Hijos", ficha.urlHijosDni) {
+            openDocumentOptions("hij_dni", "id", "DNI Hijos")
+        }
+        DocItem("Estudios Hijos", ficha.urlConstanciaEstudios) {
+            openDocumentOptions("hij_est", "a4", "Estudios Hijos")
+        }
     }
 }
 
@@ -675,7 +783,7 @@ fun StepFirma(context: Context, ficha: Ficha, update: (Ficha) -> Unit, accepted:
     // --- ESTE ES EL TRUCO PARA EL TIEMPO REAL ---
     var drawTrigger by remember { mutableIntStateOf(0) }
 
-    // --- NUEVO: GUARDAR EL TAMAÃ‘O REAL DEL CANVAS ---
+    // --- NUEVO: GUARDAR EL TAMAÑO REAL DEL CANVAS ---
     var canvasWidth by remember { mutableIntStateOf(800) }
     var canvasHeight by remember { mutableIntStateOf(400) }
 
@@ -690,12 +798,12 @@ fun StepFirma(context: Context, ficha: Ficha, update: (Ficha) -> Unit, accepted:
         Column {
             Card(modifier = Modifier.fillMaxWidth().height(240.dp), shape = RoundedCornerShape(16.dp), border = BorderStroke(2.dp, Slate200), colors = CardDefaults.cardColors(containerColor = Color.White)) {
                 Box(Modifier.fillMaxSize()) {
-                    if (paths.isEmpty() && currentPath == null) Text("Firma aquÃ­", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Slate300, modifier = Modifier.align(Alignment.Center))
+                    if (paths.isEmpty() && currentPath == null) Text("Firma aquí", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Slate300, modifier = Modifier.align(Alignment.Center))
 
                     Canvas(modifier = Modifier
                         .fillMaxSize()
                         .onGloballyPositioned {
-                            // AQUÃ CAPTURAMOS EL TAMAÃ‘O EXACTO DEL LIENZO
+                            // AQUÍ CAPTURAMOS EL TAMAÑO EXACTO DEL LIENZO
                             canvasWidth = it.size.width
                             canvasHeight = it.size.height
                         }
@@ -725,13 +833,13 @@ fun StepFirma(context: Context, ficha: Ficha, update: (Ficha) -> Unit, accepted:
             }
             Spacer(Modifier.height(12.dp))
 
-            // BOTÃ“N EXPLÃCITO PARA GUARDAR LA FIRMA
+            // BOTÓN EXPLÍCITO PARA GUARDAR LA FIRMA
             Button(
                 onClick = {
-                    if (paths.isEmpty()) { Toast.makeText(context, "La firma estÃ¡ vacÃ­a", Toast.LENGTH_SHORT).show(); return@Button }
+                    if (paths.isEmpty()) { Toast.makeText(context, "La firma está vacía", Toast.LENGTH_SHORT).show(); return@Button }
                     isSavingSignature = true
                     scope.launch(Dispatchers.IO) {
-                        // CREAMOS EL BITMAP CON EL TAMAÃ‘O EXACTO DEL CANVAS
+                        // CREAMOS EL BITMAP CON EL TAMAÑO EXACTO DEL CANVAS
                         val w = if (canvasWidth > 0) canvasWidth else 800
                         val h = if (canvasHeight > 0) canvasHeight else 400
                         val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
@@ -773,8 +881,8 @@ fun StepFirma(context: Context, ficha: Ficha, update: (Ficha) -> Unit, accepted:
     Row(modifier = Modifier.fillMaxWidth().background(if(accepted) Slate900 else Color.White, RoundedCornerShape(12.dp)).border(1.dp, if(accepted) Slate900 else Slate200, RoundedCornerShape(12.dp)).clickable { setAccepted(!accepted) }.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
         Checkbox(checked = accepted, onCheckedChange = { setAccepted(it) }, colors = CheckboxDefaults.colors(checkedColor = Emerald500, uncheckedColor = Slate300, checkmarkColor = Color.White))
         Column(Modifier.padding(start = 12.dp)) {
-            Text("DeclaraciÃ³n Jurada", color = if(accepted) Color.White else Slate900, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-            Text("Declaro bajo juramento que la informaciÃ³n es verdadera.", color = if(accepted) Slate300 else Slate500, fontSize = 12.sp)
+            Text("Declaración Jurada", color = if(accepted) Color.White else Slate900, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Text("Declaro bajo juramento que la información es verdadera.", color = if(accepted) Slate300 else Slate500, fontSize = 12.sp)
         }
     }
 }
@@ -787,7 +895,7 @@ fun SmartScannerDialog(format: String, onClose: () -> Unit, onCapture: (File) ->
     val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
     var imageCapture by remember { mutableStateOf<ImageCapture?>(null) }
 
-    // Variables para guardar el tamaÃ±o EXACTO de la pantalla del celular
+    // Variables para guardar el tamaño EXACTO de la pantalla del celular
     var previewWidth by remember { mutableFloatStateOf(1f) }
     var previewHeight by remember { mutableFloatStateOf(1f) }
 
@@ -801,7 +909,7 @@ fun SmartScannerDialog(format: String, onClose: () -> Unit, onCapture: (File) ->
     var isProcessing by remember { mutableStateOf(false) }
 
     val isLandscape = format == "id"
-    // 1.58 es la proporciÃ³n de un DNI real, 0.70 es A4
+    // 1.58 es la proporción de un DNI real, 0.70 es A4
     val aspectRatio = if (isLandscape) 1.58f else 0.70f
 
     Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
@@ -825,7 +933,7 @@ fun SmartScannerDialog(format: String, onClose: () -> Unit, onCapture: (File) ->
                 Canvas(modifier = Modifier
                     .fillMaxSize()
                     .onGloballyPositioned {
-                        // Capturamos el tamaÃ±o real del lienzo para precisiÃ³n milimÃ©trica
+                        // Capturamos el tamaño real del lienzo para precisión milimétrica
                         previewWidth = it.size.width.toFloat()
                         previewHeight = it.size.height.toFloat()
                     }
@@ -879,11 +987,11 @@ fun SmartScannerDialog(format: String, onClose: () -> Unit, onCapture: (File) ->
                                     baseBitmap = Bitmap.createBitmap(baseBitmap, 0, 0, baseBitmap.width, baseBitmap.height, fixMatrix, true)
                                 }
 
-                                // 3. MATEMÃTICA EXACTA PARA EL RECORTE
+                                // 3. MATEMÁTICA EXACTA PARA EL RECORTE
                                 val bw = baseBitmap.width.toFloat()
                                 val bh = baseBitmap.height.toFloat()
 
-                                // Encontramos la escala real entre la foto gigante de la cÃ¡mara y tu pantalla
+                                // Encontramos la escala real entre la foto gigante de la cámara y tu pantalla
                                 val scale = maxOf(previewWidth / bw, previewHeight / bh)
 
                                 val boxScreenW = if (isLandscape) previewWidth * 0.9f else previewWidth * 0.85f
@@ -899,7 +1007,7 @@ fun SmartScannerDialog(format: String, onClose: () -> Unit, onCapture: (File) ->
                                 val finalW = cropW.toInt().coerceAtMost(baseBitmap.width - finalX)
                                 val finalH = cropH.toInt().coerceAtMost(baseBitmap.height - finalY)
 
-                                // Â¡Recorte quirÃºrgico final!
+                                // ¡Recorte quirúrgico final!
                                 tempBitmap = Bitmap.createBitmap(baseBitmap, finalX, finalY, finalW, finalH)
 
                                 rotation = 0f
@@ -918,10 +1026,10 @@ fun SmartScannerDialog(format: String, onClose: () -> Unit, onCapture: (File) ->
                 Column(Modifier.fillMaxSize()) {
                     // Header Informativo
                     Box(Modifier.fillMaxWidth().background(Slate950).padding(top = 20.dp, bottom = 12.dp), contentAlignment = Alignment.Center) {
-                        Text(if(isLandscape) "EDICIÃ“N DE DNI" else "EDICIÃ“N DOCUMENTO A4", color = Emerald400, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                        Text(if(isLandscape) "EDICIÓN DE DNI" else "EDICIÓN DOCUMENTO A4", color = Emerald400, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                     }
 
-                    // Vista Previa de EdiciÃ³n
+                    // Vista Previa de Edición
                     Box(Modifier.weight(1f).fillMaxWidth().background(Slate900), contentAlignment = Alignment.Center) {
                         Image(
                             bitmap = tempBitmap!!.asImageBitmap(),
@@ -1015,6 +1123,89 @@ fun SmartScannerDialog(format: String, onClose: () -> Unit, onCapture: (File) ->
     }
 }
 
+private fun resolveDocumentExtension(context: Context, uri: Uri): String {
+    val mimeType = context.contentResolver.getType(uri)
+    val extensionFromMime = mimeType?.let { MimeTypeMap.getSingleton().getExtensionFromMimeType(it) }
+    if (!extensionFromMime.isNullOrBlank()) {
+        return extensionFromMime.lowercase()
+    }
+
+    var displayName: String? = null
+    context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+        if (cursor.moveToFirst()) {
+            displayName = cursor.getString(0)
+        }
+    }
+
+    val fileName = displayName ?: uri.lastPathSegment.orEmpty()
+    return fileName.substringAfterLast('.', "bin").ifBlank { "bin" }.lowercase()
+}
+
+@Composable
+private fun DocumentSourceDialog(
+    label: String,
+    onDismiss: () -> Unit,
+    onTakePhoto: () -> Unit,
+    onPickFile: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text("Cargar documento", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Slate900)
+                Text(label, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = Slate500)
+
+                OutlinedButton(
+                    onClick = onPickFile,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, Slate200)
+                ) {
+                    Icon(Icons.Default.Description, contentDescription = null, tint = Slate900)
+                    Spacer(Modifier.width(10.dp))
+                    Text("Subir archivo", color = Slate900, fontWeight = FontWeight.Bold)
+                }
+
+                Button(
+                    onClick = onTakePhoto,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Blue600, contentColor = Color.White)
+                ) {
+                    Icon(Icons.Default.CameraAlt, contentDescription = null)
+                    Spacer(Modifier.width(10.dp))
+                    Text("Tomar foto", fontWeight = FontWeight.Bold)
+                }
+
+                OutlinedButton(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, Slate200)
+                ) {
+                    Text("Cancelar", color = Slate500, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}
+
 // --- UTILS UI (COMPOSABLES AUXILIARES)
 @Composable fun AppInput(label: String, value: String, required: Boolean = false, keyboardOptions: KeyboardOptions = KeyboardOptions.Default, onValueChange: (String) -> Unit) { Column(Modifier.padding(bottom = 16.dp)) { Row(Modifier.padding(bottom = 6.dp, start = 4.dp)) { Text(label.uppercase(), fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Slate400, letterSpacing = 0.5.sp); if(required) Text(" *", color = Red500, fontSize = 11.sp) }; OutlinedTextField(value = value, onValueChange = onValueChange, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Slate900, unfocusedBorderColor = Slate200, focusedContainerColor = Color.White, unfocusedContainerColor = Slate50.copy(0.5f), cursorColor = Slate900, focusedTextColor = Slate900, unfocusedTextColor = Slate900), keyboardOptions = keyboardOptions, singleLine = true, textStyle = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Medium)) } }
 @Composable fun CardInputContainer(content: @Composable () -> Unit) { Card(colors = CardDefaults.cardColors(containerColor = Color.White), border = BorderStroke(1.dp, Slate200), modifier = Modifier.fillMaxWidth()) { Column(Modifier.padding(20.dp)) { content() } } }
@@ -1023,7 +1214,7 @@ fun SmartScannerDialog(format: String, onClose: () -> Unit, onCapture: (File) ->
 @Composable fun StepIndicator(step: Int, icon: ImageVector, current: Int, label: String) { val active = current >= step; val currentStep = current == step; Column(horizontalAlignment = Alignment.CenterHorizontally) { Box(modifier = Modifier.size(32.dp).background(if (active) Slate900 else Slate100, CircleShape).border(if (currentStep) 2.dp else 0.dp, if(currentStep) Blue600 else Color.Transparent, CircleShape), contentAlignment = Alignment.Center) { Icon(icon, null, tint = if (active) Color.White else Slate300, modifier = Modifier.size(16.dp)) }; Text(label, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = if (active) Slate900 else Slate300, modifier = Modifier.padding(top = 4.dp)) } }
 @Composable fun SmallButton(text: String, icon: ImageVector, onClick: () -> Unit) { Button(onClick = onClick, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp), colors = ButtonDefaults.buttonColors(containerColor = Blue600, contentColor = Color.White), shape = RoundedCornerShape(8.dp), modifier = Modifier.height(32.dp)) { Icon(icon, null, modifier = Modifier.size(14.dp)); Spacer(Modifier.width(4.dp)); Text(text, fontSize = 11.sp, fontWeight = FontWeight.Bold) } }
 @Composable fun DocGrid(content: @Composable () -> Unit) { Column(verticalArrangement = Arrangement.spacedBy(12.dp)) { content() } }
-@Composable fun DocItem(label: String, url: String?, onClick: () -> Unit) { val isUploaded = url != null; Row(modifier = Modifier.fillMaxWidth().height(70.dp).clip(RoundedCornerShape(12.dp)).background(if (isUploaded) Emerald50 else Color.White).border(1.dp, if (isUploaded) Emerald500 else Slate200, RoundedCornerShape(12.dp)).clickable { onClick() }.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) { Row(verticalAlignment = Alignment.CenterVertically) { Box(Modifier.size(40.dp).background(if(isUploaded) Emerald100 else Slate100, RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) { Icon(if(isUploaded) Icons.Default.Description else Icons.Default.CameraAlt, null, tint = if(isUploaded) Emerald600 else Slate400) }; Spacer(Modifier.width(12.dp)); Column { Text(label, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Slate900); Text(if(isUploaded) "PDF Cargado" else "Tocar para escanear", fontSize = 11.sp, color = if(isUploaded) Emerald600 else Slate400) } }; if(isUploaded) Icon(Icons.Default.CheckCircle, null, tint = Emerald500, modifier = Modifier.size(20.dp)) } }
+@Composable fun DocItem(label: String, url: String?, onClick: () -> Unit) { val isUploaded = !url.isNullOrBlank(); val lowerUrl = url?.lowercase().orEmpty(); val statusText = when { !isUploaded -> "Tocar para cargar"; lowerUrl.endsWith(".pdf") -> "PDF cargado"; lowerUrl.endsWith(".jpg") || lowerUrl.endsWith(".jpeg") || lowerUrl.endsWith(".png") || lowerUrl.endsWith(".webp") -> "Imagen cargada"; else -> "Archivo cargado" }; Row(modifier = Modifier.fillMaxWidth().height(76.dp).clip(RoundedCornerShape(12.dp)).background(if (isUploaded) Emerald50 else Color.White).border(1.dp, if (isUploaded) Emerald500 else Slate200, RoundedCornerShape(12.dp)).clickable { onClick() }.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) { Row(verticalAlignment = Alignment.CenterVertically) { Box(Modifier.size(40.dp).background(if(isUploaded) Emerald100 else Slate100, RoundedCornerShape(8.dp)), contentAlignment = Alignment.Center) { Icon(if(isUploaded) Icons.Default.Description else Icons.Default.CameraAlt, null, tint = if(isUploaded) Emerald600 else Slate400) }; Spacer(Modifier.width(12.dp)); Column { Text(label, fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Slate900); Text(statusText, fontSize = 11.sp, color = if(isUploaded) Emerald600 else Slate400) } }; if(isUploaded) Icon(Icons.Default.CheckCircle, null, tint = Emerald500, modifier = Modifier.size(20.dp)) else Icon(Icons.Default.ChevronRight, null, tint = Slate300, modifier = Modifier.size(18.dp)) } }
 @Composable fun ReadOnlyCard(title: String, icon: ImageVector, content: @Composable () -> Unit) { Card(colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(20.dp), elevation = CardDefaults.cardElevation(4.dp), modifier = Modifier.fillMaxWidth()) { Column(Modifier.padding(20.dp)) { Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 16.dp)) { Box(Modifier.size(36.dp).background(Slate50, CircleShape), contentAlignment = Alignment.Center) { Icon(icon, null, tint = Slate900, modifier = Modifier.size(18.dp)) }; Spacer(Modifier.width(12.dp)); Text(title, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Slate900) }; Divider(color = Slate100, modifier = Modifier.padding(bottom = 16.dp)); content() } } }
-@Composable fun ReadOnlyField(label: String, value: String?, fullWidth: Boolean = false) { Column(Modifier.padding(bottom = 12.dp).then(if(fullWidth) Modifier.fillMaxWidth() else Modifier)) { Text(text = label.uppercase(), fontSize = 10.sp, color = Slate400, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp); Spacer(Modifier.height(4.dp)); Text(text = if (!value.isNullOrBlank()) value else "â€”", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = if (!value.isNullOrBlank()) Slate800 else Slate300) } }
-@Composable fun DocCheckItem(label: String, url: String?) { val isUploaded = !url.isNullOrBlank(); Row(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp).background(if(isUploaded) Emerald50.copy(0.5f) else Slate50, RoundedCornerShape(10.dp)).padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) { Row(verticalAlignment = Alignment.CenterVertically) { Icon(if(isUploaded) Icons.Default.Description else Icons.Outlined.Description, null, tint = if(isUploaded) Slate700 else Slate400, modifier = Modifier.size(20.dp)); Spacer(Modifier.width(12.dp)); Text(label, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = if(isUploaded) Slate900 else Slate400) }; if (isUploaded) Icon(Icons.Default.CheckCircle, null, tint = Emerald500, modifier = Modifier.size(20.dp)) else Icon(Icons.Default.Cancel, null, tint = Slate300, modifier = Modifier.size(20.dp)) } }
+@Composable fun ReadOnlyField(label: String, value: String?, fullWidth: Boolean = false) { Column(Modifier.padding(bottom = 12.dp).then(if(fullWidth) Modifier.fillMaxWidth() else Modifier)) { Text(text = label.uppercase(), fontSize = 10.sp, color = Slate400, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp); Spacer(Modifier.height(4.dp)); Text(text = if (!value.isNullOrBlank()) value else "-", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = if (!value.isNullOrBlank()) Slate800 else Slate300) } }
+@Composable fun DocCheckItem(label: String, url: String?) { val uriHandler = LocalUriHandler.current; val isUploaded = !url.isNullOrBlank(); val lowerUrl = url?.lowercase().orEmpty(); val statusText = when { !isUploaded -> "Pendiente"; lowerUrl.endsWith(".pdf") -> "PDF disponible"; lowerUrl.endsWith(".jpg") || lowerUrl.endsWith(".jpeg") || lowerUrl.endsWith(".png") || lowerUrl.endsWith(".webp") -> "Imagen disponible"; else -> "Archivo disponible" }; Row(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp).clip(RoundedCornerShape(10.dp)).background(if(isUploaded) Emerald50.copy(0.5f) else Slate50, RoundedCornerShape(10.dp)).clickable(enabled = isUploaded) { if (url != null) uriHandler.openUri(url) }.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) { Row(verticalAlignment = Alignment.CenterVertically) { Icon(if(isUploaded) Icons.Default.Description else Icons.Outlined.Description, null, tint = if(isUploaded) Slate700 else Slate400, modifier = Modifier.size(20.dp)); Spacer(Modifier.width(12.dp)); Column { Text(label, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = if(isUploaded) Slate900 else Slate400); Text(statusText, fontSize = 11.sp, color = if(isUploaded) Emerald600 else Slate400) } }; if (isUploaded) Icon(Icons.Default.ChevronRight, null, tint = Emerald500, modifier = Modifier.size(20.dp)) else Icon(Icons.Default.Cancel, null, tint = Slate300, modifier = Modifier.size(20.dp)) } }

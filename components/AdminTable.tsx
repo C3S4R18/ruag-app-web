@@ -13,6 +13,7 @@ import * as XLSX from 'xlsx'
 import BiometricSignature from './ssoma/BiometricSignature' 
 import BiometricFingerprint from './ssoma/BiometricFingerprint'
 import { getSignatureUrl, normalizeBiometricFields } from '@/utils/biometric'
+import DocumentPreviewModal from './DocumentPreviewModal'
 
 // --- DOCUMENTOS IMPRIMIBLES SSOMA ---
 import { CargoRisstPrintable } from './CargoRisstPrintable'
@@ -72,6 +73,13 @@ const RRHH_DOCS = [
     { id: 'cargo_rit', label: 'Cargo Reglamento Interno', desc: 'Constancia de recepción RIT' },
     { id: 'cargo_politica_prevencion', label: 'Cargo Política Prevención', desc: 'Hostigamiento Sexual' },
 ]
+
+const DEFAULT_PRINT_LAYOUT = { orientation: 'p' as const, width: 210, height: 297 }
+
+const PRINT_PAGE_LAYOUTS: Record<string, { orientation: 'p' | 'l'; width: number; height: number }> = {
+    capacitacion: { orientation: 'l', width: 297, height: 210 },
+    epp: { orientation: 'l', width: 297, height: 210 },
+}
 
 export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyChange }: AdminTableProps) {
   const supabase = createClient()
@@ -541,8 +549,14 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
   }
 
   const handleSelectAll = (filteredData: any[]) => {
-      if (selectedIds.length === filteredData.length && filteredData.length > 0) setSelectedIds([]) 
-      else setSelectedIds(filteredData.map(f => f.id)) 
+      const filteredIds = filteredData.map(f => f.id)
+      const allFilteredSelected = filteredIds.length > 0 && filteredIds.every(id => selectedIds.includes(id))
+
+      if (allFilteredSelected) {
+          setSelectedIds(prev => prev.filter(id => !filteredIds.includes(id)))
+      } else {
+          setSelectedIds(prev => Array.from(new Set([...prev, ...filteredIds])))
+      }
   }
 
   const handleSelectOne = (id: string) => {
@@ -762,14 +776,41 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
               const elements = Array.from(printRef.current.children) as HTMLElement[]
               for (let i = 0; i < elements.length; i++) {
                   const element = elements[i]
-                  const canvas = await html2canvas(element, { scale: 1.5, useCORS: true, allowTaint: true, backgroundColor: '#ffffff', onclone: (clonedDoc) => { const all = clonedDoc.querySelectorAll('*'); all.forEach((el: any) => { el.style.color = '#000000'; if (getComputedStyle(el).borderColor !== 'rgba(0, 0, 0, 0)') { el.style.borderColor = '#000000'; } el.style.removeProperty('color-scheme'); }) } });
-                  const imgData = canvas.toDataURL('image/jpeg', 0.7)
+                  const docId = element.dataset.printDocId || ''
+                  const pageLayout = PRINT_PAGE_LAYOUTS[docId] || DEFAULT_PRINT_LAYOUT
+                  const canvas = await html2canvas(element, {
+                      scale: 2.25,
+                      useCORS: true,
+                      allowTaint: true,
+                      backgroundColor: '#ffffff',
+                      width: element.scrollWidth,
+                      height: element.scrollHeight,
+                      windowWidth: element.scrollWidth,
+                      windowHeight: element.scrollHeight,
+                      onclone: (clonedDoc) => {
+                          const all = clonedDoc.querySelectorAll('*')
+                          all.forEach((el: any) => {
+                              el.style.color = '#000000'
+                              el.style.textShadow = 'none'
+                              el.style.boxShadow = 'none'
+                              el.style.removeProperty('color-scheme')
+                              if (getComputedStyle(el).borderColor !== 'rgba(0, 0, 0, 0)') {
+                                  el.style.borderColor = '#000000'
+                              }
+                          })
+                      }
+                  })
+                  const imgData = canvas.toDataURL('image/png')
                   const imgProps = pdfDoc.getImageProperties(imgData)
-                  const orientation = imgProps.width > imgProps.height ? 'l' : 'p'
-                  const pdfWidth = orientation === 'p' ? 210 : 297
-                  const pdfHeight = orientation === 'p' ? 297 : 210
-                  pdfDoc.addPage('a4', orientation)
-                  pdfDoc.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST')
+                  const maxWidth = pageLayout.width - 8
+                  const maxHeight = pageLayout.height - 8
+                  const ratio = Math.min(maxWidth / imgProps.width, maxHeight / imgProps.height)
+                  const renderWidth = imgProps.width * ratio
+                  const renderHeight = imgProps.height * ratio
+                  const offsetX = (pageLayout.width - renderWidth) / 2
+                  const offsetY = (pageLayout.height - renderHeight) / 2
+                  pdfDoc.addPage('a4', pageLayout.orientation)
+                  pdfDoc.addImage(imgData, 'PNG', offsetX, offsetY, renderWidth, renderHeight, undefined, 'FAST')
               }
               const nombreArchivo = `Legajo_${workerToPrint?.dni}.pdf`
               const pdfBlob = pdfDoc.output('blob')
@@ -834,7 +875,11 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                       : { ...normalizeBiometricFields(workerToPrint), firma_url: null, url_firma: null, huella_url: null };
 
                   return (
-                      <div key={docId} style={{ padding: 0, margin: 0, backgroundColor: '#ffffff' }}> 
+                      <div
+                          key={docId}
+                          data-print-doc-id={docId}
+                          style={{ padding: 0, margin: '0 auto', backgroundColor: '#ffffff' }}
+                      > 
                           {/* SSOMA */}
                           {docId === 'risst' && <CargoRisstPrintable ficha={fichaForPrint} />}
                           {docId === 'capacitacion' && <RegistroCapacitacionPrintable ficha={fichaForPrint} />}
@@ -1104,7 +1149,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
         <table className="w-full min-w-max text-left border-collapse table-fixed">
             <thead className="bg-white sticky top-0 z-20 shadow-sm border-b border-slate-100">
                 <tr>
-                    <th className="px-4 py-3 w-12 text-center"><button onClick={() => handleSelectAll(paginatedData)} className="text-slate-300 hover:text-blue-600 transition-colors">{selectedIds.length > 0 && paginatedData.every(w => selectedIds.includes(w.id)) ? <CheckSquare size={20} className="text-blue-600"/> : <Square size={20}/>}</button></th>
+                    <th className="px-4 py-3 w-12 text-center"><button onClick={() => handleSelectAll(filteredAndSorted)} className="text-slate-300 hover:text-blue-600 transition-colors">{filteredAndSorted.length > 0 && filteredAndSorted.every(w => selectedIds.includes(w.id)) ? <CheckSquare size={20} className="text-blue-600"/> : <Square size={20}/>}</button></th>
                     
                     {/* COLABORADOR - ANCHO FIJO */}
                     <th className="px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap w-[25%] cursor-pointer hover:text-blue-600 transition-colors" onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}>
@@ -1558,16 +1603,16 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
                         </Section>
                         <Section title="Documentos Adjuntos" icon={<FileBadge size={18}/>}>
                             <div className="grid grid-cols-2 gap-4">
-                                <DocCard label="DNI (Frontal y Reverso)" url={formData.url_dni_frontal} onDelete={() => handleDeleteDoc('url_dni_frontal')} isEditing={isEditing} onUpload={(f:File)=>handleAdminDocUpload(f, 'url_dni_frontal')} />
-                                <DocCard label="Carnet RETCC" url={formData.url_carnet} onDelete={() => handleDeleteDoc('url_carnet')} isEditing={isEditing} onUpload={(f:File)=>handleAdminDocUpload(f, 'url_carnet')} />
-                                <DocCard label="Antecedentes" url={formData.url_antecedentes} onDelete={() => handleDeleteDoc('url_antecedentes')} isEditing={isEditing} onUpload={(f:File)=>handleAdminDocUpload(f, 'url_antecedentes')} />
-                                <DocCard label="Ant. Policiales" url={formData.url_policiales} onDelete={() => handleDeleteDoc('url_policiales')} isEditing={isEditing} onUpload={(f:File)=>handleAdminDocUpload(f, 'url_policiales')} />
-                                <DocCard label="Ant. Penales" url={formData.url_penales} onDelete={() => handleDeleteDoc('url_penales')} isEditing={isEditing} onUpload={(f:File)=>handleAdminDocUpload(f, 'url_penales')} />
-                                <DocCard label="Acta Matrimonio" url={formData.url_acta_matrimonio} onDelete={() => handleDeleteDoc('url_acta_matrimonio')} isEditing={isEditing} onUpload={(f:File)=>handleAdminDocUpload(f, 'url_acta_matrimonio')} />
-                                <DocCard label="DNI Esposa" url={formData.url_esposa_dni} onDelete={() => handleDeleteDoc('url_esposa_dni')} isEditing={isEditing} onUpload={(f:File)=>handleAdminDocUpload(f, 'url_esposa_dni')} />
-                                <DocCard label="DNI Hijos" url={formData.url_hijos_dni} onDelete={() => handleDeleteDoc('url_hijos_dni')} isEditing={isEditing} onUpload={(f:File)=>handleAdminDocUpload(f, 'url_hijos_dni')} />
-                                <DocCard label="Partida Nac. Hijos" url={formData.url_hijos_nacimiento} onDelete={() => handleDeleteDoc('url_hijos_nacimiento')} isEditing={isEditing} onUpload={(f:File)=>handleAdminDocUpload(f, 'url_hijos_nacimiento')} />
-                                <DocCard label="Estudios Hijos" url={formData.url_constancia_estudios} onDelete={() => handleDeleteDoc('url_constancia_estudios')} isEditing={isEditing} onUpload={(f:File)=>handleAdminDocUpload(f, 'url_constancia_estudios')} />
+                                <DocumentCard label="DNI (Frontal y Reverso)" url={formData.url_dni_frontal} onDelete={() => handleDeleteDoc('url_dni_frontal')} isEditing={isEditing} onUpload={(f:File)=>handleAdminDocUpload(f, 'url_dni_frontal')} />
+                                <DocumentCard label="Carnet RETCC" url={formData.url_carnet} onDelete={() => handleDeleteDoc('url_carnet')} isEditing={isEditing} onUpload={(f:File)=>handleAdminDocUpload(f, 'url_carnet')} />
+                                <DocumentCard label="Antecedentes" url={formData.url_antecedentes} onDelete={() => handleDeleteDoc('url_antecedentes')} isEditing={isEditing} onUpload={(f:File)=>handleAdminDocUpload(f, 'url_antecedentes')} />
+                                <DocumentCard label="Ant. Policiales" url={formData.url_policiales} onDelete={() => handleDeleteDoc('url_policiales')} isEditing={isEditing} onUpload={(f:File)=>handleAdminDocUpload(f, 'url_policiales')} />
+                                <DocumentCard label="Ant. Penales" url={formData.url_penales} onDelete={() => handleDeleteDoc('url_penales')} isEditing={isEditing} onUpload={(f:File)=>handleAdminDocUpload(f, 'url_penales')} />
+                                <DocumentCard label="Acta Matrimonio" url={formData.url_acta_matrimonio} onDelete={() => handleDeleteDoc('url_acta_matrimonio')} isEditing={isEditing} onUpload={(f:File)=>handleAdminDocUpload(f, 'url_acta_matrimonio')} />
+                                <DocumentCard label="DNI Esposa" url={formData.url_esposa_dni} onDelete={() => handleDeleteDoc('url_esposa_dni')} isEditing={isEditing} onUpload={(f:File)=>handleAdminDocUpload(f, 'url_esposa_dni')} />
+                                <DocumentCard label="DNI Hijos" url={formData.url_hijos_dni} onDelete={() => handleDeleteDoc('url_hijos_dni')} isEditing={isEditing} onUpload={(f:File)=>handleAdminDocUpload(f, 'url_hijos_dni')} />
+                                <DocumentCard label="Partida Nac. Hijos" url={formData.url_hijos_nacimiento} onDelete={() => handleDeleteDoc('url_hijos_nacimiento')} isEditing={isEditing} onUpload={(f:File)=>handleAdminDocUpload(f, 'url_hijos_nacimiento')} />
+                                <DocumentCard label="Estudios Hijos" url={formData.url_constancia_estudios} onDelete={() => handleDeleteDoc('url_constancia_estudios')} isEditing={isEditing} onUpload={(f:File)=>handleAdminDocUpload(f, 'url_constancia_estudios')} />
                             </div>
                         </Section>
                         <Section title="Firma Registrada" icon={<PenTool size={18}/>}>
@@ -1717,6 +1762,95 @@ function Section({title, icon, children}: any) { return <div className="space-y-
 function Grid({children}: any) { return <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6">{children}</div> }
 function Field({label, name, val, edit, set, full, customChange, type="text"}: any) { return <div className={full ? 'md:col-span-2' : ''}><label className="block text-[10px] font-bold text-slate-400 uppercase mb-2 tracking-wide ml-1">{label}</label>{edit ? <input type={type} value={val||''} onChange={customChange ? (e)=>customChange(e.target.value) : (e)=>set((p:any)=>({...p,[name]:e.target.value}))} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all shadow-sm font-medium text-slate-700"/> : <div className="font-medium text-slate-800 text-sm border-b border-slate-100 py-1.5 px-1 truncate min-h-[32px]">{val||<span className="text-slate-300 italic">Sin datos</span>}</div>}</div>}
 function DocCard({label, url, onDelete, isEditing, onUpload}: any) { const fileRef = useRef<HTMLInputElement>(null); if(!url && !isEditing) return <div className="flex items-center gap-3 p-4 bg-slate-50 border border-slate-100 rounded-xl opacity-60"><div className="w-10 h-10 rounded-xl bg-slate-200 text-slate-400 flex items-center justify-center"><FileText size={18}/></div><span className="text-xs font-bold text-slate-400">Sin archivo</span></div>; return (<div className="relative group">{url ? (<a href={url} target="_blank" className="flex items-center gap-3 p-4 bg-white border border-slate-200 rounded-xl hover:border-blue-400 hover:shadow-md transition-all group cursor-pointer active:scale-95"><div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors shadow-sm"><FileText size={20}/></div><span className="text-xs font-bold text-slate-700 truncate group-hover:text-blue-700 pr-6">{label}</span></a>) : (<div className="flex items-center gap-3 p-4 bg-slate-50 border border-slate-200 rounded-xl border-dashed"><span className="text-xs font-bold text-slate-400">{label} (Vacío)</span></div>)}<div className="absolute top-2 right-2 flex gap-1">{isEditing && (<><input type="file" ref={fileRef} className="hidden" onChange={(e) => e.target.files?.[0] && onUpload(e.target.files[0])} /><button onClick={(e) => { e.stopPropagation(); fileRef.current?.click() }} className="p-1.5 bg-white border border-blue-200 text-blue-600 rounded-lg shadow-sm hover:bg-blue-50 transition-all z-10" title="Subir/Cambiar Archivo"><UploadCloud size={14}/></button></>)}{onDelete && isEditing && url && (<button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(); }} className="p-1.5 bg-white border border-red-100 text-red-500 rounded-lg shadow-sm hover:bg-red-50 transition-all z-10" title="Eliminar documento"><Trash2 size={14}/></button>)}</div></div>) }
+
+function DocumentCard({label, url, onDelete, isEditing, onUpload}: any) {
+    const fileRef = useRef<HTMLInputElement>(null)
+    const [showPreview, setShowPreview] = useState(false)
+    const hasFile = Boolean(url)
+
+    if (!hasFile && !isEditing) {
+        return (
+            <div className="flex items-center gap-3 p-4 bg-slate-50 border border-slate-100 rounded-xl opacity-60">
+                <div className="w-10 h-10 rounded-xl bg-slate-200 text-slate-400 flex items-center justify-center">
+                    <FileText size={18}/>
+                </div>
+                <span className="text-xs font-bold text-slate-400">Sin archivo</span>
+            </div>
+        )
+    }
+
+    return (
+        <>
+            <div className="relative group">
+                {hasFile ? (
+                    <button
+                        type="button"
+                        onClick={() => setShowPreview(true)}
+                        className="w-full flex items-center gap-3 p-4 bg-white border border-slate-200 rounded-xl hover:border-blue-400 hover:shadow-md transition-all text-left active:scale-[0.99]"
+                    >
+                        <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors shadow-sm">
+                            <FileText size={20}/>
+                        </div>
+                        <div className="min-w-0 flex-1 pr-10">
+                            <p className="text-xs font-bold text-slate-700 truncate group-hover:text-blue-700">{label}</p>
+                            <p className="text-[11px] text-slate-400 mt-1">Abrir vista previa</p>
+                        </div>
+                    </button>
+                ) : (
+                    <div className="flex items-center gap-3 p-4 bg-slate-50 border border-slate-200 rounded-xl border-dashed">
+                        <span className="text-xs font-bold text-slate-400">{label} (Vacío)</span>
+                    </div>
+                )}
+
+                <div className="absolute top-2 right-2 flex gap-1">
+                    {isEditing && (
+                        <>
+                            <input
+                                type="file"
+                                ref={fileRef}
+                                className="hidden"
+                                onChange={(e) => e.target.files?.[0] && onUpload(e.target.files[0])}
+                            />
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation()
+                                    fileRef.current?.click()
+                                }}
+                                className="p-1.5 bg-white border border-blue-200 text-blue-600 rounded-lg shadow-sm hover:bg-blue-50 transition-all z-10"
+                                title="Subir/Cambiar Archivo"
+                            >
+                                <UploadCloud size={14}/>
+                            </button>
+                        </>
+                    )}
+                    {onDelete && isEditing && hasFile && (
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                onDelete()
+                            }}
+                            className="p-1.5 bg-white border border-red-100 text-red-500 rounded-lg shadow-sm hover:bg-red-50 transition-all z-10"
+                            title="Eliminar documento"
+                        >
+                            <Trash2 size={14}/>
+                        </button>
+                    )}
+                </div>
+            </div>
+
+            {showPreview && hasFile && (
+                <DocumentPreviewModal
+                    label={label}
+                    url={url}
+                    onClose={() => setShowPreview(false)}
+                />
+            )}
+        </>
+    )
+}
 
 function PrintPreviewModal({ image, onClose }: { image: string, onClose: () => void }) {
     const handlePrint = () => { const iframe = document.createElement('iframe'); iframe.style.position = 'absolute'; iframe.width='0'; iframe.height='0'; iframe.style.border='none'; document.body.appendChild(iframe); const doc = iframe.contentWindow?.document; if (doc) { doc.open(); doc.write(`<html><body onload="window.print()"><img src="${image}" style="width:100%"/></body></html>`); doc.close(); setTimeout(() => document.body.removeChild(iframe), 5000); } };

@@ -13,6 +13,7 @@ import {
   HardHat, ShieldCheck, PenTool, Eraser, Users, FileBadge, Plus, Trash2, Lock, Hammer, FileText, Download, Image as ImageIcon, UploadCloud, RefreshCw, X, Calendar, Eye, RotateCw, Wand2, ArrowRight, PlayCircle
 } from 'lucide-react'
 import Link from 'next/link'
+import DocumentPreviewModal from './DocumentPreviewModal'
 
 // --- ESTRUCTURA DE PASOS ---
 const STEPS = [
@@ -780,21 +781,12 @@ function ImageUpload({label, bucket, onUpload, currentUrl}: any) {
             )}
 
             {/* Modal de Previsualización */}
-            {previewModal && (
-                <div className="fixed inset-0 z-[100] bg-black/90 flex flex-col p-4 animate-in fade-in duration-200">
-                     <div className="flex justify-between items-center text-white mb-4">
-                        <h3 className="font-bold text-lg">{label}</h3>
-                        <button onClick={()=>setPreviewModal(false)} className="bg-white/20 p-2 rounded-full hover:bg-white/40"><X/></button>
-                     </div>
-                     <div className="flex-1 bg-black rounded-lg flex items-center justify-center overflow-hidden border border-white/20 relative">
-                        {isPdf ? (
-                            <iframe src={currentUrl} className="w-full h-full" title="Preview PDF"></iframe>
-                        ) : (
-                            <img src={currentUrl} alt="Preview" className="max-w-full max-h-full object-contain" />
-                        )}
-                        {isPdf && <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 px-4 py-2 rounded text-white text-xs">Vista previa PDF</div>}
-                     </div>
-                </div>
+            {previewModal && currentUrl && (
+                <DocumentPreviewModal
+                    label={label}
+                    url={currentUrl}
+                    onClose={() => setPreviewModal(false)}
+                />
             )}
         </>
     )
@@ -1150,13 +1142,28 @@ function StepWrapper({children}: any) { return <motion.div initial={{opacity:0, 
 function GridRead({children}: any) { return <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">{children}</div> }
 function FieldRead({label, val, full, highlight}: any) { return <div className={`${full ? 'col-span-1 md:col-span-2' : ''} flex flex-col`}><span className="text-[10px] font-bold text-slate-400 uppercase mb-1">{label}</span><span className={`text-sm font-medium border-b border-slate-100 pb-1 ${highlight ? 'text-blue-700 font-bold' : 'text-slate-800'}`}>{val || '-'}</span></div> }
 function DocRead({label, url}: any) {
+    const [previewOpen, setPreviewOpen] = useState(false)
     if (!url) return null
     const isPdf = url.toLowerCase().includes('.pdf')
     return (
-        <a href={url} target="_blank" className={`flex items-center gap-3 p-3 border rounded-lg hover:shadow-md transition-all group ${isPdf ? 'bg-red-50 border-red-100 hover:border-red-300' : 'bg-white border-slate-200 hover:border-blue-300'}`}>
-            <div className={`p-2 rounded ${isPdf ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-500'}`}>{isPdf ? <FileText size={16}/> : <ImageIcon size={16}/>}</div>
-            <div className="flex-1 overflow-hidden"><p className="text-xs font-bold text-slate-700 truncate">{label}</p><p className="text-[10px] text-slate-400">{isPdf ? 'Documento PDF' : 'Imagen'}</p></div>
-            <Download size={14} className="text-slate-300 group-hover:text-slate-500"/>
-        </a>
+        <>
+            <button
+                type="button"
+                onClick={() => setPreviewOpen(true)}
+                className={`w-full flex items-center gap-3 p-3 border rounded-lg hover:shadow-md transition-all group text-left ${isPdf ? 'bg-red-50 border-red-100 hover:border-red-300' : 'bg-white border-slate-200 hover:border-blue-300'}`}
+            >
+                <div className={`p-2 rounded ${isPdf ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-500'}`}>{isPdf ? <FileText size={16}/> : <ImageIcon size={16}/>}</div>
+                <div className="flex-1 overflow-hidden"><p className="text-xs font-bold text-slate-700 truncate">{label}</p><p className="text-[10px] text-slate-400">{isPdf ? 'Documento PDF' : 'Imagen'}</p></div>
+                <Eye size={14} className="text-slate-300 group-hover:text-slate-500"/>
+            </button>
+
+            {previewOpen && (
+                <DocumentPreviewModal
+                    label={label}
+                    url={url}
+                    onClose={() => setPreviewOpen(false)}
+                />
+            )}
+        </>
     )
 }
