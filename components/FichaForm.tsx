@@ -238,9 +238,8 @@ export default function FichaForm() {
     }
 
     if (currentStep === 3) {
-        if (!formData.cargo || !formData.nombre_obra || !formData.categoria || 
-            !formData.nivel_educativo || !formData.carrera || !formData.centro_formacion) {
-            toast.error("Por favor, completa toda la información laboral y académica obligatoria.")
+        if (!formData.cargo || !formData.nombre_obra || !formData.categoria) {
+            toast.error("Por favor, completa toda la información laboral obligatoria.")
             return false
         }
     }
@@ -608,9 +607,9 @@ export default function FichaForm() {
                     </div>
                     <SectionTitle title="Formación Académica" icon={<GraduationCap/>} />
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                            <Select label="Nivel educativo" name="nivel_educativo" val={formData.nivel_educativo} set={handleChange} options={['Primaria', 'Secundaria', 'Técnico', 'Universitario']} required />
-                            <Input label="Carrera / Oficio" name="carrera" val={formData.carrera} set={handleChange} required />
-                            <Input label="Institución Educativa" name="centro_formacion" val={formData.centro_formacion} set={handleChange} required className="md:col-span-2" />
+                            <Select label="Nivel educativo" name="nivel_educativo" val={formData.nivel_educativo} set={handleChange} options={['Primaria', 'Secundaria', 'Técnico', 'Universitario']} />
+                            <Input label="Carrera / Oficio" name="carrera" val={formData.carrera} set={handleChange} />
+                            <Input label="Institución Educativa" name="centro_formacion" val={formData.centro_formacion} set={handleChange} className="md:col-span-2" />
                     </div>
                 </StepWrapper>}
 
