@@ -93,12 +93,10 @@ export const ActaDerechoSaberPrintable = forwardRef(({ ficha }: { ficha: any }, 
         height: '10px',
         border: '1px solid #000',
         marginRight: '5px',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
+        textAlign: 'center' as const,
+        lineHeight: '10px',
         fontSize: '9px',
         fontWeight: 'bold',
-        lineHeight: '1',
         flexShrink: 0
     }
   }

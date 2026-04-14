@@ -58,10 +58,10 @@ export const InduccionHombreNuevoPrintable = forwardRef(({ ficha }: { ficha: any
         flex: 1,
         borderBottom: '1px dotted #000',
         paddingLeft: '10px',
-        paddingBottom: '2px', // Espacio para que no se pegue
+        paddingBottom: '6px',
         fontWeight: 'bold',
         textTransform: 'uppercase' as const,
-        minHeight: '16px'
+        minHeight: '20px'
     },
     // Lista de Checks
     checkboxList: {
@@ -72,7 +72,7 @@ export const InduccionHombreNuevoPrintable = forwardRef(({ ficha }: { ficha: any
     },
     checkItem: {
         display: 'flex',
-        alignItems: 'center', 
+        alignItems: 'center',
         gap: '10px',
         fontSize: '11px'
     },
@@ -80,9 +80,8 @@ export const InduccionHombreNuevoPrintable = forwardRef(({ ficha }: { ficha: any
         width: '14px',
         height: '14px',
         border: '1px solid #000',
-        display: 'flex',
-        justifyContent: 'center', 
-        alignItems: 'center',     
+        textAlign: 'center' as const,
+        lineHeight: '14px',
         fontSize: '10px',
         fontWeight: 'bold',
         flexShrink: 0

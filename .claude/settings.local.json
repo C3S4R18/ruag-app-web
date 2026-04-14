@@ -3,7 +3,9 @@
     "allow": [
       "Bash(wc -l components/*.tsx app/**/*.tsx)",
       "Bash(wc -l /c/Users/cesar/ruag-webapp/components/*.tsx /c/Users/cesar/ruag-webapp/components/ssoma/*.tsx /c/Users/cesar/ruag-webapp/app/**/*.tsx /c/Users/cesar/ruag-webapp/utils/*.ts /c/Users/cesar/ruag-webapp/types/*.ts)",
-      "mcp__Claude_Preview__preview_start"
+      "mcp__Claude_Preview__preview_start",
+      "Bash(wc -l /c/Users/cesar/ruag-webapp/app/dashboard/page.tsx /c/Users/cesar/ruag-webapp/app/admin/ssoma/induccion/page.tsx /c/Users/cesar/ruag-webapp/app/ssoma/reporte-estadistico/*/page.tsx /c/Users/cesar/ruag-webapp/types/ssoma.ts /c/Users/cesar/ruag-webapp/components/RegistroCapacitacionPrintable.tsx /c/Users/cesar/ruag-webapp/components/ActaEntregaIpercPrintable.tsx /c/Users/cesar/ruag-webapp/components/CargoPoliticaPrevencionPrintable.tsx)",
+      "Bash(wc -l /c/Users/cesar/ruag-webapp/tmp_android/*.kt)"
     ]
   }
 }
