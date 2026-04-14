@@ -5,7 +5,7 @@ export const CargoRisstPrintable = forwardRef(({ ficha }: { ficha: any }, ref: R
 
   const today = new Date()
   const fechaActual = `${today.getDate().toString().padStart(2, '0')}/${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`
-  const lugar = "LIMA" 
+  const lugar = "Oficina Ruag" 
 
   const styles = {
     page: {

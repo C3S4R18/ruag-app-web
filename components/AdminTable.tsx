@@ -81,6 +81,28 @@ const PRINT_PAGE_LAYOUTS: Record<string, { orientation: 'p' | 'l'; width: number
     epp: { orientation: 'l', width: 297, height: 210 },
 }
 
+const getPrintSurfaceStyle = (docId: string) => {
+    const pageLayout = PRINT_PAGE_LAYOUTS[docId] || DEFAULT_PRINT_LAYOUT
+    return {
+        width: `${pageLayout.width}mm`,
+        minHeight: `${pageLayout.height}mm`,
+        backgroundColor: '#ffffff',
+        boxSizing: 'border-box' as const,
+        overflow: 'hidden',
+        display: 'flex',
+        alignItems: 'stretch' as const,
+        justifyContent: 'center' as const,
+    }
+}
+
+const getCaptureBounds = (element: HTMLElement) => {
+    const rect = element.getBoundingClientRect()
+    return {
+        width: Math.max(1, Math.ceil(rect.width || element.scrollWidth || element.offsetWidth || 1)),
+        height: Math.max(1, Math.ceil(rect.height || element.scrollHeight || element.offsetHeight || 1)),
+    }
+}
+
 export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyChange }: AdminTableProps) {
   const supabase = createClient()
   const [fichas, setFichas] = useState<any[]>([])
@@ -771,22 +793,24 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
       setTimeout(async () => {
           if (!printRef.current) { toast.error("Error de renderizado"); setPreparingDoc(false); return }
           try {
-              const pdfDoc = new jsPDF('p', 'mm', 'a4')
-              pdfDoc.deletePage(1)
-              const elements = Array.from(printRef.current.children) as HTMLElement[]
+              let pdfDoc: jsPDF | null = null
+              const elements = Array.from(printRef.current.querySelectorAll('[data-print-doc-id]')) as HTMLElement[]
               for (let i = 0; i < elements.length; i++) {
                   const element = elements[i]
                   const docId = element.dataset.printDocId || ''
                   const pageLayout = PRINT_PAGE_LAYOUTS[docId] || DEFAULT_PRINT_LAYOUT
+                  const { width: captureWidth, height: captureHeight } = getCaptureBounds(element)
                   const canvas = await html2canvas(element, {
-                      scale: 2.25,
+                      scale: 2.6,
                       useCORS: true,
                       allowTaint: true,
                       backgroundColor: '#ffffff',
-                      width: element.scrollWidth,
-                      height: element.scrollHeight,
-                      windowWidth: element.scrollWidth,
-                      windowHeight: element.scrollHeight,
+                      width: captureWidth,
+                      height: captureHeight,
+                      windowWidth: captureWidth,
+                      windowHeight: captureHeight,
+                      scrollX: 0,
+                      scrollY: 0,
                       onclone: (clonedDoc) => {
                           const all = clonedDoc.querySelectorAll('*')
                           all.forEach((el: any) => {
@@ -801,17 +825,22 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                       }
                   })
                   const imgData = canvas.toDataURL('image/png')
-                  const imgProps = pdfDoc.getImageProperties(imgData)
-                  const maxWidth = pageLayout.width - 8
-                  const maxHeight = pageLayout.height - 8
-                  const ratio = Math.min(maxWidth / imgProps.width, maxHeight / imgProps.height)
-                  const renderWidth = imgProps.width * ratio
-                  const renderHeight = imgProps.height * ratio
-                  const offsetX = (pageLayout.width - renderWidth) / 2
-                  const offsetY = (pageLayout.height - renderHeight) / 2
-                  pdfDoc.addPage('a4', pageLayout.orientation)
-                  pdfDoc.addImage(imgData, 'PNG', offsetX, offsetY, renderWidth, renderHeight, undefined, 'FAST')
+                  if (!pdfDoc) {
+                      pdfDoc = new jsPDF({
+                          orientation: pageLayout.orientation,
+                          unit: 'mm',
+                          format: 'a4',
+                          compress: true,
+                      })
+                  } else {
+                      pdfDoc.addPage('a4', pageLayout.orientation)
+                  }
+
+                  const pageWidth = pdfDoc.internal.pageSize.getWidth()
+                  const pageHeight = pdfDoc.internal.pageSize.getHeight()
+                  pdfDoc.addImage(imgData, 'PNG', 0, 0, pageWidth, pageHeight, undefined, 'FAST')
               }
+              if (!pdfDoc) throw new Error("No se encontraron páginas para imprimir.")
               const nombreArchivo = `Legajo_${workerToPrint?.dni}.pdf`
               const pdfBlob = pdfDoc.output('blob')
               if (pdfBlob.size > 48 * 1024 * 1024) { toast.error("El archivo sigue siendo muy pesado. Intenta seleccionar menos documentos."); setPreparingDoc(false); return }
@@ -867,8 +896,8 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
       </AnimatePresence>
 
       {/* CONTENEDOR OCULTO DE IMPRESIÓN */}
-      <div className="fixed top-0 left-0 pointer-events-none opacity-0 overflow-hidden" style={{ zIndex: -100 }}>
-          <div ref={printRef} style={{ width: 'fit-content', backgroundColor: '#ffffff', color: '#000000' }}>
+      <div style={{ position: 'fixed', left: '-200vw', top: 0, pointerEvents: 'none', overflow: 'hidden', zIndex: -100 }}>
+          <div ref={printRef} style={{ backgroundColor: '#ffffff', color: '#000000', display: 'flex', flexDirection: 'column' }}>
               {workerToPrint && selectedDocsToPrint.map((docId) => {
                   const fichaForPrint = includeSignatures 
                       ? normalizeBiometricFields(workerToPrint)
@@ -878,7 +907,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                       <div
                           key={docId}
                           data-print-doc-id={docId}
-                          style={{ padding: 0, margin: '0 auto', backgroundColor: '#ffffff' }}
+                          style={getPrintSurfaceStyle(docId)}
                       > 
                           {/* SSOMA */}
                           {docId === 'risst' && <CargoRisstPrintable ficha={fichaForPrint} />}

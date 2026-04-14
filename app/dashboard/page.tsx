@@ -29,7 +29,13 @@ import { CargoPoliticaPrevencionPrintable } from '@/components/CargoPoliticaPrev
 const DOC_CONTENT: Record<string, string[]> = {
     // SSOMA
     risst: [], 
-    capacitacion: [],
+    capacitacion: [
+        "Inducción",
+        "Charla de seguridad",
+        "Entrenamiento",
+        "Simulacro de emergencia",
+        "Capacitación"
+    ],
     epp: [],
     iperc: [],
     induccion: [
@@ -46,16 +52,44 @@ const DOC_CONTENT: Record<string, string[]> = {
         "EPPs."
     ],
     acta_derecho: [
-        "Ley de Accidentes 29783",
+        "Ley de Accidentes del trabajo y Enfermedades profesionales; Ley 29783; RM 480-2008-SA",
         "Reglamento Interno de Seguridad.",
-        "Políticas de SST.",
-        "Derechos y obligaciones.",
-        "Plan de SST.",
-        "IPERC.",
-        "Control de Emergencias.",
-        "Trabajo en Altura.",
-        "Riesgos eléctricos.",
-        "Código de colores."
+        "Políticas de Seguridad y Salud Ocupacional y Medio Ambiente.",
+        "Organización del sistema de gestión de la seguridad y salud en el trabajo en la obra.",
+        "Derechos y obligaciones de los/las trabajadores/as y supervisores/as.",
+        "Conceptos básicos de seguridad y salud en el trabajo.",
+        "Reglas de tránsito (de ser aplicable a la obra).",
+        "Conceptos básicos de seguridad y salud en el trabajo (Repaso).",
+        "Plan de Seguridad y Salud Ocupacional, Plan de Prevención Ambiental.",
+        "Reconocimiento del área de trabajo.",
+        "Elementos de protección personal, tipos requeridos, manejo correcto, obligatoriedad y protecciones colectivas.",
+        "Control de Emergencias, Incendios, Uso de Extintores, Primeros Auxilios, Atención de lesionados.",
+        "Procedimiento Trabajo en Altura, Procedimientos de Trabajo Seguro, uso correcto de arnés de seguridad.",
+        "Superficies de Trabajo; andamios, escaleras, plataformas, elevadores de personas, etc.",
+        "Manejo de materiales; maniobras, trabajo con equipos de levante (Tirford, tecles, estrobos, etc.).",
+        "Riesgos eléctricos, equipos energizados.",
+        "Esmeril angular; uso seguro.",
+        "Oxicorte; uso, riesgos y medidas preventivas.",
+        "Cilindros de Gases Comprimidos; manejo, almacenamiento y transporte.",
+        "Trabajos de soldadura.",
+        "Excavaciones, Entibaciones, Fortificaciones y Taludes.",
+        "Vaciado de Concreto.",
+        "Housekeeping (Orden y Aseo).",
+        "Código de colores y señalización.",
+        "Exposición a Ruidos, polvo y vibraciones.",
+        "Desplazamientos por áreas de trabajo.",
+        "Higiene Personal, Recomendaciones.",
+        "Control, manejo, uso y transporte de sustancias peligrosas.",
+        "Sistemas de bloqueos y uso de Tarjeta de Seguridad.",
+        "Procedimiento Operacional de Equipos, Maquinarias y Herramientas, uso de canastillo.",
+        "Combustibles; manejo, almacenamiento y transporte.",
+        "Cambio de conducta, autocuidado, reconocimiento, sanciones, contacto personal.",
+        "Prohibición de ingreso al Proyecto bajo la influencia de alcohol y/o drogas.",
+        "Identificación de Aspectos e Impactos Ambientales.",
+        "Sobre Riesgos Ambientales, Manejo de residuos.",
+        "Equipos Radioactivos.",
+        "Preparación y respuesta ante emergencias.",
+        "Trabajos de alto riesgo."
     ],
     // RRHH
     cargo_rit: [],
@@ -525,7 +559,7 @@ export default function DashboardPage() {
                                         state={docStates[docId]}
                                         onClick={() => {
                                             const state = docStates[docId] || {}
-                                            if (state.status === 'unlocked') setDocToFill({id: docId, category: 'ssoma'})
+                                            if (state.status === 'unlocked' || state.status === 'completed') setDocToFill({id: docId, category: 'ssoma'})
                                             else if (state.status !== 'completed') toast.error("Documento no disponible aún.")
                                         }}
                                         type="ssoma"
@@ -549,7 +583,7 @@ export default function DashboardPage() {
                                         state={docStates[docId]}
                                         onClick={() => {
                                             const state = docStates[docId] || {}
-                                            if (state.status === 'unlocked') setDocToFill({id: docId, category: 'rrhh'})
+                                            if (state.status === 'unlocked' || state.status === 'completed') setDocToFill({id: docId, category: 'rrhh'})
                                             else if (state.status !== 'completed') toast.error("Documento no disponible aún.")
                                         }}
                                         type="rrhh"
@@ -635,6 +669,7 @@ export default function DashboardPage() {
                 category={docToFill.category}
                 fichaId={fichaId}
                 existingData={docStates[docToFill.id]?.data || {}}
+                status={docStates[docToFill.id]?.status || 'locked'}
                 fullFichaData={fullWorkerData}
                 onClose={() => setDocToFill(null)}
                 onSave={() => { fetchFichaData(userId); setDocToFill(null) }}
@@ -823,33 +858,59 @@ function ProfileSettingsCard({ userEmail, supabase }: any) {
 }
 
 // --- MODAL DE LECTURA Y CONFIRMACIÓN DE DOCUMENTOS ---
-function DocumentFillingModal({ docId, category, fichaId, existingData, fullFichaData, onClose, onSave }: any) {
+function DocumentFillingModal({ docId, category, fichaId, existingData, fullFichaData, status = 'locked', onClose, onSave }: any) {
     const supabase = createClient()
     const [checks, setChecks] = useState<Record<string, boolean>>(existingData || {})
     const [saving, setSaving] = useState(false)
     const content = DOC_CONTENT[docId] || []
-    
-    // Si tiene contenido (checklist), mostramos los checks. Si no, mostramos el PDF renderizado.
     const showChecklist = content.length > 0
+    const isCompleted = status === 'completed'
     const isHorizontal = ['capacitacion', 'epp'].includes(docId)
     const [scale, setScale] = useState(1)
+    const [modalStep, setModalStep] = useState<'checklist' | 'preview'>(showChecklist && !isCompleted ? 'checklist' : 'preview')
+    const isChecklistStep = showChecklist && !isCompleted && modalStep === 'checklist'
+    const checklistSelectedCount = content.filter((_, idx) => checks[`topic_${idx}`]).length
+
+    useEffect(() => {
+        const normalizedChecks = (content || []).reduce((acc, _, idx) => {
+            acc[`topic_${idx}`] = !!existingData?.[`topic_${idx}`]
+            return acc
+        }, {} as Record<string, boolean>)
+
+        setChecks(showChecklist ? normalizedChecks : (existingData || {}))
+    }, [docId, existingData, showChecklist, content])
+
+    useEffect(() => {
+        setModalStep(showChecklist && !isCompleted ? 'checklist' : 'preview')
+    }, [docId, showChecklist, isCompleted])
     
     useEffect(() => {
-        if (!showChecklist) {
-            const updateScale = () => {
-                const width = window.innerWidth
-                if (width < 640) setScale(0.45) 
-                else if (width < 1024) setScale(0.65)
-                else setScale(0.85)
-            }
-            updateScale()
-            window.addEventListener('resize', updateScale)
-            return () => window.removeEventListener('resize', updateScale)
+        const updateScale = () => {
+            const width = window.innerWidth
+            if (width < 640) setScale(isHorizontal ? 0.34 : 0.45)
+            else if (width < 1024) setScale(isHorizontal ? 0.48 : 0.65)
+            else if (showChecklist && !isChecklistStep) setScale(isHorizontal ? 0.68 : 0.9)
+            else if (showChecklist) setScale(isHorizontal ? 0.58 : 0.82)
+            else setScale(isHorizontal ? 0.68 : 0.9)
         }
-    }, [showChecklist])
+        updateScale()
+        window.addEventListener('resize', updateScale)
+        return () => window.removeEventListener('resize', updateScale)
+    }, [showChecklist, isHorizontal, isChecklistStep])
+
+    const previewFichaData = fullFichaData ? {
+        ...fullFichaData,
+        doc_states: {
+            ...(fullFichaData.doc_states || {}),
+            [docId]: {
+                ...((fullFichaData.doc_states || {})[docId] || {}),
+                data: showChecklist ? checks : ((fullFichaData.doc_states || {})[docId]?.data || existingData || {})
+            }
+        }
+    } : fullFichaData
 
     const renderPrintablePreview = () => {
-        const props = { ficha: fullFichaData }
+        const props = { ficha: previewFichaData }
         switch (docId) {
             // SSOMA
             case 'risst': return <CargoRisstPrintable {...props} />
@@ -868,11 +929,31 @@ function DocumentFillingModal({ docId, category, fichaId, existingData, fullFich
     const toggleCheck = (idx: number) => { setChecks(prev => ({ ...prev, [`topic_${idx}`]: !prev[`topic_${idx}`] })) }
 
     const handleSave = async () => {
+        if (isCompleted) {
+            onClose()
+            return
+        }
+
         setSaving(true)
         try {
             const { data: currentFicha } = await supabase.from('fichas').select('doc_states').eq('id', fichaId).single()
             const currentStates = currentFicha?.doc_states || {}
-            const newStates = { ...currentStates, [docId]: { status: 'completed', data: checks, completed_at: new Date().toISOString() } }
+            const dataToSave = showChecklist
+                ? content.reduce((acc, _, idx) => {
+                    acc[`topic_${idx}`] = !!checks[`topic_${idx}`]
+                    return acc
+                }, {} as Record<string, boolean>)
+                : (Object.keys(existingData || {}).length > 0 ? existingData : { signed: true })
+
+            const newStates = {
+                ...currentStates,
+                [docId]: {
+                    ...(currentStates?.[docId] || {}),
+                    status: 'completed',
+                    data: dataToSave,
+                    completed_at: new Date().toISOString()
+                }
+            }
             const { error } = await supabase.from('fichas').update({ doc_states: newStates }).eq('id', fichaId)
             if (error) throw error
             toast.success("Documento guardado y firmado correctamente")
@@ -892,45 +973,141 @@ function DocumentFillingModal({ docId, category, fichaId, existingData, fullFich
                     <div>
                         <span className={`text-[10px] font-bold ${category === 'rrhh' ? 'text-purple-600 bg-purple-50' : 'text-blue-600 bg-blue-50'} px-2 py-1 rounded uppercase tracking-wider mb-1 inline-block`}>{category.toUpperCase()}</span>
                         <h3 className="font-bold text-lg text-slate-900">{docLabel}</h3>
-                        <p className="text-xs text-slate-500 mt-0.5">{showChecklist ? "Marca los puntos tratados." : "Lee atentamente el documento antes de firmar."}</p>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                            {isCompleted
+                                ? "Documento ya confirmado. Puedes revisarlo nuevamente."
+                                : isChecklistStep
+                                    ? "Marca primero lo que corresponde y luego pasarás al documento para firmarlo."
+                                    : showChecklist
+                                        ? "Revisa cómo quedará el documento con tus marcas antes de firmarlo."
+                                    : "Lee atentamente el documento antes de firmar."}
+                        </p>
                     </div>
-                    <button onClick={onClose} className="p-2 bg-slate-50 hover:bg-slate-100 text-slate-500 rounded-full transition-colors"><X size={20}/></button>
+                    <div className="flex items-center gap-3">
+                        {showChecklist && !isCompleted && (
+                            <span className={`px-3 py-1 rounded-full text-[11px] font-bold ${isChecklistStep ? 'bg-blue-50 text-blue-700' : 'bg-emerald-50 text-emerald-700'}`}>
+                                {isChecklistStep ? 'Paso 1 de 2 · Marcas' : 'Paso 2 de 2 · Firma'}
+                            </span>
+                        )}
+                        <button onClick={onClose} className="p-2 bg-slate-50 hover:bg-slate-100 text-slate-500 rounded-full transition-colors"><X size={20}/></button>
+                    </div>
                 </div>
 
                 <div className="flex-1 overflow-auto bg-slate-200/50 relative">
-                    {showChecklist ? (
-                        <div className="p-6 space-y-3 max-w-3xl mx-auto">
-                            {content.map((text, idx) => {
-                                const isChecked = !!checks[`topic_${idx}`]
-                                return (
-                                    <div key={idx} onClick={() => toggleCheck(idx)} className={`flex items-start gap-4 p-4 rounded-xl border cursor-pointer transition-all duration-200 group ${isChecked ? 'bg-blue-50 border-blue-200 shadow-sm' : 'bg-white border-slate-200 hover:border-blue-200'}`}>
-                                        <div className={`mt-0.5 w-6 h-6 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all duration-200 ${isChecked ? 'bg-blue-600 border-blue-600 scale-110' : 'bg-white border-slate-300 group-hover:border-blue-300'}`}>{isChecked && <motion.div initial={{scale:0}} animate={{scale:1}}><CheckCircle size={14} className="text-white"/></motion.div>}</div>
-                                        <span className={`text-sm leading-snug select-none transition-colors ${isChecked ? 'text-blue-900 font-medium' : 'text-slate-600'}`}>{text}</span>
+                    {isChecklistStep ? (
+                        <div className="min-h-full flex items-center justify-center p-5 md:p-8">
+                            <div className="w-full max-w-3xl bg-white rounded-[28px] border border-slate-200 shadow-xl p-5 md:p-7">
+                                <div className="flex items-center justify-between gap-3 mb-5">
+                                    <div>
+                                        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Marcación</p>
+                                        <h4 className="text-lg font-bold text-slate-900">Selecciona lo que corresponde antes de firmar</h4>
+                                        <p className="text-sm text-slate-500 mt-1">Estas marcas se guardarán exactamente así y luego aparecerán en la impresión del admin.</p>
                                     </div>
-                                )
-                            })}
+                                    <span className="px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold shrink-0">
+                                        {checklistSelectedCount}/{content.length}
+                                    </span>
+                                </div>
+
+                                <div className="space-y-3 max-h-[52vh] overflow-auto pr-1">
+                                    {content.map((text, idx) => {
+                                        const isChecked = !!checks[`topic_${idx}`]
+                                        return (
+                                            <button
+                                                key={idx}
+                                                type="button"
+                                                onClick={() => toggleCheck(idx)}
+                                                className={`w-full text-left flex items-start gap-4 p-4 rounded-2xl border transition-all duration-200 group ${isChecked ? 'bg-blue-50 border-blue-200 shadow-sm' : 'bg-white border-slate-200 hover:border-blue-200 cursor-pointer'}`}
+                                            >
+                                                <div className={`mt-0.5 w-6 h-6 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all duration-200 ${isChecked ? 'bg-blue-600 border-blue-600 scale-110' : 'bg-white border-slate-300 group-hover:border-blue-300'}`}>
+                                                    {isChecked && <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}><CheckCircle size={14} className="text-white" /></motion.div>}
+                                                </div>
+                                                <span className={`text-sm leading-snug select-none transition-colors ${isChecked ? 'text-blue-900 font-medium' : 'text-slate-600'}`}>{text}</span>
+                                            </button>
+                                        )
+                                    })}
+                                </div>
+                            </div>
                         </div>
                     ) : (
-                        <div className="min-h-full flex items-center justify-center p-8 overflow-auto">
+                    <div className={`min-h-full ${showChecklist && isChecklistStep ? 'flex flex-col xl:grid xl:grid-cols-[minmax(0,1fr)_360px]' : 'flex'}`}>
+                        <div className="min-h-full flex items-start justify-center p-6 md:p-8 overflow-auto">
                             <div style={{ transform: `scale(${scale})`, transformOrigin: 'top center' }} className="bg-white shadow-2xl ring-1 ring-black/5 transition-transform duration-300 pointer-events-none select-none origin-top">
                                 {renderPrintablePreview()}
                             </div>
                         </div>
+
+                        {showChecklist && isChecklistStep && (
+                            <div className="border-t xl:border-t-0 xl:border-l border-slate-200 bg-white p-5 md:p-6">
+                                <div className="flex items-center justify-between gap-3 mb-4">
+                                    <div>
+                                        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Marcación</p>
+                                        <h4 className="text-sm font-bold text-slate-900">
+                                            {isCompleted ? 'Puntos guardados' : 'Selecciona lo que corresponde'}
+                                        </h4>
+                                    </div>
+                                    <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold">
+                                        {content.filter((_, idx) => checks[`topic_${idx}`]).length}/{content.length}
+                                    </span>
+                                </div>
+
+                                <div className="space-y-3 max-h-[38vh] xl:max-h-[unset] xl:h-[calc(100%-3rem)] overflow-auto pr-1">
+                                    {content.map((text, idx) => {
+                                        const isChecked = !!checks[`topic_${idx}`]
+                                        return (
+                                            <button
+                                                key={idx}
+                                                type="button"
+                                                disabled={isCompleted}
+                                                onClick={() => toggleCheck(idx)}
+                                                className={`w-full text-left flex items-start gap-4 p-4 rounded-2xl border transition-all duration-200 group ${isChecked ? 'bg-blue-50 border-blue-200 shadow-sm' : 'bg-white border-slate-200 hover:border-blue-200'} ${isCompleted ? 'cursor-default' : 'cursor-pointer'}`}
+                                            >
+                                                <div className={`mt-0.5 w-6 h-6 rounded-lg border-2 flex items-center justify-center shrink-0 transition-all duration-200 ${isChecked ? 'bg-blue-600 border-blue-600 scale-110' : 'bg-white border-slate-300 group-hover:border-blue-300'}`}>
+                                                    {isChecked && <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}><CheckCircle size={14} className="text-white" /></motion.div>}
+                                                </div>
+                                                <span className={`text-sm leading-snug select-none transition-colors ${isChecked ? 'text-blue-900 font-medium' : 'text-slate-600'}`}>{text}</span>
+                                            </button>
+                                        )
+                                    })}
+                                </div>
+                            </div>
+                        )}
+                    </div>
                     )}
                 </div>
 
                 <div className="p-5 border-t border-slate-100 bg-white rounded-b-3xl shrink-0 z-20 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
                     <div className="flex flex-col gap-3 max-w-4xl mx-auto w-full">
-                        {!showChecklist && (
+                        {isCompleted ? (
+                            <div className="flex items-start gap-3 bg-emerald-50 p-3 rounded-xl border border-emerald-100">
+                                <CheckCircle className="text-emerald-600 shrink-0 mt-0.5" size={18}/>
+                                <p className="text-xs text-emerald-800 leading-relaxed font-medium">Este documento ya fue guardado con tu conformidad. Puedes cerrarlo o revisarlo cuantas veces necesites.</p>
+                            </div>
+                        ) : (
                             <div className="flex items-start gap-3 bg-blue-50 p-3 rounded-xl mb-1 border border-blue-100">
                                 <Eye className="text-blue-600 shrink-0 mt-0.5" size={18}/>
-                                <p className="text-xs text-blue-800 leading-relaxed font-medium">Al presionar confirmar, declaras bajo juramento haber leído, comprendido y recibido el documento mostrado en pantalla con tus datos y firma digital.</p>
+                                <p className="text-xs text-blue-800 leading-relaxed font-medium">
+                                    {isChecklistStep
+                                        ? "Al confirmar, guardaremos las marcas seleccionadas junto con tu conformidad digital para que administración lo imprima exactamente así."
+                                        : "Al presionar confirmar, declaras bajo juramento haber leído, comprendido y recibido el documento mostrado en pantalla con tus datos y firma digital."}
+                                </p>
                             </div>
                         )}
-                        <button onClick={handleSave} disabled={saving} className="w-full py-3.5 bg-slate-900 text-white rounded-xl font-bold shadow-xl shadow-slate-900/20 hover:bg-slate-800 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-3 transition-all active:scale-[0.98]">
-                            {saving ? <Loader2 className="animate-spin"/> : <Save size={20}/>}
-                            {saving ? 'Validando...' : 'CONFIRMAR LECTURA Y GUARDAR'}
-                        </button>
+                        <div className={`grid gap-3 ${showChecklist && !isCompleted && !isChecklistStep ? 'md:grid-cols-[220px_minmax(0,1fr)]' : ''}`}>
+                            {showChecklist && !isCompleted && !isChecklistStep && (
+                                <button
+                                    type="button"
+                                    onClick={() => setModalStep('checklist')}
+                                    className="w-full py-3.5 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-slate-200 flex items-center justify-center gap-3 transition-all active:scale-[0.98]"
+                                >
+                                    <ChevronRight size={18} className="rotate-180" />
+                                    VOLVER A MARCAS
+                                </button>
+                            )}
+                            <button onClick={isCompleted ? onClose : (isChecklistStep ? () => setModalStep('preview') : handleSave)} disabled={saving} className="w-full py-3.5 bg-slate-900 text-white rounded-xl font-bold shadow-xl shadow-slate-900/20 hover:bg-slate-800 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-3 transition-all active:scale-[0.98]">
+                                {saving ? <Loader2 className="animate-spin"/> : <Save size={20}/>}
+                                {saving ? 'Validando...' : isCompleted ? 'CERRAR VISOR' : isChecklistStep ? 'CONTINUAR AL DOCUMENTO' : showChecklist ? 'FIRMAR Y GUARDAR' : 'CONFIRMAR LECTURA Y GUARDAR'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             </motion.div>

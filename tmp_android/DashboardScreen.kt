@@ -1,9 +1,11 @@
 package com.ruag.digital.ui.screens
 
 import android.Manifest
+import android.app.Activity
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
+import android.content.ContextWrapper
 import android.content.pm.PackageManager
 import android.media.MediaPlayer
 import android.net.Uri
@@ -53,6 +55,10 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import com.google.android.play.core.appupdate.AppUpdateManagerFactory
+import com.google.android.play.core.appupdate.AppUpdateOptions
+import com.google.android.play.core.install.model.AppUpdateType
+import com.google.android.play.core.install.model.UpdateAvailability
 import com.ruag.digital.R
 import com.ruag.digital.data.SupabaseClient
 import io.github.jan.supabase.gotrue.auth
@@ -164,6 +170,122 @@ private val MANDATORY_DOWNLOADS = linkedMapOf(
 
 private val ALL_DOC_LABELS = DOCS_SSOMA + DOCS_RRHH
 
+private data class DocumentChecklistOption(
+    val key: String,
+    val label: String
+)
+
+private val DOC_CHECKLISTS = mapOf(
+    "capacitacion" to listOf(
+        DocumentChecklistOption("topic_0", "Induccion"),
+        DocumentChecklistOption("topic_1", "Charla de seguridad"),
+        DocumentChecklistOption("topic_2", "Entrenamiento"),
+        DocumentChecklistOption("topic_3", "Simulacro de emergencia"),
+        DocumentChecklistOption("topic_4", "Capacitacion"),
+    ),
+    "acta_derecho" to listOf(
+        DocumentChecklistOption("topic_0", "Ley de Accidentes del trabajo y Enfermedades profesionales; Ley 29783; RM 480-2008-SA"),
+        DocumentChecklistOption("topic_1", "Reglamento Interno de Seguridad."),
+        DocumentChecklistOption("topic_2", "Politicas de Seguridad y Salud Ocupacional y Medio Ambiente."),
+        DocumentChecklistOption("topic_3", "Organizacion del sistema de gestion de la seguridad y salud en el trabajo en la obra."),
+        DocumentChecklistOption("topic_4", "Derechos y obligaciones de los/las trabajadores/as y supervisores/as."),
+        DocumentChecklistOption("topic_5", "Conceptos basicos de seguridad y salud en el trabajo."),
+        DocumentChecklistOption("topic_6", "Reglas de transito (de ser aplicable a la obra)."),
+        DocumentChecklistOption("topic_7", "Conceptos basicos de seguridad y salud en el trabajo (repaso)."),
+        DocumentChecklistOption("topic_8", "Plan de Seguridad y Salud Ocupacional, Plan de Prevencion Ambiental."),
+        DocumentChecklistOption("topic_9", "Reconocimiento del area de trabajo."),
+        DocumentChecklistOption("topic_10", "Elementos de proteccion personal, tipos requeridos, manejo correcto, obligatoriedad y protecciones colectivas."),
+        DocumentChecklistOption("topic_11", "Control de Emergencias, Incendios, Uso de Extintores, Primeros Auxilios, Atencion de lesionados."),
+        DocumentChecklistOption("topic_12", "Procedimiento Trabajo en Altura, Procedimientos de Trabajo Seguro, uso correcto de arnes de seguridad."),
+        DocumentChecklistOption("topic_13", "Superficies de Trabajo; andamios, escaleras, plataformas, elevadores de personas, etc."),
+        DocumentChecklistOption("topic_14", "Manejo de materiales; maniobras, trabajo con equipos de levante (Tirford, tecles, estrobos, etc.)."),
+        DocumentChecklistOption("topic_15", "Riesgos electricos, equipos energizados."),
+        DocumentChecklistOption("topic_16", "Esmeril angular; uso seguro."),
+        DocumentChecklistOption("topic_17", "Oxicorte; uso, riesgos y medidas preventivas."),
+        DocumentChecklistOption("topic_18", "Cilindros de Gases Comprimidos; manejo, almacenamiento y transporte."),
+        DocumentChecklistOption("topic_19", "Trabajos de soldadura."),
+        DocumentChecklistOption("topic_20", "Excavaciones, Entibaciones, Fortificaciones y Taludes."),
+        DocumentChecklistOption("topic_21", "Vaciado de Concreto."),
+        DocumentChecklistOption("topic_22", "Housekeeping (Orden y Aseo)."),
+        DocumentChecklistOption("topic_23", "Codigo de colores y senalizacion."),
+        DocumentChecklistOption("topic_24", "Exposicion a Ruidos, polvo y vibraciones."),
+        DocumentChecklistOption("topic_25", "Desplazamientos por areas de trabajo."),
+        DocumentChecklistOption("topic_26", "Higiene Personal, Recomendaciones."),
+        DocumentChecklistOption("topic_27", "Control, manejo, uso y transporte de sustancias peligrosas."),
+        DocumentChecklistOption("topic_28", "Sistemas de bloqueos y uso de Tarjeta de Seguridad."),
+        DocumentChecklistOption("topic_29", "Procedimiento Operacional de Equipos, Maquinarias y Herramientas, uso de canastillo."),
+        DocumentChecklistOption("topic_30", "Combustibles; manejo, almacenamiento y transporte."),
+        DocumentChecklistOption("topic_31", "Cambio de conducta, autocuidado, reconocimiento, sanciones, contacto personal."),
+        DocumentChecklistOption("topic_32", "Prohibicion de ingreso al Proyecto bajo la influencia de alcohol y/o drogas."),
+        DocumentChecklistOption("topic_33", "Identificacion de Aspectos e Impactos Ambientales."),
+        DocumentChecklistOption("topic_34", "Sobre Riesgos Ambientales, Manejo de residuos."),
+        DocumentChecklistOption("topic_35", "Equipos Radioactivos."),
+        DocumentChecklistOption("topic_36", "Preparacion y respuesta ante emergencias."),
+        DocumentChecklistOption("topic_37", "Trabajos de alto riesgo."),
+    ),
+    "induccion" to listOf(
+        DocumentChecklistOption("topic_0", "Politica de Seguridad y Salud en el Trabajo."),
+        DocumentChecklistOption("topic_1", "Organizacion del sistema de gestion."),
+        DocumentChecklistOption("topic_2", "Reglamento interno de SST."),
+        DocumentChecklistOption("topic_3", "Derecho y obligaciones."),
+        DocumentChecklistOption("topic_4", "Conceptos basicos de SST."),
+        DocumentChecklistOption("topic_5", "Reglas de Transito."),
+        DocumentChecklistOption("topic_6", "Trabajos de alto riesgo."),
+        DocumentChecklistOption("topic_7", "Codigo de Colores."),
+        DocumentChecklistOption("topic_8", "Sustancias peligrosas."),
+        DocumentChecklistOption("topic_9", "Respuesta ante emergencias."),
+        DocumentChecklistOption("topic_10", "EPPs."),
+    )
+)
+
+private fun buildChecklistState(docKey: String?, docStates: JsonObject?): Map<String, Boolean> {
+    val options = docKey?.let { DOC_CHECKLISTS[it] }.orEmpty()
+    val currentData = docKey
+        ?.let { key -> docStates?.get(key)?.jsonObject?.get("data")?.jsonObject }
+
+    return options.associate { option ->
+        option.key to (runCatching { currentData?.get(option.key)?.jsonPrimitive?.boolean }.getOrNull() ?: false)
+    }
+}
+
+private fun buildDocumentData(docKey: String?, checks: Map<String, Boolean>, existingData: JsonObject?): JsonObject {
+    val options = docKey?.let { DOC_CHECKLISTS[it] }.orEmpty()
+    return buildJsonObject {
+        if (options.isEmpty()) {
+            if (existingData != null && existingData.isNotEmpty()) {
+                existingData.forEach { (key, value) -> put(key, value) }
+            } else {
+                put("signed", true)
+            }
+        } else {
+            options.forEach { option ->
+                put(option.key, checks[option.key] == true)
+            }
+        }
+    }
+}
+
+private fun mergeChecklistPreview(ficha: JsonObject?, docKey: String?, checks: Map<String, Boolean>): JsonObject? {
+    if (ficha == null || docKey == null) return ficha
+    val options = DOC_CHECKLISTS[docKey].orEmpty()
+    if (options.isEmpty()) return ficha
+
+    val fichaMap = ficha.toMutableMap()
+    val currentDocStates = ficha["doc_states"]?.jsonObject?.toMutableMap() ?: mutableMapOf()
+    val currentDocEntry = currentDocStates[docKey]?.jsonObject
+    val updatedData = buildDocumentData(docKey, checks, currentDocEntry?.get("data")?.jsonObject)
+
+    currentDocStates[docKey] = buildJsonObject {
+        currentDocEntry?.forEach { (key, value) ->
+            if (key != "data") put(key, value)
+        }
+        put("data", updatedData)
+    }
+
+    fichaMap["doc_states"] = JsonObject(currentDocStates)
+    return JsonObject(fichaMap)
+}
+
 // --- MODELOS DE DATOS ---
 data class NotificationItem(
     val id: String = UUID.randomUUID().toString(),
@@ -201,6 +323,27 @@ data class MandatoryDownloadItem(
     val file: String,
     val label: String
 )
+
+private fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
+}
+
+private fun Context.isInstalledFromPlayStore(): Boolean {
+    return try {
+        val installerPackage = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            packageManager.getInstallSourceInfo(packageName).installingPackageName
+        } else {
+            @Suppress("DEPRECATION")
+            packageManager.getInstallerPackageName(packageName)
+        }
+        installerPackage == "com.android.vending"
+    } catch (_: Exception) {
+        false
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(navController: NavController) {
@@ -235,10 +378,17 @@ fun DashboardScreen(navController: NavController) {
     var unreadMessagesCount by remember { mutableIntStateOf(0) }
     var showChatSheet by remember { mutableStateOf(false) }
     var docToFill by remember { mutableStateOf<String?>(null) }
+    var docChecklistState by remember { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
+    var docModalStep by remember { mutableStateOf("preview") }
 
     val unreadCount = notifications.count { !it.read }
     val pendingDocsCount = (ssomaList + rrhhList).count { it.status == "unlocked" }
     val pendingActionsCount = pendingDocsCount + downloadQueue.size
+    val currentDocStatus = (ssomaList + rrhhList).firstOrNull { it.key == docToFill }?.status ?: "locked"
+    val currentDocChecklist = docToFill?.let { DOC_CHECKLISTS[it] }.orEmpty()
+    val documentNeedsChecklistStep = currentDocChecklist.isNotEmpty() && currentDocStatus != "completed"
+    val isChecklistStep = documentNeedsChecklistStep && docModalStep == "checklist"
+    val previewFichaData = mergeChecklistPreview(currentFichaData, docToFill, docChecklistState)
 
     LaunchedEffect(Unit) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -254,6 +404,48 @@ fun DashboardScreen(navController: NavController) {
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) {
             launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
+    val updateLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
+        if (result.resultCode != Activity.RESULT_OK) {
+            scope.launch {
+                snackbarHostState.showSnackbar("Hay una actualizacion pendiente. Instalala desde Play Store para usar la version mas estable.")
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (!context.isInstalledFromPlayStore()) return@LaunchedEffect
+        if (context.findActivity() == null) return@LaunchedEffect
+        val appUpdateManager = AppUpdateManagerFactory.create(context)
+
+        runCatching {
+            appUpdateManager.appUpdateInfo
+                .addOnSuccessListener { updateInfo ->
+                    if (
+                        updateInfo.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE &&
+                        updateInfo.isUpdateTypeAllowed(AppUpdateType.IMMEDIATE)
+                    ) {
+                        scope.launch {
+                            snackbarHostState.showSnackbar("Hay una actualizacion disponible. Se abrira la ventana de actualizacion.")
+                        }
+                        appUpdateManager.startUpdateFlowForResult(
+                            updateInfo,
+                            updateLauncher,
+                            AppUpdateOptions.newBuilder(AppUpdateType.IMMEDIATE).build()
+                        )
+                    }
+                }
+                .addOnFailureListener {
+                    scope.launch {
+                        snackbarHostState.showSnackbar("No se pudo verificar si hay una actualizacion nueva. Puedes revisar Play Store manualmente.")
+                    }
+                }
+        }.onFailure {
+            scope.launch {
+                snackbarHostState.showSnackbar("No se pudo iniciar la verificacion de actualizaciones.")
+            }
         }
     }
 
@@ -299,6 +491,15 @@ fun DashboardScreen(navController: NavController) {
             } else {
                 null
             }
+        }
+    }
+
+    LaunchedEffect(docToFill, fullDocStatesJson) {
+        docChecklistState = buildChecklistState(docToFill, fullDocStatesJson)
+        docModalStep = if (docToFill != null && DOC_CHECKLISTS[docToFill].orEmpty().isNotEmpty() && getStatus(fullDocStatesJson, docToFill!!) != "completed") {
+            "checklist"
+        } else {
+            "preview"
         }
     }
 
@@ -720,8 +921,7 @@ fun DashboardScreen(navController: NavController) {
                             rrhhDocs = rrhhList,
                             onDocClick = { doc ->
                                 when (doc.status) {
-                                    "unlocked" -> docToFill = doc.key
-                                    "completed" -> Toast.makeText(context, "Este documento ya fue firmado.", Toast.LENGTH_SHORT).show()
+                                    "unlocked", "completed" -> docToFill = doc.key
                                     else -> Toast.makeText(context, "Documento bloqueado", Toast.LENGTH_SHORT).show()
                                 }
                             }
@@ -817,40 +1017,94 @@ fun DashboardScreen(navController: NavController) {
     if (docToFill != null) {
         DocumentModal(
             title = ALL_DOC_LABELS[docToFill] ?: "",
+            canConfirm = currentDocStatus != "completed",
+            confirmLabel = if (currentDocStatus == "completed") "CERRAR VISOR" else if (isChecklistStep) "CONTINUAR AL DOCUMENTO" else "FIRMAR DIGITALMENTE",
+            helperText = if (currentDocStatus == "completed") {
+                "Este documento ya fue guardado con tu conformidad. Puedes revisarlo nuevamente cuando lo necesites."
+            } else if (isChecklistStep) {
+                "Marca primero lo que corresponde. En el siguiente paso veras el documento ya listo para revisarlo y firmarlo."
+            } else if (currentDocChecklist.isNotEmpty()) {
+                "Revisa como quedara el documento con tus marcas antes de firmarlo."
+            } else {
+                "Declaro bajo juramento haber leido y comprendido el documento."
+            },
+            secondaryActionLabel = if (!isChecklistStep && documentNeedsChecklistStep) "VOLVER A MARCAS" else null,
+            onSecondaryAction = if (!isChecklistStep && documentNeedsChecklistStep) {
+                { docModalStep = "checklist" }
+            } else {
+                null
+            },
             content = {
-                when (docToFill) {
-                    "risst" -> CargoRisstLayout(currentFichaData)
-                    "capacitacion" -> RegistroCapacitacionLayout(currentFichaData)
-                    "epp" -> EntregaEppLayout(currentFichaData)
-                    "acta_derecho" -> ActaDerechoSaberLayout(currentFichaData)
-                    "iperc" -> ActaEntregaIpercLayout(currentFichaData)
-                    "cargo_rit" -> CargoRitLayout(currentFichaData)
-                    "cargo_politica_prevencion" -> CargoPoliticaPrevencionLayout(currentFichaData)
-                    else -> RenderDocumentContent(docToFill!!, currentFichaData)
+                if (isChecklistStep) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Slate50)
+                            .padding(20.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(28.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            border = BorderStroke(1.dp, Slate100)
+                        ) {
+                            DocumentChecklistPanel(
+                                options = currentDocChecklist,
+                                state = docChecklistState,
+                                readOnly = false,
+                                onToggle = { key ->
+                                    docChecklistState = docChecklistState.toMutableMap().apply {
+                                        put(key, !(this[key] ?: false))
+                                    }
+                                }
+                            )
+                        }
+                    }
+                } else {
+                    Box(Modifier.fillMaxSize()) {
+                        when (docToFill) {
+                            "risst" -> CargoRisstLayout(previewFichaData)
+                            "capacitacion" -> RegistroCapacitacionLayout(previewFichaData)
+                            "epp" -> EntregaEppLayout(previewFichaData)
+                            "acta_derecho" -> ActaDerechoSaberLayout(previewFichaData)
+                            "iperc" -> ActaEntregaIpercLayout(previewFichaData)
+                            "cargo_rit" -> CargoRitLayout(previewFichaData)
+                            "cargo_politica_prevencion" -> CargoPoliticaPrevencionLayout(previewFichaData)
+                            else -> RenderDocumentContent(docToFill!!, previewFichaData)
+                        }
+                    }
                 }
             },
             onClose = { docToFill = null },
             onConfirm = {
-                scope.launch {
-                    try {
-                        if (fichaId != null && fullDocStatesJson != null) {
-                            val currentMap = fullDocStatesJson!!.toMutableMap()
-                            val dataMap = buildJsonObject { put("signed", true) }
-                            val docObj = buildJsonObject {
-                                put("status", "completed")
-                                put("completed_at", LocalDate.now().toString())
-                                put("data", dataMap)
+                if (currentDocStatus == "completed") {
+                    docToFill = null
+                } else if (isChecklistStep) {
+                    docModalStep = "preview"
+                } else {
+                    scope.launch {
+                        try {
+                            if (fichaId != null && fullDocStatesJson != null) {
+                                val currentMap = fullDocStatesJson!!.toMutableMap()
+                                val existingData = currentMap[docToFill!!]?.jsonObject?.get("data")?.jsonObject
+                                val dataMap = buildDocumentData(docToFill, docChecklistState, existingData)
+                                val docObj = buildJsonObject {
+                                    put("status", "completed")
+                                    put("completed_at", LocalDate.now().toString())
+                                    put("data", dataMap)
+                                }
+                                currentMap[docToFill!!] = docObj
+                                SupabaseClient.client.from("fichas").update(mapOf("doc_states" to JsonObject(currentMap))) {
+                                    filter { eq("id", fichaId!!) }
+                                }
+                                fullDocStatesJson = JsonObject(currentMap)
+                                docToFill = null
+                                Toast.makeText(context, "Firmado correctamente", Toast.LENGTH_SHORT).show()
                             }
-                            currentMap[docToFill!!] = docObj
-                            SupabaseClient.client.from("fichas").update(mapOf("doc_states" to JsonObject(currentMap))) {
-                                filter { eq("id", fichaId!!) }
-                            }
-                            fullDocStatesJson = JsonObject(currentMap)
-                            docToFill = null
-                            Toast.makeText(context, "Firmado correctamente", Toast.LENGTH_SHORT).show()
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "No se pudo firmar: ${e.message}", Toast.LENGTH_SHORT).show()
                         }
-                    } catch (e: Exception) {
-                        Toast.makeText(context, "No se pudo firmar: ${e.message}", Toast.LENGTH_SHORT).show()
                     }
                 }
             }
@@ -963,7 +1217,7 @@ fun DocumentsView(ssomaDocs: List<DocStatus>, rrhhDocs: List<DocStatus>, onDocCl
                     Spacer(Modifier.width(16.dp))
                     Column {
                         Text("Firmas Digitales", fontWeight = FontWeight.Bold, color = Slate900, fontSize = 16.sp)
-                        Text("Aqui firmas los documentos habilitados por SSOMA y RRHH.", fontSize = 12.sp, color = Slate600)
+                        Text("Aqui revisas, marcas y firmas los documentos habilitados por SSOMA y RRHH.", fontSize = 12.sp, color = Slate600)
                     }
                 }
             }
@@ -1352,7 +1606,17 @@ fun ProfileOption(icon: ImageVector, label: String, onClick: () -> Unit) {
 }
 
 @Composable
-fun DocumentModal(title: String, content: @Composable () -> Unit, onClose: () -> Unit, onConfirm: () -> Unit) {
+fun DocumentModal(
+    title: String,
+    content: @Composable () -> Unit,
+    onClose: () -> Unit,
+    onConfirm: () -> Unit,
+    canConfirm: Boolean = true,
+    confirmLabel: String = "FIRMAR DIGITALMENTE",
+    secondaryActionLabel: String? = null,
+    onSecondaryAction: (() -> Unit)? = null,
+    helperText: String = "Declaro bajo juramento haber leído y comprendido el documento."
+) {
     Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Box(Modifier.fillMaxSize().background(Slate900.copy(alpha = 0.8f))) {
             Card(modifier = Modifier.fillMaxWidth().fillMaxHeight(0.95f).align(Alignment.BottomCenter), shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp), colors = CardDefaults.cardColors(containerColor = Color.White)) {
@@ -1367,12 +1631,111 @@ fun DocumentModal(title: String, content: @Composable () -> Unit, onClose: () ->
                         Row(Modifier.padding(bottom = 16.dp).background(Blue50, RoundedCornerShape(12.dp)).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Outlined.Info, null, tint = Blue600, modifier = Modifier.size(20.dp))
                             Spacer(Modifier.width(12.dp))
-                            Text("Declaro bajo juramento haber leído y comprendido el documento.", fontSize = 13.sp, color = Blue700, fontWeight = FontWeight.Medium)
+                            Text(helperText, fontSize = 13.sp, color = Blue700, fontWeight = FontWeight.Medium)
                         }
-                        Button(onClick = onConfirm, modifier = Modifier.fillMaxWidth().height(56.dp), shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(containerColor = Slate900)) {
-                            Icon(Icons.Outlined.Edit, null, modifier = Modifier.size(20.dp)); Spacer(Modifier.width(8.dp)); Text("FIRMAR DIGITALMENTE", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            if (!secondaryActionLabel.isNullOrBlank() && onSecondaryAction != null) {
+                                OutlinedButton(
+                                    onClick = onSecondaryAction,
+                                    modifier = Modifier.fillMaxWidth().height(54.dp),
+                                    shape = RoundedCornerShape(16.dp),
+                                    border = BorderStroke(1.dp, Slate200),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Slate700)
+                                ) {
+                                    Icon(Icons.Default.ArrowBack, null, modifier = Modifier.size(18.dp))
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(secondaryActionLabel, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                }
+                            }
+                            Button(onClick = onConfirm, modifier = Modifier.fillMaxWidth().height(56.dp), shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(containerColor = Slate900)) {
+                                Icon(if (canConfirm) Icons.Outlined.Edit else Icons.Outlined.Visibility, null, modifier = Modifier.size(20.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text(confirmLabel, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                            }
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DocumentChecklistPanel(
+    options: List<DocumentChecklistOption>,
+    state: Map<String, Boolean>,
+    readOnly: Boolean,
+    onToggle: (String) -> Unit
+) {
+    val selectedCount = options.count { state[it.key] == true }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.White)
+            .border(BorderStroke(1.dp, Slate100), RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+            .padding(horizontal = 20.dp, vertical = 18.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text("Marcacion", fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, color = Slate400, letterSpacing = 1.sp)
+                Text(if (readOnly) "Puntos guardados" else "Selecciona lo que corresponde", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Slate900)
+            }
+            Box(
+                modifier = Modifier
+                    .background(Slate100, RoundedCornerShape(999.dp))
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
+            ) {
+                Text("$selectedCount/${options.size}", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Slate600)
+            }
+        }
+
+        Spacer(Modifier.height(14.dp))
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 240.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            options.forEach { option ->
+                val checked = state[option.key] == true
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(if (checked) Blue50 else Color.White)
+                        .border(1.dp, if (checked) Blue100 else Slate200, RoundedCornerShape(18.dp))
+                        .clickable(enabled = !readOnly) { onToggle(option.key) }
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .padding(top = 2.dp)
+                            .size(22.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (checked) Blue600 else Color.White)
+                            .border(2.dp, if (checked) Blue600 else Slate300, RoundedCornerShape(8.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (checked) {
+                            Icon(Icons.Default.Check, null, tint = Color.White, modifier = Modifier.size(14.dp))
+                        }
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        option.label,
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp,
+                        fontWeight = if (checked) FontWeight.SemiBold else FontWeight.Medium,
+                        color = if (checked) Slate900 else Slate600
+                    )
                 }
             }
         }
@@ -1656,12 +2019,12 @@ fun CargoPoliticaPrevencionLayout(ficha: JsonObject?) {
                 Column(
                     modifier = Modifier.width(200.dp)
                 ) {
-                    Box(modifier = Modifier.height(70.dp).fillMaxWidth(), contentAlignment = Alignment.BottomCenter) {
+                    Box(modifier = Modifier.height(78.dp).fillMaxWidth().padding(bottom = 6.dp), contentAlignment = Alignment.BottomCenter) {
                         if (firmaUrl.isNotEmpty()) {
                             AsyncImage(
                                 model = firmaUrl,
                                 contentDescription = "Firma",
-                                modifier = Modifier.fillMaxSize().padding(bottom = 4.dp),
+                                modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
                                 contentScale = ContentScale.Fit
                             )
                         }
@@ -1865,12 +2228,12 @@ fun CargoRitLayout(ficha: JsonObject?) {
                     modifier = Modifier.align(Alignment.BottomCenter).width(200.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Box(modifier = Modifier.height(70.dp).fillMaxWidth(), contentAlignment = Alignment.BottomCenter) {
+                    Box(modifier = Modifier.height(78.dp).fillMaxWidth().padding(bottom = 6.dp), contentAlignment = Alignment.BottomCenter) {
                         if (firmaUrl.isNotEmpty()) {
                             AsyncImage(
                                 model = firmaUrl,
                                 contentDescription = "Firma",
-                                modifier = Modifier.fillMaxSize().padding(bottom = 4.dp),
+                                modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
                                 contentScale = ContentScale.Fit
                             )
                         }
@@ -2052,14 +2415,16 @@ fun ActaEntregaIpercLayout(ficha: JsonObject?) {
                 // Firma
                 Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.padding(bottom = 24.dp)) {
                     Text("FIRMA:", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color.Black, modifier = Modifier.width(60.dp))
-                    Box(modifier = Modifier.width(200.dp).height(50.dp), contentAlignment = Alignment.BottomCenter) {
-                        if (firmaUrl.isNotEmpty()) {
-                            AsyncImage(
-                                model = firmaUrl,
-                                contentDescription = "Firma",
-                                modifier = Modifier.fillMaxSize().padding(bottom = 2.dp),
-                                contentScale = ContentScale.Fit
-                            )
+                    Column(modifier = Modifier.width(200.dp)) {
+                        Box(modifier = Modifier.height(52.dp).fillMaxWidth().padding(bottom = 6.dp), contentAlignment = Alignment.BottomCenter) {
+                            if (firmaUrl.isNotEmpty()) {
+                                AsyncImage(
+                                    model = firmaUrl,
+                                    contentDescription = "Firma",
+                                    modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
+                                    contentScale = ContentScale.Fit
+                                )
+                            }
                         }
                         Box(Modifier.fillMaxWidth().height(1.dp).background(Color.Black))
                     }
@@ -2109,7 +2474,6 @@ fun ActaDerechoSaberLayout(ficha: JsonObject?) {
     val cargo = getStr("cargo").ifEmpty { "OPERARIO" }
     val firmaUrl = getStr("firma_url").ifEmpty { getStr("url_firma") }
     val nombreObra = getStr("nombre_obra").ifEmpty { "OBRA CENTRAL" }
-
     val today = LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
 
     // Extraer datos de los checks (Si existen en el JSON)
@@ -2304,7 +2668,7 @@ fun ActaDerechoSaberLayout(ficha: JsonObject?) {
                     risks.forEachIndexed { index, risk ->
                         val isChecked = docData?.get("topic_$index")?.jsonPrimitive?.boolean ?: false
                         Row(Modifier.fillMaxWidth().padding(bottom = 3.dp), verticalAlignment = Alignment.Top) {
-                            Box(modifier = Modifier.size(10.dp).border(1.dp, Color.Black).padding(top = 0.5.dp), contentAlignment = Alignment.Center) {
+                            Box(modifier = Modifier.size(10.dp).border(1.dp, Color.Black), contentAlignment = Alignment.Center) {
                                 if (isChecked) Text("X", fontSize = 8.sp, fontWeight = FontWeight.Bold, color = Color.Black)
                             }
                             Spacer(Modifier.width(6.dp))
@@ -2695,7 +3059,7 @@ fun InduccionHombreNuevoLayout(ficha: JsonObject?) {
                     val isChecked = docData?.get("topic_$index")?.jsonPrimitive?.boolean ?: false
                     Row(verticalAlignment = Alignment.Top, modifier = Modifier.padding(bottom = 12.dp)) {
                         Box(
-                            modifier = Modifier.size(14.dp).border(1.dp, Color.Black).padding(top = 1.dp),
+                            modifier = Modifier.size(14.dp).border(1.dp, Color.Black),
                             contentAlignment = Alignment.Center
                         ) {
                             if (isChecked) Text("X", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.Black)
@@ -2778,6 +3142,10 @@ fun RegistroCapacitacionLayout(ficha: JsonObject?) {
     val cargo = getStr("cargo").ifEmpty { "OPERARIO" }
     val firmaUrl = getStr("firma_url").ifEmpty { getStr("url_firma") }
     val nombreObra = getStr("nombre_obra").ifEmpty { "OBRA CENTRAL" }
+    val docData = ficha?.get("doc_states")?.jsonObject?.get("capacitacion")?.jsonObject?.get("data")?.jsonObject
+    fun isDocChecked(index: Int, fallback: Boolean = false): Boolean {
+        return runCatching { docData?.get("topic_$index")?.jsonPrimitive?.boolean }.getOrNull() ?: fallback
+    }
 
     val today = LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
 
@@ -2905,11 +3273,11 @@ fun RegistroCapacitacionLayout(ficha: JsonObject?) {
             Column(Modifier.fillMaxWidth().border(1.dp, Color.Black)) {
                 // Checks
                 Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
-                    TableCell(weight = 0.15f) { CheckBoxLabel("INDUCCIÓN:", false) }
-                    TableCell(weight = 0.20f) { CheckBoxLabel("CHARLA DE SEGURIDAD:", false) }
-                    TableCell(weight = 0.20f) { CheckBoxLabel("ENTRENAMIENTO:", false) }
-                    TableCell(weight = 0.25f) { CheckBoxLabel("SIMULACRO DE EMERGENCIA:", false) }
-                    TableCell(weight = 0.20f) { CheckBoxLabel("CAPACITACIÓN:", true) }
+                    TableCell(weight = 0.15f) { CheckBoxLabel("INDUCCIÓN:", isDocChecked(0)) }
+                    TableCell(weight = 0.20f) { CheckBoxLabel("CHARLA DE SEGURIDAD:", isDocChecked(1)) }
+                    TableCell(weight = 0.20f) { CheckBoxLabel("ENTRENAMIENTO:", isDocChecked(2)) }
+                    TableCell(weight = 0.25f) { CheckBoxLabel("SIMULACRO DE EMERGENCIA:", isDocChecked(3)) }
+                    TableCell(weight = 0.20f) { CheckBoxLabel("CAPACITACIÓN:", isDocChecked(4, true)) }
                 }
                 // Otros / Lugar
                 Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
@@ -2921,7 +3289,7 @@ fun RegistroCapacitacionLayout(ficha: JsonObject?) {
                     TableCell(weight = 0.5f) {
                         Row {
                             Text("LUGAR: ", fontWeight = FontWeight.Bold, fontSize = 9.sp, color = Color.Black)
-                            Text(nombreObra, fontSize = 9.sp, color = Color.Black)
+                            Text("Oficina Ruag", fontSize = 9.sp, color = Color.Black)
                         }
                     }
                 }
@@ -3051,7 +3419,7 @@ fun CargoRisstLayout(ficha: JsonObject?) {
     val huellaUrl = getStr("huella_url").ifEmpty { getStr("url_huella") }
 
     val today = LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
-    val lugar = "LIMA"
+    val lugar = "Oficina Ruag"
 
     Column(
         Modifier
