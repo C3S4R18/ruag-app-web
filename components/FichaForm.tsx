@@ -41,6 +41,7 @@ export default function FichaForm() {
     id: null,
     // DATOS PERSONALES
     apellido_paterno: '', apellido_materno: '', nombres: '',
+    tipo_documento: 'DNI',
     fecha_nacimiento: '', dni: '', direccion: '', distrito: '', provincia: '', departamento: '',
     correo: '', celular: '',
     
@@ -271,9 +272,16 @@ export default function FichaForm() {
             toast.error("Por favor, completa todos los campos personales y bancarios marcados con *.")
             return false
         }
-        if (formData.dni.length < 8) {
-            toast.error("El DNI debe tener al menos 8 dígitos.")
-            return false
+        if (formData.tipo_documento === 'CE') {
+            if (formData.dni.length < 6) {
+                toast.error("El Carnet de Extranjería debe tener al menos 6 caracteres.")
+                return false
+            }
+        } else {
+            if (!/^\d{8}$/.test(formData.dni)) {
+                toast.error("El DNI debe tener exactamente 8 dígitos numéricos.")
+                return false
+            }
         }
     }
 
@@ -457,7 +465,7 @@ export default function FichaForm() {
                         <SectionRead title="1. Datos Personales" icon={<User size={16}/>}>
                             <GridRead>
                                 <FieldRead label="Apellidos y Nombres" val={`${formData.apellido_paterno} ${formData.apellido_materno}, ${formData.nombres}`} full />
-                                <FieldRead label="DNI" val={formData.dni} highlight />
+                                <FieldRead label={formData.tipo_documento === 'CE' ? 'Carnet Extranjería' : 'DNI'} val={formData.dni} highlight />
                                 <FieldRead label="Fecha Nacimiento" val={formData.fecha_nacimiento} />
                                 <FieldRead label="Celular" val={formData.celular} />
                                 <FieldRead label="Correo" val={formData.correo} />
@@ -592,7 +600,21 @@ export default function FichaForm() {
                         <Input label="Apellido Materno" name="apellido_materno" val={formData.apellido_materno} set={handleChange} required readOnly={!!formData.apellido_materno} />
                         <Input label="Nombres" name="nombres" val={formData.nombres} set={handleChange} required readOnly={!!formData.nombres} />
                         <Input label="Fecha Nacimiento" type="date" name="fecha_nacimiento" val={formData.fecha_nacimiento} set={handleChange} required readOnly={!!formData.fecha_nacimiento} />
-                        <Input label="DNI" name="dni" val={formData.dni} set={handleChange} required readOnly={!!formData.dni} />
+                        {/* --- TIPO DE DOCUMENTO (PERUANO / EXTRANJERO) --- */}
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Tipo de Documento</label>
+                            <div className="flex gap-2">
+                                <button type="button" onClick={() => handleChange({ target: { name: 'tipo_documento', value: 'DNI' } })}
+                                    className={`flex-1 py-2.5 rounded-xl text-sm font-bold border transition-all ${formData.tipo_documento !== 'CE' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'}`}>
+                                    DNI
+                                </button>
+                                <button type="button" onClick={() => handleChange({ target: { name: 'tipo_documento', value: 'CE' } })}
+                                    className={`flex-1 py-2.5 rounded-xl text-sm font-bold border transition-all ${formData.tipo_documento === 'CE' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'}`}>
+                                    Carnet Extranjería
+                                </button>
+                            </div>
+                        </div>
+                        <Input label={formData.tipo_documento === 'CE' ? 'N° Carnet de Extranjería' : 'DNI'} name="dni" val={formData.dni} set={handleChange} required />
                         <Input label="Dirección" name="direccion" val={formData.direccion} set={handleChange} required />
                         <Input label="Distrito" name="distrito" val={formData.distrito} set={handleChange} required />
                         <Input label="Provincia" name="provincia" val={formData.provincia} set={handleChange} required />
