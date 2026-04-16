@@ -130,11 +130,37 @@ export default function FichaForm() {
             // --- CORRECCIÓN CLAVE: Si ya está completado, bloquear inmediatamente ---
             if (ficha.estado === 'completado') {
                 setIsCompleted(true)
-                setHasStarted(true) // Saltar pantalla de bienvenida si ya terminó
+                setHasStarted(true)
+            } else {
+                // Ficha existe pero no está completa → restaurar borrador local si es más reciente
+                try {
+                    const draftStr = localStorage.getItem(`ruag_draft_${user.id}`)
+                    if (draftStr) {
+                        const draft = JSON.parse(draftStr)
+                        const { _savedAt, ...draftFields } = draft
+                        const fichaTime = ficha.updated_at ? new Date(ficha.updated_at).getTime() : 0
+                        if ((_savedAt || 0) > fichaTime) {
+                            setFormData((prev: any) => ({ ...prev, ...draftFields }))
+                        }
+                    }
+                } catch(e) {}
             }
         } else {
-            const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
-            if (profile) setFormData((prev:any) => ({...prev, nombres: profile.nombres, apellido_paterno: profile.apellido_paterno, apellido_materno: profile.apellido_materno, dni: profile.dni, celular: profile.telefono, correo: user.email}))
+            // Sin ficha en Supabase → intentar restaurar borrador local primero
+            try {
+                const draftStr = localStorage.getItem(`ruag_draft_${user.id}`)
+                if (draftStr) {
+                    const draft = JSON.parse(draftStr)
+                    const { _savedAt, ...draftFields } = draft
+                    setFormData((prev: any) => ({ ...prev, ...draftFields }))
+                } else {
+                    const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
+                    if (profile) setFormData((prev:any) => ({...prev, nombres: profile.nombres, apellido_paterno: profile.apellido_paterno, apellido_materno: profile.apellido_materno, dni: profile.dni, celular: profile.telefono, correo: user.email}))
+                }
+            } catch(e) {
+                const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
+                if (profile) setFormData((prev:any) => ({...prev, nombres: profile.nombres, apellido_paterno: profile.apellido_paterno, apellido_materno: profile.apellido_materno, dni: profile.dni, celular: profile.telefono, correo: user.email}))
+            }
         }
         
         supabase.channel('my-ficha').on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'fichas', filter: `user_id=eq.${user.id}` }, (payload) => {
@@ -160,6 +186,20 @@ export default function FichaForm() {
     }
     loadUser()
   }, [])
+
+  // --- BORRADOR AUTOMÁTICO EN LOCALSTORAGE ---
+  // Guarda en localStorage 1.2s después del último cambio (debounce).
+  // Se restaura al recargar si la ficha aún no está completada.
+  useEffect(() => {
+    if (!user?.id || isCompleted || isLoadingData) return
+    const timer = setTimeout(() => {
+      try {
+        const { url_firma, ...rest } = formData
+        localStorage.setItem(`ruag_draft_${user.id}`, JSON.stringify({ ...rest, _savedAt: Date.now() }))
+      } catch(e) {}
+    }, 1200)
+    return () => clearTimeout(timer)
+  }, [formData, user?.id, isCompleted, isLoadingData])
 
   // --- AUTOGUARDADO CUANDO SE ACTUALIZAN DOCUMENTOS ---
   // Este useEffect vigila cambios en los documentos y los guarda automáticamente en DB
@@ -266,9 +306,14 @@ export default function FichaForm() {
   }
 
   const guardarProgreso = async (complete: boolean = false, silent: boolean = false) => {
-    // --- CORRECCIÓN ADICIONAL: SEGURIDAD ---
-    // Si ya está completado en el estado local y tratamos de guardar sin completar (autoguardado), abortamos.
-    if (!user || (isCompleted && !complete)) return
+    // Siempre verificar sesión en vivo antes de guardar (evita FK error por sesión expirada)
+    const { data: { user: sessionUser } } = await supabase.auth.getUser()
+    if (!sessionUser) {
+        toast.error("Tu sesión ha expirado. Vuelve a iniciar sesión e intenta de nuevo.")
+        return { message: "Sesión expirada. Vuelve a iniciar sesión." } as any
+    }
+
+    if (isCompleted && !complete) return
 
     let currentSignature = formData.url_firma;
     if (sigPad.current && !sigPad.current.isEmpty()) {
@@ -306,7 +351,7 @@ export default function FichaForm() {
     
     const { data, error } = await supabase
         .from('fichas')
-        .upsert({ user_id: user.id, correo: user.email, ...payload }, { onConflict: 'user_id' })
+        .upsert({ user_id: sessionUser.id, correo: sessionUser.email, ...payload }, { onConflict: 'user_id' })
         .select().single()
     
     if (data) setFormData((prev:any) => ({...prev, id: data.id}))
@@ -327,7 +372,11 @@ export default function FichaForm() {
 
     setSending(true)
     const error = await guardarProgreso(true)
-    if (!error) { toast.success("Ficha enviada"); setIsCompleted(true) }
+    if (!error) {
+        try { if (user?.id) localStorage.removeItem(`ruag_draft_${user.id}`) } catch(e) {}
+        toast.success("Ficha enviada")
+        setIsCompleted(true)
+    }
     else toast.error("Error: " + error.message)
     setSending(false)
   }
