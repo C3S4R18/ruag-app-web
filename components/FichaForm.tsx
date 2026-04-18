@@ -188,6 +188,17 @@ export default function FichaForm() {
     loadUser()
   }, [])
 
+  // --- KEEPALIVE DE SESIÓN ---
+  // Refresca el JWT cada 10 minutos mientras el formulario está abierto.
+  // El JWT de Supabase expira en 60 min; esto garantiza que nunca llegue a vencer.
+  useEffect(() => {
+    if (isCompleted) return
+    const interval = setInterval(async () => {
+      try { await supabase.auth.refreshSession() } catch (_) {}
+    }, 10 * 60 * 1000) // cada 10 minutos
+    return () => clearInterval(interval)
+  }, [isCompleted])
+
   // --- BORRADOR AUTOMÁTICO EN LOCALSTORAGE ---
   // Guarda en localStorage 1.2s después del último cambio (debounce).
   // Se restaura al recargar si la ficha aún no está completada.
@@ -314,9 +325,10 @@ export default function FichaForm() {
   }
 
   const guardarProgreso = async (complete: boolean = false, silent: boolean = false) => {
-    // Siempre verificar sesión en vivo antes de guardar (evita FK error por sesión expirada)
-    const { data: { user: sessionUser } } = await supabase.auth.getUser()
-    if (!sessionUser) {
+    // Refrescar el token activamente antes de guardar (evita FK error por JWT expirado)
+    const { data: { session }, error: refreshError } = await supabase.auth.refreshSession()
+    const sessionUser = session?.user ?? null
+    if (refreshError || !sessionUser) {
         toast.error("Tu sesión ha expirado. Vuelve a iniciar sesión e intenta de nuevo.")
         return { message: "Sesión expirada. Vuelve a iniciar sesión." } as any
     }
