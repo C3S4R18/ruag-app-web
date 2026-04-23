@@ -22,6 +22,10 @@ import { InduccionHombreNuevoPrintable } from './InduccionHombreNuevoPrintable'
 import { EntregaEppPrintable } from './EntregaEppPrintable'
 import { ActaDerechoSaberPrintable } from './ActaDerechoSaberPrintable'
 import { ActaEntregaIpercPrintable } from './ActaEntregaIpercPrintable'
+import { FichaSintomatologicaPrintable } from './FichaSintomatologicaPrintable'
+import { ActaAcatamientoPrintable } from './ActaAcatamientoPrintable'
+import { ActaEntregaResultadosEmoPrintable } from './ActaEntregaResultadosEmoPrintable'
+import { CargoRecomendacionesPrintable } from './CargoRecomendacionesPrintable'
 
 // --- DOCUMENTOS IMPRIMIBLES RRHH ---
 import { CargoRitPrintable } from './CargoRitPrintable' 
@@ -37,7 +41,7 @@ import {
   FileCheck, MessageSquare, Filter, ScanFace, Briefcase, 
   HeartPulse, GraduationCap, UploadCloud, Plus, Users, Zap, Mail,
   MailCheck, Clock, AlertCircle, RotateCcw, Monitor, ArrowUpDown,
-  ArrowRightCircle, FileSpreadsheet, UserX, Cake, CalendarClock, Ban, Check, History 
+  ArrowRightCircle, FileSpreadsheet, UserX, Cake, CalendarClock, Ban, Check, History, Eye
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -65,8 +69,12 @@ const SSOMA_DOCS = [
     { id: 'capacitacion', label: 'Registro Capacitación', desc: 'SG-FOR-01 Inducción General' },
     { id: 'induccion', label: 'Inducción Hombre Nuevo', desc: 'SG-FOR-06' },
     { id: 'epp', label: 'Entrega de EPPs', desc: 'SG-FOR-08 Control de Equipos' },
-    { id: 'derecho', label: 'Acta Derecho a Saber', desc: 'SG-FOR-110' },
+    { id: 'acta_derecho', label: 'Acta Derecho a Saber', desc: 'SG-FOR-110' },
     { id: 'iperc', label: 'Entrega IPERC', desc: 'SG-FOR-112' },
+    { id: 'ficha_covid', label: 'Ficha SintomatolÃ³gica', desc: 'FOR-COVID-01' },
+    { id: 'acta_acatamiento', label: 'Acta de Acatamiento', desc: 'SG-FOR-111' },
+    { id: 'acta_emo', label: 'Acta Entrega Resultados EMO', desc: 'SG-FOR-114' },
+    { id: 'rec_sst', label: 'Cargo Recomendaciones SST', desc: 'SG-EST-24' },
 ]
 
 const RRHH_DOCS = [
@@ -80,6 +88,21 @@ const PRINT_PAGE_LAYOUTS: Record<string, { orientation: 'p' | 'l'; width: number
     capacitacion: { orientation: 'l', width: 297, height: 210 },
     epp: { orientation: 'l', width: 297, height: 210 },
 }
+
+const QUICK_DOCUMENT_FIELDS = [
+    { key: 'url_dni_frontal', label: 'DNI (Frontal y Reverso)' },
+    { key: 'url_carnet', label: 'Carnet RETCC' },
+    { key: 'url_antecedentes', label: 'Antecedentes' },
+    { key: 'url_policiales', label: 'Ant. Policiales' },
+    { key: 'url_penales', label: 'Ant. Penales' },
+    { key: 'url_acta_matrimonio', label: 'Acta Matrimonio' },
+    { key: 'url_esposa_dni', label: 'DNI Esposa' },
+    { key: 'url_hijos_dni', label: 'DNI Hijos' },
+    { key: 'url_hijos_nacimiento', label: 'Partida Nac. Hijos' },
+    { key: 'url_constancia_estudios', label: 'Estudios Hijos' },
+    { key: 'url_firma', label: 'Firma' },
+    { key: 'huella_url', label: 'Huella' },
+] as const
 
 const getPrintSurfaceStyle = (docId: string) => {
     const pageLayout = PRINT_PAGE_LAYOUTS[docId] || DEFAULT_PRINT_LAYOUT
@@ -107,6 +130,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
   const supabase = createClient()
   const [fichas, setFichas] = useState<any[]>([])
   const [selectedFicha, setSelectedFicha] = useState<any>(null)
+  const [documentsFicha, setDocumentsFicha] = useState<any>(null)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
 
   // IMPRESIÓN
@@ -914,8 +938,12 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                           {docId === 'capacitacion' && <RegistroCapacitacionPrintable ficha={fichaForPrint} />}
                           {docId === 'induccion' && <InduccionHombreNuevoPrintable ficha={fichaForPrint} />}
                           {docId === 'epp' && <EntregaEppPrintable ficha={fichaForPrint} />}
-                          {docId === 'derecho' && <ActaDerechoSaberPrintable ficha={fichaForPrint} />}
+                          {docId === 'acta_derecho' && <ActaDerechoSaberPrintable ficha={fichaForPrint} />}
                           {docId === 'iperc' && <ActaEntregaIpercPrintable ficha={fichaForPrint} />}
+                          {docId === 'ficha_covid' && <FichaSintomatologicaPrintable ficha={fichaForPrint} />}
+                          {docId === 'acta_acatamiento' && <ActaAcatamientoPrintable ficha={fichaForPrint} />}
+                          {docId === 'acta_emo' && <ActaEntregaResultadosEmoPrintable ficha={fichaForPrint} />}
+                          {docId === 'rec_sst' && <CargoRecomendacionesPrintable ficha={fichaForPrint} />}
                           
                           {/* RRHH */}
                           {docId === 'cargo_rit' && <CargoRitPrintable ficha={fichaForPrint} />}
@@ -1291,6 +1319,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                                             {unreadCounts[ficha.user_id] > 0 && (<span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white shadow-sm ring-2 ring-white">{unreadCounts[ficha.user_id]}</span>)}
                                         </button>
                                     )}
+                                    <button onClick={(e) => { e.stopPropagation(); setDocumentsFicha(ficha) }} className="p-2.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded-xl transition-all active:scale-95" title="Ver documentos subidos"><Eye size={16}/></button>
                                     <button onClick={(e) => { e.stopPropagation(); setSelectedFicha(ficha) }} className="p-2.5 text-slate-400 hover:text-white hover:bg-blue-600 rounded-xl transition-all active:scale-95" title="Editar Ficha"><Edit3 size={16}/></button>
                                     <button onClick={(e) => { e.stopPropagation(); handleDownloadPDF(ficha) }} className="p-2.5 text-slate-400 hover:text-white hover:bg-emerald-600 rounded-xl transition-all active:scale-95" title="Descargar PDF"><Download size={16}/></button>
                                 </div>
@@ -1332,6 +1361,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
 
       {/* --- DRAWER Y MODALES --- */}
       <AnimatePresence>{selectedFicha && (<FichaDrawer ficha={selectedFicha} onClose={() => setSelectedFicha(null)} onUpdate={fetchFichas} onDelete={handleDeleteLocal} onDownload={() => handleDownloadPDF(selectedFicha)} downloading={downloadingPdf} onPrintPreview={(img) => setPrintImage(img)} onNotifyChange={emitAdminAction} />)}</AnimatePresence>
+      <AnimatePresence>{documentsFicha && (<UploadedDocumentsModal ficha={documentsFicha} onClose={() => setDocumentsFicha(null)} />)}</AnimatePresence>
 
       <AnimatePresence>
         {showDocSelector && (
@@ -1878,6 +1908,47 @@ function DocumentCard({label, url, onDelete, isEditing, onUpload}: any) {
                 />
             )}
         </>
+    )
+}
+
+function UploadedDocumentsModal({ ficha, onClose }: { ficha: any; onClose: () => void }) {
+    const uploadedDocuments = QUICK_DOCUMENT_FIELDS
+        .map((doc) => ({
+            ...doc,
+            url: doc.key === 'url_firma' ? (getSignatureUrl(ficha) || ficha.url_firma || ficha.firma_url) : ficha[doc.key]
+        }))
+        .filter((doc) => !!doc.url)
+
+    return (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[90] flex items-center justify-center p-4" onClick={onClose}>
+            <motion.div initial={{ scale: 0.96, y: 12 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.96, y: 12 }} className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl border border-white/20 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                <div className="p-6 border-b border-slate-100 flex items-center justify-between gap-4">
+                    <div>
+                        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Documentos subidos</p>
+                        <h3 className="text-xl font-bold text-slate-900 mt-1">{`${ficha?.nombres || ''} ${ficha?.apellido_paterno || ''}`.trim() || 'Trabajador'}</h3>
+                        <p className="text-sm text-slate-500 mt-1">Acceso rápido para revisar los archivos cargados por el trabajador.</p>
+                    </div>
+                    <button onClick={onClose} className="p-2 rounded-full bg-slate-50 hover:bg-slate-100 text-slate-500 transition-colors">
+                        <X size={20} />
+                    </button>
+                </div>
+
+                <div className="p-6 max-h-[75vh] overflow-y-auto">
+                    {uploadedDocuments.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {uploadedDocuments.map((doc) => (
+                                <DocumentCard key={doc.key} label={doc.label} url={doc.url} isEditing={false} />
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-10 text-center">
+                            <FileText size={28} className="mx-auto text-slate-300 mb-3" />
+                            <p className="text-sm font-semibold text-slate-600">Este trabajador todavia no tiene documentos subidos.</p>
+                        </div>
+                    )}
+                </div>
+            </motion.div>
+        </motion.div>
     )
 }
 

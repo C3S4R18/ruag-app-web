@@ -21,6 +21,10 @@ import { EntregaEppPrintable } from '@/components/EntregaEppPrintable'
 import { ActaEntregaIpercPrintable } from '@/components/ActaEntregaIpercPrintable'
 import { InduccionHombreNuevoPrintable } from '@/components/InduccionHombreNuevoPrintable'
 import { ActaDerechoSaberPrintable } from '@/components/ActaDerechoSaberPrintable'
+import { FichaSintomatologicaPrintable } from '@/components/FichaSintomatologicaPrintable'
+import { ActaAcatamientoPrintable } from '@/components/ActaAcatamientoPrintable'
+import { ActaEntregaResultadosEmoPrintable } from '@/components/ActaEntregaResultadosEmoPrintable'
+import { CargoRecomendacionesPrintable } from '@/components/CargoRecomendacionesPrintable'
 // RRHH
 import { CargoRitPrintable } from '@/components/CargoRitPrintable'
 import { CargoPoliticaPrevencionPrintable } from '@/components/CargoPoliticaPrevencionPrintable'
@@ -96,6 +100,155 @@ const DOC_CONTENT: Record<string, string[]> = {
     cargo_politica_prevencion: []
 }
 
+const EPP_ITEMS = [
+    "BARBIQUEJO",
+    "BOTAS CON PUNTA DE ACERO",
+    "CASCO DE SEGURIDAD",
+    "POLO",
+    "CHALECO REFLEXIVO DE SEGURIDAD",
+    "LENTES CLAROS DE SEGURIDAD",
+    "LENTES OSCUROS",
+    "TAPONES AUDITIVOS",
+    "GUANTES ANTICORTE NIVEL 5",
+    "GUANTES DE CUERO",
+    "GUANTES DE JEBE",
+    "GUANTES PARA SOLDAR",
+    "CARETA O PROTECTOR FACIAL",
+    "MASCARILLA DESECHABLE",
+    "RESPIRADOR DOBLE VIA",
+    "RESPIRADOR DE UNA VIA",
+    "ESCARPINES",
+    "MANDIL DE SOLDADURA",
+    "ZAPATOS DIELECTRICOS",
+    "OVEROL O UNIFORME",
+    "OTROS"
+]
+
+const DOCS_WITH_MANUAL_FIELDS = new Set(['epp', 'capacitacion', 'ficha_covid', 'acta_acatamiento', 'acta_emo', 'rec_sst'])
+
+const COVID_RISK_FIELDS = [
+    'risk_mayor_65',
+    'risk_cancer',
+    'risk_renal',
+    'risk_pulmonar',
+    'risk_cardiaca',
+    'risk_dm',
+    'risk_obesidad',
+    'risk_inmuno',
+    'risk_trasplante',
+    'risk_cerebro',
+    'risk_hipertension',
+    'risk_down',
+    'risk_embarazo',
+    'risk_vih',
+    'risk_otros',
+]
+
+const COVID_SYMPTOM_FIELDS = ['symptom_1', 'symptom_2', 'symptom_3', 'symptom_4', 'symptom_5']
+const EMPTY_DOC_CONTENT: string[] = []
+const EMPTY_DOC_DATA: Record<string, any> = {}
+
+function buildDocumentFormState(docId: string, existingData: Record<string, any> = {}): Record<string, string> {
+    if (docId === 'epp') {
+        const state: Record<string, string> = {
+            responsable_nombre: existingData.responsable_nombre || '',
+            responsable_cargo: existingData.responsable_cargo || '',
+            responsable_fecha: existingData.responsable_fecha || '',
+            responsable_firma_texto: existingData.responsable_firma_texto || '',
+        }
+        EPP_ITEMS.forEach((_, rowIndex) => {
+            for (let delivery = 1; delivery <= 4; delivery += 1) {
+                state[`epp_${rowIndex}_delivery_${delivery}_date`] = existingData[`epp_${rowIndex}_delivery_${delivery}_date`] || ''
+            }
+        })
+        return state
+    }
+
+    if (docId === 'capacitacion') {
+        return {
+            cantidad_trabajadores: existingData.cantidad_trabajadores || '',
+            otros_detalle: existingData.otros_detalle || '',
+            lugar: existingData.lugar || '',
+            tema: existingData.tema || '',
+            fecha: existingData.fecha || '',
+            hora_inicio: existingData.hora_inicio || '',
+            hora_fin: existingData.hora_fin || '',
+            total_horas: existingData.total_horas || '',
+            capacitador_nombre: existingData.capacitador_nombre || '',
+            capacitador_firma_texto: existingData.capacitador_firma_texto || '',
+            observaciones: existingData.observaciones || '',
+            responsable_nombre: existingData.responsable_nombre || '',
+            responsable_cargo: existingData.responsable_cargo || '',
+            responsable_fecha: existingData.responsable_fecha || '',
+            responsable_firma_texto: existingData.responsable_firma_texto || '',
+        }
+    }
+
+    if (docId === 'ficha_covid') {
+        const state: Record<string, string> = {
+            area_trabajo: existingData.area_trabajo || '',
+            direccion_domicilio: existingData.direccion_domicilio || '',
+            celular: existingData.celular || '',
+            medicacion_toma: existingData.medicacion_toma === true || existingData.medicacion_toma === 'si' ? 'si' : 'no',
+            medicacion_detalle: existingData.medicacion_detalle || '',
+            grupo_riesgo: existingData.grupo_riesgo === true || existingData.grupo_riesgo === 'si' ? 'si' : 'no',
+            vacunas_dosis: existingData.vacunas_dosis || '',
+            fecha_documento: existingData.fecha_documento || '',
+        }
+        COVID_SYMPTOM_FIELDS.forEach((field) => {
+            state[field] = existingData[field] === true || existingData[field] === 'si' ? 'si' : 'no'
+        })
+        COVID_RISK_FIELDS.forEach((field) => {
+            state[field] = existingData[field] === true || existingData[field] === 'si' ? 'si' : 'no'
+        })
+        return state
+    }
+
+    if (docId === 'acta_emo') {
+        return {
+            cargo: existingData.cargo || '',
+            area: existingData.area || '',
+            sede_obra: existingData.sede_obra || '',
+            fecha_evaluacion: existingData.fecha_evaluacion || '',
+            fecha_documento: existingData.fecha_documento || '',
+            medico_ocupacional: existingData.medico_ocupacional || '',
+        }
+    }
+
+    if (docId === 'acta_acatamiento' || docId === 'rec_sst') {
+        return {
+            fecha_documento: existingData.fecha_documento || '',
+        }
+    }
+
+    return {}
+}
+
+function buildDocumentPayload(docId: string, checklistState: Record<string, boolean>, formState: Record<string, string>, existingData: Record<string, any> = {}) {
+    const payload: Record<string, any> = { ...existingData }
+
+    Object.keys(payload).forEach((key) => {
+        if (key.startsWith('topic_')) delete payload[key]
+    })
+
+    const content = DOC_CONTENT[docId] || []
+    content.forEach((_, idx) => {
+        payload[`topic_${idx}`] = !!checklistState[`topic_${idx}`]
+    })
+
+    if (DOCS_WITH_MANUAL_FIELDS.has(docId)) {
+        Object.entries(formState).forEach(([key, value]) => {
+            payload[key] = value
+        })
+    }
+
+    if (Object.keys(payload).length === 0) {
+        payload.signed = true
+    }
+
+    return payload
+}
+
 // --- ETIQUETAS DE DOCUMENTOS (FIRMA DIGITAL) ---
 const DOC_LABELS_SSOMA: Record<string, string> = {
     risst: "Cargo RISST",
@@ -103,7 +256,24 @@ const DOC_LABELS_SSOMA: Record<string, string> = {
     induccion: "Inducción Hombre Nuevo",
     epp: "Entrega de EPPs",
     acta_derecho: "Acta Derecho a Saber",
-    iperc: "Entrega IPERC"
+    iperc: "Entrega IPERC",
+    ficha_covid: "Ficha SintomatolÃ³gica",
+    acta_acatamiento: "Acta de Acatamiento",
+    acta_emo: "Acta de Entrega de Resultados EMO",
+    rec_sst: "Cargo de Entrega de Recomendaciones"
+}
+
+const DOC_LABELS_SSOMA_CLEAN: Record<string, string> = {
+    risst: "Cargo RISST",
+    capacitacion: "Registro Capacitacion",
+    induccion: "Induccion Hombre Nuevo",
+    epp: "Entrega de EPPs",
+    acta_derecho: "Acta Derecho a Saber",
+    iperc: "Entrega IPERC",
+    ficha_covid: "Ficha Sintomatologica",
+    acta_acatamiento: "Acta de Acatamiento",
+    acta_emo: "Acta de Entrega de Resultados EMO",
+    rec_sst: "Cargo de Entrega de Recomendaciones",
 }
 
 const DOC_LABELS_RRHH: Record<string, string> = {
@@ -115,19 +285,15 @@ const DOC_LABELS_RRHH: Record<string, string> = {
 const SSOMA_UPLOADS_CONFIG = [
     { id: 'cap_iperc', label: 'CAPACITACIÓN IPERC' },
     { id: 'cap_pets', label: 'CAPACITACIÓN PETS' },
-    { id: 'rec_sst', label: 'RECOMENDACIONES SST' },
     { id: 'acta_saber', label: 'ACTA DERECHO A SABER' },
-    { id: 'acta_acatamiento', label: 'ACTA ACATAMIENTO' },
     { id: 'entre_epp', label: 'ENTREGA EPP' },
     { id: 'reg_induccion', label: 'REGISTRO DE INDUCCIÓN' },
     { id: 'dif_pol_sst', label: 'DIFUSIÓN POLITICA DE SST' },
     { id: 'cap_hostigamiento', label: 'CAPACITACIÓN HOSTIGAMIENTO SEXUAL' },
     { id: 'reg_risst', label: 'REGISTRO RISST' },
     { id: 'camo', label: 'CAMO' },
-    { id: 'acta_emo', label: 'ACTA DE ENTREGA EMO' },
     { id: 'cap_covid', label: 'CAPACITACIÓN PLAN COVID' },
     { id: 'acta_iperc', label: 'ACTA IPERC' },
-    { id: 'ficha_covid', label: 'FICHA COVID' },
 ]
 
 // --- LISTA DE CLAVES DE DESCARGA OBLIGATORIA ---
@@ -241,7 +407,7 @@ export default function DashboardPage() {
                 Object.keys(newDocs).forEach(key => {
                     const oldStatus = oldDocs[key]?.status
                     const newStatus = newDocs[key]?.status
-                    const docName = DOC_LABELS_SSOMA[key] || DOC_LABELS_RRHH[key] || key
+          const docName = DOC_LABELS_SSOMA_CLEAN[key] || DOC_LABELS_RRHH[key] || key
 
                     // Habilitación de firma
                     if (newStatus === 'unlocked' && oldStatus !== 'unlocked') {
@@ -379,7 +545,7 @@ export default function DashboardPage() {
   const unreadCount = notifications.filter(n => !n.read).length
 
   // --- CÁLCULOS DEL DASHBOARD ---
-  const allDocKeys = [...Object.keys(DOC_LABELS_SSOMA), ...Object.keys(DOC_LABELS_RRHH)]
+  const allDocKeys = [...Object.keys(DOC_LABELS_SSOMA_CLEAN), ...Object.keys(DOC_LABELS_RRHH)]
   const totalDocs = allDocKeys.length
   const completedDocs = allDocKeys.filter(key => docStates[key]?.status === 'completed').length
   const unlockedSignDocs = allDocKeys.filter(key => docStates[key]?.status === 'unlocked').length
@@ -551,7 +717,7 @@ export default function DashboardPage() {
                                 <h2 className="text-lg font-bold text-slate-800">Documentación SSOMA</h2>
                             </div>
                             <div className="grid gap-4">
-                                {Object.entries(DOC_LABELS_SSOMA).map(([docId, label]) => (
+                            {Object.entries(DOC_LABELS_SSOMA_CLEAN).map(([docId, label]) => (
                                     <DocItem 
                                         key={docId}
                                         id={docId}
@@ -715,27 +881,27 @@ function DocItem({ id, label, state, onClick, type }: any) {
 
     // Colores dinámicos según SSOMA (Azul) o RRHH (Morado)
     const activeColor = type === 'rrhh' ? 'purple' : 'blue'
-    const completedColor = 'emerald'
+    const completedColor = 'slate'
 
     return (
         <div 
             onClick={onClick}
-            className={`group relative p-5 rounded-2xl border transition-all cursor-pointer overflow-hidden ${isUnlocked ? `bg-white border-${activeColor}-200 shadow-md hover:border-${activeColor}-400 hover:shadow-lg` : isCompleted ? `bg-${completedColor}-50/50 border-${completedColor}-100 hover:bg-${completedColor}-50` : 'bg-white border-slate-100 opacity-60 grayscale hover:opacity-80'}`}
+            className={`group relative p-5 rounded-2xl border transition-all cursor-pointer overflow-hidden ${isUnlocked ? `bg-white border-${activeColor}-200 shadow-md hover:border-${activeColor}-400 hover:shadow-lg` : isCompleted ? `bg-${completedColor}-50/80 border-${completedColor}-200 hover:bg-${completedColor}-100/70` : 'bg-white border-slate-100 opacity-60 grayscale hover:opacity-80'}`}
         >
             {isUnlocked && <div className={`absolute left-0 top-0 bottom-0 w-1.5 bg-${activeColor}-500`}/>}
             {isCompleted && <div className={`absolute left-0 top-0 bottom-0 w-1.5 bg-${completedColor}-500`}/>}
 
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${isCompleted ? `bg-${completedColor}-100 text-${completedColor}-600` : isUnlocked ? `bg-${activeColor}-100 text-${activeColor}-600` : 'bg-slate-100 text-slate-400'}`}>
-                        {isCompleted ? <CheckCircle size={24}/> : (type === 'rrhh' ? <Briefcase size={24}/> : <FileText size={24}/>)}
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${isCompleted ? `bg-${completedColor}-100 text-${completedColor}-700` : isUnlocked ? `bg-${activeColor}-100 text-${activeColor}-600` : 'bg-slate-100 text-slate-400'}`}>
+                        {isCompleted ? <Eye size={24}/> : (type === 'rrhh' ? <Briefcase size={24}/> : <FileText size={24}/>)}
                     </div>
                     <div>
                         <h3 className={`font-bold text-base ${isUnlocked ? `text-${activeColor}-900` : 'text-slate-700'}`}>{label}</h3>
                         <p className="text-xs font-bold mt-1 flex items-center gap-1.5">
                             <span className={`w-1.5 h-1.5 rounded-full ${isCompleted ? `bg-${completedColor}-500` : isUnlocked ? `bg-${activeColor}-500 animate-pulse` : 'bg-slate-400'}`}></span>
-                            <span className={isCompleted ? `text-${completedColor}-600` : isUnlocked ? `text-${activeColor}-600` : 'text-slate-400'}>
-                                {isCompleted ? 'FIRMADO Y ENVIADO' : isUnlocked ? 'DISPONIBLE PARA FIRMA' : 'BLOQUEADO'}
+                            <span className={isCompleted ? `text-${completedColor}-700` : isUnlocked ? `text-${activeColor}-600` : 'text-slate-400'}>
+                                {isCompleted ? 'ENVIADO · VER O EDITAR' : isUnlocked ? 'DISPONIBLE PARA FIRMA' : 'BLOQUEADO'}
                             </span>
                         </p>
                     </div>
@@ -860,29 +1026,35 @@ function ProfileSettingsCard({ userEmail, supabase }: any) {
 // --- MODAL DE LECTURA Y CONFIRMACIÓN DE DOCUMENTOS ---
 function DocumentFillingModal({ docId, category, fichaId, existingData, fullFichaData, status = 'locked', onClose, onSave }: any) {
     const supabase = createClient()
-    const [checks, setChecks] = useState<Record<string, boolean>>(existingData || {})
+    const safeExistingData = existingData && Object.keys(existingData).length > 0 ? existingData : EMPTY_DOC_DATA
+    const [checks, setChecks] = useState<Record<string, boolean>>(safeExistingData)
+    const [manualFields, setManualFields] = useState<Record<string, string>>({})
     const [saving, setSaving] = useState(false)
-    const content = DOC_CONTENT[docId] || []
+    const content = DOC_CONTENT[docId] ?? EMPTY_DOC_CONTENT
     const showChecklist = content.length > 0
+    const hasManualFields = DOCS_WITH_MANUAL_FIELDS.has(docId)
     const isCompleted = status === 'completed'
     const isHorizontal = ['capacitacion', 'epp'].includes(docId)
     const [scale, setScale] = useState(1)
-    const [modalStep, setModalStep] = useState<'checklist' | 'preview'>(showChecklist && !isCompleted ? 'checklist' : 'preview')
-    const isChecklistStep = showChecklist && !isCompleted && modalStep === 'checklist'
+    const [modalStep, setModalStep] = useState<'checklist' | 'form' | 'preview'>(showChecklist && !isCompleted ? 'checklist' : hasManualFields ? 'form' : 'preview')
+    const isChecklistStep = showChecklist && modalStep === 'checklist'
+    const isFormStep = hasManualFields && modalStep === 'form'
     const checklistSelectedCount = content.filter((_, idx) => checks[`topic_${idx}`]).length
+    const allChecked = content.length > 0 && checklistSelectedCount === content.length
 
     useEffect(() => {
         const normalizedChecks = (content || []).reduce((acc, _, idx) => {
-            acc[`topic_${idx}`] = !!existingData?.[`topic_${idx}`]
+            acc[`topic_${idx}`] = !!safeExistingData?.[`topic_${idx}`]
             return acc
         }, {} as Record<string, boolean>)
 
-        setChecks(showChecklist ? normalizedChecks : (existingData || {}))
-    }, [docId, existingData, showChecklist, content])
+        setChecks(showChecklist ? normalizedChecks : safeExistingData)
+        setManualFields(buildDocumentFormState(docId, safeExistingData))
+    }, [docId, safeExistingData, showChecklist, content])
 
     useEffect(() => {
-        setModalStep(showChecklist && !isCompleted ? 'checklist' : 'preview')
-    }, [docId, showChecklist, isCompleted])
+        setModalStep(showChecklist && !isCompleted ? 'checklist' : hasManualFields ? 'form' : 'preview')
+    }, [docId, showChecklist, isCompleted, hasManualFields])
     
     useEffect(() => {
         const updateScale = () => {
@@ -904,7 +1076,7 @@ function DocumentFillingModal({ docId, category, fichaId, existingData, fullFich
             ...(fullFichaData.doc_states || {}),
             [docId]: {
                 ...((fullFichaData.doc_states || {})[docId] || {}),
-                data: showChecklist ? checks : ((fullFichaData.doc_states || {})[docId]?.data || existingData || {})
+                data: buildDocumentPayload(docId, checks, manualFields, ((fullFichaData.doc_states || {})[docId]?.data || safeExistingData))
             }
         }
     } : fullFichaData
@@ -919,6 +1091,10 @@ function DocumentFillingModal({ docId, category, fichaId, existingData, fullFich
             case 'iperc': return <ActaEntregaIpercPrintable {...props} />
             case 'induccion': return <InduccionHombreNuevoPrintable {...props} /> 
             case 'acta_derecho': return <ActaDerechoSaberPrintable {...props} />
+            case 'ficha_covid': return <FichaSintomatologicaPrintable {...props} />
+            case 'acta_acatamiento': return <ActaAcatamientoPrintable {...props} />
+            case 'acta_emo': return <ActaEntregaResultadosEmoPrintable {...props} />
+            case 'rec_sst': return <CargoRecomendacionesPrintable {...props} />
             // RRHH
             case 'cargo_rit': return <CargoRitPrintable {...props} />
             case 'cargo_politica_prevencion': return <CargoPoliticaPrevencionPrintable {...props} />
@@ -927,23 +1103,19 @@ function DocumentFillingModal({ docId, category, fichaId, existingData, fullFich
     }
 
     const toggleCheck = (idx: number) => { setChecks(prev => ({ ...prev, [`topic_${idx}`]: !prev[`topic_${idx}`] })) }
+    const setAllChecks = (checked: boolean) => {
+        setChecks(content.reduce((acc, _, idx) => {
+            acc[`topic_${idx}`] = checked
+            return acc
+        }, {} as Record<string, boolean>))
+    }
 
     const handleSave = async () => {
-        if (isCompleted) {
-            onClose()
-            return
-        }
-
         setSaving(true)
         try {
             const { data: currentFicha } = await supabase.from('fichas').select('doc_states').eq('id', fichaId).single()
             const currentStates = currentFicha?.doc_states || {}
-            const dataToSave = showChecklist
-                ? content.reduce((acc, _, idx) => {
-                    acc[`topic_${idx}`] = !!checks[`topic_${idx}`]
-                    return acc
-                }, {} as Record<string, boolean>)
-                : (Object.keys(existingData || {}).length > 0 ? existingData : { signed: true })
+            const dataToSave = buildDocumentPayload(docId, checks, manualFields, currentStates?.[docId]?.data || safeExistingData)
 
             const newStates = {
                 ...currentStates,
@@ -956,12 +1128,12 @@ function DocumentFillingModal({ docId, category, fichaId, existingData, fullFich
             }
             const { error } = await supabase.from('fichas').update({ doc_states: newStates }).eq('id', fichaId)
             if (error) throw error
-            toast.success("Documento guardado y firmado correctamente")
+            toast.success(isCompleted ? "Documento actualizado correctamente" : "Documento guardado y firmado correctamente")
             onSave()
         } catch (e) { toast.error("Error al guardar") } finally { setSaving(false) }
     }
 
-    const docLabel = category === 'rrhh' ? DOC_LABELS_RRHH[docId] : DOC_LABELS_SSOMA[docId]
+    const docLabel = category === 'rrhh' ? DOC_LABELS_RRHH[docId] : DOC_LABELS_SSOMA_CLEAN[docId]
 
     return (
         <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[60] flex items-center justify-center p-4">
@@ -975,7 +1147,7 @@ function DocumentFillingModal({ docId, category, fichaId, existingData, fullFich
                         <h3 className="font-bold text-lg text-slate-900">{docLabel}</h3>
                         <p className="text-xs text-slate-500 mt-0.5">
                             {isCompleted
-                                ? "Documento ya confirmado. Puedes revisarlo nuevamente."
+                                ? "Documento enviado. Puedes revisarlo, editarlo y volver a guardarlo."
                                 : isChecklistStep
                                     ? "Marca primero lo que corresponde y luego pasarás al documento para firmarlo."
                                     : showChecklist
@@ -984,8 +1156,8 @@ function DocumentFillingModal({ docId, category, fichaId, existingData, fullFich
                         </p>
                     </div>
                     <div className="flex items-center gap-3">
-                        {showChecklist && !isCompleted && (
-                            <span className={`px-3 py-1 rounded-full text-[11px] font-bold ${isChecklistStep ? 'bg-blue-50 text-blue-700' : 'bg-emerald-50 text-emerald-700'}`}>
+                        {(showChecklist || hasManualFields) && (
+                            <span className={`px-3 py-1 rounded-full text-[11px] font-bold ${isChecklistStep ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-700'}`}>
                                 {isChecklistStep ? 'Paso 1 de 2 · Marcas' : 'Paso 2 de 2 · Firma'}
                             </span>
                         )}
@@ -1000,12 +1172,21 @@ function DocumentFillingModal({ docId, category, fichaId, existingData, fullFich
                                 <div className="flex items-center justify-between gap-3 mb-5">
                                     <div>
                                         <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Marcación</p>
-                                        <h4 className="text-lg font-bold text-slate-900">Selecciona lo que corresponde antes de firmar</h4>
+                                        <h4 className="text-lg font-bold text-slate-900">Selecciona lo que corresponde antes de enviarlo</h4>
                                         <p className="text-sm text-slate-500 mt-1">Estas marcas se guardarán exactamente así y luego aparecerán en la impresión del admin.</p>
                                     </div>
-                                    <span className="px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold shrink-0">
-                                        {checklistSelectedCount}/{content.length}
-                                    </span>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        <span className="px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 text-xs font-semibold">
+                                            {checklistSelectedCount}/{content.length}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onClick={() => setAllChecks(!allChecked)}
+                                            className="px-3 py-1.5 rounded-full bg-blue-50 text-blue-700 text-xs font-bold hover:bg-blue-100 transition-colors"
+                                        >
+                                            {allChecked ? 'Limpiar' : 'Marcar todo'}
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <div className="space-y-3 max-h-[52vh] overflow-auto pr-1">
@@ -1026,6 +1207,12 @@ function DocumentFillingModal({ docId, category, fichaId, existingData, fullFich
                                         )
                                     })}
                                 </div>
+                            </div>
+                        </div>
+                    ) : isFormStep ? (
+                        <div className="min-h-full p-5 md:p-8">
+                            <div className="max-w-5xl mx-auto bg-white rounded-[28px] border border-slate-200 shadow-xl p-5 md:p-7">
+                                <ManualDocumentForm docId={docId} values={manualFields} onChange={setManualFields} />
                             </div>
                         </div>
                     ) : (
@@ -1078,9 +1265,9 @@ function DocumentFillingModal({ docId, category, fichaId, existingData, fullFich
                 <div className="p-5 border-t border-slate-100 bg-white rounded-b-3xl shrink-0 z-20 shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
                     <div className="flex flex-col gap-3 max-w-4xl mx-auto w-full">
                         {isCompleted ? (
-                            <div className="flex items-start gap-3 bg-emerald-50 p-3 rounded-xl border border-emerald-100">
-                                <CheckCircle className="text-emerald-600 shrink-0 mt-0.5" size={18}/>
-                                <p className="text-xs text-emerald-800 leading-relaxed font-medium">Este documento ya fue guardado con tu conformidad. Puedes cerrarlo o revisarlo cuantas veces necesites.</p>
+                            <div className="flex items-start gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                                <Eye className="text-slate-600 shrink-0 mt-0.5" size={18}/>
+                                <p className="text-xs text-slate-700 leading-relaxed font-medium">Este documento ya fue enviado. Puedes previsualizarlo, volver a editar sus marcas y guardar una nueva versiÃ³n cuando lo necesites.</p>
                             </div>
                         ) : (
                             <div className="flex items-start gap-3 bg-blue-50 p-3 rounded-xl mb-1 border border-blue-100">
@@ -1092,20 +1279,20 @@ function DocumentFillingModal({ docId, category, fichaId, existingData, fullFich
                                 </p>
                             </div>
                         )}
-                        <div className={`grid gap-3 ${showChecklist && !isCompleted && !isChecklistStep ? 'md:grid-cols-[220px_minmax(0,1fr)]' : ''}`}>
-                            {showChecklist && !isCompleted && !isChecklistStep && (
+                        <div className={`grid gap-3 ${(showChecklist || hasManualFields) && !isChecklistStep && !isFormStep ? 'md:grid-cols-[220px_minmax(0,1fr)]' : ''}`}>
+                            {(showChecklist || hasManualFields) && !isChecklistStep && !isFormStep && (
                                 <button
                                     type="button"
-                                    onClick={() => setModalStep('checklist')}
+                                    onClick={() => setModalStep(hasManualFields ? 'form' : 'checklist')}
                                     className="w-full py-3.5 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-slate-200 flex items-center justify-center gap-3 transition-all active:scale-[0.98]"
                                 >
                                     <ChevronRight size={18} className="rotate-180" />
-                                    VOLVER A MARCAS
+                                    {hasManualFields ? 'EDITAR DATOS' : 'EDITAR MARCAS'}
                                 </button>
                             )}
-                            <button onClick={isCompleted ? onClose : (isChecklistStep ? () => setModalStep('preview') : handleSave)} disabled={saving} className="w-full py-3.5 bg-slate-900 text-white rounded-xl font-bold shadow-xl shadow-slate-900/20 hover:bg-slate-800 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-3 transition-all active:scale-[0.98]">
+                            <button onClick={isChecklistStep ? () => setModalStep(hasManualFields ? 'form' : 'preview') : isFormStep ? () => setModalStep('preview') : handleSave} disabled={saving} className="w-full py-3.5 bg-slate-900 text-white rounded-xl font-bold shadow-xl shadow-slate-900/20 hover:bg-slate-800 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-3 transition-all active:scale-[0.98]">
                                 {saving ? <Loader2 className="animate-spin"/> : <Save size={20}/>}
-                                {saving ? 'Validando...' : isCompleted ? 'CERRAR VISOR' : isChecklistStep ? 'CONTINUAR AL DOCUMENTO' : showChecklist ? 'FIRMAR Y GUARDAR' : 'CONFIRMAR LECTURA Y GUARDAR'}
+                                {saving ? 'Validando...' : isChecklistStep ? (hasManualFields ? 'CONTINUAR A DATOS' : 'CONTINUAR AL DOCUMENTO') : isFormStep ? 'CONTINUAR A VISTA PREVIA' : isCompleted ? 'GUARDAR CAMBIOS' : showChecklist ? 'FIRMAR Y GUARDAR' : 'CONFIRMAR LECTURA Y GUARDAR'}
                             </button>
                         </div>
                     </div>
@@ -1113,6 +1300,437 @@ function DocumentFillingModal({ docId, category, fichaId, existingData, fullFich
             </motion.div>
         </motion.div>
     )
+}
+
+function ManualDocumentForm({ docId, values, onChange }: { docId: string; values: Record<string, string>; onChange: (next: Record<string, string>) => void }) {
+    const updateField = (key: string, value: string) => {
+        onChange({ ...values, [key]: value })
+    }
+
+    const renderYesNo = (key: string) => (
+        <div className="flex flex-wrap gap-2">
+            {['si', 'no'].map((option) => (
+                <button
+                    key={option}
+                    type="button"
+                    onClick={() => updateField(key, option)}
+                    className={`px-4 py-2 rounded-full text-xs font-bold border transition-colors ${values[key] === option ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:border-blue-200'}`}
+                >
+                    {option === 'si' ? 'Si' : 'No'}
+                </button>
+            ))}
+        </div>
+    )
+
+    if (docId === 'ficha_covid') {
+        return (
+            <div className="space-y-6">
+                <div>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Datos manuales</p>
+                    <h4 className="text-lg font-bold text-slate-900">Completa la ficha sintomatologica</h4>
+                    <p className="text-sm text-slate-500 mt-1">Estos datos llenaran digitalmente el formato COVID antes de enviarlo.</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <label className="text-xs font-semibold text-slate-500">Area de trabajo
+                        <input type="text" value={values.area_trabajo || ''} onChange={(e) => updateField('area_trabajo', e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10" />
+                    </label>
+                    <label className="text-xs font-semibold text-slate-500">Celular
+                        <input type="text" value={values.celular || ''} onChange={(e) => updateField('celular', e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10" />
+                    </label>
+                    <label className="md:col-span-2 text-xs font-semibold text-slate-500">Direccion domiciliaria
+                        <input type="text" value={values.direccion_domicilio || ''} onChange={(e) => updateField('direccion_domicilio', e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10" />
+                    </label>
+                </div>
+
+                <div className="space-y-3">
+                    <div>
+                        <h5 className="text-sm font-bold text-slate-900">Sintomas en los ultimos 10 dias</h5>
+                        <p className="text-xs text-slate-500 mt-1">Marca "Si" o "No" para cada pregunta.</p>
+                    </div>
+                    {[
+                        ['symptom_1', 'Sensacion de alza termica, fiebre o malestar'],
+                        ['symptom_2', 'Dolor de garganta, tos, estornudos o dificultad para respirar'],
+                        ['symptom_3', 'Dolor de cabeza, diarrea o congestion nasal'],
+                        ['symptom_4', 'Perdida del gusto y/o del olfato'],
+                        ['symptom_5', 'Contacto con caso confirmado de COVID-19'],
+                    ].map(([key, label]) => (
+                        <div key={key} className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                            <span className="text-sm font-medium text-slate-700">{label}</span>
+                            {renderYesNo(key)}
+                        </div>
+                    ))}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50/70">
+                        <p className="text-sm font-bold text-slate-900 mb-3">Tomas alguna medicacion?</p>
+                        <div className="mb-3">{renderYesNo('medicacion_toma')}</div>
+                        <label className="text-xs font-semibold text-slate-500">Detalle de medicacion
+                            <input type="text" value={values.medicacion_detalle || ''} onChange={(e) => updateField('medicacion_detalle', e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10" />
+                        </label>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50/70">
+                        <p className="text-sm font-bold text-slate-900 mb-3">Perteneces a grupo de riesgo?</p>
+                        {renderYesNo('grupo_riesgo')}
+                    </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50/70">
+                    <p className="text-sm font-bold text-slate-900 mb-3">Factores de riesgo</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                        {[
+                            ['risk_mayor_65', 'Mayor de 65 anos'],
+                            ['risk_cancer', 'Cancer'],
+                            ['risk_renal', 'Enfermedad renal cronica'],
+                            ['risk_pulmonar', 'Enfermedad pulmonar cronica'],
+                            ['risk_cardiaca', 'Afecciones cardiacas'],
+                            ['risk_dm', 'Diabetes mellitus'],
+                            ['risk_obesidad', 'Obesidad'],
+                            ['risk_inmuno', 'Inmunosupresion'],
+                            ['risk_trasplante', 'Trasplante de organos'],
+                            ['risk_cerebro', 'Enfermedad cerebrovascular'],
+                            ['risk_hipertension', 'Hipertension arterial'],
+                            ['risk_down', 'Sindrome de Down'],
+                            ['risk_embarazo', 'Embarazo'],
+                            ['risk_vih', 'VIH'],
+                            ['risk_otros', 'Otros'],
+                        ].map(([key, label]) => (
+                            <button
+                                key={key}
+                                type="button"
+                                onClick={() => updateField(key, values[key] === 'si' ? 'no' : 'si')}
+                                className={`flex items-center justify-between rounded-xl border px-3 py-3 text-sm font-medium transition-colors ${values[key] === 'si' ? 'bg-blue-50 border-blue-200 text-blue-800' : 'bg-white border-slate-200 text-slate-600 hover:border-blue-200'}`}
+                            >
+                                <span>{label}</span>
+                                <span className={`w-5 h-5 rounded-md border flex items-center justify-center text-[11px] font-black ${values[key] === 'si' ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300 text-transparent'}`}>X</span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <label className="text-xs font-semibold text-slate-500">Dosis de vacuna / observacion
+                        <input type="text" value={values.vacunas_dosis || ''} onChange={(e) => updateField('vacunas_dosis', e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10" />
+                    </label>
+                    <label className="text-xs font-semibold text-slate-500">Fecha del documento
+                        <input type="date" value={values.fecha_documento || ''} onChange={(e) => updateField('fecha_documento', e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10" />
+                    </label>
+                </div>
+            </div>
+        )
+    }
+
+    if (docId === 'acta_emo') {
+        return (
+            <div className="space-y-6">
+                <div>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Datos manuales</p>
+                    <h4 className="text-lg font-bold text-slate-900">Completa los campos del acta EMO</h4>
+                    <p className="text-sm text-slate-500 mt-1">Se usaran para rellenar el formato de entrega de resultados del examen medico ocupacional.</p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {[
+                        ['cargo', 'Cargo', 'text'],
+                        ['area', 'Area', 'text'],
+                        ['sede_obra', 'Sede / obra', 'text'],
+                        ['fecha_evaluacion', 'Fecha de evaluacion', 'date'],
+                        ['fecha_documento', 'Fecha del documento', 'date'],
+                        ['medico_ocupacional', 'Medico ocupacional', 'text'],
+                    ].map(([key, label, type]) => (
+                        <label key={key} className="text-xs font-semibold text-slate-500">
+                            {label}
+                            <input type={type} value={values[key] || ''} onChange={(e) => updateField(key, e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10" />
+                        </label>
+                    ))}
+                </div>
+            </div>
+        )
+    }
+
+    if (docId === 'acta_acatamiento' || docId === 'rec_sst') {
+        return (
+            <div className="space-y-6">
+                <div>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Datos manuales</p>
+                    <h4 className="text-lg font-bold text-slate-900">{docId === 'acta_acatamiento' ? 'Completa el acta de acatamiento' : 'Completa el cargo de recomendaciones'}</h4>
+                    <p className="text-sm text-slate-500 mt-1">La fecha se reflejara directamente en la version digital del documento.</p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <label className="text-xs font-semibold text-slate-500">Fecha del documento
+                        <input type="date" value={values.fecha_documento || ''} onChange={(e) => updateField('fecha_documento', e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10" />
+                    </label>
+                </div>
+            </div>
+        )
+    }
+
+    if (docId === 'epp') {
+        return (
+            <div className="space-y-6">
+                <div>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Datos manuales</p>
+                    <h4 className="text-lg font-bold text-slate-900">Completa las fechas de entrega y el responsable</h4>
+                    <p className="text-sm text-slate-500 mt-1">Las celdas de firma se mostrarán como conformidad digital al guardar el documento.</p>
+                </div>
+
+                <div className="space-y-4 max-h-[52vh] overflow-auto pr-1">
+                    {EPP_ITEMS.map((item, rowIndex) => (
+                        <div key={item} className="rounded-2xl border border-slate-200 p-4 bg-slate-50/70">
+                            <p className="text-sm font-bold text-slate-800 mb-3">{item}</p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+                                {[1, 2, 3, 4].map((delivery) => (
+                                    <label key={delivery} className="text-xs font-semibold text-slate-500">
+                                        {`${delivery}ra entrega`.replace('3ra', '3ra').replace('4ra', '4ta')}
+                                        <input
+                                            type="date"
+                                            value={values[`epp_${rowIndex}_delivery_${delivery}_date`] || ''}
+                                            onChange={(e) => updateField(`epp_${rowIndex}_delivery_${delivery}_date`, e.target.value)}
+                                            className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
+                                        />
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <label className="text-xs font-semibold text-slate-500">Responsable - Nombre
+                        <input type="text" value={values.responsable_nombre || ''} onChange={(e) => updateField('responsable_nombre', e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10" />
+                    </label>
+                    <label className="text-xs font-semibold text-slate-500">Responsable - Cargo
+                        <input type="text" value={values.responsable_cargo || ''} onChange={(e) => updateField('responsable_cargo', e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10" />
+                    </label>
+                    <label className="text-xs font-semibold text-slate-500">Responsable - Fecha
+                        <input type="date" value={values.responsable_fecha || ''} onChange={(e) => updateField('responsable_fecha', e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10" />
+                    </label>
+                    <label className="text-xs font-semibold text-slate-500">Responsable - Firma (texto)
+                        <input type="text" value={values.responsable_firma_texto || ''} onChange={(e) => updateField('responsable_firma_texto', e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10" />
+                    </label>
+                </div>
+            </div>
+        )
+    }
+
+    if (docId === 'capacitacion') {
+        return (
+            <div className="space-y-6">
+                <div>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Datos manuales</p>
+                    <h4 className="text-lg font-bold text-slate-900">Completa los campos del registro</h4>
+                    <p className="text-sm text-slate-500 mt-1">Esto llenará los espacios en blanco del formato antes de la firma final.</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {[
+                        ['cantidad_trabajadores', 'N° trabajadores en el centro laboral', 'text'],
+                        ['otros_detalle', 'Otros (especificar)', 'text'],
+                        ['lugar', 'Lugar', 'text'],
+                        ['tema', 'Tema', 'text'],
+                        ['fecha', 'Fecha', 'date'],
+                        ['hora_inicio', 'Hora inicio', 'time'],
+                        ['hora_fin', 'Hora fin', 'time'],
+                        ['total_horas', 'Total horas', 'text'],
+                        ['capacitador_nombre', 'Nombre del capacitador', 'text'],
+                        ['capacitador_firma_texto', 'Firma del capacitador (texto)', 'text'],
+                        ['responsable_nombre', 'Responsable del registro - nombre', 'text'],
+                        ['responsable_cargo', 'Responsable del registro - cargo', 'text'],
+                        ['responsable_fecha', 'Responsable del registro - fecha', 'date'],
+                        ['responsable_firma_texto', 'Responsable del registro - firma (texto)', 'text'],
+                    ].map(([key, label, type]) => (
+                        <label key={key} className="text-xs font-semibold text-slate-500">
+                            {label}
+                            <input type={type} value={values[key] || ''} onChange={(e) => updateField(key, e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10" />
+                        </label>
+                    ))}
+                    <label className="md:col-span-2 text-xs font-semibold text-slate-500">Observaciones
+                        <textarea value={values.observaciones || ''} onChange={(e) => updateField('observaciones', e.target.value)} rows={4} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 resize-y" />
+                    </label>
+                </div>
+            </div>
+        )
+    }
+
+    if (docId === 'ficha_covid') {
+        return (
+            <div className="space-y-6">
+                <div>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Datos manuales</p>
+                    <h4 className="text-lg font-bold text-slate-900">Completa la ficha sintomatolÃ³gica</h4>
+                    <p className="text-sm text-slate-500 mt-1">Estos datos llenarÃ¡n digitalmente el formato COVID antes de enviarlo.</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <label className="text-xs font-semibold text-slate-500">Ãrea de trabajo
+                        <input type="text" value={values.area_trabajo || ''} onChange={(e) => updateField('area_trabajo', e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10" />
+                    </label>
+                    <label className="text-xs font-semibold text-slate-500">Celular
+                        <input type="text" value={values.celular || ''} onChange={(e) => updateField('celular', e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10" />
+                    </label>
+                    <label className="md:col-span-2 text-xs font-semibold text-slate-500">DirecciÃ³n domiciliaria
+                        <input type="text" value={values.direccion_domicilio || ''} onChange={(e) => updateField('direccion_domicilio', e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10" />
+                    </label>
+                </div>
+
+                <div className="space-y-3">
+                    <div>
+                        <h5 className="text-sm font-bold text-slate-900">SÃ­ntomas en los Ãºltimos 10 dÃ­as</h5>
+                        <p className="text-xs text-slate-500 mt-1">Marca "SÃ­" o "No" para cada pregunta.</p>
+                    </div>
+                    {[
+                        ['symptom_1', 'SensaciÃ³n de alza tÃ©rmica, fiebre o malestar'],
+                        ['symptom_2', 'Dolor de garganta, tos, estornudos o dificultad para respirar'],
+                        ['symptom_3', 'Dolor de cabeza, diarrea o congestiÃ³n nasal'],
+                        ['symptom_4', 'PÃ©rdida del gusto y/o del olfato'],
+                        ['symptom_5', 'Contacto con caso confirmado de COVID-19'],
+                    ].map(([key, label]) => (
+                        <div key={key} className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
+                            <span className="text-sm font-medium text-slate-700">{label}</span>
+                            <div className="flex flex-wrap gap-2">
+                                {['si', 'no'].map((option) => (
+                                    <button
+                                        key={option}
+                                        type="button"
+                                        onClick={() => updateField(key, option)}
+                                        className={`px-4 py-2 rounded-full text-xs font-bold border transition-colors ${values[key] === option ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:border-blue-200'}`}
+                                    >
+                                        {option === 'si' ? 'SÃ­' : 'No'}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50/70">
+                        <p className="text-sm font-bold text-slate-900 mb-3">Â¿Tomas alguna medicaciÃ³n?</p>
+                        <div className="flex flex-wrap gap-2 mb-3">
+                            {['si', 'no'].map((option) => (
+                                <button
+                                    key={option}
+                                    type="button"
+                                    onClick={() => updateField('medicacion_toma', option)}
+                                    className={`px-4 py-2 rounded-full text-xs font-bold border transition-colors ${values.medicacion_toma === option ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:border-blue-200'}`}
+                                >
+                                    {option === 'si' ? 'SÃ­' : 'No'}
+                                </button>
+                            ))}
+                        </div>
+                        <label className="text-xs font-semibold text-slate-500">Detalle de medicaciÃ³n
+                            <input type="text" value={values.medicacion_detalle || ''} onChange={(e) => updateField('medicacion_detalle', e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10" />
+                        </label>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50/70">
+                        <p className="text-sm font-bold text-slate-900 mb-3">Â¿Perteneces a grupo de riesgo?</p>
+                        <div className="flex flex-wrap gap-2">
+                            {['si', 'no'].map((option) => (
+                                <button
+                                    key={option}
+                                    type="button"
+                                    onClick={() => updateField('grupo_riesgo', option)}
+                                    className={`px-4 py-2 rounded-full text-xs font-bold border transition-colors ${values.grupo_riesgo === option ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:border-blue-200'}`}
+                                >
+                                    {option === 'si' ? 'SÃ­' : 'No'}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50/70">
+                    <p className="text-sm font-bold text-slate-900 mb-3">Factores de riesgo</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                        {[
+                            ['risk_mayor_65', 'Mayor de 65 aÃ±os'],
+                            ['risk_cancer', 'CÃ¡ncer'],
+                            ['risk_renal', 'Enfermedad renal crÃ³nica'],
+                            ['risk_pulmonar', 'Enfermedad pulmonar crÃ³nica'],
+                            ['risk_cardiaca', 'Afecciones cardÃ­acas'],
+                            ['risk_dm', 'Diabetes mellitus'],
+                            ['risk_obesidad', 'Obesidad'],
+                            ['risk_inmuno', 'InmunosupresiÃ³n'],
+                            ['risk_trasplante', 'Trasplante de Ã³rganos'],
+                            ['risk_cerebro', 'Enfermedad cerebrovascular'],
+                            ['risk_hipertension', 'HipertensiÃ³n arterial'],
+                            ['risk_down', 'SÃ­ndrome de Down'],
+                            ['risk_embarazo', 'Embarazo'],
+                            ['risk_vih', 'VIH'],
+                            ['risk_otros', 'Otros'],
+                        ].map(([key, label]) => (
+                            <button
+                                key={key}
+                                type="button"
+                                onClick={() => updateField(key, values[key] === 'si' ? 'no' : 'si')}
+                                className={`flex items-center justify-between rounded-xl border px-3 py-3 text-sm font-medium transition-colors ${values[key] === 'si' ? 'bg-blue-50 border-blue-200 text-blue-800' : 'bg-white border-slate-200 text-slate-600 hover:border-blue-200'}`}
+                            >
+                                <span>{label}</span>
+                                <span className={`w-5 h-5 rounded-md border flex items-center justify-center text-[11px] font-black ${values[key] === 'si' ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-300 text-transparent'}`}>X</span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <label className="text-xs font-semibold text-slate-500">Dosis de vacuna / observaciÃ³n
+                        <input type="text" value={values.vacunas_dosis || ''} onChange={(e) => updateField('vacunas_dosis', e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10" />
+                    </label>
+                    <label className="text-xs font-semibold text-slate-500">Fecha del documento
+                        <input type="date" value={values.fecha_documento || ''} onChange={(e) => updateField('fecha_documento', e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10" />
+                    </label>
+                </div>
+            </div>
+        )
+    }
+
+    if (docId === 'acta_emo') {
+        return (
+            <div className="space-y-6">
+                <div>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Datos manuales</p>
+                    <h4 className="text-lg font-bold text-slate-900">Completa los campos del acta EMO</h4>
+                    <p className="text-sm text-slate-500 mt-1">Se usarÃ¡n para rellenar el formato de entrega de resultados del examen mÃ©dico ocupacional.</p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {[
+                        ['cargo', 'Cargo', 'text'],
+                        ['area', 'Ãrea', 'text'],
+                        ['sede_obra', 'Sede / obra', 'text'],
+                        ['fecha_evaluacion', 'Fecha de evaluaciÃ³n', 'date'],
+                        ['fecha_documento', 'Fecha del documento', 'date'],
+                        ['medico_ocupacional', 'MÃ©dico ocupacional', 'text'],
+                    ].map(([key, label, type]) => (
+                        <label key={key} className="text-xs font-semibold text-slate-500">
+                            {label}
+                            <input type={type} value={values[key] || ''} onChange={(e) => updateField(key, e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10" />
+                        </label>
+                    ))}
+                </div>
+            </div>
+        )
+    }
+
+    if (docId === 'acta_acatamiento' || docId === 'rec_sst') {
+        return (
+            <div className="space-y-6">
+                <div>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Datos manuales</p>
+                    <h4 className="text-lg font-bold text-slate-900">{docId === 'acta_acatamiento' ? 'Completa el acta de acatamiento' : 'Completa el cargo de recomendaciones'}</h4>
+                    <p className="text-sm text-slate-500 mt-1">La fecha se reflejarÃ¡ directamente en la versiÃ³n digital del documento.</p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <label className="text-xs font-semibold text-slate-500">Fecha del documento
+                        <input type="date" value={values.fecha_documento || ''} onChange={(e) => updateField('fecha_documento', e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10" />
+                    </label>
+                </div>
+            </div>
+        )
+    }
+
+    return null
 }
 
 // --- MODAL DE DESCARGA OBLIGATORIA (RISST) ---

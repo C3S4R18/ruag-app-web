@@ -49,6 +49,10 @@ const DIGITAL_DOCS: DocDefinition[] = [
   { id: 'epp', label: 'Entrega de EPPs', type: 'lock' },
   { id: 'acta_derecho', label: 'Acta Derecho a Saber', type: 'lock' },
   { id: 'iperc', label: 'Entrega IPERC', type: 'lock' },
+  { id: 'ficha_covid', label: 'Ficha SintomatolÃ³gica', type: 'lock' },
+  { id: 'acta_acatamiento', label: 'Acta de Acatamiento', type: 'lock' },
+  { id: 'acta_emo', label: 'Acta de Entrega de Resultados EMO', type: 'lock' },
+  { id: 'rec_sst', label: 'Cargo de Entrega de Recomendaciones', type: 'lock' },
 ]
 
 const SSOMA_DOCS_CONFIG: DocDefinition[] = [
@@ -61,19 +65,15 @@ const SSOMA_DOCS_CONFIG: DocDefinition[] = [
 const SSOMA_UPLOADS_CONFIG: DocDefinition[] = [
     { id: 'cap_iperc', label: 'CAPACITACIÓN IPERC' },
     { id: 'cap_pets', label: 'CAPACITACIÓN PETS' },
-    { id: 'rec_sst', label: 'RECOMENDACIONES SST' },
     { id: 'acta_saber', label: 'ACTA DERECHO A SABER' },
-    { id: 'acta_acatamiento', label: 'ACTA ACATAMIENTO' },
     { id: 'entre_epp', label: 'ENTREGA EPP' },
     { id: 'reg_induccion', label: 'REGISTRO DE INDUCCIÓN' },
     { id: 'dif_pol_sst', label: 'DIFUSIÓN POLITICA DE SST' },
     { id: 'cap_hostigamiento', label: 'CAPACITACIÓN HOSTIGAMIENTO SEXUAL' },
     { id: 'reg_risst', label: 'REGISTRO RISST' },
     { id: 'camo', label: 'CAMO' },
-    { id: 'acta_emo', label: 'ACTA DE ENTREGA EMO' },
     { id: 'cap_covid', label: 'CAPACITACIÓN PLAN COVID' },
     { id: 'acta_iperc', label: 'ACTA IPERC' },
-    { id: 'ficha_covid', label: 'FICHA COVID' },
 ]
 
 // --- CONFIGURACIÓN DOCUMENTOS RRHH ---

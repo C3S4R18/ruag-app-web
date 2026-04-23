@@ -2,6 +2,7 @@ import React, { forwardRef } from 'react'
 
 export const EntregaEppPrintable = forwardRef(({ ficha }: { ficha: any }, ref: React.Ref<HTMLDivElement>) => {
   if (!ficha) return null
+  const docData = ficha.doc_states?.epp?.data || {}
 
   const styles = {
     page: { 
@@ -112,7 +113,7 @@ export const EntregaEppPrintable = forwardRef(({ ficha }: { ficha: any }, ref: R
                     <td style={styles.cell}>20343680580</td>
                     <td style={styles.cell}>Av. Paseo de la Republica No 4956 , Miraflores - Lima</td>
                     <td style={styles.cell}>Construcción</td>
-                    <td style={styles.cell}></td>
+                    <td style={styles.cell}>{docData.cantidad_trabajadores || ''}</td>
                 </tr>
             </tbody>
         </table>
@@ -160,10 +161,15 @@ export const EntregaEppPrintable = forwardRef(({ ficha }: { ficha: any }, ref: R
                 {epps.map((epp, i) => (
                     <tr key={i}>
                         <td style={{...styles.cell, textAlign: 'left', paddingLeft: '5px', fontSize: '8px', height: '22px'}}>{epp}</td>
-                        <td style={styles.cell}></td><td style={styles.cell}></td>
-                        <td style={styles.cell}></td><td style={styles.cell}></td>
-                        <td style={styles.cell}></td><td style={styles.cell}></td>
-                        <td style={styles.cell}></td><td style={styles.cell}></td>
+                        {[1, 2, 3, 4].map((delivery) => {
+                            const dateValue = docData[`epp_${i}_delivery_${delivery}_date`] || ''
+                            return (
+                                <React.Fragment key={`${i}-${delivery}`}>
+                                    <td style={styles.cell}>{dateValue}</td>
+                                    <td style={styles.cell}>{dateValue ? 'FIRMADO' : ''}</td>
+                                </React.Fragment>
+                            )
+                        })}
                     </tr>
                 ))}
             </tbody>
@@ -179,19 +185,19 @@ export const EntregaEppPrintable = forwardRef(({ ficha }: { ficha: any }, ref: R
             <tbody>
                 <tr>
                     <td style={{...styles.cell, width: '20%', fontWeight: 'bold', ...styles.alignLeft}}>Nombre:</td>
-                    <td style={styles.cell}></td>
+                    <td style={styles.cell}>{docData.responsable_nombre || ''}</td>
                 </tr>
                 <tr>
                     <td style={{...styles.cell, fontWeight: 'bold', ...styles.alignLeft}}>Cargo:</td>
-                    <td style={styles.cell}></td>
+                    <td style={styles.cell}>{docData.responsable_cargo || ''}</td>
                 </tr>
                 <tr>
                     <td style={{...styles.cell, fontWeight: 'bold', ...styles.alignLeft}}>Fecha:</td>
-                    <td style={styles.cell}></td>
+                    <td style={styles.cell}>{docData.responsable_fecha || ''}</td>
                 </tr>
                 <tr>
                     <td style={{...styles.cell, fontWeight: 'bold', height: '50px', ...styles.alignLeft}}>Firma:</td>
-                    <td style={styles.cell}></td>
+                    <td style={styles.cell}>{docData.responsable_firma_texto || ''}</td>
                 </tr>
             </tbody>
         </table>

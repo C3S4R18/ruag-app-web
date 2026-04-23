@@ -125,7 +125,7 @@ export const RegistroCapacitacionPrintable = forwardRef(({ ficha }: { ficha: any
             </td>
             <td style={{ ...styles.cell, width: '15%', textAlign: 'center' }}>
               <div style={styles.boldLabel}>N° TRABAJADORES EN EL CENTRO LABORAL:</div>
-              <div>________________</div>
+              <div>{docData.cantidad_trabajadores || '________________'}</div>
             </td>
           </tr>
         </tbody>
@@ -153,10 +153,10 @@ export const RegistroCapacitacionPrintable = forwardRef(({ ficha }: { ficha: any
 
           <tr>
             <td colSpan={3} style={styles.cell}>
-              <strong>OTROS (Especificar):</strong>
+              <strong>OTROS (Especificar):</strong> {docData.otros_detalle || ''}
             </td>
             <td colSpan={2} style={styles.cell}>
-              <strong>LUGAR:</strong> Oficina Ruag
+              <strong>LUGAR:</strong> {docData.lugar || 'Oficina Ruag'}
             </td>
           </tr>
 
@@ -172,24 +172,24 @@ export const RegistroCapacitacionPrintable = forwardRef(({ ficha }: { ficha: any
         <tbody>
           <tr>
             <td style={{ ...styles.cell, width: '20%' }}>
-              <strong>FECHA:</strong> {fechaActual}
+              <strong>FECHA:</strong> {docData.fecha || fechaActual}
             </td>
             <td style={{ ...styles.cell, width: '20%' }}>
-              <strong>HORA INICIO:</strong>
+              <strong>HORA INICIO:</strong> {docData.hora_inicio || ''}
             </td>
             <td style={{ ...styles.cell, width: '20%' }}>
-              <strong>HORA FIN:</strong>
+              <strong>HORA FIN:</strong> {docData.hora_fin || ''}
             </td>
             <td style={{ ...styles.cell, width: '40%' }}>
-              <strong>TOTAL HORAS:</strong> 1.5 Hrs.
+              <strong>TOTAL HORAS:</strong> {docData.total_horas || '1.5 Hrs.'}
             </td>
           </tr>
           <tr>
             <td colSpan={3} style={{ ...styles.cell, height: '40px', verticalAlign: 'top' }}>
-              <strong>NOMBRE DEL CAPACITADOR O ENTRENADOR:</strong>
+              <strong>NOMBRE DEL CAPACITADOR O ENTRENADOR:</strong> {docData.capacitador_nombre || ''}
             </td>
             <td style={{ ...styles.cell, height: '40px', verticalAlign: 'top' }}>
-              <strong>FIRMA</strong>
+              <strong>FIRMA</strong> {docData.capacitador_firma_texto ? `- ${docData.capacitador_firma_texto}` : ''}
             </td>
           </tr>
         </tbody>
@@ -236,7 +236,7 @@ export const RegistroCapacitacionPrintable = forwardRef(({ ficha }: { ficha: any
         <tbody>
           <tr>
             <td style={{ ...styles.cell, height: '30px', verticalAlign: 'top' }}>
-              <strong>OBSERVACIONES:</strong>
+              <strong>OBSERVACIONES:</strong> {docData.observaciones || ''}
             </td>
           </tr>
         </tbody>
@@ -251,15 +251,15 @@ export const RegistroCapacitacionPrintable = forwardRef(({ ficha }: { ficha: any
         <tbody>
           <tr>
             <td style={{ ...styles.cell, width: '15%' }}><strong>APELLIDOS Y NOMBRES:</strong></td>
-            <td style={{ ...styles.cell, width: '35%' }}></td>
+            <td style={{ ...styles.cell, width: '35%' }}>{docData.responsable_nombre || ''}</td>
             <td style={{ ...styles.cell, width: '10%' }}><strong>FIRMA:</strong></td>
-            <td style={{ ...styles.cell, width: '40%', height: '40px' }}></td>
+            <td style={{ ...styles.cell, width: '40%', height: '40px' }}>{docData.responsable_firma_texto || ''}</td>
           </tr>
           <tr>
             <td style={styles.cell}><strong>CARGO:</strong></td>
-            <td style={styles.cell}></td>
+            <td style={styles.cell}>{docData.responsable_cargo || ''}</td>
             <td style={styles.cell}><strong>FECHA:</strong></td>
-            <td style={styles.cell}></td>
+            <td style={styles.cell}>{docData.responsable_fecha || ''}</td>
           </tr>
         </tbody>
       </table>
