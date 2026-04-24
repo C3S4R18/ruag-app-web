@@ -29,6 +29,7 @@ import { ActaEntregaResultadosEmoPrintable } from '@/components/ActaEntregaResul
 import { CargoRecomendacionesPrintable } from '@/components/CargoRecomendacionesPrintable'
 import { CargoRitPrintable } from '@/components/CargoRitPrintable'
 import { CargoPoliticaPrevencionPrintable } from '@/components/CargoPoliticaPrevencionPrintable'
+import WiredLinealIcon from '@/components/WiredLinealIcon'
 
 import {
   LayoutGrid, Users, LogOut, ShieldCheck,
@@ -882,7 +883,7 @@ export default function AdminPage() {
         <nav className="flex-1 px-3 py-6 space-y-8 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-600">
             {/* Dashboard General */}
             <div>
-                <SidebarItem active={activeView === 'dashboard'} onClick={() => handleNavClick('dashboard')} icon={<LayoutDashboard size={20}/>} label="Dashboard General" />
+                <SidebarItem active={activeView === 'dashboard'} onClick={() => handleNavClick('dashboard')} icon={<WiredLinealIcon name="dashboard" size={20} variant="sidebar" />} label="Dashboard General" />
             </div>
 
             {/* GRUPO 1 */}
@@ -913,7 +914,7 @@ export default function AdminPage() {
                         <SidebarItem active={activeView === 'documentos'} onClick={() => handleNavClick('documentos')} icon={<HardHat size={20} className="text-blue-400"/>} label="Registros SIG" />
                     </div>
                     <Link href="/admin/ssoma/reporte-estadistico" className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-all duration-200 group">
-                        <FileSpreadsheet size={20} className="text-cyan-300"/>
+                        <WiredLinealIcon name="reporte" size={20} variant="sidebar" />
                         <span className="tracking-wide">Reporte Estadistico</span>
                         <ChevronRight size={14} className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity -translate-x-2 group-hover:translate-x-0"/>
                     </Link>
@@ -997,7 +998,7 @@ export default function AdminPage() {
                     onClick={() => openDocumentCenter()}
                     className="flex items-center gap-2 px-3 md:px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 shadow-sm hover:border-blue-300 hover:text-blue-600 hover:shadow-md transition-all"
                 >
-                    <Layers size={16}/>
+                    <WiredLinealIcon name="center" size={18} variant="button" />
                     <span className="hidden md:inline">Centro Documental</span>
                 </button>
                  
@@ -1959,7 +1960,20 @@ function DocumentCenterModal({ mode, workers, selectedWorker, selectedDocs, proc
 }
 
 function SidebarItem({ active, onClick, icon, label }: any) {
-    return <button onClick={onClick} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-all duration-200 group relative ${active ? 'text-white' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>{active && (<motion.div layoutId="active-bg" className="absolute inset-0 bg-blue-600 rounded-xl shadow-lg shadow-blue-900/40" initial={false} transition={{type:'spring', stiffness: 500, damping: 30}} />)}<motion.span whileHover={{ scale: 1.12, rotate: active ? 0 : -6, y: -1 }} whileTap={{ scale: 0.95 }} className="relative z-10 flex h-6 w-6 items-center justify-center">{icon}</motion.span><span className="relative z-10 tracking-wide">{label}</span>{!active && <ChevronRight size={14} className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity -translate-x-2 group-hover:translate-x-0"/>}</button>
+    const iconByLabel: Record<string, any> = {
+        'Dashboard General': <WiredLinealIcon name="dashboard" size={20} variant="sidebar" />,
+        'GestiÃ³n RRHH': <WiredLinealIcon name="rrhh" size={20} variant="sidebar" />,
+        'Trama Vida Ley': <WiredLinealIcon name="vidaLey" size={20} variant="sidebar" />,
+        'Historial Cesados': <WiredLinealIcon name="cesados" size={20} variant="sidebar" />,
+        'Registros SIG': <WiredLinealIcon name="documentos" size={20} variant="sidebar" />,
+        'Subir Documentos': <WiredLinealIcon name="upload" size={20} variant="sidebar" />,
+        'Trama SCTR': <WiredLinealIcon name="sctr" size={20} variant="sidebar" />,
+        'BiometrÃ­a y Firmas': <WiredLinealIcon name="biometria" size={20} variant="sidebar" />,
+        'Mi Perfil': <WiredLinealIcon name="profile" size={20} variant="sidebar" />,
+    }
+    const displayIcon = iconByLabel[label] || icon
+
+    return <button onClick={onClick} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-all duration-200 group relative ${active ? 'text-white' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>{active && (<motion.div layoutId="active-bg" className="absolute inset-0 bg-blue-600 rounded-xl shadow-lg shadow-blue-900/40" initial={false} transition={{type:'spring', stiffness: 500, damping: 30}} />)}<motion.span whileHover={{ scale: 1.12, rotate: active ? 0 : -6, y: -1 }} whileTap={{ scale: 0.95 }} className="relative z-10 flex h-6 w-6 items-center justify-center">{displayIcon}</motion.span><span className="relative z-10 tracking-wide">{label}</span>{!active && <ChevronRight size={14} className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity -translate-x-2 group-hover:translate-x-0"/>}</button>
 }
 function StatCard({title, value, desc, icon, bg, delay}: any) {
     return <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay }} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-lg transition-all"><div className="flex justify-between items-start"><div><p className="text-slate-500 text-sm font-medium mb-1">{title}</p><h3 className="text-3xl font-bold text-slate-800 tracking-tight">{value}</h3></div><div className={`p-3 rounded-2xl shadow-lg shadow-blue-900/10 ${bg}`}>{icon}</div></div><div className="mt-4 pt-4 border-t border-slate-50"><div className="text-xs font-bold text-slate-400 flex items-center gap-1.5"><TrendingUp size={14} className="text-emerald-500"/> <span className="text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">{desc}</span></div></div></motion.div>

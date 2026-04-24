@@ -15,6 +15,7 @@ import BiometricFingerprint from './ssoma/BiometricFingerprint'
 import { getSignatureUrl, normalizeBiometricFields } from '@/utils/biometric'
 import DocumentPreviewModal from './DocumentPreviewModal'
 import NormalizedSignatureImage from './NormalizedSignatureImage'
+import WiredLinealIcon from './WiredLinealIcon'
 
 // --- DOCUMENTOS IMPRIMIBLES SSOMA ---
 import { CargoRisstPrintable } from './CargoRisstPrintable'
@@ -1335,7 +1336,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                                     className={`relative flex h-10 w-10 items-center justify-center rounded-2xl border shadow-sm transition-all ${getSignatureUrl(ficha) ? 'border-emerald-200 bg-emerald-50 text-emerald-600 shadow-emerald-100/70' : 'border-slate-200 bg-slate-50 text-slate-300'}`}
                                     title={getSignatureUrl(ficha) ? 'Firma registrada' : 'Falta firma'}
                                 >
-                                    <PenTool size={14} />
+                                    <WiredLinealIcon name="signature" size={16} variant="chip" />
                                     <span className={`absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-white ${getSignatureUrl(ficha) ? 'bg-emerald-500' : 'bg-slate-300'}`}></span>
                                 </motion.div>
                                 <motion.div
@@ -1344,7 +1345,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                                     className={`relative flex h-10 w-10 items-center justify-center rounded-2xl border shadow-sm transition-all ${ficha.huella_url ? 'border-cyan-200 bg-cyan-50 text-cyan-600 shadow-cyan-100/70' : 'border-slate-200 bg-slate-50 text-slate-300'}`}
                                     title={ficha.huella_url ? 'Huella registrada' : 'Falta huella'}
                                 >
-                                    <Fingerprint size={14} />
+                                    <WiredLinealIcon name="fingerprint" size={16} variant="chip" />
                                     <span className={`absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-white ${ficha.huella_url ? 'bg-cyan-500' : 'bg-slate-300'}`}></span>
                                 </motion.div>
                             </div>
@@ -1356,13 +1357,13 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                                 <div className="flex items-center gap-1.5 rounded-2xl border border-slate-200/90 bg-white/90 px-2 py-1.5 shadow-sm transition-all group-hover:border-slate-300 group-hover:shadow-md">
                                     {onOpenChat && (
                                         <motion.button animate={actionLoops.chat} whileHover={{ y: -1, scale: 1.06 }} whileTap={{ scale: 0.96 }} onClick={(e) => { e.stopPropagation(); handleChatClick(ficha) }} className="relative flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 transition-all hover:bg-indigo-600 hover:text-white" title="Chat con trabajador">
-                                            <MessageSquare size={15} />
+                                            <WiredLinealIcon name="chat" size={16} variant="button" />
                                             {unreadCounts[ficha.user_id] > 0 && (<span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white shadow-sm ring-2 ring-white">{unreadCounts[ficha.user_id]}</span>)}
                                         </motion.button>
                                     )}
-                                    <motion.button animate={actionLoops.view} whileHover={{ y: -1, scale: 1.06 }} whileTap={{ scale: 0.96 }} onClick={(e) => { e.stopPropagation(); setDocumentsFicha(ficha) }} className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 transition-all hover:bg-slate-700 hover:text-white" title="Ver documentos subidos"><Eye size={15}/></motion.button>
-                                    <motion.button animate={actionLoops.edit} whileHover={{ y: -1, scale: 1.06 }} whileTap={{ scale: 0.96 }} onClick={(e) => { e.stopPropagation(); setSelectedFicha(ficha) }} className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 transition-all hover:bg-blue-600 hover:text-white" title="Editar Ficha"><Edit3 size={15}/></motion.button>
-                                    <motion.button animate={actionLoops.download} whileHover={{ y: -1, scale: 1.06 }} whileTap={{ scale: 0.96 }} onClick={(e) => { e.stopPropagation(); handleDownloadPDF(ficha) }} className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 transition-all hover:bg-emerald-600 hover:text-white" title="Descargar PDF"><Download size={15}/></motion.button>
+                                    <motion.button animate={actionLoops.view} whileHover={{ y: -1, scale: 1.06 }} whileTap={{ scale: 0.96 }} onClick={(e) => { e.stopPropagation(); setDocumentsFicha(ficha) }} className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 transition-all hover:bg-slate-700 hover:text-white" title="Ver documentos subidos"><WiredLinealIcon name="eye" size={16} variant="button" /></motion.button>
+                                    <motion.button animate={actionLoops.edit} whileHover={{ y: -1, scale: 1.06 }} whileTap={{ scale: 0.96 }} onClick={(e) => { e.stopPropagation(); setSelectedFicha(ficha) }} className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 transition-all hover:bg-blue-600 hover:text-white" title="Editar Ficha"><WiredLinealIcon name="edit" size={16} variant="button" /></motion.button>
+                                    <motion.button animate={actionLoops.download} whileHover={{ y: -1, scale: 1.06 }} whileTap={{ scale: 0.96 }} onClick={(e) => { e.stopPropagation(); handleDownloadPDF(ficha) }} className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 transition-all hover:bg-emerald-600 hover:text-white" title="Descargar PDF"><WiredLinealIcon name="download" size={16} variant="button" /></motion.button>
                                 </div>
                             </div>
                         </td>
