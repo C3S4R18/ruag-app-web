@@ -1,4 +1,5 @@
 import React, { forwardRef } from 'react'
+import NormalizedSignatureImage from './NormalizedSignatureImage'
 
 const check = (valorReal: string | null, valorEsperado: string) => {
     return valorReal?.toLowerCase() === valorEsperado.toLowerCase() ? 'X' : ''
@@ -251,7 +252,7 @@ export const FichaPrintable = forwardRef(({ ficha }: { ficha: any }, ref: React.
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '3rem', color: '#000' }}>
         <div style={{ textAlign: 'center', width: '40%' }}>
              <div style={{ borderBottom: '1px solid #000', height: '60px', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: '5px' }}>
-                {ficha.url_firma && <img src={ficha.url_firma} crossOrigin="anonymous" style={{ height: '50px', objectFit: 'contain', filter: 'grayscale(100%)' }} alt="Firma" />}
+                {ficha.url_firma && <NormalizedSignatureImage src={ficha.url_firma} crossOrigin="anonymous" style={{ height: '50px', objectFit: 'contain', filter: 'grayscale(100%)' }} alt="Firma" />}
              </div>
              <p style={{ fontWeight: 'bold', fontSize: '11px', marginTop: '5px' }}>FIRMA DEL TRABAJADOR</p>
              <p style={{ fontSize: '10px' }}>DNI: {ficha.dni}</p>

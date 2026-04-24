@@ -1,4 +1,5 @@
 import React, { forwardRef } from 'react'
+import NormalizedSignatureImage from './NormalizedSignatureImage'
 
 export const ActaDerechoSaberPrintable = forwardRef(({ ficha }: { ficha: any }, ref: React.Ref<HTMLDivElement>) => {
   if (!ficha) return null
@@ -215,7 +216,7 @@ export const ActaDerechoSaberPrintable = forwardRef(({ ficha }: { ficha: any }, 
                     {/* Imagen de firma (si existe) */}
                     {ficha.firma_url && (
                         <div style={{flex: 1, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: '2px', width: '100%'}}>
-                            <img 
+                            <NormalizedSignatureImage 
                                 src={ficha.firma_url} 
                                 alt="Firma" 
                                 style={{

@@ -1,4 +1,5 @@
 import { forwardRef } from 'react'
+import NormalizedSignatureImage from './NormalizedSignatureImage'
 
 const styles: Record<string, React.CSSProperties> = {
   page: {
@@ -77,7 +78,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   signatureBox: {
     width: 260,
-    minHeight: 74,
+    minHeight: 62,
     display: 'flex',
     alignItems: 'flex-end',
     justifyContent: 'center',
@@ -196,7 +197,7 @@ export const ActaAcatamientoPrintable = forwardRef<HTMLDivElement, { ficha: any 
       <div style={styles.signatureWrap}>
         <div style={styles.signatureBox}>
           {signatureUrl ? (
-            <img src={signatureUrl} alt="Firma" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+            <NormalizedSignatureImage src={signatureUrl} alt="Firma" style={{ maxWidth: '82%', maxHeight: 46, objectFit: 'contain' }} />
           ) : null}
         </div>
         <div style={styles.signatureLine}>Firma</div>

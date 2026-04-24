@@ -1,4 +1,5 @@
 import React, { forwardRef } from 'react'
+import NormalizedSignatureImage from './NormalizedSignatureImage'
 
 export const InduccionHombreNuevoPrintable = forwardRef(({ ficha }: { ficha: any }, ref: React.Ref<HTMLDivElement>) => {
   if (!ficha) return null
@@ -220,10 +221,10 @@ export const InduccionHombreNuevoPrintable = forwardRef(({ ficha }: { ficha: any
           <div style={styles.sigContainer}>
               <div style={styles.sigImageContainer}>
                   {ficha.firma_url && (
-                      <img 
+                      <NormalizedSignatureImage 
                         src={ficha.firma_url} 
                         alt="Firma" 
-                        style={{maxHeight: '100%', maxWidth: '100%', objectFit: 'contain'}} 
+                        style={{maxHeight: '52px', maxWidth: '82%', objectFit: 'contain'}} 
                       />
                   )}
               </div>

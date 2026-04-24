@@ -1,4 +1,5 @@
 import React, { forwardRef } from 'react'
+import NormalizedSignatureImage from './NormalizedSignatureImage'
 
 export const ActaEntregaIpercPrintable = forwardRef(({ ficha }: { ficha: any }, ref: React.Ref<HTMLDivElement>) => {
   if (!ficha) return null
@@ -132,7 +133,7 @@ export const ActaEntregaIpercPrintable = forwardRef(({ ficha }: { ficha: any }, 
           <div style={styles.signatureLine}>
             <div style={styles.signatureImageWrap}>
               {ficha.firma_url && (
-                <img src={ficha.firma_url} alt="Firma" style={{ maxHeight: '42px', maxWidth: '90%', objectFit: 'contain' }} />
+                <NormalizedSignatureImage src={ficha.firma_url} alt="Firma" style={{ maxHeight: '42px', maxWidth: '90%', objectFit: 'contain' }} />
               )}
             </div>
           </div>

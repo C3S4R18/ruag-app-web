@@ -14,6 +14,7 @@ import BiometricSignature from './ssoma/BiometricSignature'
 import BiometricFingerprint from './ssoma/BiometricFingerprint'
 import { getSignatureUrl, normalizeBiometricFields } from '@/utils/biometric'
 import DocumentPreviewModal from './DocumentPreviewModal'
+import NormalizedSignatureImage from './NormalizedSignatureImage'
 
 // --- DOCUMENTOS IMPRIMIBLES SSOMA ---
 import { CargoRisstPrintable } from './CargoRisstPrintable'
@@ -181,6 +182,25 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
   // --- NUEVA LÓGICA: ALERTAS DE HIJOS MAYORES DE EDAD ---
   const [adultChildrenAlerts, setAdultChildrenAlerts] = useState<any[]>([])
   const [showBirthdayDropdown, setShowBirthdayDropdown] = useState(false)
+
+  const biometricLoop = {
+      rotate: [0, -6, 0, 6, 0],
+      y: [0, -1.5, 0],
+      transition: { duration: 2.8, repeat: Infinity, ease: 'easeInOut' as const }
+  }
+
+  const fingerprintLoop = {
+      scale: [1, 1.08, 1],
+      y: [0, -1, 0],
+      transition: { duration: 2.2, repeat: Infinity, ease: 'easeInOut' as const }
+  }
+
+  const actionLoops = {
+      chat: { rotate: [0, 0, -6, 0], y: [0, -1, 0], transition: { duration: 2.6, repeat: Infinity, ease: 'easeInOut' as const } },
+      view: { scale: [1, 1.08, 1], transition: { duration: 2.4, repeat: Infinity, ease: 'easeInOut' as const } },
+      edit: { rotate: [0, -7, 0], x: [0, 1.5, 0], transition: { duration: 2.5, repeat: Infinity, ease: 'easeInOut' as const } },
+      download: { y: [0, 1.5, 0, -1, 0], transition: { duration: 2.2, repeat: Infinity, ease: 'easeInOut' as const } },
+  }
 
   // --- NUEVA FUNCIÓN PARA ENVIAR NOTIFICACIONES A TODOS SIN DUPLICAR Y CON NOMBRE CORRECTO ---
   const emitAdminAction = async (action: string, details: string) => {
@@ -1201,30 +1221,30 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
       </div>
 
       {/* TABLA DE DATOS */}
-      <div className="flex-1 overflow-auto bg-white min-h-[500px]">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden bg-white min-h-[500px]">
         {/* Aquí la clave: table-fixed para que respete los anchos de columna */}
-        <table className="w-full min-w-max text-left border-collapse table-fixed">
-            <thead className="bg-white sticky top-0 z-20 shadow-sm border-b border-slate-100">
+        <table className="w-full table-fixed border-collapse text-left">
+            <thead className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 shadow-[0_12px_30px_-22px_rgba(15,23,42,0.35)] backdrop-blur-sm">
                 <tr>
-                    <th className="px-4 py-3 w-12 text-center"><button onClick={() => handleSelectAll(filteredAndSorted)} className="text-slate-300 hover:text-blue-600 transition-colors">{filteredAndSorted.length > 0 && filteredAndSorted.every(w => selectedIds.includes(w.id)) ? <CheckSquare size={20} className="text-blue-600"/> : <Square size={20}/>}</button></th>
+                    <th className="w-11 px-3 py-3 text-center"><button onClick={() => handleSelectAll(filteredAndSorted)} className="text-slate-300 hover:text-blue-600 transition-colors">{filteredAndSorted.length > 0 && filteredAndSorted.every(w => selectedIds.includes(w.id)) ? <CheckSquare size={18} className="text-blue-600"/> : <Square size={18}/>}</button></th>
                     
                     {/* COLABORADOR - ANCHO FIJO */}
-                    <th className="px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap w-[25%] cursor-pointer hover:text-blue-600 transition-colors" onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}>
+                    <th className="w-[25%] px-4 py-4 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400 whitespace-nowrap cursor-pointer hover:text-blue-600 transition-colors" onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}>
                         <div className="flex items-center gap-2">
                             Colaborador {sortOrder === 'asc' ? <ArrowUpDown size={12}/> : <ArrowUpDown size={12}/>}
                         </div>
                     </th>
                     
                     {/* UBICACIÓN - ANCHO FIJO */}
-                    <th className="px-4 py-3 text-[11px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap w-[20%]">Ubicación / Cargo</th>
+                    <th className="w-[19%] px-4 py-4 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400 whitespace-nowrap">Ubicación / Cargo</th>
                     
                     {/* NUEVAS COLUMNAS - ANCHOS FIJOS */}
-                    <th className="px-4 py-3 text-center text-[11px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap w-[15%]">Estado Ficha</th>
-                    <th className="px-4 py-3 text-center text-[11px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap w-[15%]">Confirmación</th>
-                    <th className="px-4 py-3 text-center text-[11px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap w-[10%]">Biometría</th>
+                    <th className="w-[13%] px-3 py-4 text-center text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400 whitespace-nowrap">Estado Ficha</th>
+                    <th className="w-[13%] px-3 py-4 text-center text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400 whitespace-nowrap">Confirmación</th>
+                    <th className="w-[11%] px-3 py-4 text-center text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400 whitespace-nowrap">Biometría</th>
                     
                     {/* ACCIONES - ANCHO FIJO CRUCIAL */}
-                    <th className="px-4 py-3 text-right text-[11px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap w-[140px]">Acciones</th>
+                    <th className="w-[168px] px-4 py-4 text-right text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400 whitespace-nowrap">Acciones</th>
                 </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -1241,17 +1261,17 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                         transition={{ delay: index * 0.02 }} 
                         draggable={true}
                         onDragStart={(e) => handleDragStart(e as unknown as React.DragEvent<HTMLTableRowElement>, ficha)}
-                        className={`group hover:bg-slate-50/80 transition-colors cursor-move active:cursor-grabbing ${selectedIds.includes(ficha.id) ? 'bg-blue-50/30' : ''}`} 
+                        className={`group cursor-move border-b border-slate-100/80 transition-colors active:cursor-grabbing ${selectedIds.includes(ficha.id) ? 'bg-blue-50/40' : 'hover:bg-slate-50/90'}`} 
                         onClick={() => setSelectedFicha(ficha)}
                     >
-                        <td className="px-4 py-3 text-center" onClick={(e) => e.stopPropagation()}><button onClick={() => handleSelectOne(ficha.id)} className="text-slate-300 hover:text-blue-600 transition-colors">{selectedIds.includes(ficha.id) ? <CheckSquare size={20} className="text-blue-600"/> : <Square size={20}/>}</button></td>
+                        <td className="px-3 py-3 text-center" onClick={(e) => e.stopPropagation()}><button onClick={() => handleSelectOne(ficha.id)} className="text-slate-300 hover:text-blue-600 transition-colors">{selectedIds.includes(ficha.id) ? <CheckSquare size={18} className="text-blue-600"/> : <Square size={18}/>}</button></td>
                         
                         {/* COLABORADOR - TRUNCATE PARA QUE NO SE SALGA */}
                         <td className="px-4 py-3 overflow-hidden">
-                            <div className="flex items-center gap-4 max-w-full">
-                                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-50 to-blue-50 flex items-center justify-center text-blue-600 font-bold text-sm border border-blue-100 shadow-sm shrink-0 uppercase relative">{ficha.nombres?.charAt(0)}{ficha.apellido_paterno?.charAt(0)}<span className="absolute -bottom-1 -right-1 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full"></span></div>
+                            <div className="flex items-center gap-3 max-w-full">
+                                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-50 to-blue-50 flex items-center justify-center text-blue-600 font-bold text-sm border border-blue-100 shadow-sm shrink-0 uppercase relative">{ficha.nombres?.charAt(0)}{ficha.apellido_paterno?.charAt(0)}<span className="absolute -bottom-1 -right-1 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full"></span></div>
                                 <div className="min-w-0">
-                                    <p className="font-bold text-slate-800 text-sm truncate group-hover:text-blue-700 transition-colors">{ficha.apellido_paterno} {ficha.apellido_materno}, {ficha.nombres}</p>
+                                    <p className="truncate text-[13px] font-bold text-slate-800 transition-colors group-hover:text-blue-700">{ficha.apellido_paterno} {ficha.apellido_materno}, {ficha.nombres}</p>
                                     <div className="flex items-center gap-2 mt-0.5"><span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">{ficha.dni}</span></div>
                                 </div>
                             </div>
@@ -1260,12 +1280,12 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                         {/* UBICACIÓN - TRUNCATE Y TOOLTIP */}
                         <td className="px-4 py-3 overflow-hidden">
                             <div className="flex flex-col gap-1 max-w-full">
-                                <div className="flex items-center gap-1.5 text-xs font-medium text-slate-700 w-full" title={ficha.nombre_obra}>
-                                    <Building2 size={13} className="text-slate-400 shrink-0"/>
+                                <div className="flex items-center gap-1.5 text-[12px] font-medium text-slate-700 w-full" title={ficha.nombre_obra}>
+                                    <Building2 size={12} className="text-slate-400 shrink-0"/>
                                     <span className="truncate block w-full">{ficha.nombre_obra || 'Sin Obra'}</span>
                                 </div>
-                                <div className="flex items-center gap-1.5 text-xs text-slate-500 w-full">
-                                    <HardHat size={13} className="text-slate-400 shrink-0"/>
+                                <div className="flex items-center gap-1.5 text-[12px] text-slate-500 w-full">
+                                    <HardHat size={12} className="text-slate-400 shrink-0"/>
                                     <span className="truncate block w-full capitalize">{ficha.cargo || 'Sin Cargo'}</span>
                                 </div>
                             </div>
@@ -1307,21 +1327,42 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                         </td>
                         
                         {/* BIOMETRÍA */}
-                        <td className="px-4 py-3"><div className="flex items-center justify-center gap-3"><div className={`p-2 rounded-lg border transition-all ${getSignatureUrl(ficha) ? 'bg-emerald-50/50 border-emerald-200 text-emerald-600' : 'bg-slate-50 border-slate-100 text-slate-300'}`} title={getSignatureUrl(ficha) ? "Firma Registrada" : "Falta Firma"}><PenTool size={14}/></div><div className={`p-2 rounded-lg border transition-all ${ficha.huella_url ? 'bg-emerald-50/50 border-emerald-200 text-emerald-600' : 'bg-slate-50 border-slate-100 text-slate-300'}`} title={ficha.huella_url ? "Huella Registrada" : "Falta Huella"}><Fingerprint size={14}/></div></div></td>
+                        <td className="px-3 py-3">
+                            <div className="flex items-center justify-center gap-2.5">
+                                <motion.div
+                                    animate={getSignatureUrl(ficha) ? biometricLoop : undefined}
+                                    whileHover={{ y: -1, scale: 1.05 }}
+                                    className={`relative flex h-10 w-10 items-center justify-center rounded-2xl border shadow-sm transition-all ${getSignatureUrl(ficha) ? 'border-emerald-200 bg-emerald-50 text-emerald-600 shadow-emerald-100/70' : 'border-slate-200 bg-slate-50 text-slate-300'}`}
+                                    title={getSignatureUrl(ficha) ? 'Firma registrada' : 'Falta firma'}
+                                >
+                                    <PenTool size={14} />
+                                    <span className={`absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-white ${getSignatureUrl(ficha) ? 'bg-emerald-500' : 'bg-slate-300'}`}></span>
+                                </motion.div>
+                                <motion.div
+                                    animate={ficha.huella_url ? fingerprintLoop : undefined}
+                                    whileHover={{ y: -1, scale: 1.05 }}
+                                    className={`relative flex h-10 w-10 items-center justify-center rounded-2xl border shadow-sm transition-all ${ficha.huella_url ? 'border-cyan-200 bg-cyan-50 text-cyan-600 shadow-cyan-100/70' : 'border-slate-200 bg-slate-50 text-slate-300'}`}
+                                    title={ficha.huella_url ? 'Huella registrada' : 'Falta huella'}
+                                >
+                                    <Fingerprint size={14} />
+                                    <span className={`absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-white ${ficha.huella_url ? 'bg-cyan-500' : 'bg-slate-300'}`}></span>
+                                </motion.div>
+                            </div>
+                        </td>
                         
                         {/* ACCIONES */}
                         <td className="px-4 py-3 text-right">
-                            <div className="flex items-center justify-end gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
-                                <div className="flex items-center gap-2">
+                            <div className="flex items-center justify-end">
+                                <div className="flex items-center gap-1.5 rounded-2xl border border-slate-200/90 bg-white/90 px-2 py-1.5 shadow-sm transition-all group-hover:border-slate-300 group-hover:shadow-md">
                                     {onOpenChat && (
-                                        <button onClick={(e) => { e.stopPropagation(); handleChatClick(ficha) }} className="relative p-2.5 text-slate-400 hover:text-white hover:bg-indigo-600 rounded-xl transition-all active:scale-95" title="Chat con trabajador">
-                                            <MessageSquare size={16} />
+                                        <motion.button animate={actionLoops.chat} whileHover={{ y: -1, scale: 1.06 }} whileTap={{ scale: 0.96 }} onClick={(e) => { e.stopPropagation(); handleChatClick(ficha) }} className="relative flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 transition-all hover:bg-indigo-600 hover:text-white" title="Chat con trabajador">
+                                            <MessageSquare size={15} />
                                             {unreadCounts[ficha.user_id] > 0 && (<span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white shadow-sm ring-2 ring-white">{unreadCounts[ficha.user_id]}</span>)}
-                                        </button>
+                                        </motion.button>
                                     )}
-                                    <button onClick={(e) => { e.stopPropagation(); setDocumentsFicha(ficha) }} className="p-2.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded-xl transition-all active:scale-95" title="Ver documentos subidos"><Eye size={16}/></button>
-                                    <button onClick={(e) => { e.stopPropagation(); setSelectedFicha(ficha) }} className="p-2.5 text-slate-400 hover:text-white hover:bg-blue-600 rounded-xl transition-all active:scale-95" title="Editar Ficha"><Edit3 size={16}/></button>
-                                    <button onClick={(e) => { e.stopPropagation(); handleDownloadPDF(ficha) }} className="p-2.5 text-slate-400 hover:text-white hover:bg-emerald-600 rounded-xl transition-all active:scale-95" title="Descargar PDF"><Download size={16}/></button>
+                                    <motion.button animate={actionLoops.view} whileHover={{ y: -1, scale: 1.06 }} whileTap={{ scale: 0.96 }} onClick={(e) => { e.stopPropagation(); setDocumentsFicha(ficha) }} className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 transition-all hover:bg-slate-700 hover:text-white" title="Ver documentos subidos"><Eye size={15}/></motion.button>
+                                    <motion.button animate={actionLoops.edit} whileHover={{ y: -1, scale: 1.06 }} whileTap={{ scale: 0.96 }} onClick={(e) => { e.stopPropagation(); setSelectedFicha(ficha) }} className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 transition-all hover:bg-blue-600 hover:text-white" title="Editar Ficha"><Edit3 size={15}/></motion.button>
+                                    <motion.button animate={actionLoops.download} whileHover={{ y: -1, scale: 1.06 }} whileTap={{ scale: 0.96 }} onClick={(e) => { e.stopPropagation(); handleDownloadPDF(ficha) }} className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 transition-all hover:bg-emerald-600 hover:text-white" title="Descargar PDF"><Download size={15}/></motion.button>
                                 </div>
                             </div>
                         </td>
@@ -1675,9 +1716,9 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
                             </div>
                         </Section>
                         <Section title="Firma Registrada" icon={<PenTool size={18}/>}>
-                             <div className="border border-dashed border-slate-300 rounded-lg p-4 bg-slate-50 flex justify-center">
-                                {getSignatureUrl(formData) ? (
-                                    <img src={getSignatureUrl(formData) || ''} alt="Firma" className="max-h-24 object-contain" />
+                                <div className="border border-dashed border-slate-300 rounded-lg p-4 bg-slate-50 flex justify-center">
+                                    {getSignatureUrl(formData) ? (
+                                    <NormalizedSignatureImage src={getSignatureUrl(formData) || ''} alt="Firma" className="max-h-24 object-contain" />
                                 ) : <span className="text-slate-400 text-xs">Sin firma registrada</span>}
                              </div>
                         </Section>

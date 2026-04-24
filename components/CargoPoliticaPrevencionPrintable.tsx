@@ -1,5 +1,6 @@
 /* eslint-disable @next/next/no-img-element */
 import React from 'react'
+import NormalizedSignatureImage from './NormalizedSignatureImage'
 
 export const CargoPoliticaPrevencionPrintable = ({ ficha }: { ficha: any }) => {
   const today = new Date()
@@ -91,10 +92,10 @@ export const CargoPoliticaPrevencionPrintable = ({ ficha }: { ficha: any }) => {
         <div className="flex flex-col w-64">
           <div className="h-24 w-full flex items-end justify-center overflow-hidden mb-2">
             {ficha.firma_url && (
-              <img
+              <NormalizedSignatureImage
                 src={ficha.firma_url}
                 alt="Firma"
-                className="max-h-20 max-w-[85%] object-contain"
+                style={{ maxHeight: '56px', maxWidth: '82%', objectFit: 'contain' }}
               />
             )}
           </div>

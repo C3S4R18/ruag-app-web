@@ -17,6 +17,18 @@ import { buildBiometricUpdate, getSignatureUrl, normalizeBiometricFields } from 
 // IMPORTS COMPONENTES
 import BiometricSignature from '@/components/ssoma/BiometricSignature'
 import BiometricFingerprint from '@/components/ssoma/BiometricFingerprint'
+import { CargoRisstPrintable } from '@/components/CargoRisstPrintable'
+import { RegistroCapacitacionPrintable } from '@/components/RegistroCapacitacionPrintable'
+import { EntregaEppPrintable } from '@/components/EntregaEppPrintable'
+import { ActaEntregaIpercPrintable } from '@/components/ActaEntregaIpercPrintable'
+import { InduccionHombreNuevoPrintable } from '@/components/InduccionHombreNuevoPrintable'
+import { ActaDerechoSaberPrintable } from '@/components/ActaDerechoSaberPrintable'
+import { FichaSintomatologicaPrintable } from '@/components/FichaSintomatologicaPrintable'
+import { ActaAcatamientoPrintable } from '@/components/ActaAcatamientoPrintable'
+import { ActaEntregaResultadosEmoPrintable } from '@/components/ActaEntregaResultadosEmoPrintable'
+import { CargoRecomendacionesPrintable } from '@/components/CargoRecomendacionesPrintable'
+import { CargoRitPrintable } from '@/components/CargoRitPrintable'
+import { CargoPoliticaPrevencionPrintable } from '@/components/CargoPoliticaPrevencionPrintable'
 
 import {
   LayoutGrid, Users, LogOut, ShieldCheck,
@@ -92,6 +104,121 @@ const RRHH_DOCS: DocDefinition[] = [
   { id: 'cargo_politica_prevencion', label: 'Cargo Política de Prevención' },
   { id: 'cargo_rit', label: 'Cargo del Reglamento de Trabajo' },
 ]
+
+const HORIZONTAL_PREVIEW_DOCS = ['capacitacion', 'epp']
+
+function hasSignedPreview(state: any) {
+  if (!state) return false
+  if (state.status === 'completed') return true
+  if (state.completed_at) return true
+  return !!(state.data && Object.keys(state.data).length > 0)
+}
+
+function renderSignedDocumentPreview(docId: string, ficha: any) {
+  const props = { ficha }
+
+  switch (docId) {
+    case 'risst':
+      return <CargoRisstPrintable {...props} />
+    case 'capacitacion':
+      return <RegistroCapacitacionPrintable {...props} />
+    case 'epp':
+      return <EntregaEppPrintable {...props} />
+    case 'iperc':
+      return <ActaEntregaIpercPrintable {...props} />
+    case 'induccion':
+      return <InduccionHombreNuevoPrintable {...props} />
+    case 'acta_derecho':
+      return <ActaDerechoSaberPrintable {...props} />
+    case 'ficha_covid':
+      return <FichaSintomatologicaPrintable {...props} />
+    case 'acta_acatamiento':
+      return <ActaAcatamientoPrintable {...props} />
+    case 'acta_emo':
+      return <ActaEntregaResultadosEmoPrintable {...props} />
+    case 'rec_sst':
+      return <CargoRecomendacionesPrintable {...props} />
+    case 'cargo_rit':
+      return <CargoRitPrintable {...props} />
+    case 'cargo_politica_prevencion':
+      return <CargoPoliticaPrevencionPrintable {...props} />
+    default:
+      return null
+  }
+}
+
+function AdminSignedPreviewModal({
+  worker,
+  docStates,
+  docId,
+  label,
+  onClose,
+}: {
+  worker: any
+  docStates: any
+  docId: string
+  label: string
+  onClose: () => void
+}) {
+  const previewFicha = {
+    ...worker,
+    doc_states: docStates || worker.doc_states || {},
+  }
+  const isHorizontal = HORIZONTAL_PREVIEW_DOCS.includes(docId)
+  const previewScale = isHorizontal ? 0.72 : 0.9
+  const preview = renderSignedDocumentPreview(docId, previewFicha)
+
+  if (!preview) return null
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[80] bg-slate-950/55 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 24 }}
+        transition={{ type: 'spring', damping: 24, stiffness: 220 }}
+        className="h-full w-full"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex h-full flex-col">
+          <div className="flex items-center justify-between border-b border-white/10 bg-slate-950/85 px-6 py-4 text-white">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-sky-300">Vista previa firmada</p>
+              <h3 className="mt-1 text-lg font-bold">{label}</h3>
+              <p className="text-xs text-slate-300">
+                Se muestra con la firma y los datos que registró el trabajador.
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              className="rounded-full border border-white/15 bg-white/5 p-2 text-slate-200 transition-colors hover:bg-white/10 hover:text-white"
+              title="Cerrar vista previa"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-auto bg-slate-100">
+            <div className="flex min-h-full items-start justify-center overflow-auto p-6 md:p-8">
+              <div
+                className="origin-top bg-white shadow-2xl ring-1 ring-black/5"
+                style={{ transform: `scale(${previewScale})` }}
+              >
+                {preview}
+              </div>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  )
+}
 
 export default function AdminPage() {
   const supabase = createClient()
@@ -1832,7 +1959,7 @@ function DocumentCenterModal({ mode, workers, selectedWorker, selectedDocs, proc
 }
 
 function SidebarItem({ active, onClick, icon, label }: any) {
-    return <button onClick={onClick} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-all duration-200 group relative ${active ? 'text-white' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>{active && (<motion.div layoutId="active-bg" className="absolute inset-0 bg-blue-600 rounded-xl shadow-lg shadow-blue-900/40" initial={false} transition={{type:'spring', stiffness: 500, damping: 30}} />)}<span className="relative z-10">{icon}</span><span className="relative z-10 tracking-wide">{label}</span>{!active && <ChevronRight size={14} className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity -translate-x-2 group-hover:translate-x-0"/>}</button>
+    return <button onClick={onClick} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-all duration-200 group relative ${active ? 'text-white' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>{active && (<motion.div layoutId="active-bg" className="absolute inset-0 bg-blue-600 rounded-xl shadow-lg shadow-blue-900/40" initial={false} transition={{type:'spring', stiffness: 500, damping: 30}} />)}<motion.span whileHover={{ scale: 1.12, rotate: active ? 0 : -6, y: -1 }} whileTap={{ scale: 0.95 }} className="relative z-10 flex h-6 w-6 items-center justify-center">{icon}</motion.span><span className="relative z-10 tracking-wide">{label}</span>{!active && <ChevronRight size={14} className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity -translate-x-2 group-hover:translate-x-0"/>}</button>
 }
 function StatCard({title, value, desc, icon, bg, delay}: any) {
     return <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay }} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-lg transition-all"><div className="flex justify-between items-start"><div><p className="text-slate-500 text-sm font-medium mb-1">{title}</p><h3 className="text-3xl font-bold text-slate-800 tracking-tight">{value}</h3></div><div className={`p-3 rounded-2xl shadow-lg shadow-blue-900/10 ${bg}`}>{icon}</div></div><div className="mt-4 pt-4 border-t border-slate-50"><div className="text-xs font-bold text-slate-400 flex items-center gap-1.5"><TrendingUp size={14} className="text-emerald-500"/> <span className="text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">{desc}</span></div></div></motion.div>
@@ -2101,6 +2228,7 @@ function BiometricModal({ worker, onClose, onUpdate }: any) {
 function AdminDocsDrawer({ worker, onClose, onUpdate }: any) {
     const supabase = createClient(); 
     const [docStates, setDocStates] = useState<any>(worker.doc_states || {});
+    const [previewDoc, setPreviewDoc] = useState<DocDefinition | null>(null)
     
     useEffect(() => { setDocStates(worker.doc_states || {}) }, [worker]);
     
@@ -2236,9 +2364,11 @@ function AdminDocsDrawer({ worker, onClose, onUpdate }: any) {
                         
                         <div className="space-y-3">
                             {DIGITAL_DOCS.map((doc) => { 
-                                const status = docStates[doc.id]?.status || 'locked'; 
+                                const currentState = docStates[doc.id] || {}
+                                const status = currentState.status || 'locked'; 
                                 const isUnlocked = status === 'unlocked'; 
                                 const isCompleted = status === 'completed'; 
+                                const canPreview = hasSignedPreview(currentState)
                                 
                                 return (
                                     <div key={doc.id} className={`p-4 rounded-2xl border flex items-center justify-between transition-all group ${isCompleted ? 'bg-emerald-50/50 border-emerald-200' : isUnlocked ? 'bg-white border-blue-200 shadow-md shadow-blue-100/50 ring-1 ring-blue-100' : 'bg-white border-slate-200 shadow-sm opacity-70 grayscale'}`}>
@@ -2255,6 +2385,15 @@ function AdminDocsDrawer({ worker, onClose, onUpdate }: any) {
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-2">
+                                                {canPreview && (
+                                                    <button
+                                                        onClick={() => setPreviewDoc(doc)}
+                                                        className="p-2 rounded-lg text-slate-400 hover:bg-sky-50 hover:text-sky-600 transition-colors"
+                                                        title="Ver documento firmado"
+                                                    >
+                                                        <Eye size={16} />
+                                                    </button>
+                                                )}
                                                 <button onClick={() => resetDoc(doc.id)} className="p-2 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors" title="Reiniciar"><Trash2 size={16} /></button>
                                                 <button onClick={() => toggleLock(doc.id)} className={`p-2 rounded-lg transition-all shadow-sm ${isUnlocked ? 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-purple-200' : 'bg-white border border-slate-200 text-slate-500 hover:bg-slate-50'}`} title={isUnlocked ? "Bloquear" : "Habilitar"}>{isUnlocked ? <Unlock size={18} /> : <Lock size={18} />}</button>
                                             </div>
@@ -2269,6 +2408,17 @@ function AdminDocsDrawer({ worker, onClose, onUpdate }: any) {
                     <button className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-colors shadow-lg shadow-slate-900/20" onClick={onClose}>Cerrar Panel</button>
                 </div>
             </motion.div>
+            <AnimatePresence>
+                {previewDoc && (
+                    <AdminSignedPreviewModal
+                        worker={worker}
+                        docStates={docStates}
+                        docId={previewDoc.id}
+                        label={previewDoc.label}
+                        onClose={() => setPreviewDoc(null)}
+                    />
+                )}
+            </AnimatePresence>
         </motion.div>
     )
 }
@@ -2501,6 +2651,7 @@ function AdminUploadDrawer({ worker, onClose, onUpdate }: any) {
 function AdminRRHHDrawer({ worker, onClose, onUpdate }: any) {
     const supabase = createClient()
     const [docStates, setDocStates] = useState<any>(worker.doc_states || {})
+    const [previewDoc, setPreviewDoc] = useState<DocDefinition | null>(null)
 
     useEffect(() => { setDocStates(worker.doc_states || {}) }, [worker])
 
@@ -2655,9 +2806,11 @@ function AdminRRHHDrawer({ worker, onClose, onUpdate }: any) {
                         
                         <div className="space-y-3">
                             {RRHH_DOCS.map((doc) => {
-                                const status = docStates[doc.id]?.status || 'locked'
+                                const currentState = docStates[doc.id] || {}
+                                const status = currentState.status || 'locked'
                                 const isUnlocked = status === 'unlocked'
                                 const isCompleted = status === 'completed'
+                                const canPreview = hasSignedPreview(currentState)
 
                                 return (
                                     <div key={doc.id} className={`p-4 rounded-2xl border flex items-center justify-between transition-all group ${isCompleted ? 'bg-emerald-50/50 border-emerald-200' : isUnlocked ? 'bg-white border-purple-200 shadow-md shadow-purple-100/50 ring-1 ring-purple-100' : 'bg-white border-slate-200 shadow-sm opacity-70 grayscale'}`}>
@@ -2672,6 +2825,15 @@ function AdminRRHHDrawer({ worker, onClose, onUpdate }: any) {
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-2">
+                                                {canPreview && (
+                                                    <button
+                                                        onClick={() => setPreviewDoc(doc)}
+                                                        className="p-2 rounded-lg text-slate-400 hover:bg-sky-50 hover:text-sky-600 transition-colors"
+                                                        title="Ver documento firmado"
+                                                    >
+                                                        <Eye size={16} />
+                                                    </button>
+                                                )}
                                                 <button onClick={() => resetDoc(doc.id)} className="p-2 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors" title="Reiniciar"><Trash2 size={16} /></button>
                                                 <button onClick={() => toggleLock(doc.id)} className={`p-2 rounded-lg transition-all shadow-sm ${isUnlocked ? 'bg-purple-600 text-white hover:bg-purple-700 hover:shadow-purple-200' : 'bg-white border border-slate-200 text-slate-500 hover:bg-slate-50'}`} title={isUnlocked ? "Bloquear" : "Habilitar"}>{isUnlocked ? <Unlock size={18} /> : <Lock size={18} />}</button>
                                             </div>
@@ -2686,6 +2848,17 @@ function AdminRRHHDrawer({ worker, onClose, onUpdate }: any) {
                     <button className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-colors shadow-lg shadow-slate-900/20" onClick={onClose}>Cerrar Panel</button>
                 </div>
             </motion.div>
+            <AnimatePresence>
+                {previewDoc && (
+                    <AdminSignedPreviewModal
+                        worker={worker}
+                        docStates={docStates}
+                        docId={previewDoc.id}
+                        label={previewDoc.label}
+                        onClose={() => setPreviewDoc(null)}
+                    />
+                )}
+            </AnimatePresence>
         </motion.div>
     )
 }

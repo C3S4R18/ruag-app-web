@@ -1,4 +1,5 @@
 import React, { forwardRef } from 'react'
+import NormalizedSignatureImage from './NormalizedSignatureImage'
 
 export const RegistroCapacitacionPrintable = forwardRef(({ ficha }: { ficha: any }, ref: React.Ref<HTMLDivElement>) => {
   if (!ficha) return null
@@ -214,7 +215,7 @@ export const RegistroCapacitacionPrintable = forwardRef(({ ficha }: { ficha: any
             <td style={{ ...styles.cell, padding: 0, height: '35px', textAlign: 'center' }}>
               <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {ficha.firma_url ? (
-                  <img src={ficha.firma_url} alt="Firma" style={{ maxHeight: '30px', maxWidth: '90%', objectFit: 'contain' }} />
+                  <NormalizedSignatureImage src={ficha.firma_url} alt="Firma" style={{ maxHeight: '30px', maxWidth: '90%', objectFit: 'contain' }} />
                 ) : null}
               </div>
             </td>
