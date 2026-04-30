@@ -1,5 +1,6 @@
 import { forwardRef } from 'react'
 import NormalizedSignatureImage from './NormalizedSignatureImage'
+import { buildWorkerFullNameUpper, getPrintObra, toPrintUppercase } from './printText'
 
 const styles: Record<string, React.CSSProperties> = {
   page: {
@@ -89,7 +90,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
 }
 
-const getFullName = (ficha: any) => [ficha?.nombres, ficha?.apellido_paterno, ficha?.apellido_materno].filter(Boolean).join(' ').trim()
+const getFullName = (ficha: any) => buildWorkerFullNameUpper(ficha)
 const getDocData = (ficha: any) => ficha?.doc_states?.acta_emo?.data || {}
 const getSignatureUrl = (ficha: any) => ficha?.url_firma || ficha?.firma_url || ''
 const formatDate = (raw?: string) => {
@@ -102,9 +103,9 @@ export const ActaEntregaResultadosEmoPrintable = forwardRef<HTMLDivElement, { fi
   const docData = getDocData(ficha)
   const fullName = getFullName(ficha)
   const dni = ficha?.dni || ''
-  const cargo = docData.cargo || ficha?.cargo || ''
-  const area = docData.area || ficha?.area || ''
-  const sedeObra = docData.sede_obra || ficha?.nombre_obra || ''
+  const cargo = toPrintUppercase(docData.cargo || ficha?.cargo || 'OPERARIO')
+  const area = toPrintUppercase(docData.area || ficha?.area || '')
+  const sedeObra = toPrintUppercase(docData.sede_obra || getPrintObra(ficha))
   const fechaEvaluacion = formatDate(docData.fecha_evaluacion)
   const fechaDocumento = formatDate(docData.fecha_documento)
   const colaboradorFirma = getSignatureUrl(ficha)

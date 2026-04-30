@@ -1,5 +1,6 @@
 import { forwardRef } from 'react'
 import NormalizedSignatureImage from './NormalizedSignatureImage'
+import { buildWorkerFullNameUpper } from './printText'
 
 const styles: Record<string, React.CSSProperties> = {
   page: {
@@ -107,7 +108,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
 }
 
-const getFullName = (ficha: any) => [ficha?.nombres, ficha?.apellido_paterno, ficha?.apellido_materno].filter(Boolean).join(' ').trim()
+const getFullName = (ficha: any) => buildWorkerFullNameUpper(ficha)
 const getDocData = (ficha: any) => ficha?.doc_states?.rec_sst?.data || {}
 const getSignatureUrl = (ficha: any) => ficha?.url_firma || ficha?.firma_url || ''
 const months = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']

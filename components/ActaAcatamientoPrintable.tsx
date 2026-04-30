@@ -1,5 +1,6 @@
 import { forwardRef } from 'react'
 import NormalizedSignatureImage from './NormalizedSignatureImage'
+import { buildWorkerFullNameUpper } from './printText'
 
 const styles: Record<string, React.CSSProperties> = {
   page: {
@@ -123,7 +124,7 @@ const styles: Record<string, React.CSSProperties> = {
 }
 
 function getFullName(ficha: any) {
-  return [ficha?.nombres, ficha?.apellido_paterno, ficha?.apellido_materno].filter(Boolean).join(' ').trim()
+  return buildWorkerFullNameUpper(ficha)
 }
 
 function getDocData(ficha: any) {

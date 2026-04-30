@@ -87,7 +87,7 @@ const RRHH_DOCS = [
 const DEFAULT_PRINT_LAYOUT = { orientation: 'p' as const, width: 210, height: 297 }
 
 const PRINT_PAGE_LAYOUTS: Record<string, { orientation: 'p' | 'l'; width: number; height: number }> = {
-    capacitacion: { orientation: 'l', width: 297, height: 210 },
+    capacitacion: { orientation: 'p', width: 210, height: 297 },
     epp: { orientation: 'l', width: 297, height: 210 },
 }
 

@@ -1,5 +1,6 @@
 import { forwardRef } from 'react'
 import NormalizedSignatureImage from './NormalizedSignatureImage'
+import { buildWorkerLastNamesFirstUpper, toPrintUppercase } from './printText'
 
 const styles: Record<string, React.CSSProperties> = {
   page: {
@@ -173,7 +174,7 @@ const riskLabels = [
 
 const getDocData = (ficha: any) => ficha?.doc_states?.ficha_covid?.data || {}
 const getSignatureUrl = (ficha: any) => ficha?.url_firma || ficha?.firma_url || ''
-const getFullName = (ficha: any) => [ficha?.apellido_paterno, ficha?.apellido_materno, ficha?.nombres].filter(Boolean).join(' ').trim()
+const getFullName = (ficha: any) => buildWorkerLastNamesFirstUpper(ficha)
 const formatDate = (raw?: string) => {
   if (!raw) return new Date().toLocaleDateString('es-PE')
   const d = new Date(raw)
@@ -188,8 +189,8 @@ export const FichaSintomatologicaPrintable = forwardRef<HTMLDivElement, { ficha:
   const docData = getDocData(ficha)
   const fullName = getFullName(ficha)
   const dni = ficha?.dni || ''
-  const areaTrabajo = docData.area_trabajo || ficha?.cargo || ''
-  const direccion = docData.direccion_domicilio || ficha?.direccion || ''
+  const areaTrabajo = toPrintUppercase(docData.area_trabajo || ficha?.cargo || '')
+  const direccion = toPrintUppercase(docData.direccion_domicilio || ficha?.direccion || '')
   const celular = docData.celular || ficha?.celular || ficha?.telefono || ''
   const firma = getSignatureUrl(ficha)
   const fecha = formatDate(docData.fecha_documento)

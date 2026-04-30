@@ -1,6 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 import React from 'react'
 import NormalizedSignatureImage from './NormalizedSignatureImage'
+import { buildWorkerFullNameUpper, toPrintUppercase } from './printText'
 
 export const CargoRitPrintable = ({ ficha }: { ficha: any }) => {
   const today = new Date()
@@ -39,9 +40,9 @@ export const CargoRitPrintable = ({ ficha }: { ficha: any }) => {
 
       <div className="space-y-8 text-base text-justify px-4 text-black">
         <p className="leading-8">
-          Yo, <span className="font-bold uppercase px-2">{ficha.nombres} {ficha.apellido_paterno} {ficha.apellido_materno}</span>,
+          Yo, <span className="font-bold uppercase px-2">{buildWorkerFullNameUpper(ficha)}</span>,
           identificado con DNI N° <span className="font-bold px-2">{ficha.dni}</span>,
-          colaborador de RUAG S.R.L., ocupando el cargo de <span className="font-bold uppercase px-2">{ficha.cargo || 'OPERARIO'}</span>,
+          colaborador de RUAG S.R.L., ocupando el cargo de <span className="font-bold uppercase px-2">{toPrintUppercase(ficha.cargo || 'OPERARIO')}</span>,
           declaro lo siguiente:
         </p>
 

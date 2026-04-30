@@ -1,5 +1,7 @@
 import React, { forwardRef } from 'react'
 import NormalizedSignatureImage from './NormalizedSignatureImage'
+import PrintableCheckbox from './PrintableCheckbox'
+import { buildWorkerLastNamesFirstUpper, getPrintObra, toPrintUppercase } from './printText'
 
 export const ActaDerechoSaberPrintable = forwardRef(({ ficha }: { ficha: any }, ref: React.Ref<HTMLDivElement>) => {
   if (!ficha) return null
@@ -89,16 +91,13 @@ export const ActaDerechoSaberPrintable = forwardRef(({ ficha }: { ficha: any }, 
         marginBottom: '2px',
         fontSize: '8px'
     },
-    checkbox: {
-        width: '10px',
-        height: '10px',
-        border: '1px solid #000',
+    checkboxWrap: {
         marginRight: '5px',
-        textAlign: 'center' as const,
-        lineHeight: '10px',
-        fontSize: '9px',
-        fontWeight: 'bold',
-        flexShrink: 0
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
+        paddingTop: '1px'
     }
   }
 
@@ -180,7 +179,7 @@ export const ActaDerechoSaberPrintable = forwardRef(({ ficha }: { ficha: any }, 
         <tbody>
           <tr>
             <td style={styles.labelCell}>OBRA:</td>
-            <td colSpan={3} style={styles.valueCell}>{ficha.nombre_obra || 'OBRA CENTRAL'}</td>
+            <td colSpan={3} style={styles.valueCell}>{getPrintObra(ficha)}</td>
           </tr>
           <tr>
             <td style={styles.labelCell}>EMPRESA:</td>
@@ -189,7 +188,7 @@ export const ActaDerechoSaberPrintable = forwardRef(({ ficha }: { ficha: any }, 
           <tr>
             <td style={styles.labelCell}>NOMBRE DEL TRABAJADOR:</td>
             <td colSpan={3} style={styles.valueCell}>
-                {ficha.apellido_paterno} {ficha.apellido_materno}, {ficha.nombres}
+                {buildWorkerLastNamesFirstUpper(ficha)}
             </td>
           </tr>
           <tr>
@@ -200,7 +199,7 @@ export const ActaDerechoSaberPrintable = forwardRef(({ ficha }: { ficha: any }, 
           {/* BLOQUE DE FIRMA CORREGIDO */}
           <tr>
             <td style={styles.labelCell}>ESPECIALIDAD:</td>
-            <td style={styles.valueCell}>{ficha.cargo}</td>
+            <td style={styles.valueCell}>{toPrintUppercase(ficha.cargo || 'OPERARIO')}</td>
             
             {/* CELDA DE FIRMA: RowSpan 4, contenido alineado al fondo */}
             <td rowSpan={4} colSpan={2} style={{border: '1px solid #000', padding: 0, verticalAlign: 'bottom', width: '35%'}}>
@@ -271,8 +270,8 @@ export const ActaDerechoSaberPrintable = forwardRef(({ ficha }: { ficha: any }, 
             <div>
                 {risks.map((r, i) => (
                     <div key={i} style={styles.listItem}>
-                        <div style={styles.checkbox}>
-                            {docData[`topic_${i}`] ? 'X' : ''}
+                        <div style={styles.checkboxWrap}>
+                            <PrintableCheckbox checked={!!docData[`topic_${i}`]} size={10} fontSize={8} />
                         </div>
                         <div style={{flex: 1}}>
                             <strong>{i+1}.- </strong> {r}

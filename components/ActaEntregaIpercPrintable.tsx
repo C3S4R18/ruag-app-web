@@ -1,5 +1,6 @@
 import React, { forwardRef } from 'react'
 import NormalizedSignatureImage from './NormalizedSignatureImage'
+import { buildWorkerFullNameUpper, getPrintObra, toPrintUppercase } from './printText'
 
 export const ActaEntregaIpercPrintable = forwardRef(({ ficha }: { ficha: any }, ref: React.Ref<HTMLDivElement>) => {
   if (!ficha) return null
@@ -45,6 +46,7 @@ export const ActaEntregaIpercPrintable = forwardRef(({ ficha }: { ficha: any }, 
       fontWeight: 'bold',
       padding: '0 10px',
       paddingBottom: '2px',
+      textTransform: 'uppercase' as const,
     },
     paragraph: {
       textAlign: 'justify' as const,
@@ -100,19 +102,19 @@ export const ActaEntregaIpercPrintable = forwardRef(({ ficha }: { ficha: any }, 
               <div style={{ ...styles.headerTitle, marginTop: '5px' }}>POR PUESTO DE TRABAJO</div>
             </td>
             <td style={{ ...styles.td, width: '20%', padding: 0, fontSize: '10px' }}>
-              <div style={{ borderBottom: '1px solid #000', padding: '4px', textAlign: 'left' }}><strong>CÓDIGO:</strong> SG-FOR-112</div>
-              <div style={{ borderBottom: '1px solid #000', padding: '4px', textAlign: 'left' }}><strong>REVISIÓN:</strong> 01</div>
+              <div style={{ borderBottom: '1px solid #000', padding: '4px', textAlign: 'left' }}><strong>CODIGO:</strong> SG-FOR-112</div>
+              <div style={{ borderBottom: '1px solid #000', padding: '4px', textAlign: 'left' }}><strong>REVISION:</strong> 01</div>
               <div style={{ borderBottom: '1px solid #000', padding: '4px', textAlign: 'left' }}><strong>FECHA:</strong> 1/08/2024</div>
-              <div style={{ padding: '4px', textAlign: 'left' }}><strong>PÁGINA:</strong> 01 / 01</div>
+              <div style={{ padding: '4px', textAlign: 'left' }}><strong>PAGINA:</strong> 01 / 01</div>
             </td>
           </tr>
         </tbody>
       </table>
 
       <div style={styles.paragraph}>
-        Yo, <span style={{ ...styles.inlineField, minWidth: '400px' }}>{ficha.nombres} {ficha.apellido_paterno} {ficha.apellido_materno}</span>,
-        identificado con DNI/CE/Pasaporte Nº <span style={{ ...styles.inlineField, minWidth: '150px' }}>{ficha.dni}</span>,
-        desempeño el cargo de <span style={{ ...styles.inlineField, minWidth: '250px' }}>{ficha.cargo || 'OPERARIO'}</span> en la empresa <span style={{ ...styles.inlineField, minWidth: '150px' }}>RUAG S.R.L.</span> para el proyecto <span style={{ ...styles.inlineField, minWidth: '200px' }}>{ficha.nombre_obra || 'OBRA CENTRAL'}</span>.
+        Yo, <span style={{ ...styles.inlineField, minWidth: '400px' }}>{buildWorkerFullNameUpper(ficha)}</span>,
+        identificado con DNI/CE/Pasaporte N° <span style={{ ...styles.inlineField, minWidth: '150px' }}>{ficha.dni}</span>,
+        desempeño el cargo de <span style={{ ...styles.inlineField, minWidth: '250px' }}>{toPrintUppercase(ficha.cargo || 'OPERARIO')}</span> en la empresa <span style={{ ...styles.inlineField, minWidth: '150px' }}>RUAG S.R.L.</span> para el proyecto <span style={{ ...styles.inlineField, minWidth: '200px' }}>{getPrintObra(ficha)}</span>.
       </div>
 
       <div style={styles.paragraph}>

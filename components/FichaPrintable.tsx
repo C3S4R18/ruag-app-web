@@ -1,5 +1,6 @@
 import React, { forwardRef } from 'react'
 import NormalizedSignatureImage from './NormalizedSignatureImage'
+import { toPrintUppercase } from './printText'
 
 const check = (valorReal: string | null, valorEsperado: string) => {
     return valorReal?.toLowerCase() === valorEsperado.toLowerCase() ? 'X' : ''
@@ -137,11 +138,11 @@ export const FichaPrintable = forwardRef(({ ficha }: { ficha: any }, ref: React.
       <div style={styles.sectionTitle}>I. DATOS GENERALES</div>
       <div style={{ borderTop: '1px solid #000', borderLeft: '1px solid #000' }}>
          <div style={{ display: 'flex' }}>
-            <Field label="APELLIDO PATERNO:" val={ficha.apellido_paterno} width="50%" />
-            <Field label="APELLIDO MATERNO:" val={ficha.apellido_materno} width="50%" />
+            <Field label="APELLIDO PATERNO:" val={toPrintUppercase(ficha.apellido_paterno)} width="50%" />
+            <Field label="APELLIDO MATERNO:" val={toPrintUppercase(ficha.apellido_materno)} width="50%" />
          </div>
          <div style={{ display: 'flex' }}>
-            <Field label="NOMBRES:" val={ficha.nombres} width="100%" />
+            <Field label="NOMBRES:" val={toPrintUppercase(ficha.nombres)} width="100%" />
          </div>
          
          <div style={{ display: 'flex' }}>

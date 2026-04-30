@@ -1,5 +1,7 @@
 import React, { forwardRef } from 'react'
 import NormalizedSignatureImage from './NormalizedSignatureImage'
+import PrintableCheckbox from './PrintableCheckbox'
+import { buildWorkerFullNameUpper, toPrintUppercase } from './printText'
 
 export const InduccionHombreNuevoPrintable = forwardRef(({ ficha }: { ficha: any }, ref: React.Ref<HTMLDivElement>) => {
   if (!ficha) return null
@@ -77,14 +79,10 @@ export const InduccionHombreNuevoPrintable = forwardRef(({ ficha }: { ficha: any
         gap: '10px',
         fontSize: '11px'
     },
-    box: {
-        width: '14px',
-        height: '14px',
-        border: '1px solid #000',
-        textAlign: 'center' as const,
-        lineHeight: '14px',
-        fontSize: '10px',
-        fontWeight: 'bold',
+    boxWrap: {
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
         flexShrink: 0
     },
     // Estilo específico para la Fecha al pie (CORREGIDO)
@@ -181,7 +179,7 @@ export const InduccionHombreNuevoPrintable = forwardRef(({ ficha }: { ficha: any
       <div style={{marginBottom: '30px', paddingLeft: '10px', paddingRight: '10px'}}>
           <div style={styles.row}>
               <div style={styles.label}>NOMBRE:</div>
-              <div style={styles.valueLine}>{ficha.nombres} {ficha.apellido_paterno} {ficha.apellido_materno}</div>
+              <div style={styles.valueLine}>{buildWorkerFullNameUpper(ficha)}</div>
               <div style={{...styles.label, marginLeft: '20px'}}>DNI:</div>
               <div style={{...styles.valueLine, flex: '0 0 120px'}}>{ficha.dni}</div>
           </div>
@@ -190,7 +188,7 @@ export const InduccionHombreNuevoPrintable = forwardRef(({ ficha }: { ficha: any
               <div style={styles.label}>FECHA DE INGRESO:</div>
               <div style={styles.valueLine}>{fechaActual}</div>
               <div style={{...styles.label, marginLeft: '20px'}}>OCUPACION/CARGO:</div>
-              <div style={{...styles.valueLine, flex: '0 0 200px'}}>{ficha.cargo || 'OPERARIO'}</div>
+              <div style={{...styles.valueLine, flex: '0 0 200px'}}>{toPrintUppercase(ficha.cargo || 'OPERARIO')}</div>
           </div>
       </div>
 
@@ -199,9 +197,8 @@ export const InduccionHombreNuevoPrintable = forwardRef(({ ficha }: { ficha: any
           <div style={styles.checkboxList}>
               {topics.map((t, i) => (
                   <div key={i} style={styles.checkItem}>
-                      <div style={styles.box}>
-                          {/* Lectura de datos guardados */}
-                          {docData[`topic_${i}`] ? 'X' : ''}
+                      <div style={styles.boxWrap}>
+                          <PrintableCheckbox checked={!!docData[`topic_${i}`]} size={14} fontSize={10} />
                       </div>
                       <div>{t}</div>
                   </div>

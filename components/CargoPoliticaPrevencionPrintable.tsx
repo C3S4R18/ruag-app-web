@@ -1,6 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 import React from 'react'
 import NormalizedSignatureImage from './NormalizedSignatureImage'
+import { buildWorkerFullNameUpper, toPrintUppercase } from './printText'
 
 export const CargoPoliticaPrevencionPrintable = ({ ficha }: { ficha: any }) => {
   const today = new Date()
@@ -44,7 +45,7 @@ export const CargoPoliticaPrevencionPrintable = ({ ficha }: { ficha: any }) => {
         <div className="flex items-end w-full leading-8">
           <span className="whitespace-nowrap mr-2">Yo</span>
           <div className="flex-1 border-b border-black text-center font-bold uppercase px-2 pb-1">
-            {ficha.nombres} {ficha.apellido_paterno} {ficha.apellido_materno}
+            {buildWorkerFullNameUpper(ficha)}
           </div>
           <span className="whitespace-nowrap ml-2 mr-2">, identificado con DNI</span>
           <div className="w-32 border-b border-black text-center font-bold pb-1">
@@ -56,7 +57,7 @@ export const CargoPoliticaPrevencionPrintable = ({ ficha }: { ficha: any }) => {
         <div className="flex items-end w-full leading-8">
           <span className="whitespace-nowrap mr-2">colaborador de RUAG S.R.L., ocupando el cargo de</span>
           <div className="flex-1 border-b border-black text-center font-bold uppercase px-2 pb-1">
-            {ficha.cargo || 'OPERARIO'}
+            {toPrintUppercase(ficha.cargo || 'OPERARIO')}
           </div>
           <span className="whitespace-nowrap ml-2">, declaro lo siguiente:</span>
         </div>
