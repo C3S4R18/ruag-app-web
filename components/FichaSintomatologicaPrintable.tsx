@@ -2,187 +2,289 @@ import { forwardRef } from 'react'
 import NormalizedSignatureImage from './NormalizedSignatureImage'
 import { buildWorkerLastNamesFirstUpper, toPrintUppercase } from './printText'
 
+const HEADER_DATE = '4/01/2024'
+
 const styles: Record<string, React.CSSProperties> = {
   page: {
     width: '210mm',
     minHeight: '297mm',
     background: '#fff',
-    color: '#111827',
+    color: '#000',
     fontFamily: 'Arial, sans-serif',
-    padding: '14mm 14mm 16mm',
+    padding: '18mm 18mm 14mm',
     boxSizing: 'border-box',
   },
-  header: {
-    border: '1px solid #111',
-    display: 'grid',
-    gridTemplateColumns: '1.2fr 3fr 1.4fr',
-  },
-  cell: {
-    borderRight: '1px solid #111',
-    minHeight: 92,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 8,
-    boxSizing: 'border-box',
-  },
-  titleWrap: {
-    textAlign: 'center',
-    lineHeight: 1.25,
-  },
-  title: {
-    fontSize: 17,
-    fontWeight: 800,
-  },
-  meta: {
-    display: 'grid',
-    gridTemplateRows: 'repeat(4, 1fr)',
-    minHeight: 92,
-  },
-  metaRow: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    borderBottom: '1px solid #111',
-    fontSize: 10,
-  },
-  metaLabel: {
-    padding: '4px 6px',
-    borderRight: '1px solid #111',
-    background: '#f3f4f6',
-    fontWeight: 700,
-  },
-  metaValue: {
-    padding: '4px 6px',
-    textAlign: 'center',
-  },
-  lineFieldWrap: {
-    display: 'grid',
-    gridTemplateColumns: '1.6fr 1fr 0.8fr',
-    gap: 12,
-    marginTop: 18,
-  },
-  lineField: {
-    fontSize: 12,
-  },
-  lineLabel: {
-    display: 'block',
-    fontWeight: 700,
-    marginBottom: 6,
-  },
-  lineValue: {
-    display: 'block',
-    borderBottom: '1px solid #111',
-    minHeight: 20,
-    paddingBottom: 4,
-  },
-  table: {
+  headerTable: {
     width: '100%',
     borderCollapse: 'collapse' as const,
-    marginTop: 18,
-    fontSize: 11.5,
+    tableLayout: 'fixed' as const,
   },
-  th: {
-    border: '1px solid #111',
-    background: '#f3f4f6',
-    padding: '6px 8px',
+  headerCell: {
+    border: '1px solid #000',
+    verticalAlign: 'middle' as const,
+  },
+  logoCell: {
+    width: '18%',
+    padding: '6px 4px',
+    textAlign: 'center' as const,
+  },
+  titleCell: {
+    width: '57%',
+    padding: '6px 10px',
     textAlign: 'center' as const,
     fontWeight: 700,
+    fontSize: '9px',
+    lineHeight: 1.16,
+    letterSpacing: 0.1,
   },
-  td: {
-    border: '1px solid #111',
-    padding: '6px 8px',
-    verticalAlign: 'top' as const,
+  metaCell: {
+    width: '25%',
+    padding: 0,
   },
-  check: {
+  metaTable: {
+    width: '100%',
+    borderCollapse: 'collapse' as const,
+    tableLayout: 'fixed' as const,
+  },
+  metaLabel: {
+    width: '43%',
+    borderRight: '1px solid #000',
+    borderBottom: '1px solid #000',
+    padding: '4px 6px',
+    fontWeight: 700,
+    fontSize: '8px',
+    textAlign: 'left' as const,
+  },
+  metaValue: {
+    borderBottom: '1px solid #000',
+    padding: '4px 2px',
+    fontSize: '8px',
     textAlign: 'center' as const,
-    fontWeight: 800,
-    fontSize: 13,
+  },
+  fieldsWrap: {
+    marginTop: '16mm',
+  },
+  fieldRow: {
+    display: 'grid',
+    gridTemplateColumns: '1.7fr 1fr 0.75fr',
+    columnGap: '10px',
+    marginBottom: '13px',
+    alignItems: 'end',
+  },
+  fieldRowTwo: {
+    display: 'grid',
+    gridTemplateColumns: '1.45fr 1fr',
+    columnGap: '12px',
+    marginBottom: '26px',
+    alignItems: 'end',
+  },
+  field: {
+    display: 'grid',
+    gridTemplateColumns: 'auto 1fr',
+    columnGap: '8px',
+    alignItems: 'end',
+  },
+  fieldLabel: {
+    fontSize: '10px',
+    whiteSpace: 'nowrap' as const,
+  },
+  fieldLine: {
+    borderBottom: '1px solid #000',
+    minHeight: '18px',
+    display: 'flex',
+    alignItems: 'flex-start',
+    padding: '1px 2px 3px',
+    fontSize: '9px',
+    lineHeight: 1.05,
+    textTransform: 'uppercase' as const,
+    overflow: 'hidden',
+  },
+  intro: {
+    marginTop: '22mm',
+    marginBottom: '10px',
+    fontSize: '10px',
+    lineHeight: 1.2,
+  },
+  contentGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 42mm',
+    columnGap: '10px',
+    alignItems: 'start',
+  },
+  leftPane: {
+    fontSize: '10px',
+    lineHeight: 1.18,
+  },
+  symptomRow: {
+    height: '22px',
+    display: 'flex',
+    alignItems: 'center',
+  },
+  medicationRow: {
+    height: '24px',
+    display: 'flex',
+    alignItems: 'center',
+  },
+  riskTitle: {
+    marginTop: '2px',
+    marginBottom: '4px',
   },
   riskGrid: {
     display: 'grid',
     gridTemplateColumns: '1fr 1fr',
-    gap: 8,
-    marginTop: 8,
+    columnGap: '16px',
   },
-  riskItem: {
+  riskColumn: {
+    display: 'grid',
+    gridAutoRows: '16px',
+    rowGap: 0,
+    fontSize: '10px',
+    lineHeight: 1.1,
+  },
+  riskRowLabel: {
     display: 'flex',
     alignItems: 'center',
-    gap: 8,
-    fontSize: 11.5,
   },
-  square: {
-    width: 14,
-    height: 14,
-    border: '1px solid #111',
-    display: 'inline-flex',
+  othersRow: {
+    height: '16px',
+    display: 'flex',
+    alignItems: 'center',
+    marginTop: '6px',
+  },
+  vaccineRow: {
+    height: '18px',
+    display: 'flex',
+    alignItems: 'center',
+    marginTop: '2px',
+  },
+  matrixTable: {
+    width: '100%',
+    borderCollapse: 'collapse' as const,
+    tableLayout: 'fixed' as const,
+  },
+  matrixHead: {
+    border: '1px solid #000',
+    textAlign: 'center' as const,
+    fontWeight: 700,
+    fontSize: '10px',
+    height: '20px',
+    verticalAlign: 'middle' as const,
+  },
+  matrixCell: {
+    borderLeft: '1px solid #000',
+    borderRight: '1px solid #000',
+    borderBottom: '1px solid #000',
+    height: '22px',
+    padding: 0,
+    textAlign: 'center' as const,
+    verticalAlign: 'middle' as const,
+  },
+  matrixCellSmall: {
+    borderLeft: '1px solid #000',
+    borderRight: '1px solid #000',
+    borderBottom: '1px solid #000',
+    height: '16px',
+    padding: 0,
+    textAlign: 'center' as const,
+    verticalAlign: 'middle' as const,
+  },
+  mark: {
+    width: '100%',
+    height: '100%',
+    display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontWeight: 800,
-    fontSize: 11,
+    fontWeight: 700,
+    fontSize: '11px',
+    lineHeight: 1,
+    transform: 'translateY(-0.5px)',
   },
-  footer: {
-    marginTop: 18,
-    fontSize: 12.5,
-    lineHeight: 1.7,
+  footerText: {
+    marginTop: '16mm',
+    fontSize: '10px',
   },
   footerRow: {
     display: 'grid',
     gridTemplateColumns: '1fr 1fr',
-    gap: 24,
-    marginTop: 22,
+    columnGap: '44px',
+    marginTop: '18mm',
     alignItems: 'end',
   },
-  signatureBox: {
-    minHeight: 62,
+  footerLabel: {
+    fontSize: '10px',
+    marginBottom: '8px',
+  },
+  footerLine: {
+    borderBottom: '1px solid #000',
+    minHeight: '18px',
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'center',
+    padding: '1px 2px 3px',
+    fontSize: '9px',
+    lineHeight: 1.05,
+  },
+  signatureArea: {
+    minHeight: '42px',
     display: 'flex',
     alignItems: 'flex-end',
     justifyContent: 'center',
-    marginTop: 12,
-  },
-  signatureLine: {
-    borderTop: '1px solid #111',
-    paddingTop: 8,
-    textAlign: 'center' as const,
-    fontWeight: 700,
   },
 }
 
-const symptomLabels = [
-  'Sensacion de alza termica, fiebre o malestar.',
-  'Dolor de garganta, tos, estornudos o dificultad para respirar.',
-  'Dolor de cabeza, diarrea o congestion nasal.',
-  'Perdida de gusto y/o del olfato.',
-  'Contacto con un caso confirmado de COVID-19.',
+const symptomRows = [
+  { key: 'symptom_1', label: '1. Sensacion de alza termica, fiebre o malestar.' },
+  { key: 'symptom_2', label: '2. Dolor de garganta, tos, estornudos o dificultad para respirar.' },
+  { key: 'symptom_3', label: '3. Dolor de cabeza, diarrea o congestion nasal.' },
+  { key: 'symptom_4', label: '4. Perdida de gusto y/o del olfato.' },
+  { key: 'symptom_5', label: '5. Contacto con un caso confirmado de COVID-19' },
 ]
 
-const riskLabels = [
-  ['risk_mayor_65', 'Mayor de 65 anos'],
-  ['risk_cancer', 'Cancer'],
-  ['risk_renal', 'Enfermedad renal cronica'],
-  ['risk_pulmonar', 'Enfermedad pulmonar cronica'],
-  ['risk_cardiaca', 'Afecciones cardiacas'],
-  ['risk_dm', 'DM tipo 1 o 2'],
-  ['risk_obesidad', 'Obesidad (IMC > 30)'],
-  ['risk_inmuno', 'Inmunosupresion'],
-  ['risk_trasplante', 'Receptor de trasplante de organos'],
-  ['risk_cerebro', 'Enfermedad cerebrovascular'],
-  ['risk_hipertension', 'Hipertension arterial'],
-  ['risk_down', 'Sindrome de Down'],
-  ['risk_embarazo', 'Embarazo'],
-  ['risk_vih', 'Infeccion por VIH'],
+const riskLeft = [
+  { key: 'risk_mayor_65', label: 'Mayor de 65 anos' },
+  { key: 'risk_renal', label: 'Enfermedad renal cronica' },
+  { key: 'risk_cardiaca', label: 'Afecciones cardiacas' },
+  { key: 'risk_obesidad', label: 'Obesidad (IMC>30)' },
+  { key: 'risk_trasplante', label: 'Receptor de trasplante de organos' },
+  { key: 'risk_hipertension', label: 'Hipertension arterial' },
+  { key: 'risk_down', label: 'Sindrome de down' },
+]
+
+const riskRight = [
+  { key: 'risk_cancer', label: 'Cancer' },
+  { key: 'risk_pulmonar', label: 'Enfermedad Pulmonar cronica' },
+  { key: 'risk_dm', label: 'DM tipo 1 o 2' },
+  { key: 'risk_inmuno', label: 'Inmunosupresion' },
+  { key: 'risk_cerebro', label: 'Enfermedad cerebrovascular' },
+  { key: 'risk_embarazo', label: 'Embarazo' },
+  { key: 'risk_vih', label: 'Infeccion por VIH' },
+]
+
+const matrixOrder = [
+  ...symptomRows.map((row) => ({ type: 'yesno' as const, key: row.key })),
+  { type: 'yesno' as const, key: 'medicacion_toma' },
+  ...riskLeft.map((row) => ({ type: 'risk' as const, key: row.key })),
+  ...riskRight.map((row) => ({ type: 'risk' as const, key: row.key })),
+  { type: 'risk' as const, key: 'risk_otros' },
+  { type: 'vaccine' as const, key: 'vacunas_dosis' },
 ]
 
 const getDocData = (ficha: any) => ficha?.doc_states?.ficha_covid?.data || {}
 const getSignatureUrl = (ficha: any) => ficha?.url_firma || ficha?.firma_url || ''
 const getFullName = (ficha: any) => buildWorkerLastNamesFirstUpper(ficha)
+
 const formatDate = (raw?: string) => {
   if (!raw) return new Date().toLocaleDateString('es-PE')
   const d = new Date(raw)
   return Number.isNaN(d.getTime()) ? raw : d.toLocaleDateString('es-PE')
 }
-const mark = (value?: string | boolean) => {
-  if (value === true || value === 'si') return 'X'
-  return ''
+
+const hasMark = (value: any) => value === true || value === 'si' || value === 'SI' || value === 'x' || value === 'X'
+
+const yesNo = (value: any) => {
+  if (value === 'si' || value === 'SI' || value === true) return { yes: 'X', no: '' }
+  if (value === 'no' || value === 'NO') return { yes: '', no: 'X' }
+  return { yes: '', no: '' }
 }
 
 export const FichaSintomatologicaPrintable = forwardRef<HTMLDivElement, { ficha: any }>(({ ficha }, ref) => {
@@ -197,128 +299,166 @@ export const FichaSintomatologicaPrintable = forwardRef<HTMLDivElement, { ficha:
 
   return (
     <div ref={ref} style={styles.page}>
-      <div style={styles.header}>
-        <div style={styles.cell}>
-          <img src="/logo_ruag.png" alt="RUAG" style={{ maxWidth: '100%', maxHeight: 58, objectFit: 'contain' }} />
-        </div>
-        <div style={styles.cell}>
-          <div style={styles.titleWrap}>
-            <div style={styles.title}>EVALUACION DE LA APTITUD PARA EL REGRESO O REINCORPORACION AL TRABAJO</div>
-            <div style={{ ...styles.title, marginTop: 4 }}>DECLARACION JURADA</div>
-          </div>
-        </div>
-        <div style={{ ...styles.cell, borderRight: 'none', padding: 0 }}>
-          <div style={styles.meta}>
-            <div style={styles.metaRow}>
-              <div style={styles.metaLabel}>CODIGO</div>
-              <div style={styles.metaValue}>FOR-COVID-01</div>
-            </div>
-            <div style={styles.metaRow}>
-              <div style={styles.metaLabel}>REVISION</div>
-              <div style={styles.metaValue}>01</div>
-            </div>
-            <div style={styles.metaRow}>
-              <div style={styles.metaLabel}>FECHA</div>
-              <div style={styles.metaValue}>04/01/2024</div>
-            </div>
-            <div style={{ ...styles.metaRow, borderBottom: 'none' }}>
-              <div style={styles.metaLabel}>PAGINA</div>
-              <div style={styles.metaValue}>01 / 01</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div style={styles.lineFieldWrap}>
-        <div style={styles.lineField}>
-          <span style={styles.lineLabel}>Apellidos y Nombres:</span>
-          <span style={styles.lineValue}>{fullName}</span>
-        </div>
-        <div style={styles.lineField}>
-          <span style={styles.lineLabel}>Area de trabajo:</span>
-          <span style={styles.lineValue}>{areaTrabajo}</span>
-        </div>
-        <div style={styles.lineField}>
-          <span style={styles.lineLabel}>DNI:</span>
-          <span style={styles.lineValue}>{dni}</span>
-        </div>
-      </div>
-
-      <div style={{ ...styles.lineFieldWrap, gridTemplateColumns: '2fr 1fr' }}>
-        <div style={styles.lineField}>
-          <span style={styles.lineLabel}>Direccion domicilio:</span>
-          <span style={styles.lineValue}>{direccion}</span>
-        </div>
-        <div style={styles.lineField}>
-          <span style={styles.lineLabel}>Numero (celular):</span>
-          <span style={styles.lineValue}>{celular}</span>
-        </div>
-      </div>
-
-      <table style={styles.table}>
-        <thead>
-          <tr>
-            <th style={{ ...styles.th, textAlign: 'left' }}>En los ultimos 10 dias calendario ha tenido alguno de los sintomas siguientes:</th>
-            <th style={styles.th}>SI</th>
-            <th style={styles.th}>NO</th>
-          </tr>
-        </thead>
+      <table style={styles.headerTable}>
         <tbody>
-          {symptomLabels.map((label, index) => {
-            const yes = docData[`symptom_${index + 1}`] === 'si'
-            const no = docData[`symptom_${index + 1}`] === 'no'
-            return (
-              <tr key={label}>
-                <td style={styles.td}>{`${index + 1}. ${label}`}</td>
-                <td style={{ ...styles.td, ...styles.check }}>{yes ? 'X' : ''}</td>
-                <td style={{ ...styles.td, ...styles.check }}>{no ? 'X' : ''}</td>
-              </tr>
-            )
-          })}
           <tr>
-            <td style={styles.td}>6. Esta tomando alguna medicacion (detallar cual o cuales): {docData.medicacion_detalle || ''}</td>
-            <td style={{ ...styles.td, ...styles.check }}>{docData.medicacion_toma === 'si' ? 'X' : ''}</td>
-            <td style={{ ...styles.td, ...styles.check }}>{docData.medicacion_toma === 'no' ? 'X' : ''}</td>
-          </tr>
-          <tr>
-            <td style={styles.td}>
-              <div>7. Pertenece a algun grupo de riesgo para COVID-19.</div>
-              <div style={styles.riskGrid}>
-                {riskLabels.map(([key, label]) => (
-                  <div key={key} style={styles.riskItem}>
-                    <span style={styles.square}>{mark(docData[key])}</span>
-                    <span>{label}</span>
-                  </div>
-                ))}
-                <div style={styles.riskItem}>
-                  <span style={styles.square}>{docData.risk_otros ? 'X' : ''}</span>
-                  <span>Otros: {docData.risk_otros || ''}</span>
-                </div>
-              </div>
+            <td style={{ ...styles.headerCell, ...styles.logoCell }}>
+              <img src="/logo_ruag.png" alt="RUAG" style={{ maxWidth: '100%', maxHeight: '56px', objectFit: 'contain' }} />
             </td>
-            <td style={{ ...styles.td, ...styles.check }}>{docData.grupo_riesgo === 'si' ? 'X' : ''}</td>
-            <td style={{ ...styles.td, ...styles.check }}>{docData.grupo_riesgo === 'no' ? 'X' : ''}</td>
-          </tr>
-          <tr>
-            <td style={styles.td}>8. Estado de vacunacion para SARS-Cov-2 (# de dosis): {docData.vacunas_dosis || ''}</td>
-            <td style={{ ...styles.td, ...styles.check }} colSpan={2}></td>
+            <td style={{ ...styles.headerCell, ...styles.titleCell }}>
+              EVALUACION DE LA APTITUD PARA EL REGRESO O
+              <br />
+              REINCORPORACION AL TRABAJO - DECLARACION
+              <br />
+              JURADA
+            </td>
+            <td style={{ ...styles.headerCell, ...styles.metaCell }}>
+              <table style={styles.metaTable}>
+                <tbody>
+                  <tr>
+                    <td style={styles.metaLabel}>CODIGO:</td>
+                    <td style={styles.metaValue}>FOR-COVID-01</td>
+                  </tr>
+                  <tr>
+                    <td style={styles.metaLabel}>REVISION:</td>
+                    <td style={styles.metaValue}>01</td>
+                  </tr>
+                  <tr>
+                    <td style={styles.metaLabel}>FECHA:</td>
+                    <td style={styles.metaValue}>{HEADER_DATE}</td>
+                  </tr>
+                  <tr>
+                    <td style={{ ...styles.metaLabel, borderBottom: 'none' }}>PAGINA:</td>
+                    <td style={{ ...styles.metaValue, borderBottom: 'none' }}>01 / 01</td>
+                  </tr>
+                </tbody>
+              </table>
+            </td>
           </tr>
         </tbody>
       </table>
 
-      <div style={styles.footer}>
-        He recibido explicacion del objetivo de esta evaluacion y he respondido con la verdad.
-        <div style={styles.footerRow}>
-          <div>
-            <div style={{ fontWeight: 700, marginBottom: 8 }}>Fecha: {fecha}</div>
+      <div style={styles.fieldsWrap}>
+        <div style={styles.fieldRow}>
+          <div style={styles.field}>
+            <div style={styles.fieldLabel}>Apellidos y Nombres:</div>
+            <div style={styles.fieldLine}>{fullName}</div>
           </div>
-          <div>
-            <div style={{ fontWeight: 700, marginBottom: 8 }}>Firma del trabajador:</div>
-            <div style={styles.signatureBox}>
-              {firma ? <NormalizedSignatureImage src={firma} alt="Firma" style={{ maxWidth: '82%', maxHeight: 46, objectFit: 'contain' }} /> : null}
+          <div style={styles.field}>
+            <div style={styles.fieldLabel}>Area de trabajo:</div>
+            <div style={styles.fieldLine}>{areaTrabajo}</div>
+          </div>
+          <div style={styles.field}>
+            <div style={styles.fieldLabel}>DNI:</div>
+            <div style={styles.fieldLine}>{dni}</div>
+          </div>
+        </div>
+
+        <div style={styles.fieldRowTwo}>
+          <div style={styles.field}>
+            <div style={styles.fieldLabel}>Direccion Domicilio:</div>
+            <div style={styles.fieldLine}>{direccion}</div>
+          </div>
+          <div style={styles.field}>
+            <div style={styles.fieldLabel}>Numero (Celular):</div>
+            <div style={styles.fieldLine}>{celular}</div>
+          </div>
+        </div>
+      </div>
+
+      <div style={styles.intro}>
+        En los ultimos 10 dias calendario ha tenido alguno de los sintomas siguientes:
+      </div>
+
+      <div style={styles.contentGrid}>
+        <div style={styles.leftPane}>
+          {symptomRows.map((row) => (
+            <div key={row.key} style={styles.symptomRow}>{row.label}</div>
+          ))}
+
+          <div style={styles.medicationRow}>
+            6. Esta tomando alguna medicacion (detallar cual o cuales):
+          </div>
+
+          <div style={{ minHeight: '232px' }}>
+            <div style={styles.riskTitle}>7. Pertenece a algun Grupo de Riesgo para COVID-19.</div>
+            <div style={styles.riskGrid}>
+              <div style={styles.riskColumn}>
+                {riskLeft.map((row) => (
+                  <div key={row.key} style={styles.riskRowLabel}>{row.label}</div>
+                ))}
+              </div>
+              <div style={styles.riskColumn}>
+                {riskRight.map((row) => (
+                  <div key={row.key} style={styles.riskRowLabel}>{row.label}</div>
+                ))}
+              </div>
             </div>
-            <div style={styles.signatureLine}>Conformidad digital</div>
+            <div style={styles.othersRow}>Otros*</div>
+            <div style={styles.vaccineRow}>8. Estado de vacunacion para SARS-Cov-2 (# de dosis)</div>
           </div>
+        </div>
+
+        <table style={styles.matrixTable}>
+          <tbody>
+            <tr>
+              <td style={styles.matrixHead}>SI</td>
+              <td style={styles.matrixHead}>NO</td>
+            </tr>
+
+            {matrixOrder.map((row, index) => {
+              if (row.type === 'yesno') {
+                const marks = yesNo(docData[row.key])
+                const cellStyle = index < 6 ? styles.matrixCell : styles.matrixCellSmall
+                return (
+                  <tr key={`${row.type}-${row.key}`}>
+                    <td style={cellStyle}><div style={styles.mark}>{marks.yes}</div></td>
+                    <td style={cellStyle}><div style={styles.mark}>{marks.no}</div></td>
+                  </tr>
+                )
+              }
+
+              if (row.type === 'risk') {
+                return (
+                  <tr key={`${row.type}-${row.key}`}>
+                    <td style={styles.matrixCellSmall}><div style={styles.mark}>{hasMark(docData[row.key]) ? 'X' : ''}</div></td>
+                    <td style={styles.matrixCellSmall}><div style={styles.mark}></div></td>
+                  </tr>
+                )
+              }
+
+              return (
+                <tr key={`${row.type}-${row.key}`}>
+                  <td style={styles.matrixCellSmall}><div style={styles.mark}>{docData.vacunas_dosis || ''}</div></td>
+                  <td style={styles.matrixCellSmall}><div style={styles.mark}></div></td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <div style={styles.footerText}>
+        He recibido explicacion del objetivo de esta evaluacion y he respondido con la verdad
+      </div>
+
+      <div style={styles.footerRow}>
+        <div>
+          <div style={styles.footerLabel}>Fecha:</div>
+          <div style={styles.footerLine}>{fecha}</div>
+        </div>
+        <div>
+          <div style={styles.footerLabel}>Firma del trabajador:</div>
+          <div style={styles.signatureArea}>
+            {firma ? (
+              <NormalizedSignatureImage
+                src={firma}
+                alt="Firma"
+                style={{ maxWidth: '82%', maxHeight: '38px', objectFit: 'contain' }}
+              />
+            ) : null}
+          </div>
+          <div style={styles.footerLine}></div>
         </div>
       </div>
     </div>

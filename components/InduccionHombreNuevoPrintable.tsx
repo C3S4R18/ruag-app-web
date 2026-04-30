@@ -61,10 +61,12 @@ export const InduccionHombreNuevoPrintable = forwardRef(({ ficha }: { ficha: any
         flex: 1,
         borderBottom: '1px dotted #000',
         paddingLeft: '10px',
+        paddingTop: '1px',
         paddingBottom: '6px',
         fontWeight: 'bold',
         textTransform: 'uppercase' as const,
-        minHeight: '20px'
+        minHeight: '20px',
+        lineHeight: 1.05,
     },
     // Lista de Checks
     checkboxList: {

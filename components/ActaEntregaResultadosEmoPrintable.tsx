@@ -61,10 +61,11 @@ const styles: Record<string, React.CSSProperties> = {
   lineText: {
     display: 'inline-block',
     borderBottom: '1px solid #111',
-    padding: '0 8px 2px 8px',
+    padding: '1px 8px 3px 8px',
     minWidth: 80,
     textAlign: 'center',
     fontWeight: 700,
+    lineHeight: 1.05,
   },
   signatures: {
     display: 'grid',

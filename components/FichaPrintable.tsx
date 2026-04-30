@@ -76,9 +76,11 @@ export const FichaPrintable = forwardRef(({ ficha }: { ficha: any }, ref: React.
         justifyContent: 'center',
         fontWeight: 'bold',
         fontSize: '14px',
+        lineHeight: 1,
         marginLeft: 'auto',
         backgroundColor: '#ffffff',
-        color: '#000000'
+        color: '#000000',
+        transform: 'translateY(-0.5px)'
     },
     // Grid Helpers (Simulación de Grid con Flex/CSS Grid nativo inline)
     gridRow: {

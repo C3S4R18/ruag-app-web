@@ -33,7 +33,19 @@ export default function PrintableCheckbox({
         ...style,
       }}
     >
-      {checked ? 'X' : ''}
+      <span
+        style={{
+          display: 'inline-flex',
+          width: '100%',
+          height: '100%',
+          alignItems: 'center',
+          justifyContent: 'center',
+          lineHeight: 1,
+          transform: 'translateY(-0.5px)',
+        }}
+      >
+        {checked ? 'X' : ''}
+      </span>
     </span>
   )
 }

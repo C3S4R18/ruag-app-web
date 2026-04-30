@@ -31,10 +31,10 @@ export const EntregaEppPrintable = forwardRef<HTMLDivElement, { ficha: any }>(
       },
       cell: {
         border: '1px solid #000',
-        padding: '4px 5px',
+        padding: '5px 6px',
         verticalAlign: 'middle' as const,
         textAlign: 'center' as const,
-        lineHeight: 1.1,
+        lineHeight: 1.2,
         fontSize: '9.5px',
       },
       headerCell: {
@@ -210,7 +210,7 @@ export const EntregaEppPrintable = forwardRef<HTMLDivElement, { ficha: any }>(
           <tbody>
             {epps.map((epp, i) => (
               <tr key={i}>
-                <td style={{ ...styles.cell, textAlign: 'left', paddingLeft: '5px', fontSize: '8px', height: '18px' }}>{epp}</td>
+                <td style={{ ...styles.cell, textAlign: 'left', paddingLeft: '6px', fontSize: '8px', height: '20px' }}>{epp}</td>
                 {[1, 2, 3, 4].map((delivery) => {
                   const dateValue = docData[`epp_${i}_delivery_${delivery}_date`] || ''
                   return (
