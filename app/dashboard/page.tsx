@@ -307,6 +307,18 @@ const MANDATORY_DOWNLOADS: Record<string, {file: string, label: string}> = {
     'antisoborno_pdf_download': { file: 'POLITICA ANTISOBORNO Y ANTICORRUPCIÓN.pdf', label: 'Política Antisoborno' }
 }
 
+const shouldPromptMandatoryDownload = (docState: any) => {
+    if (!docState || docState.status !== 'pending_download') return false
+
+    const sentAt = typeof docState.sent_at === 'string' ? docState.sent_at : ''
+    const promptedAt = typeof docState.prompted_at === 'string' ? docState.prompted_at : ''
+
+    if (!sentAt) return !promptedAt
+    if (!promptedAt) return true
+
+    return promptedAt < sentAt
+}
+
 interface NotificationItem {
     id: string;
     msg: string;
@@ -354,6 +366,38 @@ export default function DashboardPage() {
   useEffect(() => { docStatesRef.current = docStates }, [docStates])
   useEffect(() => { fichaStatusRef.current = fichaStatus }, [fichaStatus])
   useEffect(() => { downloadQueueRef.current = downloadQueue }, [downloadQueue])
+
+  const markMandatoryDownloadsPrompted = async (keys: string[]) => {
+      if (!fichaId || keys.length === 0) return
+
+      try {
+          const { data: currentFicha } = await supabase.from('fichas').select('doc_states').eq('id', fichaId).single()
+          const currentStates = currentFicha?.doc_states || {}
+          const nextStates = { ...currentStates }
+          const promptedAt = new Date().toISOString()
+          let changed = false
+
+          keys.forEach((key) => {
+              const currentState = currentStates[key]
+              if (shouldPromptMandatoryDownload(currentState)) {
+                  nextStates[key] = {
+                      ...currentState,
+                      prompted_at: promptedAt,
+                  }
+                  changed = true
+              }
+          })
+
+          if (!changed) return
+
+          await supabase.from('fichas').update({ doc_states: nextStates }).eq('id', fichaId)
+          setDocStates(nextStates)
+          docStatesRef.current = nextStates
+          setFullWorkerData((prev: any) => prev ? { ...prev, doc_states: nextStates } : prev)
+      } catch (error) {
+          console.error('No se pudo marcar la descarga obligatoria como mostrada', error)
+      }
+  }
 
   const playNotificationSound = () => {
       const audio = new Audio('/notification2.mp3')
@@ -423,12 +467,13 @@ export default function DashboardPage() {
                     }
                     
                     // DETECCIÓN DE DESCARGAS PENDIENTES
-                    if (newStatus === 'pending_download' && oldStatus !== 'pending_download') {
+                    if (shouldPromptMandatoryDownload(newDocs[key])) {
                         const config = MANDATORY_DOWNLOADS[key]
                         if (config) {
                             const alreadyInQueue = downloadQueueRef.current.some(item => item.key === key)
                             if (!alreadyInQueue) {
                                 setDownloadQueue(prev => [...prev, { key, label: config.label, file: config.file }])
+                                void markMandatoryDownloadsPrompted([key])
                                 playNotificationSound()
                                 toast.success(`Documento obligatorio recibido: ${config.label}`)
                             }
@@ -472,19 +517,22 @@ export default function DashboardPage() {
           setDocStates(data.doc_states || {})
           setFichaStatus(data.estado || '')
 
-          // Comprobar descargas pendientes y llenar la cola
+          // Comprobar descargas pendientes y llenar la cola una sola vez por envío
           const states = data.doc_states || {}
           const newQueue: any[] = []
+          const keysToMarkAsPrompted: string[] = []
           
           Object.keys(MANDATORY_DOWNLOADS).forEach(key => {
-              if (states[key]?.status === 'pending_download') {
+              if (shouldPromptMandatoryDownload(states[key])) {
                   const config = MANDATORY_DOWNLOADS[key]
                   newQueue.push({ key, label: config.label, file: config.file })
+                  keysToMarkAsPrompted.push(key)
               }
           })
           
           if (newQueue.length > 0) {
               setDownloadQueue(newQueue)
+              void markMandatoryDownloadsPrompted(keysToMarkAsPrompted)
           }
       }
   }
@@ -517,6 +565,7 @@ export default function DashboardPage() {
           const newStates = { 
               ...currentStates, 
               [currentItem.key]: { 
+                  ...(currentStates[currentItem.key] || {}),
                   status: 'downloaded', 
                   downloaded_at: new Date().toISOString() 
               } 
