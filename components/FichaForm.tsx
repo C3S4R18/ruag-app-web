@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/utils/supabase/client'
@@ -23,6 +23,29 @@ const STEPS = [
   { id: 4, title: 'Documentos', icon: <FileBadge size={18} /> },
   { id: 5, title: 'Firma', icon: <PenTool size={18} /> },
 ]
+
+function parseDocumentUrls(value?: string | null) {
+  const raw = value?.trim() || ''
+  if (!raw) return [] as string[]
+
+  if (raw.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed)) {
+        return parsed.map((item) => String(item).trim()).filter(Boolean)
+      }
+    } catch {}
+  }
+
+  return [raw]
+}
+
+function serializeDocumentUrls(urls: string[]) {
+  const normalized = urls.map((item) => item.trim()).filter(Boolean)
+  if (!normalized.length) return ''
+  if (normalized.length === 1) return normalized[0]
+  return JSON.stringify(normalized)
+}
 
 export default function FichaForm() {
   const supabase = createClient()
@@ -73,7 +96,7 @@ export default function FichaForm() {
     url_firma: ''
   })
   
-  // Estado local para Inducción (para mostrar en el dashboard)
+  // Estado local para InducciÃ³n (para mostrar en el dashboard)
   const [induccionState, setInduccionState] = useState({
       videoProgress: 0,
       examenNota: null as number | null,
@@ -121,19 +144,19 @@ export default function FichaForm() {
                 url_firma: getSignatureUrl(ficha)
             })
             
-            // Cargar estado de inducción
+            // Cargar estado de inducciÃ³n
             setInduccionState({
                 videoProgress: ficha.video_progress || 0,
                 examenNota: ficha.examen_nota,
                 ssomaCompleted: ficha.ssoma_completed || false
             })
             
-            // --- CORRECCIÓN CLAVE: Si ya está completado, bloquear inmediatamente ---
+            // --- CORRECCIÃ“N CLAVE: Si ya estÃ¡ completado, bloquear inmediatamente ---
             if (ficha.estado === 'completado') {
                 setIsCompleted(true)
                 setHasStarted(true)
             } else {
-                // Ficha existe pero no está completa → restaurar borrador local si es más reciente
+                // Ficha existe pero no estÃ¡ completa â†’ restaurar borrador local si es mÃ¡s reciente
                 try {
                     const draftStr = localStorage.getItem(`ruag_draft_${user.id}`)
                     if (draftStr) {
@@ -147,7 +170,7 @@ export default function FichaForm() {
                 } catch(e) {}
             }
         } else {
-            // Sin ficha en Supabase → intentar restaurar borrador local primero
+            // Sin ficha en Supabase â†’ intentar restaurar borrador local primero
             try {
                 const draftStr = localStorage.getItem(`ruag_draft_${user.id}`)
                 if (draftStr) {
@@ -167,13 +190,13 @@ export default function FichaForm() {
         supabase.channel('my-ficha').on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'fichas', filter: `user_id=eq.${user.id}` }, (payload) => {
             if(payload.new.estado === 'pendiente') { 
                 setIsCompleted(false)
-                toast.info("Edición habilitada") 
+                toast.info("EdiciÃ³n habilitada") 
             }
             else if (payload.new.estado === 'completado') {
                 setIsCompleted(true)
             }
             
-            // Actualizar estado inducción en tiempo real
+            // Actualizar estado inducciÃ³n en tiempo real
             if (payload.new.video_progress !== undefined || payload.new.examen_nota !== undefined) {
                 setInduccionState({
                     videoProgress: payload.new.video_progress || 0,
@@ -188,8 +211,8 @@ export default function FichaForm() {
     loadUser()
   }, [])
 
-  // --- KEEPALIVE DE SESIÓN ---
-  // Refresca el JWT cada 10 minutos mientras el formulario está abierto.
+  // --- KEEPALIVE DE SESIÃ“N ---
+  // Refresca el JWT cada 10 minutos mientras el formulario estÃ¡ abierto.
   // El JWT de Supabase expira en 60 min; esto garantiza que nunca llegue a vencer.
   useEffect(() => {
     if (isCompleted) return
@@ -199,9 +222,9 @@ export default function FichaForm() {
     return () => clearInterval(interval)
   }, [isCompleted])
 
-  // --- BORRADOR AUTOMÁTICO EN LOCALSTORAGE ---
-  // Guarda en localStorage 1.2s después del último cambio (debounce).
-  // Se restaura al recargar si la ficha aún no está completada.
+  // --- BORRADOR AUTOMÃTICO EN LOCALSTORAGE ---
+  // Guarda en localStorage 1.2s despuÃ©s del Ãºltimo cambio (debounce).
+  // Se restaura al recargar si la ficha aÃºn no estÃ¡ completada.
   useEffect(() => {
     if (!user?.id || isCompleted || isLoadingData) return
     const timer = setTimeout(() => {
@@ -214,10 +237,10 @@ export default function FichaForm() {
   }, [formData, user?.id, isCompleted, isLoadingData])
 
   // --- AUTOGUARDADO CUANDO SE ACTUALIZAN DOCUMENTOS ---
-  // Este useEffect vigila cambios en los documentos y los guarda automáticamente en DB
-  // para que no se pierdan si se refresca la página.
+  // Este useEffect vigila cambios en los documentos y los guarda automÃ¡ticamente en DB
+  // para que no se pierdan si se refresca la pÃ¡gina.
   useEffect(() => {
-      // --- CORRECCIÓN CLAVE: NO AUTOGUARDAR SI YA ESTÁ COMPLETADO ---
+      // --- CORRECCIÃ“N CLAVE: NO AUTOGUARDAR SI YA ESTÃ COMPLETADO ---
       if (isCompleted) return;
 
       if (user && formData.id && (
@@ -231,14 +254,14 @@ export default function FichaForm() {
           formData.doc_hijos_dni ||
           formData.doc_hijos_estudios
       )) {
-          // Usamos un debounce (retraso) pequeño para no saturar si hay muchos cambios rápidos
+          // Usamos un debounce (retraso) pequeÃ±o para no saturar si hay muchos cambios rÃ¡pidos
           const timer = setTimeout(() => {
               guardarProgreso(false, true); // true = silent save (sin toast)
           }, 1000);
           return () => clearTimeout(timer);
       }
   }, [
-      // Añadimos isCompleted a las dependencias para que el efecto reaccione al bloqueo
+      // AÃ±adimos isCompleted a las dependencias para que el efecto reaccione al bloqueo
       isCompleted,
       formData.doc_dni_trabajador, 
       formData.doc_certiadulto,
@@ -263,7 +286,7 @@ export default function FichaForm() {
       setFormData((prev:any) => ({ ...prev, hijos_datos: newHijos }))
   }
 
-  // --- LÓGICA DE FIRMA ---
+  // --- LÃ“GICA DE FIRMA ---
   const handleSignatureEnd = () => { }
    
   const clearSignature = () => { 
@@ -273,7 +296,7 @@ export default function FichaForm() {
       setFormData((prev:any) => ({ ...prev, url_firma: '' })) 
   }
    
-  // --- LÓGICA DE VALIDACIÓN ---
+  // --- LÃ“GICA DE VALIDACIÃ“N ---
   const validateCurrentStep = () => {
     if (currentStep === 1) {
         if (!formData.apellido_paterno || !formData.apellido_materno || !formData.nombres || 
@@ -285,12 +308,12 @@ export default function FichaForm() {
         }
         if (formData.tipo_documento === 'CE') {
             if (formData.dni.length < 6) {
-                toast.error("El Carnet de Extranjería debe tener al menos 6 caracteres.")
+                toast.error("El Carnet de ExtranjerÃ­a debe tener al menos 6 caracteres.")
                 return false
             }
         } else {
             if (!/^\d{8}$/.test(formData.dni)) {
-                toast.error("El DNI debe tener exactamente 8 dígitos numéricos.")
+                toast.error("El DNI debe tener exactamente 8 dÃ­gitos numÃ©ricos.")
                 return false
             }
         }
@@ -298,7 +321,7 @@ export default function FichaForm() {
 
     if (currentStep === 3) {
         if (!formData.cargo || !formData.nombre_obra || !formData.categoria) {
-            toast.error("Por favor, completa toda la información laboral obligatoria.")
+            toast.error("Por favor, completa toda la informaciÃ³n laboral obligatoria.")
             return false
         }
     }
@@ -329,8 +352,8 @@ export default function FichaForm() {
     const { data: { session }, error: refreshError } = await supabase.auth.refreshSession()
     const sessionUser = session?.user ?? null
     if (refreshError || !sessionUser) {
-        toast.error("Tu sesión ha expirado. Vuelve a iniciar sesión e intenta de nuevo.")
-        return { message: "Sesión expirada. Vuelve a iniciar sesión." } as any
+        toast.error("Tu sesiÃ³n ha expirado. Vuelve a iniciar sesiÃ³n e intenta de nuevo.")
+        return { message: "SesiÃ³n expirada. Vuelve a iniciar sesiÃ³n." } as any
     }
 
     if (isCompleted && !complete) return
@@ -362,8 +385,8 @@ export default function FichaForm() {
         
         url_firma: currentSignature, firma_url: currentSignature, updated_at: new Date().toISOString(), 
         
-        // Solo cambiamos el estado si explícitamente se marca como completa (al final) o si es la primera vez.
-        // Si ya está completada, mantenemos 'completado'
+        // Solo cambiamos el estado si explÃ­citamente se marca como completa (al final) o si es la primera vez.
+        // Si ya estÃ¡ completada, mantenemos 'completado'
         estado: complete ? 'completado' : (isCompleted ? 'completado' : 'pendiente')
     }
     
@@ -386,7 +409,7 @@ export default function FichaForm() {
     }
 
     if (!hasSignature) { toast.error("Debes firmar en el recuadro para continuar."); return }
-    if (!declaracionAceptada) { toast.error("Debes aceptar la declaración jurada."); return }
+    if (!declaracionAceptada) { toast.error("Debes aceptar la declaraciÃ³n jurada."); return }
     
     if (!validateCurrentStep()) return
 
@@ -414,17 +437,17 @@ export default function FichaForm() {
                     <div className="relative z-10 flex flex-col items-center gap-4">
                         <div className="bg-white/10 p-4 rounded-full border border-white/20"><Hammer size={40} className="text-white" /></div>
                         <div>
-                            <h2 className="text-2xl font-bold text-white mb-2">¡Ficha de Datos Validada!</h2>
+                            <h2 className="text-2xl font-bold text-white mb-2">Â¡Ficha de Datos Validada!</h2>
                             <p className="text-slate-300 max-w-lg mx-auto text-sm leading-relaxed">Tus datos personales han sido registrados correctamente.</p>
                         </div>
                         <div className="mt-2 px-4 py-1.5 bg-emerald-500/20 text-emerald-300 rounded-full border border-emerald-500/30 text-xs font-bold tracking-wider">PASO 1 COMPLETADO</div>
                     </div>
                 </div>
 
-                {/* --- NUEVO: MÓDULO DE INDUCCIÓN SSOMA --- */}
+                {/* --- NUEVO: MÃ“DULO DE INDUCCIÃ“N SSOMA --- */}
                 <div className="p-8 border-b border-slate-100 bg-blue-50/50">
                     <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                        <ShieldCheck className="text-blue-600"/> Inducción de Seguridad (Obligatorio)
+                        <ShieldCheck className="text-blue-600"/> InducciÃ³n de Seguridad (Obligatorio)
                     </h3>
                     
                     <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-center gap-6">
@@ -433,12 +456,12 @@ export default function FichaForm() {
                         </div>
                         <div className="flex-1">
                             <h4 className="font-bold text-slate-800 mb-1">
-                                {induccionState.ssomaCompleted ? "Inducción Aprobada" : "Video de Inducción SSOMA"}
+                                {induccionState.ssomaCompleted ? "InducciÃ³n Aprobada" : "Video de InducciÃ³n SSOMA"}
                             </h4>
                             <p className="text-sm text-slate-500 leading-relaxed mb-2">
                                 {induccionState.ssomaCompleted 
-                                    ? `¡Felicitaciones! Has aprobado el examen con nota ${induccionState.examenNota}/20.`
-                                    : "Para ingresar a obra, debes completar la inducción virtual. Este video dura 13:12 min y no se puede adelantar."
+                                    ? `Â¡Felicitaciones! Has aprobado el examen con nota ${induccionState.examenNota}/20.`
+                                    : "Para ingresar a obra, debes completar la inducciÃ³n virtual. Este video dura 13:12 min y no se puede adelantar."
                                 }
                             </p>
                             <div className="flex gap-2">
@@ -456,7 +479,7 @@ export default function FichaForm() {
                         {!induccionState.ssomaCompleted && (
                             <Link href="/induccion">
                                 <button className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-600/30 transition-all active:scale-95 flex items-center gap-2">
-                                    {induccionState.videoProgress > 0 ? "CONTINUAR" : "INICIAR"} INDUCCIÓN <ArrowRight size={18}/>
+                                    {induccionState.videoProgress > 0 ? "CONTINUAR" : "INICIAR"} INDUCCIÃ“N <ArrowRight size={18}/>
                                 </button>
                             </Link>
                         )}
@@ -477,11 +500,11 @@ export default function FichaForm() {
                         <SectionRead title="1. Datos Personales" icon={<User size={16}/>}>
                             <GridRead>
                                 <FieldRead label="Apellidos y Nombres" val={`${formData.apellido_paterno} ${formData.apellido_materno}, ${formData.nombres}`} full />
-                                <FieldRead label={formData.tipo_documento === 'CE' ? 'Carnet Extranjería' : 'DNI'} val={formData.dni} highlight />
+                                <FieldRead label={formData.tipo_documento === 'CE' ? 'Carnet ExtranjerÃ­a' : 'DNI'} val={formData.dni} highlight />
                                 <FieldRead label="Fecha Nacimiento" val={formData.fecha_nacimiento} />
                                 <FieldRead label="Celular" val={formData.celular} />
                                 <FieldRead label="Correo" val={formData.correo} />
-                                <FieldRead label="Dirección" val={formData.direccion} full />
+                                <FieldRead label="DirecciÃ³n" val={formData.direccion} full />
                                 <FieldRead label="Distrito/Prov/Dep" val={`${formData.distrito} - ${formData.provincia} - ${formData.departamento}`} full />
                             </GridRead>
                         </SectionRead>
@@ -496,7 +519,7 @@ export default function FichaForm() {
                                         <FieldRead label="DNI" val={formData.esposa_datos.dni}/>
                                     </GridRead>
                                 </div>
-                            ) : <p className="text-sm text-slate-400 italic">Sin cónyuge registrado</p>}
+                            ) : <p className="text-sm text-slate-400 italic">Sin cÃ³nyuge registrado</p>}
                             
                             {formData.hijos_datos.length > 0 ? (
                                 <div>
@@ -515,7 +538,7 @@ export default function FichaForm() {
                         <SectionRead title="3. Datos Bancarios" icon={<Wallet size={16}/>}>
                             <GridRead>
                                 <FieldRead label="Banco" val={formData.banco} />
-                                <FieldRead label="N° Cuenta" val={formData.cuenta_ahorros} highlight />
+                                <FieldRead label="NÂ° Cuenta" val={formData.cuenta_ahorros} highlight />
                                 <FieldRead label="CCI" val={formData.cci} />
                                 <FieldRead label="AFP/ONP" val={`${formData.sistema_pension} ${formData.afp_nombre ? '- ' + formData.afp_nombre : ''}`} />
                                 <FieldRead label="CUSPP" val={formData.cuspp} />
@@ -523,15 +546,15 @@ export default function FichaForm() {
                         </SectionRead>
 
                         {/* 4. LABORAL */}
-                        <SectionRead title="4. Información Laboral" icon={<HardHat size={16}/>}>
+                        <SectionRead title="4. InformaciÃ³n Laboral" icon={<HardHat size={16}/>}>
                             <GridRead>
                                 <FieldRead label="Cargo" val={formData.cargo} highlight />
-                                <FieldRead label="Categoría" val={formData.categoria} />
+                                <FieldRead label="CategorÃ­a" val={formData.categoria} />
                                 <FieldRead label="Obra" val={formData.nombre_obra} highlight />
                                 <FieldRead label="Fecha Ingreso" val={formData.fecha_ingreso} />
                                 <FieldRead label="Nivel Educativo" val={formData.nivel_educativo} />
                                 <FieldRead label="Carrera/Oficio" val={formData.carrera} />
-                                <FieldRead label="Institución" val={formData.centro_formacion} />
+                                <FieldRead label="InstituciÃ³n" val={formData.centro_formacion} />
                             </GridRead>
                         </SectionRead>
 
@@ -540,7 +563,7 @@ export default function FichaForm() {
                             <GridRead>
                                 <FieldRead label="Nombre" val={formData.emergencia_nombre} />
                                 <FieldRead label="Parentesco" val={formData.emergencia_parentesco} />
-                                <FieldRead label="Teléfono" val={formData.emergencia_telefono} highlight />
+                                <FieldRead label="TelÃ©fono" val={formData.emergencia_telefono} highlight />
                             </GridRead>
                         </SectionRead>
 
@@ -606,7 +629,7 @@ export default function FichaForm() {
         <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden p-6 md:p-10 min-h-[500px] relative">
              <AnimatePresence mode='wait'>
                 {currentStep === 1 && <StepWrapper key="1">
-                    <SectionTitle title="Información Personal" icon={<User/>} />
+                    <SectionTitle title="InformaciÃ³n Personal" icon={<User/>} />
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
                         <Input label="Apellido Paterno" name="apellido_paterno" val={formData.apellido_paterno} set={handleChange} required readOnly={!!formData.apellido_paterno} />
                         <Input label="Apellido Materno" name="apellido_materno" val={formData.apellido_materno} set={handleChange} required readOnly={!!formData.apellido_materno} />
@@ -622,23 +645,23 @@ export default function FichaForm() {
                                 </button>
                                 <button type="button" onClick={() => handleChange({ target: { name: 'tipo_documento', value: 'CE' } })}
                                     className={`flex-1 py-2.5 rounded-xl text-sm font-bold border transition-all ${formData.tipo_documento === 'CE' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'}`}>
-                                    Carnet Extranjería
+                                    Carnet ExtranjerÃ­a
                                 </button>
                             </div>
                         </div>
-                        <Input label={formData.tipo_documento === 'CE' ? 'N° Carnet de Extranjería' : 'DNI'} name="dni" val={formData.dni} set={handleChange} required />
-                        <Input label="Dirección" name="direccion" val={formData.direccion} set={handleChange} required />
+                        <Input label={formData.tipo_documento === 'CE' ? 'NÂ° Carnet de ExtranjerÃ­a' : 'DNI'} name="dni" val={formData.dni} set={handleChange} required />
+                        <Input label="DirecciÃ³n" name="direccion" val={formData.direccion} set={handleChange} required />
                         <Input label="Distrito" name="distrito" val={formData.distrito} set={handleChange} required />
                         <Input label="Provincia" name="provincia" val={formData.provincia} set={handleChange} required />
                         <Input label="Departamento" name="departamento" val={formData.departamento} set={handleChange} required />
-                        <Input label="Correo Electrónico" name="correo" val={formData.correo} set={handleChange} />
+                        <Input label="Correo ElectrÃ³nico" name="correo" val={formData.correo} set={handleChange} />
                         <Input label="Celular" name="celular" val={formData.celular} set={handleChange} />
                     </div>
                     <SectionTitle title="Datos Bancarios" icon={<Wallet/>} />
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                        <div className="md:col-span-1"><Select label="Banco" name="banco" val={formData.banco} set={handleChange} options={['Interbank', 'BBVA', 'BCP', 'Scotiabank', 'Banco de la Nación']} required /></div>
-                        <Input label="N° Cuenta" name="cuenta_ahorros" val={formData.cuenta_ahorros} set={handleChange} required />
-                        <Input label="CCI (20 dígitos)" name="cci" val={formData.cci} set={handleChange} />
+                        <div className="md:col-span-1"><Select label="Banco" name="banco" val={formData.banco} set={handleChange} options={['Interbank', 'BBVA', 'BCP', 'Scotiabank', 'Banco de la NaciÃ³n']} required /></div>
+                        <Input label="NÂ° Cuenta" name="cuenta_ahorros" val={formData.cuenta_ahorros} set={handleChange} required />
+                        <Input label="CCI (20 dÃ­gitos)" name="cci" val={formData.cci} set={handleChange} />
                         <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-5 pt-4 border-t border-slate-100">
                             <div className="flex gap-4 items-center h-full pt-4"><Radio label="ONP" name="sistema_pension" val="ONP" current={formData.sistema_pension} set={handleChange} /><Radio label="AFP" name="sistema_pension" val="AFP" current={formData.sistema_pension} set={handleChange} /></div>
                             {formData.sistema_pension === 'AFP' && <Input label="Nombre AFP" name="afp_nombre" val={formData.afp_nombre} set={handleChange} />}
@@ -648,7 +671,7 @@ export default function FichaForm() {
                 </StepWrapper>}
 
                 {currentStep === 2 && <StepWrapper key="2">
-                    <div className="mb-6 p-4 bg-blue-50 text-blue-800 rounded-xl border border-blue-100 text-sm flex items-center gap-3"><Users size={20}/> Sección opcional. Complétala solo si tienes esposa/hijos.</div>
+                    <div className="mb-6 p-4 bg-blue-50 text-blue-800 rounded-xl border border-blue-100 text-sm flex items-center gap-3"><Users size={20}/> SecciÃ³n opcional. ComplÃ©tala solo si tienes esposa/hijos.</div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div>
                             <h4 className="font-bold text-slate-800 mb-4 border-b pb-2">Esposa / Conviviente</h4>
@@ -685,14 +708,14 @@ export default function FichaForm() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
                         <Input label="Cargo" name="cargo" val={formData.cargo} set={handleChange} required />
                         <Input label="Obra / Proyecto" name="nombre_obra" val={formData.nombre_obra} set={handleChange} required />
-                        <Input label="Categoría" name="categoria" val={formData.categoria} set={handleChange} required />
+                        <Input label="CategorÃ­a" name="categoria" val={formData.categoria} set={handleChange} required />
                         <Input label="Fecha Ingreso" type="date" name="fecha_ingreso" val={formData.fecha_ingreso} set={handleChange} />
                     </div>
-                    <SectionTitle title="Formación Académica" icon={<GraduationCap/>} />
+                    <SectionTitle title="FormaciÃ³n AcadÃ©mica" icon={<GraduationCap/>} />
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                            <Select label="Nivel educativo" name="nivel_educativo" val={formData.nivel_educativo} set={handleChange} options={['Primaria', 'Secundaria', 'Técnico', 'Universitario']} />
+                            <Select label="Nivel educativo" name="nivel_educativo" val={formData.nivel_educativo} set={handleChange} options={['Primaria', 'Secundaria', 'TÃ©cnico', 'Universitario']} />
                             <Input label="Carrera / Oficio" name="carrera" val={formData.carrera} set={handleChange} />
-                            <Input label="Institución Educativa" name="centro_formacion" val={formData.centro_formacion} set={handleChange} className="md:col-span-2" />
+                            <Input label="InstituciÃ³n Educativa" name="centro_formacion" val={formData.centro_formacion} set={handleChange} className="md:col-span-2" />
                     </div>
                 </StepWrapper>}
 
@@ -701,12 +724,12 @@ export default function FichaForm() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-5 bg-red-50/50 p-6 rounded-2xl mb-10 border border-red-100">
                         <Input label="Nombre Completo" name="emergencia_nombre" val={formData.emergencia_nombre} set={handleChange} required />
                         <Input label="Parentesco" name="emergencia_parentesco" val={formData.emergencia_parentesco} set={handleChange} required />
-                        <Input label="Teléfono" name="emergencia_telefono" val={formData.emergencia_telefono} set={handleChange} required />
+                        <Input label="TelÃ©fono" name="emergencia_telefono" val={formData.emergencia_telefono} set={handleChange} required />
                     </div>
 
                     <SectionTitle title="Documentos del Trabajador" icon={<FileBadge/>} />
                     <p className="text-xs text-slate-500 mb-6 bg-slate-50 p-3 rounded-lg border border-slate-200 inline-block">
-                        💡 Puedes subir archivos PDF o tomar una foto (se convertirá a PDF automáticamente).
+                        ðŸ’¡ Puedes subir archivos PDF o tomar una foto (se convertirÃ¡ a PDF automÃ¡ticamente).
                     </p>
                     
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-8">
@@ -754,7 +777,7 @@ export default function FichaForm() {
 
                     <label className={`flex items-center gap-4 p-5 rounded-xl border cursor-pointer transition-all max-w-xl mx-auto ${declaracionAceptada ? 'bg-slate-900 text-white border-slate-900 ring-2 ring-slate-900 ring-offset-2' : 'bg-white border-slate-200 hover:border-slate-300'}`}>
                         <input type="checkbox" checked={declaracionAceptada} onChange={(e) => setDeclaracionAceptada(e.target.checked)} className="w-6 h-6 accent-emerald-500" />
-                        <div><span className="font-bold block text-sm">Declaración Jurada</span><span className={`text-xs ${declaracionAceptada ? 'text-slate-300' : 'text-slate-500'}`}>Declaro bajo juramento que toda la información consignada es verdadera.</span></div>
+                        <div><span className="font-bold block text-sm">DeclaraciÃ³n Jurada</span><span className={`text-xs ${declaracionAceptada ? 'text-slate-300' : 'text-slate-500'}`}>Declaro bajo juramento que toda la informaciÃ³n consignada es verdadera.</span></div>
                     </label>
                 </StepWrapper>}
              </AnimatePresence>
@@ -762,7 +785,7 @@ export default function FichaForm() {
 
         <div className="fixed bottom-0 left-0 w-full bg-white/80 backdrop-blur-md border-t border-slate-200 p-4 z-50">
              <div className="max-w-5xl mx-auto flex justify-between items-center">
-                 <button onClick={() => setCurrentStep(p => Math.max(1, p - 1))} disabled={currentStep === 1} className={`flex items-center gap-2 font-bold px-6 py-3 rounded-xl transition-all ${currentStep === 1 ? 'opacity-0 pointer-events-none' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'}`}><ChevronLeft size={20}/> Atrás</button>
+                 <button onClick={() => setCurrentStep(p => Math.max(1, p - 1))} disabled={currentStep === 1} className={`flex items-center gap-2 font-bold px-6 py-3 rounded-xl transition-all ${currentStep === 1 ? 'opacity-0 pointer-events-none' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'}`}><ChevronLeft size={20}/> AtrÃ¡s</button>
                  {currentStep < 5 ? (
                     <button onClick={handleNextStep} className="bg-slate-900 text-white font-bold px-8 py-3 rounded-xl hover:bg-slate-800 transition-all flex items-center gap-2 shadow-lg shadow-slate-900/20 active:scale-95">Siguiente <ChevronRight size={20}/></button>
                  ) : (
@@ -780,9 +803,12 @@ function ImageUpload({label, bucket, onUpload, currentUrl}: any) {
     const [uploading, setUploading] = useState(false); 
     const [showCamera, setShowCamera] = useState(false);
     const [previewModal, setPreviewModal] = useState(false);
+    const [previewIndex, setPreviewIndex] = useState(0);
     const supabase = createClient(); 
     
-    const isPdf = currentUrl?.toLowerCase().includes('.pdf');
+    const documentUrls = parseDocumentUrls(currentUrl);
+    const primaryUrl = documentUrls[documentUrls.length - 1] || '';
+    const isPdf = primaryUrl.toLowerCase().includes('.pdf');
     
     // Si es DNI o Carnet usamos formato tarjeta, sino A4
     const captureFormat = (label.toLowerCase().includes('dni') || label.toLowerCase().includes('carnet')) 
@@ -791,67 +817,126 @@ function ImageUpload({label, bucket, onUpload, currentUrl}: any) {
 
     const handleFile = async (e:any) => { 
         if(!e.target.files?.length) return; 
-        processUpload(e.target.files[0]);
+        await processUpload(Array.from(e.target.files));
+        e.target.value = '';
     }; 
     
-    const handleCameraCapture = (file: File) => {
+    const handleCameraCapture = async (file: File) => {
         setShowCamera(false);
-        processUpload(file);
+        await processUpload([file]);
     };
 
-    const processUpload = async (file: File) => {
+    const removePage = (indexToRemove: number) => {
+        const nextUrls = documentUrls.filter((_: string, index: number) => index !== indexToRemove);
+        onUpload(serializeDocumentUrls(nextUrls));
+        toast.success("Hoja eliminada");
+    };
+
+    const processUpload = async (files: File[]) => {
         setUploading(true);
-        const fileExt = file.name.split('.').pop() || 'pdf'; 
-        const fileName = `${Math.random().toString(36).substring(7)}_${Date.now()}.${fileExt}`;
-        
-        const { error } = await supabase.storage.from(bucket).upload(fileName, file, {
-            contentType: file.type 
-        }); 
-        
-        if(error) {
-            toast.error("Error al subir el documento");
-            console.error(error);
-        } else { 
+        const uploadedUrls: string[] = [];
+
+        for (let index = 0; index < files.length; index += 1) {
+            const file = files[index];
+            const fileExt = file.name.split('.').pop() || 'pdf';
+            const fileName = `${Math.random().toString(36).substring(7)}_${Date.now()}_${index}.${fileExt}`;
+
+            const { error } = await supabase.storage.from(bucket).upload(fileName, file, {
+                contentType: file.type 
+            }); 
+
+            if (error) {
+                toast.error("Error al subir uno de los documentos");
+                console.error(error);
+                continue;
+            }
+
             const { data } = supabase.storage.from(bucket).getPublicUrl(fileName); 
-            // 🔴 AQUI ES CLAVE: Actualizamos el estado DEL PADRE inmediatamente
-            onUpload(data.publicUrl); 
-            toast.success("Documento cargado correctamente"); 
-        } 
+            uploadedUrls.push(data.publicUrl); 
+        }
+
+        if (uploadedUrls.length) {
+            onUpload(serializeDocumentUrls([...documentUrls, ...uploadedUrls]));
+            toast.success(uploadedUrls.length > 1 ? "Documentos cargados correctamente" : "Documento cargado correctamente");
+        }
+
         setUploading(false);
     };
 
     return (
         <>
-            <div className={`relative border border-dashed rounded-xl p-4 text-center transition-all group h-36 flex flex-col items-center justify-center overflow-hidden ${currentUrl ? (isPdf ? 'border-red-500 bg-red-50/30' : 'border-emerald-500 bg-emerald-50/30') : 'border-slate-300 hover:border-slate-400 hover:bg-slate-50'}`}>
+            <div className={`relative border border-dashed rounded-xl p-4 text-center transition-all group min-h-44 overflow-hidden ${documentUrls.length ? (isPdf ? 'border-red-500 bg-red-50/30' : 'border-emerald-500 bg-emerald-50/30') : 'border-slate-300 hover:border-slate-400 hover:bg-slate-50'}`}>
                 
                 <div className="flex flex-col gap-3 w-full relative z-10 pointer-events-auto">
                     {!uploading && (
                         <>
-                            <div className="flex justify-center gap-2">
-                                <label className="cursor-pointer bg-white p-2 rounded-lg shadow-sm border border-slate-200 text-slate-500 hover:text-blue-600 hover:border-blue-200 transition-colors active:scale-95" title="Subir Archivo">
-                                    <input type="file" accept="image/*,.pdf" onChange={handleFile} className="hidden" />
+                            <div className="flex flex-wrap justify-center gap-2">
+                                <label className="cursor-pointer inline-flex items-center gap-2 bg-white px-3 py-2 rounded-lg shadow-sm border border-slate-200 text-slate-500 hover:text-blue-600 hover:border-blue-200 transition-colors active:scale-95 text-xs font-bold" title="Subir Archivo">
+                                    <input type="file" accept="image/*,.pdf" multiple onChange={handleFile} className="hidden" />
                                     <UploadCloud size={18}/>
+                                    {documentUrls.length ? 'Agregar hoja' : 'Subir archivo'}
                                 </label>
-                                <button onClick={() => setShowCamera(true)} className="bg-white p-2 rounded-lg shadow-sm border border-slate-200 text-slate-500 hover:text-emerald-600 hover:border-emerald-200 transition-colors active:scale-95" title="Tomar Foto">
+                                <button type="button" onClick={() => setShowCamera(true)} className="inline-flex items-center gap-2 bg-white px-3 py-2 rounded-lg shadow-sm border border-slate-200 text-slate-500 hover:text-emerald-600 hover:border-emerald-200 transition-colors active:scale-95 text-xs font-bold" title="Tomar Foto">
                                     <Camera size={18}/>
+                                    Escanear
                                 </button>
-                                {currentUrl && (
-                                     <button onClick={() => setPreviewModal(true)} className="bg-white p-2 rounded-lg shadow-sm border border-slate-200 text-slate-500 hover:text-slate-900 hover:border-slate-300 transition-colors active:scale-95" title="Ver Documento">
+                                {documentUrls.length > 0 && (
+                                     <button type="button" onClick={() => { setPreviewIndex(0); setPreviewModal(true) }} className="inline-flex items-center gap-2 bg-white px-3 py-2 rounded-lg shadow-sm border border-slate-200 text-slate-500 hover:text-slate-900 hover:border-slate-300 transition-colors active:scale-95 text-xs font-bold" title="Ver Documento">
                                          <Eye size={18}/>
+                                         Ver hojas
                                      </button>
                                 )}
                             </div>
                             <div className="flex flex-col">
                                 <span className="text-xs font-bold text-slate-600 leading-tight px-1 line-clamp-2">{label}</span>
-                                <span className="text-[9px] text-slate-400 mt-1">{currentUrl ? 'Actualizar' : 'PDF o Foto'}</span>
+                                <span className="text-[10px] text-slate-400 mt-1">
+                                    {documentUrls.length
+                                        ? `${documentUrls.length} hoja${documentUrls.length > 1 ? 's' : ''} cargada${documentUrls.length > 1 ? 's' : ''}`
+                                        : 'PDF o Foto'}
+                                </span>
                             </div>
+                            {documentUrls.length > 0 && (
+                                <div className="grid grid-cols-2 gap-2">
+                                    {documentUrls.slice(0, 4).map((url: string, index: number) => {
+                                        const pagePdf = url.toLowerCase().includes('.pdf')
+                                        return (
+                                            <div key={`${url}-${index}`} className="relative rounded-xl border border-slate-200 bg-white p-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removePage(index)}
+                                                    className="absolute top-1.5 right-1.5 z-10 w-6 h-6 rounded-full bg-white/95 border border-slate-200 text-slate-400 hover:text-red-500 hover:border-red-200 flex items-center justify-center"
+                                                    title="Quitar hoja"
+                                                >
+                                                    <X size={12} />
+                                                </button>
+                                                <button type="button" onClick={() => { setPreviewIndex(index); setPreviewModal(true) }} className="w-full text-left">
+                                                    <div className="aspect-[4/3] rounded-lg border border-slate-100 overflow-hidden bg-slate-50 flex items-center justify-center">
+                                                        {pagePdf ? (
+                                                            <div className="flex flex-col items-center gap-1 text-red-500">
+                                                                <FileText size={26} />
+                                                                <span className="text-[10px] font-bold">PDF</span>
+                                                            </div>
+                                                        ) : (
+                                                            <img src={url} alt={`${label} ${index + 1}`} className="w-full h-full object-cover" />
+                                                        )}
+                                                    </div>
+                                                    <div className="flex items-center justify-between mt-2 gap-2">
+                                                        <span className="text-[10px] font-bold text-slate-600">Hoja {index + 1}</span>
+                                                        <span className="text-[10px] text-slate-400">{pagePdf ? 'PDF' : 'Imagen'}</span>
+                                                    </div>
+                                                </button>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            )}
                         </>
                     )}
                     {uploading && <div className="flex flex-col items-center"><Loader2 className="animate-spin text-blue-500" size={24}/><span className="text-[10px] font-bold text-blue-500 mt-2">Procesando...</span></div>}
                 </div>
 
-                {currentUrl && !isPdf && <div className="absolute inset-0 z-0 opacity-20 bg-center bg-cover blur-sm" style={{backgroundImage: `url(${currentUrl})`}}></div>}
-                {currentUrl && isPdf && <div className="absolute inset-0 z-0 opacity-10 flex items-center justify-center"><FileText size={60} className="text-red-500"/></div>}
+                {primaryUrl && !isPdf && <div className="absolute inset-0 z-0 opacity-20 bg-center bg-cover blur-sm" style={{backgroundImage: `url(${primaryUrl})`}}></div>}
+                {primaryUrl && isPdf && <div className="absolute inset-0 z-0 opacity-10 flex items-center justify-center"><FileText size={60} className="text-red-500"/></div>}
             </div> 
 
             {showCamera && (
@@ -862,11 +947,12 @@ function ImageUpload({label, bucket, onUpload, currentUrl}: any) {
                 />
             )}
 
-            {/* Modal de Previsualización */}
-            {previewModal && currentUrl && (
+            {/* Modal de PrevisualizaciÃ³n */}
+            {previewModal && documentUrls.length > 0 && (
                 <DocumentPreviewModal
                     label={label}
-                    url={currentUrl}
+                    urls={documentUrls}
+                    initialIndex={previewIndex}
                     onClose={() => setPreviewModal(false)}
                 />
             )}
@@ -885,14 +971,14 @@ function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => voi
     const [rotation, setRotation] = useState(0);
     const [processing, setProcessing] = useState(false);
 
-    // --- NUEVO: Estado para capturas múltiples (DNI Front/Back) ---
+    // --- NUEVO: Estado para capturas mÃºltiples (DNI Front/Back) ---
     const [capturedSide1, setCapturedSide1] = useState<string | null>(null);
 
-    // Configuración del recuadro
+    // ConfiguraciÃ³n del recuadro
     const isLandscape = format === 'id-card';
     const aspectRatio = isLandscape ? 1.58 : 0.70; // 1.58 = Tarjeta, 0.70 = A4
     
-    // Texto dinámico según el paso actual
+    // Texto dinÃ¡mico segÃºn el paso actual
     let guideText = "";
     if (format === 'a4') {
         guideText = "Encuadra el documento completo";
@@ -903,7 +989,7 @@ function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => voi
 
     const startCamera = async () => {
         try {
-            // Pedimos la máxima resolución posible para que el texto se vea nítido
+            // Pedimos la mÃ¡xima resoluciÃ³n posible para que el texto se vea nÃ­tido
             const mediaStream = await navigator.mediaDevices.getUserMedia({ 
                 video: { 
                     facingMode: 'environment', 
@@ -914,8 +1000,8 @@ function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => voi
             setStream(mediaStream);
             if (videoRef.current) videoRef.current.srcObject = mediaStream;
         } catch (err) {
-            console.error("Error cámara:", err);
-            toast.error("No se pudo acceder a la cámara.");
+            console.error("Error cÃ¡mara:", err);
+            toast.error("No se pudo acceder a la cÃ¡mara.");
             onClose();
         }
     };
@@ -939,34 +1025,34 @@ function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => voi
             const videoH = video.videoHeight;
             
             // 2. Obtener dimensiones DE PANTALLA (ej: 400x800)
-            // Usamos el contenedor padre para saber el tamaño visible exacto
+            // Usamos el contenedor padre para saber el tamaÃ±o visible exacto
             const rect = video.getBoundingClientRect(); 
 
-            // 3. Calcular qué tan grande es el video renderizado en pantalla (considerando object-fit: cover)
+            // 3. Calcular quÃ© tan grande es el video renderizado en pantalla (considerando object-fit: cover)
             const videoRatio = videoW / videoH;
             const screenRatio = rect.width / rect.height;
             
             let renderW, renderH;
 
             if (screenRatio > videoRatio) {
-                // La pantalla es más ancha que el video (zoom ancho)
+                // La pantalla es mÃ¡s ancha que el video (zoom ancho)
                 renderW = rect.width;
                 renderH = rect.width / videoRatio;
             } else {
-                // La pantalla es más alta que el video (zoom alto - caso normal en móvil)
+                // La pantalla es mÃ¡s alta que el video (zoom alto - caso normal en mÃ³vil)
                 renderH = rect.height;
                 renderW = rect.height * videoRatio;
             }
 
-            // 4. Calcular el tamaño del recuadro verde en PÍXELES DE PANTALLA
+            // 4. Calcular el tamaÃ±o del recuadro verde en PÃXELES DE PANTALLA
             // El recuadro es 90% del ancho de la pantalla (limitado a 448px)
             const boxWidthScreen = Math.min(rect.width * 0.9, 448);
             const boxHeightScreen = boxWidthScreen / aspectRatio;
 
-            // 5. Calcular el MULTIPLICADOR (Cuántos píxeles reales hay por píxel de pantalla)
+            // 5. Calcular el MULTIPLICADOR (CuÃ¡ntos pÃ­xeles reales hay por pÃ­xel de pantalla)
             const multiplier = videoW / renderW;
 
-            // 6. Calcular tamaño de recorte en PÍXELES REALES
+            // 6. Calcular tamaÃ±o de recorte en PÃXELES REALES
             const cropW = boxWidthScreen * multiplier;
             const cropH = boxHeightScreen * multiplier;
 
@@ -984,7 +1070,7 @@ function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => voi
                 // drawImage(source, x, y, w, h, destX, destY, destW, destH)
                 ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
                 
-                // Guardar imagen y pasar a edición
+                // Guardar imagen y pasar a ediciÃ³n
                 setTempImage(canvas.toDataURL('image/jpeg', 1.0));
                 setStep('edit');
                 stopCamera();
@@ -998,7 +1084,7 @@ function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => voi
         setProcessing(true);
 
         try {
-            // 1. Procesar la imagen actual (aplicar rotación y filtros)
+            // 1. Procesar la imagen actual (aplicar rotaciÃ³n y filtros)
             const img = new Image();
             img.src = tempImage;
             await new Promise(r => img.onload = r);
@@ -1021,9 +1107,9 @@ function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => voi
             
             const processedImage = canvas.toDataURL('image/jpeg', 0.85);
 
-            // --- LÓGICA DE DNI (DOBLE CARA) ---
+            // --- LÃ“GICA DE DNI (DOBLE CARA) ---
             if (format === 'id-card' && !capturedSide1) {
-                // Si es DNI y aún no tenemos la primera cara:
+                // Si es DNI y aÃºn no tenemos la primera cara:
                 // Guardamos la primera cara, reseteamos y pedimos la segunda.
                 setCapturedSide1(processedImage);
                 setProcessing(false);
@@ -1032,10 +1118,10 @@ function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => voi
                 setRotation(0);
                 setFilter('original');
                 
-                // Reiniciar cámara
+                // Reiniciar cÃ¡mara
                 startCamera(); 
                 toast.info("Frontal guardado. Ahora toma el REVERSO.");
-                return; // IMPORTANTE: Detenemos aquí para no generar PDF aún
+                return; // IMPORTANTE: Detenemos aquÃ­ para no generar PDF aÃºn
             }
 
             // --- GENERAR PDF FINAL ---
@@ -1045,7 +1131,7 @@ function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => voi
             const margin = 10;
             const maxW = pageWidth - margin * 2;
             
-            // Función auxiliar para añadir imagen al PDF
+            // FunciÃ³n auxiliar para aÃ±adir imagen al PDF
             const addImageToPdf = (imgData: string, yPos: number, maxHeight: number) => {
                 const props = pdfDoc.getImageProperties(imgData);
                 const imgRatio = props.width / props.height;
@@ -1073,7 +1159,7 @@ function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => voi
             } else {
                 // CASO DOCUMENTO SIMPLE (A4)
                 const maxH = pageHeight - margin * 2;
-                // Si la imagen es apaisada (A4 horizontal), rotamos la página del PDF
+                // Si la imagen es apaisada (A4 horizontal), rotamos la pÃ¡gina del PDF
                 const props = pdfDoc.getImageProperties(processedImage);
                 if (props.width > props.height) {
                     pdfDoc.deletePage(1);
@@ -1123,7 +1209,7 @@ function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => voi
                     {/* Video - Importante: object-fit cover */}
                     <video ref={videoRef} autoPlay playsInline className="absolute inset-0 w-full h-full object-cover" />
                     
-                    {/* Guía de Recorte (Overlay) */}
+                    {/* GuÃ­a de Recorte (Overlay) */}
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
                         {/* El recuadro visual */}
                         <div 
@@ -1142,14 +1228,14 @@ function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => voi
                             <div className={`absolute bottom-0 left-0 w-4 h-4 border-b-4 border-l-4 -mb-0.5 -ml-0.5 ${capturedSide1 ? 'border-amber-400' : 'border-emerald-400'}`}></div>
                             <div className={`absolute bottom-0 right-0 w-4 h-4 border-b-4 border-r-4 -mb-0.5 -mr-0.5 ${capturedSide1 ? 'border-amber-400' : 'border-emerald-400'}`}></div>
                             
-                            {/* Texto guía */}
+                            {/* Texto guÃ­a */}
                             <div className="absolute -bottom-10 left-0 w-full text-center">
                                 <span className={`text-white text-xs font-medium tracking-wide bg-black/60 px-3 py-1.5 rounded-full ${capturedSide1 ? 'text-amber-300' : 'text-emerald-300'}`}>{guideText}</span>
                             </div>
                         </div>
                     </div>
 
-                    {/* Botón de Captura */}
+                    {/* BotÃ³n de Captura */}
                     <div className="absolute bottom-0 w-full pb-10 pt-20 bg-gradient-to-t from-black via-black/60 to-transparent flex justify-center items-center z-20">
                         <button onClick={capturePhoto} className="w-18 h-18 bg-white/20 rounded-full p-1.5 backdrop-blur-sm active:scale-95 transition-all">
                             <div className={`w-16 h-16 bg-white rounded-full border-4 border-transparent ring-2 shadow-xl ${capturedSide1 ? 'ring-amber-500' : 'ring-emerald-500'}`}></div>
@@ -1225,8 +1311,10 @@ function GridRead({children}: any) { return <div className="grid grid-cols-1 md:
 function FieldRead({label, val, full, highlight}: any) { return <div className={`${full ? 'col-span-1 md:col-span-2' : ''} flex flex-col`}><span className="text-[10px] font-bold text-slate-400 uppercase mb-1">{label}</span><span className={`text-sm font-medium border-b border-slate-100 pb-1 ${highlight ? 'text-blue-700 font-bold' : 'text-slate-800'}`}>{val || '-'}</span></div> }
 function DocRead({label, url}: any) {
     const [previewOpen, setPreviewOpen] = useState(false)
-    if (!url) return null
-    const isPdf = url.toLowerCase().includes('.pdf')
+    const urls = parseDocumentUrls(url)
+    if (!urls.length) return null
+    const primaryUrl = urls[urls.length - 1]
+    const isPdf = primaryUrl.toLowerCase().includes('.pdf')
     return (
         <>
             <button
@@ -1235,17 +1323,18 @@ function DocRead({label, url}: any) {
                 className={`w-full flex items-center gap-3 p-3 border rounded-lg hover:shadow-md transition-all group text-left ${isPdf ? 'bg-red-50 border-red-100 hover:border-red-300' : 'bg-white border-slate-200 hover:border-blue-300'}`}
             >
                 <div className={`p-2 rounded ${isPdf ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-500'}`}>{isPdf ? <FileText size={16}/> : <ImageIcon size={16}/>}</div>
-                <div className="flex-1 overflow-hidden"><p className="text-xs font-bold text-slate-700 truncate">{label}</p><p className="text-[10px] text-slate-400">{isPdf ? 'Documento PDF' : 'Imagen'}</p></div>
+                <div className="flex-1 overflow-hidden"><p className="text-xs font-bold text-slate-700 truncate">{label}</p><p className="text-[10px] text-slate-400">{urls.length > 1 ? `${urls.length} hojas` : (isPdf ? 'Documento PDF' : 'Imagen')}</p></div>
                 <Eye size={14} className="text-slate-300 group-hover:text-slate-500"/>
             </button>
 
             {previewOpen && (
                 <DocumentPreviewModal
                     label={label}
-                    url={url}
+                    urls={urls}
                     onClose={() => setPreviewOpen(false)}
                 />
             )}
         </>
     )
 }
+
