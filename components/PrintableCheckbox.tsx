@@ -41,7 +41,7 @@ export default function PrintableCheckbox({
           alignItems: 'center',
           justifyContent: 'center',
           lineHeight: 1,
-          transform: 'translateY(-0.5px)',
+          transform: 'translateY(0)',
         }}
       >
         {checked ? 'X' : ''}

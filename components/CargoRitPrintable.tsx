@@ -63,7 +63,7 @@ export const CargoRitPrintable = ({ ficha }: { ficha: any }) => {
       </div>
 
       <div className="mt-16 px-4 text-base text-black">
-        Lima, <span className="inline-block w-12 text-center border-b border-black">{day}</span> de <span className="inline-block w-32 text-center border-b border-black capitalize">{month}</span> de 20<span className="inline-block w-10 text-center border-b border-black">{year.toString().slice(-2)}</span>.
+        Lima, <span className="inline-block w-12 text-center border-b border-black pb-1">{day}</span> de <span className="inline-block w-32 text-center border-b border-black capitalize pb-1">{month}</span> de 20<span className="inline-block w-10 text-center border-b border-black pb-1">{year.toString().slice(-2)}</span>.
       </div>
 
       <div className="mt-28 flex justify-center items-end relative text-black">

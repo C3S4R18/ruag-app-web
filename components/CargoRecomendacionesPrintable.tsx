@@ -70,8 +70,9 @@ const styles: Record<string, React.CSSProperties> = {
     borderBottom: '1px solid #111',
     minWidth: 120,
     textAlign: 'center',
-    padding: '0 8px 2px',
+    padding: '0 8px 6px',
     fontWeight: 700,
+    lineHeight: 1,
   },
   footer: {
     marginTop: 60,

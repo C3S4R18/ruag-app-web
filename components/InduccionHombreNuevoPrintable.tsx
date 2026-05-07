@@ -61,12 +61,12 @@ export const InduccionHombreNuevoPrintable = forwardRef(({ ficha }: { ficha: any
         flex: 1,
         borderBottom: '1px dotted #000',
         paddingLeft: '10px',
-        paddingTop: '1px',
-        paddingBottom: '6px',
+        paddingTop: '0',
+        paddingBottom: '7px',
         fontWeight: 'bold',
         textTransform: 'uppercase' as const,
-        minHeight: '20px',
-        lineHeight: 1.05,
+        minHeight: '22px',
+        lineHeight: 1,
     },
     // Lista de Checks
     checkboxList: {
@@ -92,10 +92,11 @@ export const InduccionHombreNuevoPrintable = forwardRef(({ ficha }: { ficha: any
         display: 'inline-block',
         borderBottom: '1px solid #000',
         padding: '0 10px',
-        paddingBottom: '3px', // Separación clave para que no tache el texto
+        paddingBottom: '6px',
         fontWeight: 'bold',
         minWidth: '100px',
-        textAlign: 'center' as const
+        textAlign: 'center' as const,
+        lineHeight: 1
     },
     // Firmas al pie
     signatureSection: {

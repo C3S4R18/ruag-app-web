@@ -151,6 +151,7 @@ const EMPTY_DOC_DATA: Record<string, any> = {}
 function buildDocumentFormState(docId: string, existingData: Record<string, any> = {}): Record<string, string> {
     if (docId === 'epp') {
         const state: Record<string, string> = {
+            obra: existingData.obra || '',
             responsable_nombre: existingData.responsable_nombre || '',
             responsable_cargo: existingData.responsable_cargo || '',
             responsable_fecha: existingData.responsable_fecha || '',
@@ -1522,6 +1523,12 @@ function ManualDocumentForm({ docId, values, onChange }: { docId: string; values
                     <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Datos manuales</p>
                     <h4 className="text-lg font-bold text-slate-900">Completa las fechas de entrega y el responsable</h4>
                     <p className="text-sm text-slate-500 mt-1">Las celdas de firma se mostrarán como conformidad digital al guardar el documento.</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <label className="text-xs font-semibold text-slate-500">Obra
+                        <input type="text" value={values.obra || ''} onChange={(e) => updateField('obra', e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10" />
+                    </label>
                 </div>
 
                 <div className="space-y-4 max-h-[52vh] overflow-auto pr-1">

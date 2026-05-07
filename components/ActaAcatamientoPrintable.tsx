@@ -106,9 +106,10 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'inline-block',
     minWidth: 200,
     borderBottom: '1px solid #111',
-    paddingBottom: 4,
+    paddingBottom: 6,
     marginLeft: 8,
     textAlign: 'center',
+    lineHeight: 1,
   },
   thumbBox: {
     width: 130,

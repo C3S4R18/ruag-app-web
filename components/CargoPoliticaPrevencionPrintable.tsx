@@ -44,11 +44,11 @@ export const CargoPoliticaPrevencionPrintable = ({ ficha }: { ficha: any }) => {
       <div className="space-y-10 text-base px-2 text-black">
         <div className="flex items-end w-full leading-8">
           <span className="whitespace-nowrap mr-2">Yo</span>
-          <div className="flex-1 border-b border-black text-center font-bold uppercase px-2 pb-1">
+          <div className="flex-1 border-b border-black text-center font-bold uppercase px-2 pb-2">
             {buildWorkerFullNameUpper(ficha)}
           </div>
           <span className="whitespace-nowrap ml-2 mr-2">, identificado con DNI</span>
-          <div className="w-32 border-b border-black text-center font-bold pb-1">
+          <div className="w-32 border-b border-black text-center font-bold pb-2">
             {ficha.dni}
           </div>
           <span className="whitespace-nowrap ml-1">,</span>
@@ -56,7 +56,7 @@ export const CargoPoliticaPrevencionPrintable = ({ ficha }: { ficha: any }) => {
 
         <div className="flex items-end w-full leading-8">
           <span className="whitespace-nowrap mr-2">colaborador de RUAG S.R.L., ocupando el cargo de</span>
-          <div className="flex-1 border-b border-black text-center font-bold uppercase px-2 pb-1">
+          <div className="flex-1 border-b border-black text-center font-bold uppercase px-2 pb-2">
             {toPrintUppercase(ficha.cargo || 'OPERARIO')}
           </div>
           <span className="whitespace-nowrap ml-2">, declaro lo siguiente:</span>
@@ -80,12 +80,12 @@ export const CargoPoliticaPrevencionPrintable = ({ ficha }: { ficha: any }) => {
 
       <div className="mt-20 px-2 text-base flex items-end text-black">
         <span>Lima, </span>
-        <div className="w-16 border-b border-black text-center mx-2 pb-1">{day}</div>
+        <div className="w-16 border-b border-black text-center mx-2 pb-2">{day}</div>
         <span> de </span>
-        <div className="w-32 border-b border-black text-center mx-2 capitalize pb-1">{month}</div>
+        <div className="w-32 border-b border-black text-center mx-2 capitalize pb-2">{month}</div>
         <span>.</span>
         <span className="ml-1"> de 20</span>
-        <div className="w-10 border-b border-black text-center pb-1">{year.toString().slice(-2)}</div>
+        <div className="w-10 border-b border-black text-center pb-2">{year.toString().slice(-2)}</div>
         <span>.</span>
       </div>
 

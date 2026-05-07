@@ -87,7 +87,7 @@ export const RegistroCapacitacionPrintable = forwardRef<HTMLDivElement, { ficha:
         display: 'flex',
         alignItems: 'flex-end',
         justifyContent: 'center',
-        paddingBottom: '2px',
+        paddingBottom: '5px',
       },
       responsibleLine: {
         height: '32px',
