@@ -10,6 +10,18 @@ export const ANIMATED_ICONS = {
   miPerfil: '/icons/mi-perfil.gif',
   chat: '/icons/chat.gif',
   actualizarFicha: '/icons/actualizar-ficha.gif',
+  // Secciones del wizard de la ficha
+  personal: '/icons/personal.gif',
+  datosBancarios: '/icons/datos-bancarios.gif',
+  familia: '/icons/familia.gif',
+  esposa: '/icons/esposa.gif',
+  hijos: '/icons/hijos.gif',
+  laboral: '/icons/laboral.gif',
+  formacionAcademica: '/icons/formacion-academica.gif',
+  docs: '/icons/docs.gif',
+  firma: '/icons/firma.gif',
+  check: '/icons/check.gif',
+  contactoEmergencia: '/icons/contacto-emergencia.gif',
 } as const
 
 export type AnimatedIconKey = keyof typeof ANIMATED_ICONS

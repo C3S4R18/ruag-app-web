@@ -260,7 +260,7 @@ const DOC_LABELS_SSOMA: Record<string, string> = {
     epp: "Entrega de EPPs",
     acta_derecho: "Acta Derecho a Saber",
     iperc: "Entrega IPERC",
-    ficha_covid: "Ficha SintomatolÃ³gica",
+    ficha_covid: "Ficha Sintomatológica",
     acta_acatamiento: "Acta de Acatamiento",
     acta_emo: "Acta de Entrega de Resultados EMO",
     rec_sst: "Cargo de Entrega de Recomendaciones"
@@ -807,13 +807,7 @@ export default function DashboardPage() {
                         {/* Acciones rápidas (mismo set de iconos que la app móvil) */}
                         <div>
                             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 pl-1">Acciones rápidas</h3>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                <QuickAction
-                                    icon="actualizarFicha"
-                                    label="Actualizar Ficha"
-                                    accent="blue"
-                                    onClick={() => setActiveTab('home')}
-                                />
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                 <QuickAction
                                     icon="misRegistros"
                                     label="Mis Registros"
@@ -1510,7 +1504,7 @@ function DocumentFillingModal({ docId, category, fichaId, existingData, fullFich
                         {isCompleted ? (
                             <div className="flex items-start gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
                                 <Eye className="text-slate-600 shrink-0 mt-0.5" size={18}/>
-                                <p className="text-xs text-slate-700 leading-relaxed font-medium">Este documento ya fue enviado. Puedes previsualizarlo, volver a editar sus marcas y guardar una nueva versiÃ³n cuando lo necesites.</p>
+                                <p className="text-xs text-slate-700 leading-relaxed font-medium">Este documento ya fue enviado. Puedes previsualizarlo, volver a editar sus marcas y guardar una nueva versión cuando lo necesites.</p>
                             </div>
                         ) : (
                             <div className="flex items-start gap-3 bg-blue-50 p-3 rounded-xl mb-1 border border-blue-100">
@@ -1807,32 +1801,32 @@ function ManualDocumentForm({ docId, values, onChange }: { docId: string; values
             <div className="space-y-6">
                 <div>
                     <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Datos manuales</p>
-                    <h4 className="text-lg font-bold text-slate-900">Completa la ficha sintomatolÃ³gica</h4>
-                    <p className="text-sm text-slate-500 mt-1">Estos datos llenarÃ¡n digitalmente el formato COVID antes de enviarlo.</p>
+                    <h4 className="text-lg font-bold text-slate-900">Completa la ficha sintomatológica</h4>
+                    <p className="text-sm text-slate-500 mt-1">Estos datos llenarán digitalmente el formato COVID antes de enviarlo.</p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <label className="text-xs font-semibold text-slate-500">Ãrea de trabajo
+                    <label className="text-xs font-semibold text-slate-500">Área de trabajo
                         <input type="text" value={values.area_trabajo || ''} onChange={(e) => updateField('area_trabajo', e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10" />
                     </label>
                     <label className="text-xs font-semibold text-slate-500">Celular
                         <input type="text" value={values.celular || ''} onChange={(e) => updateField('celular', e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10" />
                     </label>
-                    <label className="md:col-span-2 text-xs font-semibold text-slate-500">DirecciÃ³n domiciliaria
+                    <label className="md:col-span-2 text-xs font-semibold text-slate-500">Dirección domiciliaria
                         <input type="text" value={values.direccion_domicilio || ''} onChange={(e) => updateField('direccion_domicilio', e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10" />
                     </label>
                 </div>
 
                 <div className="space-y-3">
                     <div>
-                        <h5 className="text-sm font-bold text-slate-900">SÃ­ntomas en los Ãºltimos 10 dÃ­as</h5>
-                        <p className="text-xs text-slate-500 mt-1">Marca "SÃ­" o "No" para cada pregunta.</p>
+                        <h5 className="text-sm font-bold text-slate-900">Síntomas en los últimos 10 días</h5>
+                        <p className="text-xs text-slate-500 mt-1">Marca "Sí" o "No" para cada pregunta.</p>
                     </div>
                     {[
-                        ['symptom_1', 'SensaciÃ³n de alza tÃ©rmica, fiebre o malestar'],
+                        ['symptom_1', 'Sensación de alza térmica, fiebre o malestar'],
                         ['symptom_2', 'Dolor de garganta, tos, estornudos o dificultad para respirar'],
-                        ['symptom_3', 'Dolor de cabeza, diarrea o congestiÃ³n nasal'],
-                        ['symptom_4', 'PÃ©rdida del gusto y/o del olfato'],
+                        ['symptom_3', 'Dolor de cabeza, diarrea o congestión nasal'],
+                        ['symptom_4', 'Pérdida del gusto y/o del olfato'],
                         ['symptom_5', 'Contacto con caso confirmado de COVID-19'],
                     ].map(([key, label]) => (
                         <div key={key} className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
@@ -1845,7 +1839,7 @@ function ManualDocumentForm({ docId, values, onChange }: { docId: string; values
                                         onClick={() => updateField(key, option)}
                                         className={`px-4 py-2 rounded-full text-xs font-bold border transition-colors ${values[key] === option ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:border-blue-200'}`}
                                     >
-                                        {option === 'si' ? 'SÃ­' : 'No'}
+                                        {option === 'si' ? 'Sí' : 'No'}
                                     </button>
                                 ))}
                             </div>
@@ -1855,7 +1849,7 @@ function ManualDocumentForm({ docId, values, onChange }: { docId: string; values
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50/70">
-                        <p className="text-sm font-bold text-slate-900 mb-3">Â¿Tomas alguna medicaciÃ³n?</p>
+                        <p className="text-sm font-bold text-slate-900 mb-3">¿Tomas alguna medicación?</p>
                         <div className="flex flex-wrap gap-2 mb-3">
                             {['si', 'no'].map((option) => (
                                 <button
@@ -1864,17 +1858,17 @@ function ManualDocumentForm({ docId, values, onChange }: { docId: string; values
                                     onClick={() => updateField('medicacion_toma', option)}
                                     className={`px-4 py-2 rounded-full text-xs font-bold border transition-colors ${values.medicacion_toma === option ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:border-blue-200'}`}
                                 >
-                                    {option === 'si' ? 'SÃ­' : 'No'}
+                                    {option === 'si' ? 'Sí' : 'No'}
                                 </button>
                             ))}
                         </div>
-                        <label className="text-xs font-semibold text-slate-500">Detalle de medicaciÃ³n
+                        <label className="text-xs font-semibold text-slate-500">Detalle de medicación
                             <input type="text" value={values.medicacion_detalle || ''} onChange={(e) => updateField('medicacion_detalle', e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10" />
                         </label>
                     </div>
 
                     <div className="rounded-2xl border border-slate-200 p-4 bg-slate-50/70">
-                        <p className="text-sm font-bold text-slate-900 mb-3">Â¿Perteneces a grupo de riesgo?</p>
+                        <p className="text-sm font-bold text-slate-900 mb-3">¿Perteneces a grupo de riesgo?</p>
                         <div className="flex flex-wrap gap-2">
                             {['si', 'no'].map((option) => (
                                 <button
@@ -1883,7 +1877,7 @@ function ManualDocumentForm({ docId, values, onChange }: { docId: string; values
                                     onClick={() => updateField('grupo_riesgo', option)}
                                     className={`px-4 py-2 rounded-full text-xs font-bold border transition-colors ${values.grupo_riesgo === option ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:border-blue-200'}`}
                                 >
-                                    {option === 'si' ? 'SÃ­' : 'No'}
+                                    {option === 'si' ? 'Sí' : 'No'}
                                 </button>
                             ))}
                         </div>
@@ -1894,18 +1888,18 @@ function ManualDocumentForm({ docId, values, onChange }: { docId: string; values
                     <p className="text-sm font-bold text-slate-900 mb-3">Factores de riesgo</p>
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
                         {[
-                            ['risk_mayor_65', 'Mayor de 65 aÃ±os'],
-                            ['risk_cancer', 'CÃ¡ncer'],
-                            ['risk_renal', 'Enfermedad renal crÃ³nica'],
-                            ['risk_pulmonar', 'Enfermedad pulmonar crÃ³nica'],
-                            ['risk_cardiaca', 'Afecciones cardÃ­acas'],
+                            ['risk_mayor_65', 'Mayor de 65 años'],
+                            ['risk_cancer', 'Cáncer'],
+                            ['risk_renal', 'Enfermedad renal crónica'],
+                            ['risk_pulmonar', 'Enfermedad pulmonar crónica'],
+                            ['risk_cardiaca', 'Afecciones cardíacas'],
                             ['risk_dm', 'Diabetes mellitus'],
                             ['risk_obesidad', 'Obesidad'],
-                            ['risk_inmuno', 'InmunosupresiÃ³n'],
-                            ['risk_trasplante', 'Trasplante de Ã³rganos'],
+                            ['risk_inmuno', 'Inmunosupresión'],
+                            ['risk_trasplante', 'Trasplante de órganos'],
                             ['risk_cerebro', 'Enfermedad cerebrovascular'],
-                            ['risk_hipertension', 'HipertensiÃ³n arterial'],
-                            ['risk_down', 'SÃ­ndrome de Down'],
+                            ['risk_hipertension', 'Hipertensión arterial'],
+                            ['risk_down', 'Síndrome de Down'],
                             ['risk_embarazo', 'Embarazo'],
                             ['risk_vih', 'VIH'],
                             ['risk_otros', 'Otros'],
@@ -1924,7 +1918,7 @@ function ManualDocumentForm({ docId, values, onChange }: { docId: string; values
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <label className="text-xs font-semibold text-slate-500">Dosis de vacuna / observaciÃ³n
+                    <label className="text-xs font-semibold text-slate-500">Dosis de vacuna / observación
                         <input type="text" value={values.vacunas_dosis || ''} onChange={(e) => updateField('vacunas_dosis', e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10" />
                     </label>
                     <label className="text-xs font-semibold text-slate-500">Fecha del documento
@@ -1941,16 +1935,16 @@ function ManualDocumentForm({ docId, values, onChange }: { docId: string; values
                 <div>
                     <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Datos manuales</p>
                     <h4 className="text-lg font-bold text-slate-900">Completa los campos del acta EMO</h4>
-                    <p className="text-sm text-slate-500 mt-1">Se usarÃ¡n para rellenar el formato de entrega de resultados del examen mÃ©dico ocupacional.</p>
+                    <p className="text-sm text-slate-500 mt-1">Se usarán para rellenar el formato de entrega de resultados del examen médico ocupacional.</p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {[
                         ['cargo', 'Cargo', 'text'],
-                        ['area', 'Ãrea', 'text'],
+                        ['area', 'Área', 'text'],
                         ['sede_obra', 'Sede / obra', 'text'],
-                        ['fecha_evaluacion', 'Fecha de evaluaciÃ³n', 'date'],
+                        ['fecha_evaluacion', 'Fecha de evaluación', 'date'],
                         ['fecha_documento', 'Fecha del documento', 'date'],
-                        ['medico_ocupacional', 'MÃ©dico ocupacional', 'text'],
+                        ['medico_ocupacional', 'Médico ocupacional', 'text'],
                     ].map(([key, label, type]) => (
                         <label key={key} className="text-xs font-semibold text-slate-500">
                             {label}
@@ -1968,7 +1962,7 @@ function ManualDocumentForm({ docId, values, onChange }: { docId: string; values
                 <div>
                     <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Datos manuales</p>
                     <h4 className="text-lg font-bold text-slate-900">{docId === 'acta_acatamiento' ? 'Completa el acta de acatamiento' : 'Completa el cargo de recomendaciones'}</h4>
-                    <p className="text-sm text-slate-500 mt-1">La fecha se reflejarÃ¡ directamente en la versiÃ³n digital del documento.</p>
+                    <p className="text-sm text-slate-500 mt-1">La fecha se reflejará directamente en la versión digital del documento.</p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <label className="text-xs font-semibold text-slate-500">Fecha del documento

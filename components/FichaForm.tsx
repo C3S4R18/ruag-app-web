@@ -10,18 +10,20 @@ import jsPDF from 'jspdf'
 import { 
   User, CheckCircle, ChevronRight, ChevronLeft,
   Camera, Loader2, HeartPulse, GraduationCap, Wallet,
-  HardHat, ShieldCheck, PenTool, Eraser, Users, FileBadge, Plus, Trash2, Lock, Hammer, FileText, Download, Image as ImageIcon, UploadCloud, RefreshCw, X, Calendar, Eye, RotateCw, Wand2, ArrowRight, PlayCircle
+  HardHat, ShieldCheck, PenTool, Eraser, Users, FileBadge, Plus, Trash2, Lock, Hammer, FileText, Download, Image as ImageIcon, UploadCloud, RefreshCw, X, Calendar, Eye, RotateCw, Wand2, ArrowRight, PlayCircle,
+  CloudOff, Clock, ExternalLink, FileWarning
 } from 'lucide-react'
 import Link from 'next/link'
 import DocumentPreviewModal from './DocumentPreviewModal'
+import AnimatedIcon, { type AnimatedIconKey } from './AnimatedIcon'
 
 // --- ESTRUCTURA DE PASOS ---
-const STEPS = [
-  { id: 1, title: 'Personal', icon: <User size={18} /> },
-  { id: 2, title: 'Familia', icon: <Users size={18} /> },
-  { id: 3, title: 'Laboral', icon: <HardHat size={18} /> },
-  { id: 4, title: 'Documentos', icon: <FileBadge size={18} /> },
-  { id: 5, title: 'Firma', icon: <PenTool size={18} /> },
+const STEPS: Array<{ id: number, title: string, icon: any, animatedIcon: AnimatedIconKey }> = [
+  { id: 1, title: 'Personal', icon: <User size={18} />, animatedIcon: 'personal' },
+  { id: 2, title: 'Familia', icon: <Users size={18} />, animatedIcon: 'familia' },
+  { id: 3, title: 'Laboral', icon: <HardHat size={18} />, animatedIcon: 'laboral' },
+  { id: 4, title: 'Documentos', icon: <FileBadge size={18} />, animatedIcon: 'docs' },
+  { id: 5, title: 'Firma', icon: <PenTool size={18} />, animatedIcon: 'firma' },
 ]
 
 function parseDocumentUrls(value?: string | null) {
@@ -96,7 +98,7 @@ export default function FichaForm() {
     url_firma: ''
   })
   
-  // Estado local para InducciÃ³n (para mostrar en el dashboard)
+  // Estado local para Inducción (para mostrar en el dashboard)
   const [induccionState, setInduccionState] = useState({
       videoProgress: 0,
       examenNota: null as number | null,
@@ -144,19 +146,19 @@ export default function FichaForm() {
                 url_firma: getSignatureUrl(ficha)
             })
             
-            // Cargar estado de inducciÃ³n
+            // Cargar estado de inducción
             setInduccionState({
                 videoProgress: ficha.video_progress || 0,
                 examenNota: ficha.examen_nota,
                 ssomaCompleted: ficha.ssoma_completed || false
             })
             
-            // --- CORRECCIÃ“N CLAVE: Si ya estÃ¡ completado, bloquear inmediatamente ---
+            // --- CORRECCIÓN CLAVE: Si ya está completado, bloquear inmediatamente ---
             if (ficha.estado === 'completado') {
                 setIsCompleted(true)
                 setHasStarted(true)
             } else {
-                // Ficha existe pero no estÃ¡ completa â†’ restaurar borrador local si es mÃ¡s reciente
+                // Ficha existe pero no está completa → restaurar borrador local si es más reciente
                 try {
                     const draftStr = localStorage.getItem(`ruag_draft_${user.id}`)
                     if (draftStr) {
@@ -170,7 +172,7 @@ export default function FichaForm() {
                 } catch(e) {}
             }
         } else {
-            // Sin ficha en Supabase â†’ intentar restaurar borrador local primero
+            // Sin ficha en Supabase → intentar restaurar borrador local primero
             try {
                 const draftStr = localStorage.getItem(`ruag_draft_${user.id}`)
                 if (draftStr) {
@@ -190,13 +192,13 @@ export default function FichaForm() {
         supabase.channel('my-ficha').on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'fichas', filter: `user_id=eq.${user.id}` }, (payload) => {
             if(payload.new.estado === 'pendiente') { 
                 setIsCompleted(false)
-                toast.info("EdiciÃ³n habilitada") 
+                toast.info("Edición habilitada") 
             }
             else if (payload.new.estado === 'completado') {
                 setIsCompleted(true)
             }
             
-            // Actualizar estado inducciÃ³n en tiempo real
+            // Actualizar estado inducción en tiempo real
             if (payload.new.video_progress !== undefined || payload.new.examen_nota !== undefined) {
                 setInduccionState({
                     videoProgress: payload.new.video_progress || 0,
@@ -211,8 +213,8 @@ export default function FichaForm() {
     loadUser()
   }, [])
 
-  // --- KEEPALIVE DE SESIÃ“N ---
-  // Refresca el JWT cada 10 minutos mientras el formulario estÃ¡ abierto.
+  // --- KEEPALIVE DE SESIÓN ---
+  // Refresca el JWT cada 10 minutos mientras el formulario está abierto.
   // El JWT de Supabase expira en 60 min; esto garantiza que nunca llegue a vencer.
   useEffect(() => {
     if (isCompleted) return
@@ -222,9 +224,9 @@ export default function FichaForm() {
     return () => clearInterval(interval)
   }, [isCompleted])
 
-  // --- BORRADOR AUTOMÃTICO EN LOCALSTORAGE ---
-  // Guarda en localStorage 1.2s despuÃ©s del Ãºltimo cambio (debounce).
-  // Se restaura al recargar si la ficha aÃºn no estÃ¡ completada.
+  // --- BORRADOR AUTOMÁTICO EN LOCALSTORAGE ---
+  // Guarda en localStorage 1.2s después del último cambio (debounce).
+  // Se restaura al recargar si la ficha aún no está completada.
   useEffect(() => {
     if (!user?.id || isCompleted || isLoadingData) return
     const timer = setTimeout(() => {
@@ -237,10 +239,10 @@ export default function FichaForm() {
   }, [formData, user?.id, isCompleted, isLoadingData])
 
   // --- AUTOGUARDADO CUANDO SE ACTUALIZAN DOCUMENTOS ---
-  // Este useEffect vigila cambios en los documentos y los guarda automÃ¡ticamente en DB
-  // para que no se pierdan si se refresca la pÃ¡gina.
+  // Este useEffect vigila cambios en los documentos y los guarda automáticamente en DB
+  // para que no se pierdan si se refresca la página.
   useEffect(() => {
-      // --- CORRECCIÃ“N CLAVE: NO AUTOGUARDAR SI YA ESTÃ COMPLETADO ---
+      // --- CORRECCIÓN CLAVE: NO AUTOGUARDAR SI YA ESTÁ COMPLETADO ---
       if (isCompleted) return;
 
       if (user && formData.id && (
@@ -254,14 +256,14 @@ export default function FichaForm() {
           formData.doc_hijos_dni ||
           formData.doc_hijos_estudios
       )) {
-          // Usamos un debounce (retraso) pequeÃ±o para no saturar si hay muchos cambios rÃ¡pidos
+          // Usamos un debounce (retraso) pequeño para no saturar si hay muchos cambios rápidos
           const timer = setTimeout(() => {
               guardarProgreso(false, true); // true = silent save (sin toast)
           }, 1000);
           return () => clearTimeout(timer);
       }
   }, [
-      // AÃ±adimos isCompleted a las dependencias para que el efecto reaccione al bloqueo
+      // Añadimos isCompleted a las dependencias para que el efecto reaccione al bloqueo
       isCompleted,
       formData.doc_dni_trabajador, 
       formData.doc_certiadulto,
@@ -286,7 +288,7 @@ export default function FichaForm() {
       setFormData((prev:any) => ({ ...prev, hijos_datos: newHijos }))
   }
 
-  // --- LÃ“GICA DE FIRMA ---
+  // --- LÓGICA DE FIRMA ---
   const handleSignatureEnd = () => { }
    
   const clearSignature = () => { 
@@ -296,7 +298,7 @@ export default function FichaForm() {
       setFormData((prev:any) => ({ ...prev, url_firma: '' })) 
   }
    
-  // --- LÃ“GICA DE VALIDACIÃ“N ---
+  // --- LÓGICA DE VALIDACIÓN ---
   const validateCurrentStep = () => {
     if (currentStep === 1) {
         if (!formData.apellido_paterno || !formData.apellido_materno || !formData.nombres || 
@@ -308,12 +310,12 @@ export default function FichaForm() {
         }
         if (formData.tipo_documento === 'CE') {
             if (formData.dni.length < 6) {
-                toast.error("El Carnet de ExtranjerÃ­a debe tener al menos 6 caracteres.")
+                toast.error("El Carnet de Extranjería debe tener al menos 6 caracteres.")
                 return false
             }
         } else {
             if (!/^\d{8}$/.test(formData.dni)) {
-                toast.error("El DNI debe tener exactamente 8 dÃ­gitos numÃ©ricos.")
+                toast.error("El DNI debe tener exactamente 8 dígitos numéricos.")
                 return false
             }
         }
@@ -321,7 +323,7 @@ export default function FichaForm() {
 
     if (currentStep === 3) {
         if (!formData.cargo || !formData.nombre_obra || !formData.categoria) {
-            toast.error("Por favor, completa toda la informaciÃ³n laboral obligatoria.")
+            toast.error("Por favor, completa toda la información laboral obligatoria.")
             return false
         }
     }
@@ -331,9 +333,13 @@ export default function FichaForm() {
             toast.error("Los datos de contacto de emergencia son obligatorios.")
             return false
         }
-        if (!formData.doc_dni_trabajador) {
-             toast.error("Es obligatorio subir el DNI (Frontal y Reverso).")
-             return false
+        const missing: string[] = []
+        if (!formData.doc_dni_trabajador) missing.push("DNI (Frontal y Reverso)")
+        if (!formData.doc_certiadulto) missing.push("Certiadulto (Antecedentes)")
+        if (!formData.doc_carnet_retcc) missing.push("Carnet RETCC")
+        if (missing.length) {
+            toast.error(`Falta subir: ${missing.join(", ")}.`)
+            return false
         }
     }
 
@@ -352,8 +358,8 @@ export default function FichaForm() {
     const { data: { session }, error: refreshError } = await supabase.auth.refreshSession()
     const sessionUser = session?.user ?? null
     if (refreshError || !sessionUser) {
-        toast.error("Tu sesiÃ³n ha expirado. Vuelve a iniciar sesiÃ³n e intenta de nuevo.")
-        return { message: "SesiÃ³n expirada. Vuelve a iniciar sesiÃ³n." } as any
+        toast.error("Tu sesión ha expirado. Vuelve a iniciar sesión e intenta de nuevo.")
+        return { message: "Sesión expirada. Vuelve a iniciar sesión." } as any
     }
 
     if (isCompleted && !complete) return
@@ -385,8 +391,8 @@ export default function FichaForm() {
         
         url_firma: currentSignature, firma_url: currentSignature, updated_at: new Date().toISOString(), 
         
-        // Solo cambiamos el estado si explÃ­citamente se marca como completa (al final) o si es la primera vez.
-        // Si ya estÃ¡ completada, mantenemos 'completado'
+        // Solo cambiamos el estado si explícitamente se marca como completa (al final) o si es la primera vez.
+        // Si ya está completada, mantenemos 'completado'
         estado: complete ? 'completado' : (isCompleted ? 'completado' : 'pendiente')
     }
     
@@ -409,7 +415,7 @@ export default function FichaForm() {
     }
 
     if (!hasSignature) { toast.error("Debes firmar en el recuadro para continuar."); return }
-    if (!declaracionAceptada) { toast.error("Debes aceptar la declaraciÃ³n jurada."); return }
+    if (!declaracionAceptada) { toast.error("Debes aceptar la declaración jurada."); return }
     
     if (!validateCurrentStep()) return
 
@@ -437,17 +443,17 @@ export default function FichaForm() {
                     <div className="relative z-10 flex flex-col items-center gap-4">
                         <div className="bg-white/10 p-4 rounded-full border border-white/20"><Hammer size={40} className="text-white" /></div>
                         <div>
-                            <h2 className="text-2xl font-bold text-white mb-2">Â¡Ficha de Datos Validada!</h2>
+                            <h2 className="text-2xl font-bold text-white mb-2">¡Ficha de Datos Validada!</h2>
                             <p className="text-slate-300 max-w-lg mx-auto text-sm leading-relaxed">Tus datos personales han sido registrados correctamente.</p>
                         </div>
                         <div className="mt-2 px-4 py-1.5 bg-emerald-500/20 text-emerald-300 rounded-full border border-emerald-500/30 text-xs font-bold tracking-wider">PASO 1 COMPLETADO</div>
                     </div>
                 </div>
 
-                {/* --- NUEVO: MÃ“DULO DE INDUCCIÃ“N SSOMA --- */}
+                {/* --- NUEVO: MÓDULO DE INDUCCIÓN SSOMA --- */}
                 <div className="p-8 border-b border-slate-100 bg-blue-50/50">
                     <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                        <ShieldCheck className="text-blue-600"/> InducciÃ³n de Seguridad (Obligatorio)
+                        <ShieldCheck className="text-blue-600"/> Inducción de Seguridad (Obligatorio)
                     </h3>
                     
                     <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row items-center gap-6">
@@ -456,12 +462,12 @@ export default function FichaForm() {
                         </div>
                         <div className="flex-1">
                             <h4 className="font-bold text-slate-800 mb-1">
-                                {induccionState.ssomaCompleted ? "InducciÃ³n Aprobada" : "Video de InducciÃ³n SSOMA"}
+                                {induccionState.ssomaCompleted ? "Inducción Aprobada" : "Video de Inducción SSOMA"}
                             </h4>
                             <p className="text-sm text-slate-500 leading-relaxed mb-2">
                                 {induccionState.ssomaCompleted 
-                                    ? `Â¡Felicitaciones! Has aprobado el examen con nota ${induccionState.examenNota}/20.`
-                                    : "Para ingresar a obra, debes completar la inducciÃ³n virtual. Este video dura 13:12 min y no se puede adelantar."
+                                    ? `¡Felicitaciones! Has aprobado el examen con nota ${induccionState.examenNota}/20.`
+                                    : "Para ingresar a obra, debes completar la inducción virtual. Este video dura 13:12 min y no se puede adelantar."
                                 }
                             </p>
                             <div className="flex gap-2">
@@ -479,7 +485,7 @@ export default function FichaForm() {
                         {!induccionState.ssomaCompleted && (
                             <Link href="/induccion">
                                 <button className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-600/30 transition-all active:scale-95 flex items-center gap-2">
-                                    {induccionState.videoProgress > 0 ? "CONTINUAR" : "INICIAR"} INDUCCIÃ“N <ArrowRight size={18}/>
+                                    {induccionState.videoProgress > 0 ? "CONTINUAR" : "INICIAR"} INDUCCIÓN <ArrowRight size={18}/>
                                 </button>
                             </Link>
                         )}
@@ -500,11 +506,11 @@ export default function FichaForm() {
                         <SectionRead title="1. Datos Personales" icon={<User size={16}/>}>
                             <GridRead>
                                 <FieldRead label="Apellidos y Nombres" val={`${formData.apellido_paterno} ${formData.apellido_materno}, ${formData.nombres}`} full />
-                                <FieldRead label={formData.tipo_documento === 'CE' ? 'Carnet ExtranjerÃ­a' : 'DNI'} val={formData.dni} highlight />
+                                <FieldRead label={formData.tipo_documento === 'CE' ? 'Carnet Extranjería' : 'DNI'} val={formData.dni} highlight />
                                 <FieldRead label="Fecha Nacimiento" val={formData.fecha_nacimiento} />
                                 <FieldRead label="Celular" val={formData.celular} />
                                 <FieldRead label="Correo" val={formData.correo} />
-                                <FieldRead label="DirecciÃ³n" val={formData.direccion} full />
+                                <FieldRead label="Dirección" val={formData.direccion} full />
                                 <FieldRead label="Distrito/Prov/Dep" val={`${formData.distrito} - ${formData.provincia} - ${formData.departamento}`} full />
                             </GridRead>
                         </SectionRead>
@@ -519,7 +525,7 @@ export default function FichaForm() {
                                         <FieldRead label="DNI" val={formData.esposa_datos.dni}/>
                                     </GridRead>
                                 </div>
-                            ) : <p className="text-sm text-slate-400 italic">Sin cÃ³nyuge registrado</p>}
+                            ) : <p className="text-sm text-slate-400 italic">Sin cónyuge registrado</p>}
                             
                             {formData.hijos_datos.length > 0 ? (
                                 <div>
@@ -538,7 +544,7 @@ export default function FichaForm() {
                         <SectionRead title="3. Datos Bancarios" icon={<Wallet size={16}/>}>
                             <GridRead>
                                 <FieldRead label="Banco" val={formData.banco} />
-                                <FieldRead label="NÂ° Cuenta" val={formData.cuenta_ahorros} highlight />
+                                <FieldRead label="N° Cuenta" val={formData.cuenta_ahorros} highlight />
                                 <FieldRead label="CCI" val={formData.cci} />
                                 <FieldRead label="AFP/ONP" val={`${formData.sistema_pension} ${formData.afp_nombre ? '- ' + formData.afp_nombre : ''}`} />
                                 <FieldRead label="CUSPP" val={formData.cuspp} />
@@ -546,15 +552,15 @@ export default function FichaForm() {
                         </SectionRead>
 
                         {/* 4. LABORAL */}
-                        <SectionRead title="4. InformaciÃ³n Laboral" icon={<HardHat size={16}/>}>
+                        <SectionRead title="4. Información Laboral" icon={<HardHat size={16}/>}>
                             <GridRead>
                                 <FieldRead label="Cargo" val={formData.cargo} highlight />
-                                <FieldRead label="CategorÃ­a" val={formData.categoria} />
+                                <FieldRead label="Categoría" val={formData.categoria} />
                                 <FieldRead label="Obra" val={formData.nombre_obra} highlight />
                                 <FieldRead label="Fecha Ingreso" val={formData.fecha_ingreso} />
                                 <FieldRead label="Nivel Educativo" val={formData.nivel_educativo} />
                                 <FieldRead label="Carrera/Oficio" val={formData.carrera} />
-                                <FieldRead label="InstituciÃ³n" val={formData.centro_formacion} />
+                                <FieldRead label="Institución" val={formData.centro_formacion} />
                             </GridRead>
                         </SectionRead>
 
@@ -563,22 +569,29 @@ export default function FichaForm() {
                             <GridRead>
                                 <FieldRead label="Nombre" val={formData.emergencia_nombre} />
                                 <FieldRead label="Parentesco" val={formData.emergencia_parentesco} />
-                                <FieldRead label="TelÃ©fono" val={formData.emergencia_telefono} highlight />
+                                <FieldRead label="Teléfono" val={formData.emergencia_telefono} highlight />
                             </GridRead>
                         </SectionRead>
 
-                        {/* 6. DOCUMENTOS */}
-                        <SectionRead title="6. Documentos Adjuntos" icon={<FileBadge size={16}/>}>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                <DocRead label="DNI Completo (PDF)" url={formData.doc_dni_trabajador} />
-                                <DocRead label="Antecedentes" url={formData.doc_certiadulto} />
-                                <DocRead label="Carnet RETCC" url={formData.doc_carnet_retcc} />
-                                <DocRead label="Ant. Policiales" url={formData.doc_policiales} />
-                                <DocRead label="Ant. Penales" url={formData.doc_penales} />
-                                {formData.doc_esposa_matrimonio && <DocRead label="Acta Matrimonio" url={formData.doc_esposa_matrimonio} />}
-                                {formData.doc_esposa_dni && <DocRead label="DNI Esposa" url={formData.doc_esposa_dni} />}
-                                {formData.doc_hijos_dni && <DocRead label="DNI Hijos" url={formData.doc_hijos_dni} />}
-                                {formData.doc_hijos_estudios && <DocRead label="Estudios Hijos" url={formData.doc_hijos_estudios} />}
+                        {/* 6. DOCUMENTOS DEL TRABAJADOR */}
+                        <SectionRead title="6. Documentos del Trabajador" icon={<FileBadge size={16}/>}>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                <DocSlot label="DNI (Frontal y Reverso)" url={formData.doc_dni_trabajador} />
+                                <DocSlot label="Certiadulto (Antecedentes)" url={formData.doc_certiadulto} />
+                                <DocSlot label="Carnet RETCC" url={formData.doc_carnet_retcc} />
+                                <DocSlot label="Antecedentes Policiales" url={formData.doc_policiales} />
+                                <DocSlot label="Antecedentes Penales" url={formData.doc_penales} />
+                            </div>
+                        </SectionRead>
+
+                        {/* 7. DOCUMENTOS FAMILIARES (siempre se listan, aunque estén vacíos) */}
+                        <SectionRead title="7. Documentos Familiares" icon={<Users size={16}/>}>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                <DocSlot label="Acta de Matrimonio" url={formData.doc_esposa_matrimonio} optional />
+                                <DocSlot label="DNI Esposa" url={formData.doc_esposa_dni} optional />
+                                <DocSlot label="Partida Nacimiento Hijos" url={formData.doc_hijos_nacimiento} optional />
+                                <DocSlot label="DNI Hijos" url={formData.doc_hijos_dni} optional />
+                                <DocSlot label="Constancia de Estudios Hijos" url={formData.doc_hijos_estudios} optional />
                             </div>
                         </SectionRead>
 
@@ -597,39 +610,104 @@ export default function FichaForm() {
 
   // --- WIZARD EDITABLE ---
   return (
-    <div className="min-h-screen bg-slate-50 py-6 px-4 font-sans pb-32">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 py-6 px-4 font-sans pb-32">
       <div className="max-w-4xl mx-auto">
-        
-        {/* Header de Pasos */}
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-6 sticky top-2 z-20">
-            <div className="flex justify-between items-center mb-2">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Paso {currentStep} de 5</span>
-                <span className="text-xs font-bold text-slate-800">{Math.round((currentStep / 5) * 100)}% Completado</span>
+
+        {/* Header de Pasos — moderno */}
+        <motion.div
+            initial={{ y: -20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ type: 'spring', stiffness: 220, damping: 22 }}
+            className="bg-white/90 backdrop-blur-md rounded-3xl p-5 shadow-lg shadow-slate-200/60 border border-white mb-6 sticky top-2 z-20 ring-1 ring-slate-100"
+        >
+            <div className="flex justify-between items-center mb-3">
+                <div className="flex items-center gap-2">
+                    <span className="bg-slate-900 text-white text-[10px] font-extrabold px-2.5 py-1 rounded-full uppercase tracking-wider">
+                        Paso {currentStep}/5
+                    </span>
+                    <span className="text-sm font-bold text-slate-700 hidden sm:inline">
+                        {STEPS.find(s => s.id === currentStep)?.title}
+                    </span>
+                </div>
+                <motion.span
+                    key={currentStep}
+                    initial={{ scale: 0.6, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 18 }}
+                    className="text-xs font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-100 px-3 py-1 rounded-full"
+                >
+                    {Math.round((currentStep / 5) * 100)}% Completado
+                </motion.span>
             </div>
-            <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                <motion.div 
-                    initial={{ width: 0 }} 
-                    animate={{ width: `${(currentStep / 5) * 100}%` }} 
-                    className="bg-slate-900 h-full rounded-full" 
-                    transition={{ duration: 0.5 }}
+            <div className="relative w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${(currentStep / 5) * 100}%` }}
+                    className="absolute inset-y-0 left-0 bg-gradient-to-r from-blue-500 via-indigo-500 to-emerald-500 rounded-full"
+                    transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+                />
+                {/* Brillo sutil deslizándose */}
+                <motion.div
+                    className="absolute inset-y-0 w-12 bg-gradient-to-r from-transparent via-white/60 to-transparent"
+                    animate={{ x: ['-3rem', `calc(${(currentStep / 5) * 100}% + 3rem)`] }}
+                    transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
                 />
             </div>
-            <div className="flex justify-between mt-4 px-2">
-                {STEPS.map((step) => (
-                    <div key={step.id} className={`flex flex-col items-center gap-1 ${currentStep === step.id ? 'text-slate-900 scale-105' : currentStep > step.id ? 'text-emerald-500' : 'text-slate-300'}`}>
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-all ${currentStep === step.id ? 'border-slate-900 bg-slate-900 text-white' : currentStep > step.id ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-slate-200'}`}>
-                            {currentStep > step.id ? <CheckCircle size={14}/> : step.icon}
-                        </div>
-                        <span className="text-[10px] font-bold hidden sm:block">{step.title}</span>
-                    </div>
-                ))}
+            <div className="flex justify-between mt-5 px-1">
+                {STEPS.map((step) => {
+                    const isCurrent = currentStep === step.id
+                    const isDone = currentStep > step.id
+                    return (
+                        <motion.button
+                            key={step.id}
+                            type="button"
+                            onClick={() => { if (isDone) setCurrentStep(step.id) }}
+                            whileHover={isDone ? { y: -2 } : {}}
+                            whileTap={isDone ? { scale: 0.95 } : {}}
+                            className={`flex flex-col items-center gap-1.5 ${isDone ? 'cursor-pointer' : ''}`}
+                        >
+                            <motion.div
+                                animate={isCurrent ? { scale: [1, 1.08, 1] } : { scale: 1 }}
+                                transition={isCurrent ? { duration: 1.6, repeat: Infinity, ease: 'easeInOut' } : { duration: 0.2 }}
+                                className={`relative w-11 h-11 rounded-full flex items-center justify-center transition-all ${
+                                    isCurrent ? 'bg-white ring-2 ring-blue-500 shadow-lg shadow-blue-500/20' :
+                                    isDone ? 'bg-emerald-50 ring-1 ring-emerald-200' :
+                                    'bg-slate-50 ring-1 ring-slate-100 grayscale opacity-50'
+                                }`}
+                            >
+                                {isDone ? (
+                                    <motion.div
+                                        key={`done-${step.id}`}
+                                        initial={{ scale: 0, rotate: -90 }}
+                                        animate={{ scale: 1, rotate: 0 }}
+                                        transition={{ type: 'spring', stiffness: 380, damping: 16 }}
+                                    >
+                                        <AnimatedIcon name="check" size={30} bounceOnMount={false} />
+                                    </motion.div>
+                                ) : (
+                                    <AnimatedIcon name={step.animatedIcon} size={28} bounceOnMount={false} />
+                                )}
+                                {isCurrent && (
+                                    <motion.span
+                                        className="absolute inset-0 rounded-full ring-2 ring-blue-500/40 pointer-events-none"
+                                        animate={{ scale: [1, 1.45], opacity: [0.55, 0] }}
+                                        transition={{ duration: 1.4, repeat: Infinity, ease: 'easeOut' }}
+                                    />
+                                )}
+                            </motion.div>
+                            <span className={`text-[10px] font-bold hidden sm:block ${
+                                isCurrent ? 'text-slate-900' : isDone ? 'text-emerald-600' : 'text-slate-300'
+                            }`}>{step.title}</span>
+                        </motion.button>
+                    )
+                })}
             </div>
-        </div>
+        </motion.div>
 
         <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden p-6 md:p-10 min-h-[500px] relative">
              <AnimatePresence mode='wait'>
                 {currentStep === 1 && <StepWrapper key="1">
-                    <SectionTitle title="InformaciÃ³n Personal" icon={<User/>} />
+                    <SectionTitle title="Información Personal" animatedIcon="personal" />
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
                         <Input label="Apellido Paterno" name="apellido_paterno" val={formData.apellido_paterno} set={handleChange} required readOnly={!!formData.apellido_paterno} />
                         <Input label="Apellido Materno" name="apellido_materno" val={formData.apellido_materno} set={handleChange} required readOnly={!!formData.apellido_materno} />
@@ -645,23 +723,23 @@ export default function FichaForm() {
                                 </button>
                                 <button type="button" onClick={() => handleChange({ target: { name: 'tipo_documento', value: 'CE' } })}
                                     className={`flex-1 py-2.5 rounded-xl text-sm font-bold border transition-all ${formData.tipo_documento === 'CE' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'}`}>
-                                    Carnet ExtranjerÃ­a
+                                    Carnet Extranjería
                                 </button>
                             </div>
                         </div>
-                        <Input label={formData.tipo_documento === 'CE' ? 'NÂ° Carnet de ExtranjerÃ­a' : 'DNI'} name="dni" val={formData.dni} set={handleChange} required />
-                        <Input label="DirecciÃ³n" name="direccion" val={formData.direccion} set={handleChange} required />
+                        <Input label={formData.tipo_documento === 'CE' ? 'N° Carnet de Extranjería' : 'DNI'} name="dni" val={formData.dni} set={handleChange} required />
+                        <Input label="Dirección" name="direccion" val={formData.direccion} set={handleChange} required />
                         <Input label="Distrito" name="distrito" val={formData.distrito} set={handleChange} required />
                         <Input label="Provincia" name="provincia" val={formData.provincia} set={handleChange} required />
                         <Input label="Departamento" name="departamento" val={formData.departamento} set={handleChange} required />
-                        <Input label="Correo ElectrÃ³nico" name="correo" val={formData.correo} set={handleChange} />
+                        <Input label="Correo Electrónico" name="correo" val={formData.correo} set={handleChange} />
                         <Input label="Celular" name="celular" val={formData.celular} set={handleChange} />
                     </div>
-                    <SectionTitle title="Datos Bancarios" icon={<Wallet/>} />
+                    <SectionTitle title="Datos Bancarios" animatedIcon="datosBancarios" />
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                        <div className="md:col-span-1"><Select label="Banco" name="banco" val={formData.banco} set={handleChange} options={['Interbank', 'BBVA', 'BCP', 'Scotiabank', 'Banco de la NaciÃ³n']} required /></div>
-                        <Input label="NÂ° Cuenta" name="cuenta_ahorros" val={formData.cuenta_ahorros} set={handleChange} required />
-                        <Input label="CCI (20 dÃ­gitos)" name="cci" val={formData.cci} set={handleChange} />
+                        <div className="md:col-span-1"><Select label="Banco" name="banco" val={formData.banco} set={handleChange} options={['Interbank', 'BBVA', 'BCP', 'Scotiabank', 'Banco de la Nación']} required /></div>
+                        <Input label="N° Cuenta" name="cuenta_ahorros" val={formData.cuenta_ahorros} set={handleChange} required />
+                        <Input label="CCI (20 dígitos)" name="cci" val={formData.cci} set={handleChange} />
                         <div className="md:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-5 pt-4 border-t border-slate-100">
                             <div className="flex gap-4 items-center h-full pt-4"><Radio label="ONP" name="sistema_pension" val="ONP" current={formData.sistema_pension} set={handleChange} /><Radio label="AFP" name="sistema_pension" val="AFP" current={formData.sistema_pension} set={handleChange} /></div>
                             {formData.sistema_pension === 'AFP' && <Input label="Nombre AFP" name="afp_nombre" val={formData.afp_nombre} set={handleChange} />}
@@ -671,10 +749,17 @@ export default function FichaForm() {
                 </StepWrapper>}
 
                 {currentStep === 2 && <StepWrapper key="2">
-                    <div className="mb-6 p-4 bg-blue-50 text-blue-800 rounded-xl border border-blue-100 text-sm flex items-center gap-3"><Users size={20}/> SecciÃ³n opcional. ComplÃ©tala solo si tienes esposa/hijos.</div>
+                    <SectionTitle title="Información Familiar" animatedIcon="familia" />
+                    <div className="mb-6 p-4 bg-blue-50 text-blue-800 rounded-xl border border-blue-100 text-sm flex items-center gap-3">
+                        <AnimatedIcon name="familia" size={26} bounceOnMount={false} />
+                        <span>Sección opcional. Compléta solo si tienes esposa/hijos.</span>
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div>
-                            <h4 className="font-bold text-slate-800 mb-4 border-b pb-2">Esposa / Conviviente</h4>
+                            <div className="flex items-center gap-2 mb-4 border-b pb-2">
+                                <AnimatedIcon name="esposa" size={26} bounceOnMount={false} />
+                                <h4 className="font-bold text-slate-800">Esposa / Conviviente</h4>
+                            </div>
                             <div className="space-y-4">
                                 <Input label="DNI" val={formData.esposa_datos.dni} onChange={(e:any)=>handleEsposaChange('dni', e.target.value)} />
                                 <Input label="Nombres" val={formData.esposa_datos.nombres} onChange={(e:any)=>handleEsposaChange('nombres', e.target.value)} />
@@ -682,7 +767,13 @@ export default function FichaForm() {
                             </div>
                         </div>
                         <div>
-                            <div className="flex justify-between items-center mb-4 border-b pb-2"><h4 className="font-bold text-slate-800">Hijos Registrados</h4><button onClick={addHijo} className="text-xs bg-slate-900 text-white px-3 py-1.5 rounded-lg font-bold hover:bg-slate-700 flex gap-1 items-center"><Plus size={12}/> AGREGAR</button></div>
+                            <div className="flex justify-between items-center mb-4 border-b pb-2">
+                                <div className="flex items-center gap-2">
+                                    <AnimatedIcon name="hijos" size={26} bounceOnMount={false} />
+                                    <h4 className="font-bold text-slate-800">Hijos Registrados</h4>
+                                </div>
+                                <button onClick={addHijo} className="text-xs bg-slate-900 text-white px-3 py-1.5 rounded-lg font-bold hover:bg-slate-700 flex gap-1 items-center"><Plus size={12}/> AGREGAR</button>
+                            </div>
                             <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
                                 {formData.hijos_datos.length === 0 && <p className="text-slate-400 italic text-sm text-center py-4">No hay hijos registrados</p>}
                                 {formData.hijos_datos.map((hijo:any, idx:number) => (
@@ -704,47 +795,50 @@ export default function FichaForm() {
                 </StepWrapper>}
 
                 {currentStep === 3 && <StepWrapper key="3">
-                    <SectionTitle title="Datos de Obra" icon={<HardHat/>} />
+                    <SectionTitle title="Información Laboral" animatedIcon="laboral" />
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
                         <Input label="Cargo" name="cargo" val={formData.cargo} set={handleChange} required />
                         <Input label="Obra / Proyecto" name="nombre_obra" val={formData.nombre_obra} set={handleChange} required />
-                        <Input label="CategorÃ­a" name="categoria" val={formData.categoria} set={handleChange} required />
+                        <Input label="Categoría" name="categoria" val={formData.categoria} set={handleChange} required />
                         <Input label="Fecha Ingreso" type="date" name="fecha_ingreso" val={formData.fecha_ingreso} set={handleChange} />
                     </div>
-                    <SectionTitle title="FormaciÃ³n AcadÃ©mica" icon={<GraduationCap/>} />
+                    <SectionTitle title="Formación Académica" animatedIcon="formacionAcademica" />
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                            <Select label="Nivel educativo" name="nivel_educativo" val={formData.nivel_educativo} set={handleChange} options={['Primaria', 'Secundaria', 'TÃ©cnico', 'Universitario']} />
+                            <Select label="Nivel educativo" name="nivel_educativo" val={formData.nivel_educativo} set={handleChange} options={['Primaria', 'Secundaria', 'Técnico', 'Universitario']} />
                             <Input label="Carrera / Oficio" name="carrera" val={formData.carrera} set={handleChange} />
-                            <Input label="InstituciÃ³n Educativa" name="centro_formacion" val={formData.centro_formacion} set={handleChange} className="md:col-span-2" />
+                            <Input label="Institución Educativa" name="centro_formacion" val={formData.centro_formacion} set={handleChange} className="md:col-span-2" />
                     </div>
                 </StepWrapper>}
 
                 {currentStep === 4 && <StepWrapper key="4">
-                    <SectionTitle title="En caso de emergencia llamar a:" icon={<HeartPulse/>} />
+                    <SectionTitle title="En caso de emergencia llamar a:" animatedIcon="contactoEmergencia" />
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-5 bg-red-50/50 p-6 rounded-2xl mb-10 border border-red-100">
                         <Input label="Nombre Completo" name="emergencia_nombre" val={formData.emergencia_nombre} set={handleChange} required />
                         <Input label="Parentesco" name="emergencia_parentesco" val={formData.emergencia_parentesco} set={handleChange} required />
-                        <Input label="TelÃ©fono" name="emergencia_telefono" val={formData.emergencia_telefono} set={handleChange} required />
+                        <Input label="Teléfono" name="emergencia_telefono" val={formData.emergencia_telefono} set={handleChange} required />
                     </div>
 
-                    <SectionTitle title="Documentos del Trabajador" icon={<FileBadge/>} />
-                    <p className="text-xs text-slate-500 mb-6 bg-slate-50 p-3 rounded-lg border border-slate-200 inline-block">
-                        ðŸ’¡ Puedes subir archivos PDF o tomar una foto (se convertirÃ¡ a PDF automÃ¡ticamente).
-                    </p>
-                    
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                        {/* CAMBIO: Solo un campo para DNI completo */}
-                        <div className="md:col-span-2">
-                             <ImageUpload label="DNI (Frontal y Reverso)" bucket="documentos" currentUrl={formData.doc_dni_trabajador} onUpload={(u:any)=>setFormData((prev: any) => ({...prev, doc_dni_trabajador:u}))} />
+                    <SectionTitle title="Documentos del Trabajador" animatedIcon="docs" />
+                    <div className="mb-6 bg-amber-50 p-4 rounded-xl border border-amber-200 flex items-start gap-3">
+                        <div className="shrink-0 w-8 h-8 bg-amber-200 text-amber-900 rounded-lg flex items-center justify-center font-extrabold">!</div>
+                        <div className="text-xs text-amber-900">
+                            <p className="font-bold mb-1">DNI (Frontal y Reverso), Certiadulto y Carnet RETCC son obligatorios.</p>
+                            <p className="text-amber-800">Sin ellos no podrás avanzar al siguiente paso. Puedes subir PDF o tomar foto.</p>
                         </div>
-                        
-                        <ImageUpload label="Certiadulto (Antecedentes)" bucket="documentos" currentUrl={formData.doc_certiadulto} onUpload={(u:any)=>setFormData((prev: any) => ({...prev, doc_certiadulto:u}))} />
-                        <ImageUpload label="Carnet RETCC" bucket="documentos" currentUrl={formData.doc_carnet_retcc} onUpload={(u:any)=>setFormData((prev: any) => ({...prev, doc_carnet_retcc:u}))} />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                        <div className="md:col-span-2">
+                             <ImageUpload label="DNI (Frontal y Reverso)" bucket="documentos" required currentUrl={formData.doc_dni_trabajador} onUpload={(u:any)=>setFormData((prev: any) => ({...prev, doc_dni_trabajador:u}))} />
+                        </div>
+                        <ImageUpload label="Certiadulto (Antecedentes)" bucket="documentos" required currentUrl={formData.doc_certiadulto} onUpload={(u:any)=>setFormData((prev: any) => ({...prev, doc_certiadulto:u}))} />
+                        <ImageUpload label="Carnet RETCC" bucket="documentos" required currentUrl={formData.doc_carnet_retcc} onUpload={(u:any)=>setFormData((prev: any) => ({...prev, doc_carnet_retcc:u}))} />
                         <ImageUpload label="Ant. Policiales" bucket="documentos" currentUrl={formData.doc_policiales} onUpload={(u:any)=>setFormData((prev: any) => ({...prev, doc_policiales:u}))} />
                         <ImageUpload label="Ant. Penales" bucket="documentos" currentUrl={formData.doc_penales} onUpload={(u:any)=>setFormData((prev: any) => ({...prev, doc_penales:u}))} />
                     </div>
 
-                    <SectionTitle title="Documentos Familiares" icon={<Users/>} />
+                    <SectionTitle title="Documentos Familiares" animatedIcon="familia" />
+                    <p className="text-xs text-slate-500 mb-4 italic">Estos documentos son opcionales. Súbelos si corresponde a tu caso.</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                         <ImageUpload label="Acta Matrimonio" bucket="documentos" currentUrl={formData.doc_esposa_matrimonio} onUpload={(u:any)=>setFormData((prev: any) => ({...prev, doc_esposa_matrimonio:u}))} />
                         <ImageUpload label="DNI Esposa" bucket="documentos" currentUrl={formData.doc_esposa_dni} onUpload={(u:any)=>setFormData((prev: any) => ({...prev, doc_esposa_dni:u}))} />
@@ -754,8 +848,9 @@ export default function FichaForm() {
                 </StepWrapper>}
 
                 {currentStep === 5 && <StepWrapper key="5">
-                    <div className="text-center mb-8">
-                            <h3 className="text-2xl font-bold text-slate-900">Firma de Conformidad</h3>
+                    <div className="text-center mb-8 flex flex-col items-center">
+                            <AnimatedIcon name="firma" size={56} surface="gradient" bounceOnMount />
+                            <h3 className="text-2xl font-bold text-slate-900 mt-3">Firma de Conformidad</h3>
                             <p className="text-slate-500">Dibuja tu firma en el recuadro para validar la ficha.</p>
                     </div>
                     {/* -- FIRMA CORREGIDA: No se bloquea al levantar el dedo -- */}
@@ -777,7 +872,7 @@ export default function FichaForm() {
 
                     <label className={`flex items-center gap-4 p-5 rounded-xl border cursor-pointer transition-all max-w-xl mx-auto ${declaracionAceptada ? 'bg-slate-900 text-white border-slate-900 ring-2 ring-slate-900 ring-offset-2' : 'bg-white border-slate-200 hover:border-slate-300'}`}>
                         <input type="checkbox" checked={declaracionAceptada} onChange={(e) => setDeclaracionAceptada(e.target.checked)} className="w-6 h-6 accent-emerald-500" />
-                        <div><span className="font-bold block text-sm">DeclaraciÃ³n Jurada</span><span className={`text-xs ${declaracionAceptada ? 'text-slate-300' : 'text-slate-500'}`}>Declaro bajo juramento que toda la informaciÃ³n consignada es verdadera.</span></div>
+                        <div><span className="font-bold block text-sm">Declaración Jurada</span><span className={`text-xs ${declaracionAceptada ? 'text-slate-300' : 'text-slate-500'}`}>Declaro bajo juramento que toda la información consignada es verdadera.</span></div>
                     </label>
                 </StepWrapper>}
              </AnimatePresence>
@@ -785,7 +880,7 @@ export default function FichaForm() {
 
         <div className="fixed bottom-0 left-0 w-full bg-white/80 backdrop-blur-md border-t border-slate-200 p-4 z-50">
              <div className="max-w-5xl mx-auto flex justify-between items-center">
-                 <button onClick={() => setCurrentStep(p => Math.max(1, p - 1))} disabled={currentStep === 1} className={`flex items-center gap-2 font-bold px-6 py-3 rounded-xl transition-all ${currentStep === 1 ? 'opacity-0 pointer-events-none' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'}`}><ChevronLeft size={20}/> AtrÃ¡s</button>
+                 <button onClick={() => setCurrentStep(p => Math.max(1, p - 1))} disabled={currentStep === 1} className={`flex items-center gap-2 font-bold px-6 py-3 rounded-xl transition-all ${currentStep === 1 ? 'opacity-0 pointer-events-none' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'}`}><ChevronLeft size={20}/> Atrás</button>
                  {currentStep < 5 ? (
                     <button onClick={handleNextStep} className="bg-slate-900 text-white font-bold px-8 py-3 rounded-xl hover:bg-slate-800 transition-all flex items-center gap-2 shadow-lg shadow-slate-900/20 active:scale-95">Siguiente <ChevronRight size={20}/></button>
                  ) : (
@@ -799,7 +894,7 @@ export default function FichaForm() {
 }
 
 // --- COMPONENTE MEJORADO: SOPORTE CAMARA, PDF AUTO, ENCUADRE REAL Y PREVIEW ---
-function ImageUpload({label, bucket, onUpload, currentUrl}: any) { 
+function ImageUpload({label, bucket, onUpload, currentUrl, required = false}: any) {
     const [uploading, setUploading] = useState(false); 
     const [showCamera, setShowCamera] = useState(false);
     const [previewModal, setPreviewModal] = useState(false);
@@ -863,9 +958,25 @@ function ImageUpload({label, bucket, onUpload, currentUrl}: any) {
         setUploading(false);
     };
 
+    const missingRequired = required && documentUrls.length === 0
     return (
         <>
-            <div className={`relative border border-dashed rounded-xl p-4 text-center transition-all group min-h-44 overflow-hidden ${documentUrls.length ? (isPdf ? 'border-red-500 bg-red-50/30' : 'border-emerald-500 bg-emerald-50/30') : 'border-slate-300 hover:border-slate-400 hover:bg-slate-50'}`}>
+            <div className={`relative border-2 border-dashed rounded-xl p-4 text-center transition-all group min-h-44 overflow-hidden ${
+                documentUrls.length
+                    ? (isPdf ? 'border-red-500 bg-red-50/30' : 'border-emerald-500 bg-emerald-50/30')
+                    : missingRequired
+                        ? 'border-amber-400 bg-amber-50/40 hover:border-amber-500'
+                        : 'border-slate-300 hover:border-slate-400 hover:bg-slate-50'
+            }`}>
+                {required && (
+                    <span className={`absolute top-2 left-2 text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider z-20 ${
+                        documentUrls.length
+                            ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                            : 'bg-amber-200 text-amber-900 border border-amber-300 animate-pulse'
+                    }`}>
+                        {documentUrls.length ? '✓ OK' : 'Obligatorio'}
+                    </span>
+                )}
                 
                 <div className="flex flex-col gap-3 w-full relative z-10 pointer-events-auto">
                     {!uploading && (
@@ -947,7 +1058,7 @@ function ImageUpload({label, bucket, onUpload, currentUrl}: any) {
                 />
             )}
 
-            {/* Modal de PrevisualizaciÃ³n */}
+            {/* Modal de Previsualización */}
             {previewModal && documentUrls.length > 0 && (
                 <DocumentPreviewModal
                     label={label}
@@ -971,14 +1082,14 @@ function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => voi
     const [rotation, setRotation] = useState(0);
     const [processing, setProcessing] = useState(false);
 
-    // --- NUEVO: Estado para capturas mÃºltiples (DNI Front/Back) ---
+    // --- NUEVO: Estado para capturas múltiples (DNI Front/Back) ---
     const [capturedSide1, setCapturedSide1] = useState<string | null>(null);
 
-    // ConfiguraciÃ³n del recuadro
+    // Configuración del recuadro
     const isLandscape = format === 'id-card';
     const aspectRatio = isLandscape ? 1.58 : 0.70; // 1.58 = Tarjeta, 0.70 = A4
     
-    // Texto dinÃ¡mico segÃºn el paso actual
+    // Texto dinámico según el paso actual
     let guideText = "";
     if (format === 'a4') {
         guideText = "Encuadra el documento completo";
@@ -989,7 +1100,7 @@ function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => voi
 
     const startCamera = async () => {
         try {
-            // Pedimos la mÃ¡xima resoluciÃ³n posible para que el texto se vea nÃ­tido
+            // Pedimos la máxima resolución posible para que el texto se vea nítido
             const mediaStream = await navigator.mediaDevices.getUserMedia({ 
                 video: { 
                     facingMode: 'environment', 
@@ -1000,8 +1111,8 @@ function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => voi
             setStream(mediaStream);
             if (videoRef.current) videoRef.current.srcObject = mediaStream;
         } catch (err) {
-            console.error("Error cÃ¡mara:", err);
-            toast.error("No se pudo acceder a la cÃ¡mara.");
+            console.error("Error cámara:", err);
+            toast.error("No se pudo acceder a la cámara.");
             onClose();
         }
     };
@@ -1025,34 +1136,34 @@ function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => voi
             const videoH = video.videoHeight;
             
             // 2. Obtener dimensiones DE PANTALLA (ej: 400x800)
-            // Usamos el contenedor padre para saber el tamaÃ±o visible exacto
+            // Usamos el contenedor padre para saber el tamaño visible exacto
             const rect = video.getBoundingClientRect(); 
 
-            // 3. Calcular quÃ© tan grande es el video renderizado en pantalla (considerando object-fit: cover)
+            // 3. Calcular qué tan grande es el video renderizado en pantalla (considerando object-fit: cover)
             const videoRatio = videoW / videoH;
             const screenRatio = rect.width / rect.height;
             
             let renderW, renderH;
 
             if (screenRatio > videoRatio) {
-                // La pantalla es mÃ¡s ancha que el video (zoom ancho)
+                // La pantalla es más ancha que el video (zoom ancho)
                 renderW = rect.width;
                 renderH = rect.width / videoRatio;
             } else {
-                // La pantalla es mÃ¡s alta que el video (zoom alto - caso normal en mÃ³vil)
+                // La pantalla es más alta que el video (zoom alto - caso normal en móvil)
                 renderH = rect.height;
                 renderW = rect.height * videoRatio;
             }
 
-            // 4. Calcular el tamaÃ±o del recuadro verde en PÃXELES DE PANTALLA
+            // 4. Calcular el tamaño del recuadro verde en PÍXELES DE PANTALLA
             // El recuadro es 90% del ancho de la pantalla (limitado a 448px)
             const boxWidthScreen = Math.min(rect.width * 0.9, 448);
             const boxHeightScreen = boxWidthScreen / aspectRatio;
 
-            // 5. Calcular el MULTIPLICADOR (CuÃ¡ntos pÃ­xeles reales hay por pÃ­xel de pantalla)
+            // 5. Calcular el MULTIPLICADOR (Cuántos píxeles reales hay por píxel de pantalla)
             const multiplier = videoW / renderW;
 
-            // 6. Calcular tamaÃ±o de recorte en PÃXELES REALES
+            // 6. Calcular tamaño de recorte en PÍXELES REALES
             const cropW = boxWidthScreen * multiplier;
             const cropH = boxHeightScreen * multiplier;
 
@@ -1070,7 +1181,7 @@ function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => voi
                 // drawImage(source, x, y, w, h, destX, destY, destW, destH)
                 ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
                 
-                // Guardar imagen y pasar a ediciÃ³n
+                // Guardar imagen y pasar a edición
                 setTempImage(canvas.toDataURL('image/jpeg', 1.0));
                 setStep('edit');
                 stopCamera();
@@ -1084,7 +1195,7 @@ function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => voi
         setProcessing(true);
 
         try {
-            // 1. Procesar la imagen actual (aplicar rotaciÃ³n y filtros)
+            // 1. Procesar la imagen actual (aplicar rotación y filtros)
             const img = new Image();
             img.src = tempImage;
             await new Promise(r => img.onload = r);
@@ -1107,9 +1218,9 @@ function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => voi
             
             const processedImage = canvas.toDataURL('image/jpeg', 0.85);
 
-            // --- LÃ“GICA DE DNI (DOBLE CARA) ---
+            // --- LÓGICA DE DNI (DOBLE CARA) ---
             if (format === 'id-card' && !capturedSide1) {
-                // Si es DNI y aÃºn no tenemos la primera cara:
+                // Si es DNI y aún no tenemos la primera cara:
                 // Guardamos la primera cara, reseteamos y pedimos la segunda.
                 setCapturedSide1(processedImage);
                 setProcessing(false);
@@ -1118,10 +1229,10 @@ function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => voi
                 setRotation(0);
                 setFilter('original');
                 
-                // Reiniciar cÃ¡mara
+                // Reiniciar cámara
                 startCamera(); 
                 toast.info("Frontal guardado. Ahora toma el REVERSO.");
-                return; // IMPORTANTE: Detenemos aquÃ­ para no generar PDF aÃºn
+                return; // IMPORTANTE: Detenemos aquí para no generar PDF aún
             }
 
             // --- GENERAR PDF FINAL ---
@@ -1131,7 +1242,7 @@ function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => voi
             const margin = 10;
             const maxW = pageWidth - margin * 2;
             
-            // FunciÃ³n auxiliar para aÃ±adir imagen al PDF
+            // Función auxiliar para añadir imagen al PDF
             const addImageToPdf = (imgData: string, yPos: number, maxHeight: number) => {
                 const props = pdfDoc.getImageProperties(imgData);
                 const imgRatio = props.width / props.height;
@@ -1159,7 +1270,7 @@ function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => voi
             } else {
                 // CASO DOCUMENTO SIMPLE (A4)
                 const maxH = pageHeight - margin * 2;
-                // Si la imagen es apaisada (A4 horizontal), rotamos la pÃ¡gina del PDF
+                // Si la imagen es apaisada (A4 horizontal), rotamos la página del PDF
                 const props = pdfDoc.getImageProperties(processedImage);
                 if (props.width > props.height) {
                     pdfDoc.deletePage(1);
@@ -1209,7 +1320,7 @@ function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => voi
                     {/* Video - Importante: object-fit cover */}
                     <video ref={videoRef} autoPlay playsInline className="absolute inset-0 w-full h-full object-cover" />
                     
-                    {/* GuÃ­a de Recorte (Overlay) */}
+                    {/* Guía de Recorte (Overlay) */}
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
                         {/* El recuadro visual */}
                         <div 
@@ -1228,14 +1339,14 @@ function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => voi
                             <div className={`absolute bottom-0 left-0 w-4 h-4 border-b-4 border-l-4 -mb-0.5 -ml-0.5 ${capturedSide1 ? 'border-amber-400' : 'border-emerald-400'}`}></div>
                             <div className={`absolute bottom-0 right-0 w-4 h-4 border-b-4 border-r-4 -mb-0.5 -mr-0.5 ${capturedSide1 ? 'border-amber-400' : 'border-emerald-400'}`}></div>
                             
-                            {/* Texto guÃ­a */}
+                            {/* Texto guía */}
                             <div className="absolute -bottom-10 left-0 w-full text-center">
                                 <span className={`text-white text-xs font-medium tracking-wide bg-black/60 px-3 py-1.5 rounded-full ${capturedSide1 ? 'text-amber-300' : 'text-emerald-300'}`}>{guideText}</span>
                             </div>
                         </div>
                     </div>
 
-                    {/* BotÃ³n de Captura */}
+                    {/* Botón de Captura */}
                     <div className="absolute bottom-0 w-full pb-10 pt-20 bg-gradient-to-t from-black via-black/60 to-transparent flex justify-center items-center z-20">
                         <button onClick={capturePhoto} className="w-18 h-18 bg-white/20 rounded-full p-1.5 backdrop-blur-sm active:scale-95 transition-all">
                             <div className={`w-16 h-16 bg-white rounded-full border-4 border-transparent ring-2 shadow-xl ${capturedSide1 ? 'ring-amber-500' : 'ring-emerald-500'}`}></div>
@@ -1298,10 +1409,89 @@ function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => voi
 // --- COMPONENTES AUXILIARES (DEFINIDOS AL FINAL PARA SOLUCIONAR ERRORES) ---
 
 function WelcomeScreen({onStart}:any) {
-    return <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-6 text-center"><motion.div initial={{y:20, opacity:0}} animate={{y:0, opacity:1}} className="max-w-md w-full bg-white p-10 rounded-3xl shadow-2xl shadow-slate-200"><div className="mb-8 inline-flex p-5 bg-slate-900 text-white rounded-2xl shadow-lg shadow-slate-500/20"><FileBadge size={40} /></div><h1 className="text-3xl font-extrabold mb-3 text-slate-900">Ficha de Datos</h1><p className="text-slate-500 mb-10 leading-relaxed">Bienvenido al sistema RUAG. Ten a mano tu DNI y documentos.</p><button onClick={onStart} className="w-full bg-slate-900 text-white py-4 rounded-xl font-bold text-lg hover:scale-[1.02] transition-all shadow-xl">Comenzar</button></motion.div></div>
+    return (
+        <div className="min-h-screen bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-50 flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
+            {/* Blobs decorativos */}
+            <motion.div
+                aria-hidden
+                animate={{ scale: [1, 1.15, 1], opacity: [0.5, 0.8, 0.5] }}
+                transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }}
+                className="absolute -top-20 -right-20 w-72 h-72 bg-blue-300/40 rounded-full blur-3xl pointer-events-none"
+            />
+            <motion.div
+                aria-hidden
+                animate={{ scale: [1.1, 1, 1.1], opacity: [0.4, 0.7, 0.4] }}
+                transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
+                className="absolute -bottom-24 -left-24 w-80 h-80 bg-indigo-300/40 rounded-full blur-3xl pointer-events-none"
+            />
+
+            <motion.div
+                initial={{ y: 30, opacity: 0, scale: 0.95 }}
+                animate={{ y: 0, opacity: 1, scale: 1 }}
+                transition={{ type: 'spring', stiffness: 220, damping: 22 }}
+                className="relative max-w-md w-full bg-white/95 backdrop-blur-md p-10 rounded-3xl shadow-2xl shadow-blue-200/40 ring-1 ring-white"
+            >
+                <motion.div
+                    initial={{ scale: 0, rotate: -180 }}
+                    animate={{ scale: 1, rotate: 0 }}
+                    transition={{ type: 'spring', stiffness: 240, damping: 14, delay: 0.2 }}
+                    className="relative mb-8 inline-flex"
+                >
+                    <motion.span
+                        aria-hidden
+                        className="absolute inset-0 rounded-2xl bg-blue-400/40 blur-xl"
+                        animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0.9, 0.5] }}
+                        transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+                    />
+                    <div className="relative p-5 bg-gradient-to-br from-blue-600 to-indigo-700 text-white rounded-2xl shadow-xl shadow-blue-500/40">
+                        <FileBadge size={42} />
+                    </div>
+                </motion.div>
+                <h1 className="text-3xl font-extrabold mb-3 text-slate-900 tracking-tight">Ficha de Datos</h1>
+                <p className="text-slate-500 mb-8 leading-relaxed">
+                    Bienvenido al sistema <span className="font-bold text-slate-900">RUAG</span>.
+                    Ten a mano tu DNI y documentos.
+                </p>
+                <ul className="text-left text-xs text-slate-500 space-y-2 mb-10 bg-slate-50 rounded-xl p-4 border border-slate-100">
+                    <li className="flex items-center gap-2"><CheckCircle size={14} className="text-emerald-500 shrink-0"/> Datos personales y bancarios</li>
+                    <li className="flex items-center gap-2"><CheckCircle size={14} className="text-emerald-500 shrink-0"/> Documentos del trabajador y familiares</li>
+                    <li className="flex items-center gap-2"><CheckCircle size={14} className="text-emerald-500 shrink-0"/> Firma digital de conformidad</li>
+                </ul>
+                <motion.button
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={onStart}
+                    className="w-full bg-gradient-to-r from-slate-900 to-slate-800 text-white py-4 rounded-xl font-bold text-lg shadow-xl shadow-slate-900/20 flex items-center justify-center gap-2"
+                >
+                    Comenzar <ArrowRight size={20}/>
+                </motion.button>
+            </motion.div>
+        </div>
+    )
 }
 
-function SectionTitle({title, icon}: any) { return <div className="flex items-center gap-3 mb-6 pb-2 border-b border-slate-100"><div className="text-slate-400">{icon}</div><h3 className="text-lg font-bold text-slate-800 tracking-tight">{title}</h3></div>}
+function SectionTitle({title, icon, animatedIcon}: { title: string, icon?: any, animatedIcon?: AnimatedIconKey }) {
+    return (
+        <motion.div
+            initial={{ x: -10, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ duration: 0.4 }}
+            className="flex items-center gap-3 mb-6 pb-3 border-b border-slate-100"
+        >
+            {animatedIcon ? (
+                <AnimatedIcon name={animatedIcon} size={36} surface="gradient" bounceOnMount />
+            ) : (
+                <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center text-blue-600 shadow-sm ring-1 ring-blue-100">
+                    {icon}
+                </div>
+            )}
+            <div className="flex-1">
+                <h3 className="text-lg font-extrabold text-slate-900 tracking-tight leading-none">{title}</h3>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5 block">RUAG · FICHA</span>
+            </div>
+        </motion.div>
+    )
+}
 function SectionRead({title, icon, children}: any) { return <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm"><div className="flex items-center gap-2 mb-4 text-slate-900 font-bold border-b border-slate-100 pb-2"><span className="text-slate-500">{icon}</span><h3>{title}</h3></div>{children}</div>}
 function Input({label, name, val, set, type="text", required=false, readOnly=false, onChange, placeholder, className=""}: any) {
     if (type === 'date') {
@@ -1417,6 +1607,65 @@ function DocRead({label, url}: any) {
                 <div className="flex-1 overflow-hidden"><p className="text-xs font-bold text-slate-700 truncate">{label}</p><p className="text-[10px] text-slate-400">{urls.length > 1 ? `${urls.length} hojas` : (isPdf ? 'Documento PDF' : 'Imagen')}</p></div>
                 <Eye size={14} className="text-slate-300 group-hover:text-slate-500"/>
             </button>
+
+            {previewOpen && (
+                <DocumentPreviewModal
+                    label={label}
+                    urls={urls}
+                    onClose={() => setPreviewOpen(false)}
+                />
+            )}
+        </>
+    )
+}
+
+// Slot que SIEMPRE se renderiza: si el documento existe lo abre en el modal,
+// si no, muestra un placeholder estilo "Pendiente de carga" como en la app móvil.
+function DocSlot({ label, url, optional = false }: { label: string, url?: string, optional?: boolean }) {
+    const [previewOpen, setPreviewOpen] = useState(false)
+    const urls = parseDocumentUrls(url)
+    const isUploaded = urls.length > 0
+    const primaryUrl = isUploaded ? urls[urls.length - 1] : ''
+    const isPdf = isUploaded && primaryUrl.toLowerCase().includes('.pdf')
+
+    if (!isUploaded) {
+        return (
+            <div className={`group relative w-full flex items-center gap-3 p-3 rounded-xl border-2 border-dashed transition-all ${optional ? 'bg-slate-50/50 border-slate-200' : 'bg-amber-50/50 border-amber-200'}`}>
+                <div className={`shrink-0 w-9 h-9 rounded-lg flex items-center justify-center ${optional ? 'bg-slate-100 text-slate-400' : 'bg-amber-100 text-amber-600'}`}>
+                    {optional ? <CloudOff size={16} /> : <FileWarning size={16} />}
+                </div>
+                <div className="flex-1 overflow-hidden">
+                    <p className={`text-xs font-bold truncate ${optional ? 'text-slate-500' : 'text-amber-900'}`}>{label}</p>
+                    <p className={`text-[10px] mt-0.5 flex items-center gap-1 ${optional ? 'text-slate-400' : 'text-amber-700'}`}>
+                        <Clock size={9} />
+                        {optional ? 'No registrado' : 'Pendiente de carga'}
+                    </p>
+                </div>
+            </div>
+        )
+    }
+
+    return (
+        <>
+            <motion.button
+                type="button"
+                onClick={() => setPreviewOpen(true)}
+                whileHover={{ y: -2 }}
+                whileTap={{ scale: 0.98 }}
+                className={`group relative w-full flex items-center gap-3 p-3 border rounded-xl text-left transition-shadow hover:shadow-md ${isPdf ? 'bg-red-50 border-red-100 hover:border-red-300' : 'bg-emerald-50/60 border-emerald-100 hover:border-emerald-300'}`}
+            >
+                <div className={`shrink-0 w-9 h-9 rounded-lg flex items-center justify-center ${isPdf ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                    {isPdf ? <FileText size={16}/> : <ImageIcon size={16}/>}
+                </div>
+                <div className="flex-1 overflow-hidden">
+                    <p className="text-xs font-bold text-slate-800 truncate">{label}</p>
+                    <p className={`text-[10px] mt-0.5 font-bold flex items-center gap-1 ${isPdf ? 'text-red-600' : 'text-emerald-600'}`}>
+                        <CheckCircle size={9} />
+                        {urls.length > 1 ? `${urls.length} hojas · LISTO` : (isPdf ? 'PDF · LISTO' : 'IMAGEN · LISTO')}
+                    </p>
+                </div>
+                <Eye size={14} className="text-slate-400 group-hover:text-slate-600"/>
+            </motion.button>
 
             {previewOpen && (
                 <DocumentPreviewModal
