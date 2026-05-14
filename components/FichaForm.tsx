@@ -1303,7 +1303,98 @@ function WelcomeScreen({onStart}:any) {
 
 function SectionTitle({title, icon}: any) { return <div className="flex items-center gap-3 mb-6 pb-2 border-b border-slate-100"><div className="text-slate-400">{icon}</div><h3 className="text-lg font-bold text-slate-800 tracking-tight">{title}</h3></div>}
 function SectionRead({title, icon, children}: any) { return <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm"><div className="flex items-center gap-2 mb-4 text-slate-900 font-bold border-b border-slate-100 pb-2"><span className="text-slate-500">{icon}</span><h3>{title}</h3></div>{children}</div>}
-function Input({label, name, val, set, type="text", required=false, readOnly=false, onChange, placeholder, className=""}: any) { return <div className={className}><label className="flex items-center justify-between text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 pl-1"><span>{label} {required && <span className="text-red-500">*</span>}</span>{readOnly && <Lock size={10} className="text-slate-300" />}</label><input type={type} name={name} value={val || ''} onChange={onChange || set} readOnly={readOnly} placeholder={placeholder} className={`w-full p-3.5 rounded-xl border outline-none transition-all font-medium text-sm ${readOnly ? 'bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed select-none shadow-none' : 'bg-slate-50 border-slate-200 text-slate-800 focus:bg-white focus:border-slate-900 focus:ring-4 focus:ring-slate-100 placeholder:text-slate-300 shadow-sm'}`} /></div>}
+function Input({label, name, val, set, type="text", required=false, readOnly=false, onChange, placeholder, className=""}: any) {
+    if (type === 'date') {
+        return <DateInput label={label} name={name} val={val} set={set} onChange={onChange} required={required} readOnly={readOnly} className={className} />
+    }
+    return <div className={className}><label className="flex items-center justify-between text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 pl-1"><span>{label} {required && <span className="text-red-500">*</span>}</span>{readOnly && <Lock size={10} className="text-slate-300" />}</label><input type={type} name={name} value={val || ''} onChange={onChange || set} readOnly={readOnly} placeholder={placeholder} className={`w-full p-3.5 rounded-xl border outline-none transition-all font-medium text-sm ${readOnly ? 'bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed select-none shadow-none' : 'bg-slate-50 border-slate-200 text-slate-800 focus:bg-white focus:border-slate-900 focus:ring-4 focus:ring-slate-100 placeholder:text-slate-300 shadow-sm'}`} /></div>
+}
+
+// --- Helpers de fecha ---
+function toIsoDate(value?: string): string {
+    if (!value) return ''
+    const trimmed = String(value).trim()
+    if (!trimmed) return ''
+    // Ya viene ISO (YYYY-MM-DD opcionalmente con tiempo)
+    const isoMatch = /^(\d{4})-(\d{2})-(\d{2})/.exec(trimmed)
+    if (isoMatch) return `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`
+    // Acepta dd/mm/yyyy, dd-mm-yyyy, dd.mm.yyyy con año de 2 o 4 dígitos
+    const cleaned = trimmed.replace(/[.\-]/g, '/').replace(/\s/g, '')
+    const parts = cleaned.split('/')
+    if (parts.length !== 3) return ''
+    let [d, m, y] = parts
+    if (!d || !m || !y) return ''
+    const day = parseInt(d, 10)
+    const month = parseInt(m, 10)
+    if (Number.isNaN(day) || Number.isNaN(month)) return ''
+    let year = parseInt(y, 10)
+    if (Number.isNaN(year)) return ''
+    if (y.length === 2) {
+        const cur = new Date().getFullYear() % 100
+        year = year <= cur ? 2000 + year : 1900 + year
+    }
+    if (year < 1900 || year > 2100 || month < 1 || month > 12 || day < 1 || day > 31) return ''
+    const dt = new Date(year, month - 1, day)
+    if (dt.getFullYear() !== year || dt.getMonth() !== month - 1 || dt.getDate() !== day) return ''
+    return `${year.toString().padStart(4,'0')}-${month.toString().padStart(2,'0')}-${day.toString().padStart(2,'0')}`
+}
+
+function calcAgeText(iso: string): { text: string, future: boolean } {
+    if (!iso) return { text: '', future: false }
+    const [yy, mm, dd] = iso.split('-').map((n) => parseInt(n, 10))
+    if (!yy || !mm || !dd) return { text: '', future: false }
+    const birth = new Date(yy, mm - 1, dd)
+    const today = new Date()
+    if (birth > today) return { text: 'Fecha futura no permitida', future: true }
+    let years = today.getFullYear() - birth.getFullYear()
+    const m = today.getMonth() - birth.getMonth()
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) years--
+    if (years < 1) {
+        const months = (today.getFullYear() - birth.getFullYear()) * 12 + (today.getMonth() - birth.getMonth()) - (today.getDate() < birth.getDate() ? 1 : 0)
+        return { text: `${Math.max(months, 0)} meses`, future: false }
+    }
+    return { text: years === 1 ? '1 año' : `${years} años`, future: false }
+}
+
+function DateInput({ label, name, val, set, onChange, required, readOnly, className = '' }: any) {
+    const isoVal = toIsoDate(val)
+    const today = new Date().toISOString().slice(0, 10)
+    const age = calcAgeText(isoVal)
+    const handler = (e: any) => {
+        // Normaliza al callback existente sin romper las firmas (handleChange espera e.target.{name,value})
+        const next = e?.target?.value ?? ''
+        if (onChange) return onChange({ target: { name, value: next } })
+        if (set) return set({ target: { name, value: next } })
+    }
+    return (
+        <div className={className}>
+            <label className="flex items-center justify-between text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 pl-1">
+                <span>{label} {required && <span className="text-red-500">*</span>}</span>
+                {readOnly && <Lock size={10} className="text-slate-300" />}
+            </label>
+            <div className="relative">
+                <input
+                    type="date"
+                    name={name}
+                    value={isoVal}
+                    onChange={handler}
+                    readOnly={readOnly}
+                    max={today}
+                    min="1900-01-01"
+                    className={`w-full p-3.5 pr-12 rounded-xl border outline-none transition-all font-medium text-sm ${readOnly ? 'bg-slate-100 text-slate-500 border-slate-200 cursor-not-allowed select-none shadow-none' : 'bg-slate-50 border-slate-200 text-slate-800 focus:bg-white focus:border-slate-900 focus:ring-4 focus:ring-slate-100 placeholder:text-slate-300 shadow-sm'}`}
+                />
+                {isoVal && age.text && (
+                    <span className={`absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold px-2 py-1 rounded-md pointer-events-none ${age.future ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-700'}`}>
+                        {age.text}
+                    </span>
+                )}
+            </div>
+            {!isoVal && val && String(val).trim() && (
+                <p className="text-[10px] text-amber-600 mt-1 pl-1">No se pudo leer “{String(val)}”. Usa el selector.</p>
+            )}
+        </div>
+    )
+}
 function Select({label, name, val, set, options=[], required=false}: any) { return <div><label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 pl-1">{label} {required && <span className="text-red-500">*</span>}</label><div className="relative"><select name={name} value={val || ''} onChange={set} className="w-full p-3.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-slate-900 focus:ring-4 focus:ring-slate-100 outline-none transition-all font-medium text-sm text-slate-700 appearance-none cursor-pointer shadow-sm"><option value="">Seleccionar...</option>{options.map((o:string)=><option key={o} value={o}>{o}</option>)}</select><div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400"><ChevronRight className="rotate-90" size={16}/></div></div></div>}
 function Radio({label, name, val, current, set}: any) { return <label className={`flex items-center gap-3 cursor-pointer px-4 py-3 rounded-xl border transition-all w-full ${current === val ? 'bg-slate-900 text-white border-slate-900 shadow-lg shadow-slate-900/20' : 'bg-white border-slate-200 hover:border-slate-300'}`}><div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${current === val ? 'border-white' : 'border-slate-300'}`}>{current === val && <div className="w-2 h-2 rounded-full bg-white"/>}</div><input type="radio" name={name} value={val} checked={current === val} onChange={set} className="hidden"/><span className="font-bold text-sm">{label}</span></label>}
 function StepWrapper({children}: any) { return <motion.div initial={{opacity:0, x:20}} animate={{opacity:1, x:0}} exit={{opacity:0, x:-20}} className="p-1">{children}</motion.div>}

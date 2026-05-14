@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import { Send, X, MessageSquare, Loader2, ShieldCheck } from 'lucide-react'
+import AnimatedIcon from '@/components/AnimatedIcon'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 
@@ -188,22 +189,43 @@ export default function ChatSystem({ workerId, workerName, currentUserId, isAdmi
     if (isMinimized && !isAdmin) {
         return (
             <motion.button
-                initial={{ scale: 0 }} animate={{ scale: 1 }} whileHover={{ scale: 1.1 }}
+                initial={{ scale: 0, y: 40 }}
+                animate={{ scale: 1, y: 0 }}
+                transition={{ type: 'spring', stiffness: 260, damping: 16 }}
+                whileHover={{ scale: 1.08, y: -2 }}
+                whileTap={{ scale: 0.94 }}
                 onClick={() => setIsMinimized(false)}
-                className="fixed bottom-6 right-6 w-16 h-16 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-full shadow-2xl flex items-center justify-center z-50 border-2 border-white/20"
+                className="fixed bottom-6 right-6 w-16 h-16 bg-white rounded-full shadow-2xl shadow-blue-500/30 flex items-center justify-center z-50 border-2 border-white ring-1 ring-slate-200/70"
             >
-                <div className="relative">
-                    <MessageSquare size={28} />
-                    
-                    {/* INDICADOR DE CONEXIÓN (Puntito pequeño) */}
-                    <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-indigo-600 ${isConnected ? 'bg-green-400' : 'bg-amber-400'}`}></span>
+                {/* Halo animado */}
+                <motion.span
+                    aria-hidden
+                    className="absolute inset-0 rounded-full bg-gradient-to-br from-blue-400/30 to-indigo-500/30"
+                    animate={{ scale: [1, 1.18, 1], opacity: [0.55, 0, 0.55] }}
+                    transition={{ duration: 2.2, repeat: Infinity, ease: 'easeOut' }}
+                />
+                {/* Halo extra cuando hay no leídos */}
+                {unreadCount > 0 && (
+                    <motion.span
+                        aria-hidden
+                        className="absolute inset-0 rounded-full ring-2 ring-red-400/60"
+                        animate={{ scale: [1, 1.35], opacity: [0.7, 0] }}
+                        transition={{ duration: 1.4, repeat: Infinity, ease: 'easeOut' }}
+                    />
+                )}
 
-                    {/* CONTADOR DE MENSAJES NO LEÍDOS (Badge Rojo Grande) */}
+                <div className="relative">
+                    <AnimatedIcon name="chat" size={36} bounceOnMount={false} />
+
+                    {/* INDICADOR DE CONEXIÓN */}
+                    <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${isConnected ? 'bg-green-400' : 'bg-amber-400'}`}></span>
+
+                    {/* CONTADOR DE MENSAJES NO LEÍDOS */}
                     {unreadCount > 0 && (
-                        <motion.div 
-                            initial={{ scale: 0 }} 
+                        <motion.div
+                            initial={{ scale: 0 }}
                             animate={{ scale: 1 }}
-                            className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full border-2 border-white shadow-md"
+                            className="absolute -top-2.5 -right-2.5 bg-gradient-to-br from-red-500 to-rose-600 text-white text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full border-2 border-white shadow-md"
                         >
                             {unreadCount > 9 ? '+9' : unreadCount}
                         </motion.div>

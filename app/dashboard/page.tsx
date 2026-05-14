@@ -5,12 +5,14 @@ import { createClient } from '@/utils/supabase/client'
 import { useRouter } from 'next/navigation'
 import FichaForm from '@/components/FichaForm'
 import ChatSystem from '@/components/ChatSystem' 
-import { 
-  LogOut, Calendar, Bell, FileText, ChevronRight, Lock, 
-  CheckCircle, Save, X, Loader2, AlertCircle, Eye, 
-  Menu, Home, UserCog, Key, Mail, ShieldCheck, Download, FileCheck, Briefcase, FileBadge,
-  FolderDown, CloudOff, ExternalLink, Clock
+import {
+  LogOut, Calendar, Bell, FileText, ChevronRight, Lock,
+  CheckCircle, Save, X, Loader2, AlertCircle, Eye,
+  Menu, Home, Key, Mail, ShieldCheck, Download, FileCheck, Briefcase, FileBadge,
+  Folder, CloudOff, ExternalLink, Clock, MessageSquareText, Sparkles, ArrowUpRight, Layers3,
+  IdCard
 } from 'lucide-react'
+import AnimatedIcon from '@/components/AnimatedIcon'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 
@@ -633,42 +635,54 @@ export default function DashboardPage() {
             </div>
         </div>
 
-        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-            <NavItem 
-                active={activeTab === 'home'} 
-                onClick={() => { setActiveTab('home'); if(!isDesktop) setIsSidebarOpen(false) }} 
-                icon={<Home size={20}/>} 
-                label="Inicio" 
+        <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto">
+            <NavItem
+                active={activeTab === 'home'}
+                onClick={() => { setActiveTab('home'); if(!isDesktop) setIsSidebarOpen(false) }}
+                icon={<AnimatedIcon name="actualizarFicha" size={26} bounceOnMount={false}/>}
+                label="Inicio"
             />
-            <NavItem 
-                active={activeTab === 'documents'} 
-                onClick={() => { setActiveTab('documents'); if(!isDesktop) setIsSidebarOpen(false) }} 
-                icon={<FileText size={20}/>} 
-                label="Mis Registros" 
+            <NavItem
+                active={activeTab === 'documents'}
+                onClick={() => { setActiveTab('documents'); if(!isDesktop) setIsSidebarOpen(false) }}
+                icon={<AnimatedIcon name="misRegistros" size={26} bounceOnMount={false}/>}
+                label="Mis Registros"
                 badge={totalPendingAction > 0 ? totalPendingAction : undefined}
             />
-            
-            {/* --- NUEVO ITEM SIDEBAR --- */}
-            <NavItem 
-                active={activeTab === 'uploads'} 
-                onClick={() => { setActiveTab('uploads'); if(!isDesktop) setIsSidebarOpen(false) }} 
-                icon={<FolderDown size={20}/>} 
-                label="Archivos SSOMA" 
+
+            {/* --- ARCHIVOS SSOMA (icono GIF, alineado con app móvil) --- */}
+            <NavItem
+                active={activeTab === 'uploads'}
+                onClick={() => { setActiveTab('uploads'); if(!isDesktop) setIsSidebarOpen(false) }}
+                icon={<AnimatedIcon name="archivosSsoma" size={26} bounceOnMount={false}/>}
+                label="Archivos SSOMA"
             />
 
-            <div className="pt-4 pb-2 px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Mi Cuenta</div>
-            <NavItem 
-                active={activeTab === 'profile'} 
-                onClick={() => { setActiveTab('profile'); if(!isDesktop) setIsSidebarOpen(false) }} 
-                icon={<UserCog size={20}/>} 
-                label="Mi Perfil" 
+            <div className="pt-5 pb-2 px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Mi Cuenta</div>
+            <NavItem
+                active={activeTab === 'profile'}
+                onClick={() => { setActiveTab('profile'); if(!isDesktop) setIsSidebarOpen(false) }}
+                icon={<AnimatedIcon name="miPerfil" size={26} bounceOnMount={false}/>}
+                label="Mi Perfil"
             />
         </nav>
 
         <div className="p-4 border-t border-slate-100">
-            <button onClick={handleLogout} className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-slate-500 hover:bg-red-50 hover:text-red-600 transition-all font-medium text-sm group">
-                <LogOut size={18} className="group-hover:-translate-x-1 transition-transform"/> Cerrar Sesión
-            </button>
+            <motion.button
+                onClick={handleLogout}
+                whileHover={{ x: 2 }}
+                whileTap={{ scale: 0.97 }}
+                className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors font-medium text-sm group"
+            >
+                <motion.span
+                    className="inline-flex"
+                    whileHover={{ x: -3, rotate: -8 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 12 }}
+                >
+                    <LogOut size={18}/>
+                </motion.span>
+                Cerrar Sesión
+            </motion.button>
         </div>
       </motion.aside>
 
@@ -679,9 +693,19 @@ export default function DashboardPage() {
         {/* Header Superior */}
         <header className="h-16 bg-white/80 backdrop-blur-md border-b border-slate-200/60 px-4 md:px-8 flex items-center justify-between shrink-0 z-30 sticky top-0">
             <div className="flex items-center gap-4">
-                <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="lg:hidden p-2 rounded-lg hover:bg-slate-100 text-slate-600">
-                    <Menu size={24}/>
-                </button>
+                <motion.button
+                    onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                    whileTap={{ scale: 0.9 }}
+                    className="lg:hidden p-2 rounded-lg hover:bg-slate-100 text-slate-600"
+                >
+                    <motion.span
+                        className="inline-flex"
+                        animate={{ rotate: isSidebarOpen ? 90 : 0 }}
+                        transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                    >
+                        {isSidebarOpen ? <X size={24}/> : <Menu size={24}/>}
+                    </motion.span>
+                </motion.button>
                 <h2 className="text-lg font-bold text-slate-800">
                     {activeTab === 'home' && 'Bienvenido'}
                     {activeTab === 'documents' && 'Firmas Digitales'}
@@ -692,13 +716,35 @@ export default function DashboardPage() {
 
             <div className="flex items-center gap-4">
                 <div className="relative">
-                    <button 
+                    <motion.button
                         onClick={() => { setIsNotifOpen(!isNotifOpen); setNotifications(prev => prev.map(n => ({...n, read: true}))) }}
-                        className="relative p-2 rounded-xl hover:bg-slate-100 transition-all text-slate-600"
+                        whileHover={{ scale: 1.08 }}
+                        whileTap={{ scale: 0.92 }}
+                        className="relative p-2 rounded-xl hover:bg-slate-100 transition-colors text-slate-600"
                     >
-                        <Bell size={20}/>
-                        {unreadCount > 0 && <span className="absolute top-1.5 right-2 w-2 h-2 bg-red-500 rounded-full border border-white animate-pulse"></span>}
-                    </button>
+                        <motion.span
+                            className="inline-flex"
+                            animate={unreadCount > 0 ? { rotate: [0, -12, 12, -8, 8, -4, 4, 0] } : { rotate: 0 }}
+                            transition={unreadCount > 0 ? { duration: 1.2, repeat: Infinity, repeatDelay: 2.5, ease: 'easeInOut' } : { duration: 0.2 }}
+                            style={{ transformOrigin: '50% 10%' }}
+                        >
+                            <Bell size={20} strokeWidth={2.2} fill={unreadCount > 0 ? 'currentColor' : 'none'} fillOpacity={unreadCount > 0 ? 0.12 : 0}/>
+                        </motion.span>
+                        {unreadCount > 0 && (
+                            <>
+                                <motion.span
+                                    className="absolute top-1.5 right-2 w-2 h-2 bg-red-500 rounded-full border border-white"
+                                    animate={{ scale: [1, 1.25, 1] }}
+                                    transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
+                                />
+                                <motion.span
+                                    className="absolute top-1.5 right-2 w-2 h-2 bg-red-500/60 rounded-full"
+                                    animate={{ scale: [1, 2.4], opacity: [0.6, 0] }}
+                                    transition={{ duration: 1.6, repeat: Infinity, ease: 'easeOut' }}
+                                />
+                            </>
+                        )}
+                    </motion.button>
                     <AnimatePresence>
                         {isNotifOpen && (
                             <motion.div initial={{opacity:0, y: 10, scale: 0.95}} animate={{opacity:1, y: 0, scale: 1}} exit={{opacity:0, scale: 0.95}} className="absolute right-0 top-12 w-80 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-50 origin-top-right ring-1 ring-black/5">
@@ -715,9 +761,15 @@ export default function DashboardPage() {
                         )}
                     </AnimatePresence>
                 </div>
-                <div className="w-9 h-9 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold border border-blue-200 shadow-sm">
+                <motion.div
+                    initial={{ scale: 0, rotate: -180 }}
+                    animate={{ scale: 1, rotate: 0 }}
+                    transition={{ type: 'spring', stiffness: 260, damping: 18, delay: 0.15 }}
+                    whileHover={{ scale: 1.1, boxShadow: '0 0 0 4px rgba(59,130,246,0.15)' }}
+                    className="w-9 h-9 bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-full flex items-center justify-center font-bold border-2 border-white shadow-md cursor-pointer select-none"
+                >
                     {userName.charAt(0)}
-                </div>
+                </motion.div>
             </div>
         </header>
 
@@ -749,6 +801,38 @@ export default function DashboardPage() {
                                         <p className="text-sm font-bold">{completedDocs} / {totalDocs} listos</p>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+
+                        {/* Acciones rápidas (mismo set de iconos que la app móvil) */}
+                        <div>
+                            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 pl-1">Acciones rápidas</h3>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                <QuickAction
+                                    icon="actualizarFicha"
+                                    label="Actualizar Ficha"
+                                    accent="blue"
+                                    onClick={() => setActiveTab('home')}
+                                />
+                                <QuickAction
+                                    icon="misRegistros"
+                                    label="Mis Registros"
+                                    accent="indigo"
+                                    badge={totalPendingAction > 0 ? totalPendingAction : undefined}
+                                    onClick={() => setActiveTab('documents')}
+                                />
+                                <QuickAction
+                                    icon="archivosSsoma"
+                                    label="Archivos SSOMA"
+                                    accent="amber"
+                                    onClick={() => setActiveTab('uploads')}
+                                />
+                                <QuickAction
+                                    icon="miPerfil"
+                                    label="Mi Perfil"
+                                    accent="rose"
+                                    onClick={() => setActiveTab('profile')}
+                                />
                             </div>
                         </div>
 
@@ -814,7 +898,17 @@ export default function DashboardPage() {
                 {activeTab === 'uploads' && (
                     <motion.div initial={{opacity:0, x: 20}} animate={{opacity:1, x: 0}} className="space-y-6 pb-20">
                         <div className="bg-amber-50 p-6 rounded-2xl border border-amber-100 mb-6">
-                            <h2 className="text-xl font-bold text-amber-900 mb-2 flex items-center gap-2"><FolderDown/> Documentos Digitalizados</h2>
+                            <h2 className="text-xl font-bold text-amber-900 mb-2 flex items-center gap-2">
+                                <motion.span
+                                    initial={{ rotate: -8, scale: 0.8 }}
+                                    animate={{ rotate: 0, scale: 1 }}
+                                    transition={{ type: 'spring', stiffness: 300, damping: 14 }}
+                                    className="inline-flex"
+                                >
+                                    <Folder size={22} fill="currentColor" fillOpacity={0.15}/>
+                                </motion.span>
+                                Documentos Digitalizados
+                            </h2>
                             <p className="text-sm text-amber-800">Aquí encontrarás los documentos escaneados o digitales subidos por el equipo de SSOMA para tu legajo personal. Puedes visualizarlos y descargarlos.</p>
                         </div>
 
@@ -923,6 +1017,45 @@ export default function DashboardPage() {
 
 // --- COMPONENTES AUXILIARES ---
 
+function QuickAction({ icon, label, accent = 'blue', badge, onClick }: { icon: 'actualizarFicha' | 'misRegistros' | 'archivosSsoma' | 'miPerfil' | 'chat', label: string, accent?: 'blue' | 'indigo' | 'amber' | 'rose', badge?: number, onClick: () => void }) {
+    const accents: Record<string, { bg: string, ring: string, text: string, glow: string }> = {
+        blue:   { bg: 'from-blue-50 to-indigo-100/60',   ring: 'ring-blue-100',   text: 'text-blue-700',   glow: 'shadow-blue-500/20' },
+        indigo: { bg: 'from-indigo-50 to-violet-100/60', ring: 'ring-indigo-100', text: 'text-indigo-700', glow: 'shadow-indigo-500/20' },
+        amber:  { bg: 'from-amber-50 to-orange-100/60',  ring: 'ring-amber-100',  text: 'text-amber-800',  glow: 'shadow-amber-500/20' },
+        rose:   { bg: 'from-rose-50 to-pink-100/60',     ring: 'ring-rose-100',   text: 'text-rose-700',   glow: 'shadow-rose-500/20' },
+    }
+    const a = accents[accent]
+    return (
+        <motion.button
+            onClick={onClick}
+            whileHover={{ y: -4, scale: 1.02 }}
+            whileTap={{ scale: 0.97 }}
+            transition={{ type: 'spring', stiffness: 380, damping: 20 }}
+            className={`group relative bg-gradient-to-br ${a.bg} ring-1 ${a.ring} rounded-2xl p-4 text-left overflow-hidden hover:shadow-lg ${a.glow} transition-shadow`}
+        >
+            <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-white/40 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity"/>
+            <div className="relative flex items-center justify-between mb-3">
+                <AnimatedIcon name={icon} size={36} bounceOnMount={false}/>
+                {badge && badge > 0 && (
+                    <motion.span
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ type: 'spring', stiffness: 500, damping: 14 }}
+                        className="bg-gradient-to-br from-red-500 to-rose-600 text-white text-[10px] font-bold min-w-[20px] h-5 px-1.5 flex items-center justify-center rounded-full shadow-md shadow-red-500/30"
+                    >
+                        {badge}
+                    </motion.span>
+                )}
+            </div>
+            <p className={`relative text-sm font-bold ${a.text} leading-tight`}>{label}</p>
+            <div className="relative flex items-center gap-1 mt-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                <span>Abrir</span>
+                <ChevronRight size={12} className="group-hover:translate-x-1 transition-transform"/>
+            </div>
+        </motion.button>
+    )
+}
+
 function DocItem({ id, label, state, onClick, type }: any) {
     const status = state?.status || 'locked'
     const isUnlocked = status === 'unlocked'
@@ -934,18 +1067,25 @@ function DocItem({ id, label, state, onClick, type }: any) {
     const completedColor = 'slate'
 
     return (
-        <div 
+        <motion.div
             onClick={onClick}
-            className={`group relative p-5 rounded-2xl border transition-all cursor-pointer overflow-hidden ${isUnlocked ? `bg-white border-${activeColor}-200 shadow-md hover:border-${activeColor}-400 hover:shadow-lg` : isCompleted ? `bg-${completedColor}-50/80 border-${completedColor}-200 hover:bg-${completedColor}-100/70` : 'bg-white border-slate-100 opacity-60 grayscale hover:opacity-80'}`}
+            whileHover={!isLocked ? { y: -2, scale: 1.005 } : {}}
+            whileTap={!isLocked ? { scale: 0.99 } : {}}
+            transition={{ type: 'spring', stiffness: 400, damping: 22 }}
+            className={`group relative p-5 rounded-2xl border cursor-pointer overflow-hidden ${isUnlocked ? `bg-white border-${activeColor}-200 shadow-md hover:border-${activeColor}-400 hover:shadow-xl hover:shadow-${activeColor}-500/10` : isCompleted ? `bg-${completedColor}-50/80 border-${completedColor}-200 hover:bg-${completedColor}-100/70` : 'bg-white border-slate-100 opacity-60 grayscale hover:opacity-80'}`}
         >
-            {isUnlocked && <div className={`absolute left-0 top-0 bottom-0 w-1.5 bg-${activeColor}-500`}/>}
+            {isUnlocked && <div className={`absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-${activeColor}-400 to-${activeColor}-600`}/>}
             {isCompleted && <div className={`absolute left-0 top-0 bottom-0 w-1.5 bg-${completedColor}-500`}/>}
 
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${isCompleted ? `bg-${completedColor}-100 text-${completedColor}-700` : isUnlocked ? `bg-${activeColor}-100 text-${activeColor}-600` : 'bg-slate-100 text-slate-400'}`}>
-                        {isCompleted ? <Eye size={24}/> : (type === 'rrhh' ? <Briefcase size={24}/> : <FileText size={24}/>)}
-                    </div>
+                    <motion.div
+                        whileHover={!isLocked ? { rotate: [-2, 4, -2, 0], scale: 1.08 } : {}}
+                        transition={{ duration: 0.5 }}
+                        className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${isCompleted ? `bg-${completedColor}-100 text-${completedColor}-700` : isUnlocked ? `bg-${activeColor}-100 text-${activeColor}-600` : 'bg-slate-100 text-slate-400'}`}
+                    >
+                        {isCompleted ? <Eye size={24}/> : (type === 'rrhh' ? <Briefcase size={24} fill="currentColor" fillOpacity={0.12}/> : <FileText size={24} fill="currentColor" fillOpacity={0.12}/>)}
+                    </motion.div>
                     <div>
                         <h3 className={`font-bold text-base ${isUnlocked ? `text-${activeColor}-900` : 'text-slate-700'}`}>{label}</h3>
                         <p className="text-xs font-bold mt-1 flex items-center gap-1.5">
@@ -956,23 +1096,65 @@ function DocItem({ id, label, state, onClick, type }: any) {
                         </p>
                     </div>
                 </div>
-                <div className="bg-slate-50 p-2 rounded-full text-slate-300 group-hover:bg-slate-100 transition-colors">
+                <motion.div
+                    animate={isLocked ? {} : { x: [0, 3, 0] }}
+                    transition={isLocked ? {} : { duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+                    className={`p-2 rounded-full transition-colors ${isLocked ? 'bg-slate-50 text-slate-300' : `bg-${activeColor}-50 text-${activeColor}-500 group-hover:bg-${activeColor}-100`}`}
+                >
                     {isLocked ? <Lock size={20}/> : <ChevronRight size={20}/>}
-                </div>
+                </motion.div>
             </div>
-        </div>
+        </motion.div>
     )
 }
 
-function NavItem({ active, onClick, icon, label, badge }: any) {
+function NavItem({ active, onClick, icon, activeIcon, label, badge }: any) {
     return (
-        <button onClick={onClick} className={`w-full flex items-center justify-between px-4 py-3.5 rounded-xl text-sm font-medium transition-all group ${active ? 'bg-blue-50 text-blue-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'}`}>
-            <div className="flex items-center gap-3">
-                <span className={active ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600'}>{icon}</span>
+        <motion.button
+            onClick={onClick}
+            whileHover={{ x: active ? 0 : 3 }}
+            whileTap={{ scale: 0.97 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 22 }}
+            className={`relative w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium group overflow-hidden ${active ? 'text-blue-700' : 'text-slate-500 hover:text-slate-800'}`}
+        >
+            {active && (
+                <motion.span
+                    layoutId="nav-active-pill"
+                    className="absolute inset-0 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100/80 shadow-sm shadow-blue-500/5"
+                    transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                />
+            )}
+            {active && (
+                <motion.span
+                    layoutId="nav-active-bar"
+                    className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-gradient-to-b from-blue-500 to-indigo-600 rounded-r-full"
+                    transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                />
+            )}
+            <span className={`relative flex items-center gap-3 z-10`}>
+                <motion.span
+                    key={active ? 'active' : 'idle'}
+                    initial={{ scale: 0.7, rotate: active ? -12 : 0, opacity: 0.6 }}
+                    animate={{ scale: 1, rotate: 0, opacity: 1 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 18 }}
+                    whileHover={!active ? { scale: 1.15, rotate: -6 } : { scale: 1.08 }}
+                    className={`inline-flex ${active ? 'text-blue-600' : 'text-slate-400 group-hover:text-blue-500'}`}
+                >
+                    {active && activeIcon ? activeIcon : icon}
+                </motion.span>
                 <span>{label}</span>
-            </div>
-            {badge && <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">{badge}</span>}
-        </button>
+            </span>
+            {badge && (
+                <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 14 }}
+                    className="relative z-10 bg-gradient-to-br from-red-500 to-rose-600 text-white text-[10px] font-bold min-w-[20px] h-5 px-1.5 flex items-center justify-center rounded-full shadow-md shadow-red-500/30"
+                >
+                    {badge}
+                </motion.span>
+            )}
+        </motion.button>
     )
 }
 
@@ -1008,9 +1190,20 @@ function ProfileSettingsCard({ userEmail, supabase }: any) {
     return (
         <div className="bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden">
             <div className="p-8 border-b border-slate-100 text-center bg-gradient-to-b from-white to-slate-50/50">
-                <div className="w-20 h-20 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-white shadow-lg">
-                    <UserCog size={36}/>
-                </div>
+                <motion.div
+                    initial={{ scale: 0, rotate: -180 }}
+                    animate={{ scale: 1, rotate: 0 }}
+                    transition={{ type: 'spring', stiffness: 240, damping: 16 }}
+                    whileHover={{ rotate: [0, -8, 8, -4, 4, 0], transition: { duration: 0.6 } }}
+                    className="relative w-20 h-20 bg-gradient-to-br from-blue-100 to-indigo-200 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-white shadow-lg shadow-blue-500/20"
+                >
+                    <motion.span
+                        className="absolute inset-0 rounded-full ring-2 ring-blue-400/40"
+                        animate={{ scale: [1, 1.18, 1], opacity: [0.5, 0, 0.5] }}
+                        transition={{ duration: 2.4, repeat: Infinity, ease: 'easeOut' }}
+                    />
+                    <IdCard size={36} strokeWidth={2.2} fill="currentColor" fillOpacity={0.12}/>
+                </motion.div>
                 <h2 className="text-2xl font-bold text-slate-800">Configurar Cuenta</h2>
                 <p className="text-slate-500 text-sm mt-1 max-w-xs mx-auto">Actualiza tu correo y contraseña para asegurar tu acceso al sistema.</p>
             </div>
