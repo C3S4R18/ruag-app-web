@@ -210,12 +210,13 @@ export const ActaAcatamientoPrintable = forwardRef<HTMLDivElement, { ficha: any 
           <span style={styles.footerLabel}>Fecha:</span>
           <span style={styles.footerValue}>{fecha}</span>
         </div>
-        <div style={styles.thumbBox}>
-          {huellaUrl ? (
-            <img src={huellaUrl} alt="Huella" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
-          ) : (
-            <span>Huella Digital</span>
-          )}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div style={styles.thumbBox}>
+            {huellaUrl ? (
+              <img src={huellaUrl} alt="Huella" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+            ) : null}
+          </div>
+          <span style={{ fontSize: 11, marginTop: 4, color: '#000' }}>Huella Digital</span>
         </div>
       </div>
     </div>

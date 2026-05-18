@@ -606,36 +606,48 @@ export default function DashboardPage() {
   const progress = totalDocs > 0 ? Math.round((completedDocs / totalDocs) * 100) : 0
 
   return (
-    <div className="flex h-screen bg-[#F8FAFC] font-sans text-slate-900 overflow-hidden">
-      
-      {/* --- SIDEBAR --- */}
+    <div className="flex h-screen font-sans text-stone-900 overflow-hidden relative">
+      {/* Fondo cálido global con sutil noise/gradient */}
+      <div className="absolute inset-0 -z-10 bg-gradient-to-br from-stone-100 via-stone-50 to-red-50/40" />
+      <div className="absolute inset-0 -z-10 pointer-events-none" style={{
+          backgroundImage: 'radial-gradient(1200px 600px at 90% -10%, rgba(220,38,38,0.10), transparent 60%), radial-gradient(900px 500px at -10% 110%, rgba(120,113,108,0.10), transparent 60%)'
+      }} />
+
+      {/* --- SIDEBAR OVERLAY --- */}
       <AnimatePresence>
         {!isDesktop && isSidebarOpen && (
-            <motion.div 
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} 
-                onClick={() => setIsSidebarOpen(false)} 
-                className="fixed inset-0 bg-black/40 z-40 backdrop-blur-sm lg:hidden"
+            <motion.div
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setIsSidebarOpen(false)}
+                className="fixed inset-0 bg-stone-900/40 z-40 backdrop-blur-sm lg:hidden"
             />
         )}
       </AnimatePresence>
 
-      <motion.aside 
-        className={`bg-white border-r border-slate-200 flex flex-col h-full shrink-0 z-50 fixed lg:relative shadow-2xl lg:shadow-none w-72 lg:w-64`}
+      <motion.aside
+        className={`bg-white/70 backdrop-blur-xl border-r border-white/60 flex flex-col h-full shrink-0 z-50 fixed lg:relative shadow-2xl shadow-red-900/5 lg:shadow-none w-72 lg:w-64`}
         initial={false}
-        animate={{ 
-            x: (isDesktop || isSidebarOpen) ? 0 : -288, 
-            width: (isDesktop || isSidebarOpen) ? 260 : 0 
+        animate={{
+            x: (isDesktop || isSidebarOpen) ? 0 : -288,
+            width: (isDesktop || isSidebarOpen) ? 260 : 0
         }}
       >
-        <div className="h-20 flex items-center gap-3 px-6 border-b border-slate-100 bg-white">
-            <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-blue-500/30">R</div>
+        {/* Brand block — bloque crimson como el hero del móvil */}
+        <div className="h-20 flex items-center gap-3 px-6 border-b border-stone-200/60 relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-red-700 via-red-900 to-zinc-900 -z-10" />
+            <div className="absolute -right-8 -top-6 w-28 h-28 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+            <div className="w-9 h-9 bg-white/95 rounded-lg flex items-center justify-center text-red-700 font-black text-lg shadow-lg ring-1 ring-white/40">R</div>
             <div>
-                <h1 className="font-bold text-lg text-slate-800 leading-none">RUAG</h1>
-                <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">Portal Obrero</span>
+                <h1 className="font-extrabold text-lg text-white leading-none tracking-tight">RUAG</h1>
+                <span className="text-[10px] font-bold text-red-200 uppercase tracking-[0.18em]">Portal Obrero</span>
             </div>
         </div>
 
         <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto">
+            <div className="pt-1 pb-2 px-4 text-[10px] font-bold text-red-700 uppercase tracking-[0.2em] flex items-center gap-2">
+                <span>Navegación</span>
+                <span className="flex-1 h-px bg-stone-200" />
+            </div>
             <NavItem
                 active={activeTab === 'home'}
                 onClick={() => { setActiveTab('home'); if(!isDesktop) setIsSidebarOpen(false) }}
@@ -658,7 +670,10 @@ export default function DashboardPage() {
                 label="Archivos SSOMA"
             />
 
-            <div className="pt-5 pb-2 px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Mi Cuenta</div>
+            <div className="pt-5 pb-2 px-4 text-[10px] font-bold text-red-700 uppercase tracking-[0.2em] flex items-center gap-2">
+                <span>Mi Cuenta</span>
+                <span className="flex-1 h-px bg-stone-200" />
+            </div>
             <NavItem
                 active={activeTab === 'profile'}
                 onClick={() => { setActiveTab('profile'); if(!isDesktop) setIsSidebarOpen(false) }}
@@ -667,12 +682,12 @@ export default function DashboardPage() {
             />
         </nav>
 
-        <div className="p-4 border-t border-slate-100">
+        <div className="p-4 border-t border-stone-200/60">
             <motion.button
                 onClick={handleLogout}
                 whileHover={{ x: 2 }}
                 whileTap={{ scale: 0.97 }}
-                className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors font-medium text-sm group"
+                className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-stone-600 hover:bg-red-50/80 hover:text-red-700 hover:ring-1 hover:ring-red-200 backdrop-blur transition-all font-bold text-sm group"
             >
                 <motion.span
                     className="inline-flex"
@@ -688,39 +703,44 @@ export default function DashboardPage() {
 
 
       {/* --- CONTENIDO PRINCIPAL --- */}
-      <main className="flex-1 flex flex-col h-full min-w-0 bg-[#F8FAFC] relative overflow-hidden">
-        
-        {/* Header Superior */}
-        <header className="h-16 bg-white/80 backdrop-blur-md border-b border-slate-200/60 px-4 md:px-8 flex items-center justify-between shrink-0 z-30 sticky top-0">
+      <main className="flex-1 flex flex-col h-full min-w-0 relative overflow-hidden">
+
+        {/* Header Superior — glass cream */}
+        <header className="h-16 bg-white/60 backdrop-blur-xl border-b border-white/60 px-4 md:px-8 flex items-center justify-between shrink-0 z-30 sticky top-0 shadow-sm shadow-red-900/5">
             <div className="flex items-center gap-4">
                 <motion.button
                     onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                     whileTap={{ scale: 0.9 }}
-                    className="lg:hidden p-2 rounded-lg hover:bg-slate-100 text-slate-600"
+                    className="lg:hidden p-2 rounded-xl bg-gradient-to-br from-red-600 to-red-800 text-white shadow-md shadow-red-500/25 ring-1 ring-white/40"
                 >
                     <motion.span
                         className="inline-flex"
                         animate={{ rotate: isSidebarOpen ? 90 : 0 }}
                         transition={{ type: 'spring', stiffness: 300, damping: 20 }}
                     >
-                        {isSidebarOpen ? <X size={24}/> : <Menu size={24}/>}
+                        {isSidebarOpen ? <X size={20}/> : <Menu size={20}/>}
                     </motion.span>
                 </motion.button>
-                <h2 className="text-lg font-bold text-slate-800">
-                    {activeTab === 'home' && 'Bienvenido'}
-                    {activeTab === 'documents' && 'Firmas Digitales'}
-                    {activeTab === 'uploads' && 'Documentos SSOMA'}
-                    {activeTab === 'profile' && 'Configuración de Cuenta'}
-                </h2>
+                <div className="flex flex-col leading-tight">
+                    <span className="text-[9px] font-bold text-red-700 uppercase tracking-[0.2em]">
+                        0{Math.max(1, ['home','documents','uploads','profile'].indexOf(activeTab) + 1)} · RUAG
+                    </span>
+                    <h2 className="text-base font-extrabold text-stone-900 tracking-tight">
+                        {activeTab === 'home' && 'Bienvenido'}
+                        {activeTab === 'documents' && 'Firmas Digitales'}
+                        {activeTab === 'uploads' && 'Documentos SSOMA'}
+                        {activeTab === 'profile' && 'Configuración de Cuenta'}
+                    </h2>
+                </div>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
                 <div className="relative">
                     <motion.button
                         onClick={() => { setIsNotifOpen(!isNotifOpen); setNotifications(prev => prev.map(n => ({...n, read: true}))) }}
                         whileHover={{ scale: 1.08 }}
                         whileTap={{ scale: 0.92 }}
-                        className="relative p-2 rounded-xl hover:bg-slate-100 transition-colors text-slate-600"
+                        className="relative p-2.5 rounded-xl bg-white/70 backdrop-blur border border-white/60 hover:border-red-200 hover:bg-white transition-colors text-stone-700 shadow-sm"
                     >
                         <motion.span
                             className="inline-flex"
@@ -728,18 +748,18 @@ export default function DashboardPage() {
                             transition={unreadCount > 0 ? { duration: 1.2, repeat: Infinity, repeatDelay: 2.5, ease: 'easeInOut' } : { duration: 0.2 }}
                             style={{ transformOrigin: '50% 10%' }}
                         >
-                            <Bell size={20} strokeWidth={2.2} fill={unreadCount > 0 ? 'currentColor' : 'none'} fillOpacity={unreadCount > 0 ? 0.12 : 0}/>
+                            <Bell size={18} strokeWidth={2.2} fill={unreadCount > 0 ? 'currentColor' : 'none'} fillOpacity={unreadCount > 0 ? 0.12 : 0}/>
                         </motion.span>
                         {unreadCount > 0 && (
                             <>
                                 <motion.span
-                                    className="absolute top-1.5 right-2 w-2 h-2 bg-red-500 rounded-full border border-white"
+                                    className="absolute top-1.5 right-2 w-2 h-2 bg-red-600 rounded-full border border-white"
                                     animate={{ scale: [1, 1.25, 1] }}
                                     transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
                                 />
                                 <motion.span
-                                    className="absolute top-1.5 right-2 w-2 h-2 bg-red-500/60 rounded-full"
-                                    animate={{ scale: [1, 2.4], opacity: [0.6, 0] }}
+                                    className="absolute top-1.5 right-2 w-2 h-2 bg-red-500/70 rounded-full"
+                                    animate={{ scale: [1, 2.4], opacity: [0.7, 0] }}
                                     transition={{ duration: 1.6, repeat: Infinity, ease: 'easeOut' }}
                                 />
                             </>
@@ -747,14 +767,14 @@ export default function DashboardPage() {
                     </motion.button>
                     <AnimatePresence>
                         {isNotifOpen && (
-                            <motion.div initial={{opacity:0, y: 10, scale: 0.95}} animate={{opacity:1, y: 0, scale: 1}} exit={{opacity:0, scale: 0.95}} className="absolute right-0 top-12 w-80 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-50 origin-top-right ring-1 ring-black/5">
-                                <div className="p-3 border-b bg-slate-50 flex justify-between items-center">
-                                    <span className="text-xs font-bold text-slate-500 uppercase">Notificaciones</span>
-                                    <button onClick={() => setNotifications([])} className="text-blue-600 hover:text-blue-800 text-xs font-medium">Borrar</button>
+                            <motion.div initial={{opacity:0, y: 10, scale: 0.95}} animate={{opacity:1, y: 0, scale: 1}} exit={{opacity:0, scale: 0.95}} className="absolute right-0 top-12 w-80 bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl shadow-red-900/10 border border-white/60 overflow-hidden z-50 origin-top-right ring-1 ring-stone-900/5">
+                                <div className="p-3 border-b border-stone-200/60 bg-gradient-to-br from-red-50/60 to-stone-50/60 flex justify-between items-center">
+                                    <span className="text-[10px] font-bold text-red-700 uppercase tracking-[0.18em]">Notificaciones</span>
+                                    <button onClick={() => setNotifications([])} className="text-red-700 hover:text-red-900 text-xs font-bold">Borrar</button>
                                 </div>
                                 <div className="max-h-60 overflow-y-auto">
-                                    {notifications.length === 0 ? <p className="p-6 text-center text-xs text-slate-400">Sin novedades</p> : notifications.map(n => (
-                                        <div key={n.id} className="p-3 border-b border-slate-50 hover:bg-blue-50/50"><p className="text-sm text-slate-800 font-medium">{n.msg}</p><p className="text-[10px] text-slate-400 mt-1">{n.time}</p></div>
+                                    {notifications.length === 0 ? <p className="p-6 text-center text-xs text-stone-400">Sin novedades</p> : notifications.map(n => (
+                                        <div key={n.id} className="p-3 border-b border-stone-100 hover:bg-red-50/40"><p className="text-sm text-stone-800 font-medium">{n.msg}</p><p className="text-[10px] text-stone-400 mt-1">{n.time}</p></div>
                                     ))}
                                 </div>
                             </motion.div>
@@ -765,8 +785,8 @@ export default function DashboardPage() {
                     initial={{ scale: 0, rotate: -180 }}
                     animate={{ scale: 1, rotate: 0 }}
                     transition={{ type: 'spring', stiffness: 260, damping: 18, delay: 0.15 }}
-                    whileHover={{ scale: 1.1, boxShadow: '0 0 0 4px rgba(59,130,246,0.15)' }}
-                    className="w-9 h-9 bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-full flex items-center justify-center font-bold border-2 border-white shadow-md cursor-pointer select-none"
+                    whileHover={{ scale: 1.1, boxShadow: '0 0 0 4px rgba(220,38,38,0.18)' }}
+                    className="w-9 h-9 bg-gradient-to-br from-red-600 to-red-900 text-white rounded-xl flex items-center justify-center font-black border-2 border-white shadow-md ring-1 ring-red-200 cursor-pointer select-none"
                 >
                     {userName.charAt(0)}
                 </motion.div>
@@ -780,51 +800,99 @@ export default function DashboardPage() {
                 {/* VISTA: HOME */}
                 {activeTab === 'home' && (
                     <motion.div initial={{opacity:0, y: 20}} animate={{opacity:1, y: 0}} className="space-y-8 pb-20">
-                        {/* Hero Card */}
-                        <div className="bg-gradient-to-br from-blue-600 to-indigo-800 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden">
-                            <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
-                            <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                                <div>
-                                    <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm border border-white/20 px-3 py-1 rounded-full text-xs font-bold mb-4">
-                                        <Calendar size={12}/> {today}
+                        {/* HERO CRIMSON GLASS */}
+                        <div className="relative overflow-hidden rounded-3xl ring-1 ring-white/15 shadow-2xl shadow-red-900/20">
+                            {/* fondo gradient */}
+                            <div className="absolute inset-0 bg-gradient-to-br from-red-700 via-red-900 to-zinc-900 -z-10"/>
+                            {/* glow lights */}
+                            <motion.div
+                                aria-hidden
+                                animate={{ scale: [1, 1.15, 1], opacity: [0.3, 0.55, 0.3] }}
+                                transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }}
+                                className="absolute -top-20 -right-20 w-72 h-72 bg-white/15 rounded-full blur-3xl pointer-events-none"
+                            />
+                            <motion.div
+                                aria-hidden
+                                animate={{ scale: [1.1, 1, 1.1], opacity: [0.25, 0.5, 0.25] }}
+                                transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut' }}
+                                className="absolute -bottom-24 -left-12 w-80 h-80 bg-red-500/30 rounded-full blur-3xl pointer-events-none"
+                            />
+                            <div className="relative z-10 p-8 text-stone-50">
+                                {/* Top meta-row */}
+                                <div className="flex justify-between items-center mb-6">
+                                    <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md border border-white/20 px-3 py-1.5 rounded-full">
+                                        <span className="relative flex">
+                                            <span className="absolute inline-flex h-2 w-2 rounded-full bg-red-300 opacity-75 animate-ping"/>
+                                            <span className="relative inline-flex rounded-full h-2 w-2 bg-red-300"/>
+                                        </span>
+                                        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/85">Online · RUAG/01</span>
                                     </div>
-                                    <h1 className="text-3xl font-bold mb-2">Hola, {userName || 'Compañero'} 👋</h1>
-                                    <p className="text-blue-100 max-w-md">Bienvenido a tu portal. Aquí puedes gestionar tus documentos y actualizar tu información.</p>
+                                    <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/65 hidden sm:inline">{today}</span>
                                 </div>
-                                <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/20 flex items-center gap-4 min-w-[200px]">
-                                    <div className="relative w-12 h-12 flex items-center justify-center">
-                                        <svg className="w-full h-full -rotate-90"><circle cx="24" cy="24" r="20" stroke="currentColor" strokeWidth="4" fill="transparent" className="text-blue-900/30"/><circle cx="24" cy="24" r="20" stroke="currentColor" strokeWidth="4" fill="transparent" strokeDasharray={126} strokeDashoffset={126 - (126 * progress) / 100} className="text-white transition-all duration-1000"/></svg>
-                                        <span className="absolute text-xs font-bold">{progress}%</span>
+
+                                <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+                                    <div className="flex-1">
+                                        <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/55">01 — BIENVENIDO</span>
+                                        <h1 className="text-4xl md:text-5xl font-black tracking-tight leading-[0.95] mt-2 mb-3">
+                                            {(userName || 'Compañero').toUpperCase()}
+                                        </h1>
+                                        <div className="w-12 h-0.5 bg-red-300 mb-3"/>
+                                        <p className="text-white/75 max-w-md text-sm leading-relaxed">
+                                            Portal RUAG. Gestiona tu ficha, firma documentos y mantén tu legajo al día — desde cualquier lugar.
+                                        </p>
                                     </div>
-                                    <div>
-                                        <p className="text-xs text-blue-200 font-bold uppercase">Documentación</p>
-                                        <p className="text-sm font-bold">{completedDocs} / {totalDocs} listos</p>
+
+                                    {/* Métrica glass-dark */}
+                                    <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/20 flex items-center gap-4 min-w-[210px]">
+                                        <div className="relative w-14 h-14 flex items-center justify-center shrink-0">
+                                            <svg className="w-full h-full -rotate-90" viewBox="0 0 56 56">
+                                                <circle cx="28" cy="28" r="24" stroke="currentColor" strokeWidth="4" fill="transparent" className="text-white/15"/>
+                                                <circle cx="28" cy="28" r="24" stroke="currentColor" strokeWidth="4" fill="transparent"
+                                                    strokeDasharray={150.8}
+                                                    strokeDashoffset={150.8 - (150.8 * progress) / 100}
+                                                    strokeLinecap="round"
+                                                    className="text-red-300 transition-all duration-1000"/>
+                                            </svg>
+                                            <span className="absolute text-xs font-black">{progress}%</span>
+                                        </div>
+                                        <div>
+                                            <p className="text-[9px] text-white/55 font-bold uppercase tracking-[0.18em]">Documentación</p>
+                                            <p className="text-2xl font-black tracking-tight leading-none mt-1">{completedDocs.toString().padStart(2,'0')}<span className="text-white/40 text-base"> / {totalDocs}</span></p>
+                                            <p className="text-[10px] font-bold uppercase tracking-wider text-red-200 mt-0.5">listos</p>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Acciones rápidas (mismo set de iconos que la app móvil) */}
+                        {/* Acciones rápidas */}
                         <div>
-                            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 pl-1">Acciones rápidas</h3>
+                            <div className="flex items-center gap-3 mb-4">
+                                <span className="text-[10px] font-bold text-red-700 uppercase tracking-[0.22em]">02 — Acciones</span>
+                                <span className="flex-1 h-px bg-stone-200" />
+                            </div>
+                            <h3 className="text-2xl md:text-3xl font-black text-stone-900 tracking-tight mb-1">
+                                Accesos <span className="italic text-red-700">rápidos</span>
+                            </h3>
+                            <p className="text-sm text-stone-500 mb-5">Las tres rutas que más usas. Diseñadas para tocar, no para pensar.</p>
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                 <QuickAction
+                                    index="01"
                                     icon="misRegistros"
                                     label="Mis Registros"
-                                    accent="indigo"
                                     badge={totalPendingAction > 0 ? totalPendingAction : undefined}
                                     onClick={() => setActiveTab('documents')}
                                 />
                                 <QuickAction
+                                    index="02"
                                     icon="archivosSsoma"
                                     label="Archivos SSOMA"
-                                    accent="amber"
                                     onClick={() => setActiveTab('uploads')}
                                 />
                                 <QuickAction
+                                    index="03"
                                     icon="miPerfil"
                                     label="Mi Perfil"
-                                    accent="rose"
                                     onClick={() => setActiveTab('profile')}
                                 />
                             </div>
@@ -837,16 +905,30 @@ export default function DashboardPage() {
 
                 {/* VISTA: DOCUMENTOS (Firmas) */}
                 {activeTab === 'documents' && (
-                    <motion.div initial={{opacity:0, x: 20}} animate={{opacity:1, x: 0}} className="space-y-8 pb-20">
+                    <motion.div initial={{opacity:0, x: 20}} animate={{opacity:1, x: 0}} className="space-y-10 pb-20">
+                        {/* HEADER EDITORIAL */}
+                        <div>
+                            <div className="flex items-center gap-3 mb-3">
+                                <span className="text-[10px] font-bold text-red-700 uppercase tracking-[0.22em]">01 — Registros</span>
+                                <span className="flex-1 h-px bg-stone-200" />
+                            </div>
+                            <h2 className="text-3xl md:text-4xl font-black text-stone-900 tracking-tight">
+                                Mis <span className="italic text-red-700">Registros</span>
+                            </h2>
+                            <p className="text-sm text-stone-500 mt-2">Documentos y firmas habilitados por el administrador.</p>
+                        </div>
+
                         {/* SECCIÓN SSOMA */}
                         <div>
-                            <div className="flex items-center gap-2 mb-4 border-b border-slate-200 pb-2">
-                                <ShieldCheck className="text-blue-600" size={24}/>
-                                <h2 className="text-lg font-bold text-slate-800">Documentación SSOMA</h2>
+                            <div className="flex items-center gap-3 mb-4">
+                                <span className="w-1 h-5 bg-red-600 rounded-full"/>
+                                <span className="text-[10px] font-bold text-stone-500 uppercase tracking-[0.22em]">02 — SSOMA · SEGURIDAD</span>
+                                <span className="flex-1 h-px bg-stone-200" />
                             </div>
-                            <div className="grid gap-4">
-                            {Object.entries(DOC_LABELS_SSOMA_CLEAN).map(([docId, label]) => (
-                                    <DocItem 
+                            <h3 className="text-xl font-black text-stone-900 tracking-tight mb-4">SSOMA · Seguridad</h3>
+                            <div className="grid gap-3">
+                                {Object.entries(DOC_LABELS_SSOMA_CLEAN).map(([docId, label]) => (
+                                    <DocItem
                                         key={docId}
                                         id={docId}
                                         label={label}
@@ -864,13 +946,15 @@ export default function DashboardPage() {
 
                         {/* SECCIÓN RRHH */}
                         <div>
-                            <div className="flex items-center gap-2 mb-4 border-b border-slate-200 pb-2">
-                                <Briefcase className="text-purple-600" size={24}/>
-                                <h2 className="text-lg font-bold text-slate-800">Documentación RRHH</h2>
+                            <div className="flex items-center gap-3 mb-4">
+                                <span className="w-1 h-5 bg-red-600 rounded-full"/>
+                                <span className="text-[10px] font-bold text-stone-500 uppercase tracking-[0.22em]">03 — RRHH · ADMINISTRATIVO</span>
+                                <span className="flex-1 h-px bg-stone-200" />
                             </div>
-                            <div className="grid gap-4">
+                            <h3 className="text-xl font-black text-stone-900 tracking-tight mb-4">Recursos Humanos</h3>
+                            <div className="grid gap-3">
                                 {Object.entries(DOC_LABELS_RRHH).map(([docId, label]) => (
-                                    <DocItem 
+                                    <DocItem
                                         key={docId}
                                         id={docId}
                                         label={label}
@@ -890,63 +974,92 @@ export default function DashboardPage() {
 
                 {/* --- NUEVA VISTA: DOCUMENTOS SUBIDOS POR SSOMA --- */}
                 {activeTab === 'uploads' && (
-                    <motion.div initial={{opacity:0, x: 20}} animate={{opacity:1, x: 0}} className="space-y-6 pb-20">
-                        <div className="bg-amber-50 p-6 rounded-2xl border border-amber-100 mb-6">
-                            <h2 className="text-xl font-bold text-amber-900 mb-2 flex items-center gap-2">
-                                <motion.span
-                                    initial={{ rotate: -8, scale: 0.8 }}
-                                    animate={{ rotate: 0, scale: 1 }}
-                                    transition={{ type: 'spring', stiffness: 300, damping: 14 }}
-                                    className="inline-flex"
-                                >
-                                    <Folder size={22} fill="currentColor" fillOpacity={0.15}/>
-                                </motion.span>
-                                Documentos Digitalizados
-                            </h2>
-                            <p className="text-sm text-amber-800">Aquí encontrarás los documentos escaneados o digitales subidos por el equipo de SSOMA para tu legajo personal. Puedes visualizarlos y descargarlos.</p>
+                    <motion.div initial={{opacity:0, x: 20}} animate={{opacity:1, x: 0}} className="space-y-8 pb-20">
+                        {/* HERO GLASS CRIMSON */}
+                        <div className="relative overflow-hidden rounded-3xl ring-1 ring-white/15 shadow-xl shadow-red-900/15">
+                            <div className="absolute inset-0 bg-gradient-to-br from-red-700 via-red-900 to-zinc-900 -z-10"/>
+                            <motion.div
+                                aria-hidden
+                                animate={{ scale: [1, 1.15, 1], opacity: [0.3, 0.55, 0.3] }}
+                                transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }}
+                                className="absolute -top-16 -right-16 w-64 h-64 bg-white/15 rounded-full blur-3xl pointer-events-none"
+                            />
+                            <div className="relative z-10 p-7 md:p-8 text-stone-50">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className="w-14 h-14 rounded-2xl bg-white/15 backdrop-blur-md ring-1 ring-white/30 flex items-center justify-center">
+                                        <AnimatedIcon name="archivosSsoma" size={32} bounceOnMount={false}/>
+                                    </div>
+                                    <div>
+                                        <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/55">01 — Centro</span>
+                                        <h2 className="text-2xl md:text-3xl font-black tracking-tight leading-none mt-1">
+                                            SSOMA <span className="italic text-red-300">Digital</span>
+                                        </h2>
+                                    </div>
+                                </div>
+                                <div className="w-12 h-0.5 bg-red-300 mb-3"/>
+                                <p className="text-white/75 text-sm max-w-xl leading-relaxed">PDFs, anexos y archivos que el administrador deja listos para tu revisión.</p>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                            <span className="w-1 h-5 bg-red-600 rounded-full"/>
+                            <span className="text-[10px] font-bold text-stone-500 uppercase tracking-[0.22em]">02 — Tus archivos</span>
+                            <span className="flex-1 h-px bg-stone-200" />
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {SSOMA_UPLOADS_CONFIG.map(doc => {
+                            {SSOMA_UPLOADS_CONFIG.map((doc, idx) => {
                                 const fileData = fullWorkerData?.uploads_state?.[doc.id]
                                 const isAvailable = !!fileData
 
                                 return (
-                                    <div key={doc.id} className={`p-5 rounded-2xl border transition-all ${isAvailable ? 'bg-white border-emerald-200 shadow-sm hover:shadow-md' : 'bg-slate-50 border-slate-200 opacity-70'}`}>
-                                        <div className="flex items-start justify-between mb-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className={`p-2.5 rounded-xl ${isAvailable ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-200 text-slate-400'}`}>
-                                                    <FileText size={22}/>
+                                    <motion.div
+                                        key={doc.id}
+                                        whileHover={isAvailable ? { y: -2 } : {}}
+                                        transition={{ type: 'spring', stiffness: 380, damping: 22 }}
+                                        className={`relative p-5 rounded-2xl border backdrop-blur-xl overflow-hidden transition-all
+                                            ${isAvailable
+                                                ? 'bg-white/70 border-red-200 ring-1 ring-white/60 shadow-md shadow-red-900/5 hover:shadow-xl hover:shadow-red-900/15 hover:border-red-300'
+                                                : 'bg-stone-100/60 border-stone-200/60 opacity-70'}`}
+                                    >
+                                        <div className={`absolute left-0 top-5 bottom-5 w-[3px] rounded-r-full ${isAvailable ? 'bg-gradient-to-b from-red-400 to-red-700' : 'bg-stone-300'}`}/>
+                                        <div className="pl-2 flex items-start justify-between mb-4">
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                <span className="text-2xl font-black text-stone-300 leading-none tracking-tight">{(idx+1).toString().padStart(2,'0')}</span>
+                                                <div className={`w-11 h-11 rounded-xl backdrop-blur ring-1 flex items-center justify-center shrink-0
+                                                    ${isAvailable ? 'bg-white/80 text-red-700 ring-red-100' : 'bg-white/40 text-stone-400 ring-stone-200/60'}`}>
+                                                    <FileText size={20}/>
                                                 </div>
                                                 <div className="min-w-0">
-                                                    <h3 className="font-bold text-sm text-slate-800 line-clamp-1" title={doc.label}>{doc.label}</h3>
-                                                    <p className={`text-[10px] font-bold mt-0.5 ${isAvailable ? 'text-emerald-600' : 'text-slate-400'}`}>
-                                                        {isAvailable ? 'DISPONIBLE' : 'PENDIENTE DE CARGA'}
+                                                    <h3 className={`font-extrabold text-[14px] tracking-tight leading-tight line-clamp-2 ${isAvailable ? 'text-stone-900' : 'text-stone-500'}`} title={doc.label}>{doc.label}</h3>
+                                                    <p className={`text-[10px] font-bold mt-1 uppercase tracking-[0.2em] flex items-center gap-1.5 ${isAvailable ? 'text-red-700' : 'text-stone-400'}`}>
+                                                        <span className={`w-1.5 h-1.5 rounded-full ${isAvailable ? 'bg-red-500 animate-pulse' : 'bg-stone-400'}`}/>
+                                                        {isAvailable ? 'Disponible' : 'Pendiente de carga'}
                                                     </p>
                                                 </div>
                                             </div>
                                         </div>
 
                                         {isAvailable ? (
-                                            <div className="space-y-3">
-                                                <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-50 p-2 rounded-lg">
-                                                    <Clock size={12}/>
-                                                    <span>Subido: {new Date(fileData.uploaded_at).toLocaleDateString()}</span>
+                                            <div className="pl-2 space-y-3">
+                                                <div className="flex items-center gap-2 text-[11px] text-stone-600 bg-white/50 backdrop-blur ring-1 ring-stone-200/60 p-2.5 rounded-lg">
+                                                    <Clock size={12} className="text-red-700 shrink-0"/>
+                                                    <span className="font-medium">Subido: {new Date(fileData.uploaded_at).toLocaleDateString()}</span>
                                                 </div>
-                                                <button 
+                                                <button
                                                     onClick={() => window.open(fileData.url, '_blank')}
-                                                    className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors shadow-sm active:scale-95"
+                                                    className="w-full py-2.5 bg-gradient-to-br from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 text-white rounded-xl text-[11px] font-extrabold uppercase tracking-[0.2em] flex items-center justify-center gap-2 transition-all shadow-md shadow-red-500/20 ring-1 ring-white/40 active:scale-95"
                                                 >
-                                                    <ExternalLink size={14}/> VER DOCUMENTO
+                                                    <ExternalLink size={14}/> Ver documento
                                                 </button>
                                             </div>
                                         ) : (
-                                            <div className="flex flex-col items-center justify-center h-20 text-slate-300 border-2 border-dashed border-slate-200 rounded-xl">
+                                            <div className="ml-2 flex flex-col items-center justify-center h-20 text-stone-300 border-2 border-dashed border-stone-200/70 rounded-xl">
                                                 <CloudOff size={20} className="mb-1"/>
-                                                <span className="text-[10px] font-medium">Aún no disponible</span>
+                                                <span className="text-[10px] font-bold uppercase tracking-[0.18em]">Aún no disponible</span>
                                             </div>
                                         )}
-                                    </div>
+                                    </motion.div>
                                 )
                             })}
                         </div>
@@ -1011,40 +1124,46 @@ export default function DashboardPage() {
 
 // --- COMPONENTES AUXILIARES ---
 
-function QuickAction({ icon, label, accent = 'blue', badge, onClick }: { icon: 'actualizarFicha' | 'misRegistros' | 'archivosSsoma' | 'miPerfil' | 'chat', label: string, accent?: 'blue' | 'indigo' | 'amber' | 'rose', badge?: number, onClick: () => void }) {
-    const accents: Record<string, { bg: string, ring: string, text: string, glow: string }> = {
-        blue:   { bg: 'from-blue-50 to-indigo-100/60',   ring: 'ring-blue-100',   text: 'text-blue-700',   glow: 'shadow-blue-500/20' },
-        indigo: { bg: 'from-indigo-50 to-violet-100/60', ring: 'ring-indigo-100', text: 'text-indigo-700', glow: 'shadow-indigo-500/20' },
-        amber:  { bg: 'from-amber-50 to-orange-100/60',  ring: 'ring-amber-100',  text: 'text-amber-800',  glow: 'shadow-amber-500/20' },
-        rose:   { bg: 'from-rose-50 to-pink-100/60',     ring: 'ring-rose-100',   text: 'text-rose-700',   glow: 'shadow-rose-500/20' },
-    }
-    const a = accents[accent]
+function QuickAction({ icon, label, accent = 'blue', badge, onClick, index = '01' }: { icon: 'actualizarFicha' | 'misRegistros' | 'archivosSsoma' | 'miPerfil' | 'chat', label: string, accent?: 'blue' | 'indigo' | 'amber' | 'rose', badge?: number, onClick: () => void, index?: string }) {
     return (
         <motion.button
             onClick={onClick}
-            whileHover={{ y: -4, scale: 1.02 }}
-            whileTap={{ scale: 0.97 }}
+            whileHover={{ y: -3, scale: 1.01 }}
+            whileTap={{ scale: 0.98 }}
             transition={{ type: 'spring', stiffness: 380, damping: 20 }}
-            className={`group relative bg-gradient-to-br ${a.bg} ring-1 ${a.ring} rounded-2xl p-4 text-left overflow-hidden hover:shadow-lg ${a.glow} transition-shadow`}
+            className="group relative bg-white/70 backdrop-blur-xl ring-1 ring-white/60 border border-white/60 rounded-2xl p-5 text-left overflow-hidden shadow-md shadow-red-900/5 hover:shadow-xl hover:shadow-red-900/15 hover:ring-red-200 transition-all"
         >
-            <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-white/40 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity"/>
-            <div className="relative flex items-center justify-between mb-3">
-                <AnimatedIcon name={icon} size={36} bounceOnMount={false}/>
-                {badge && badge > 0 && (
-                    <motion.span
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        transition={{ type: 'spring', stiffness: 500, damping: 14 }}
-                        className="bg-gradient-to-br from-red-500 to-rose-600 text-white text-[10px] font-bold min-w-[20px] h-5 px-1.5 flex items-center justify-center rounded-full shadow-md shadow-red-500/30"
-                    >
-                        {badge}
-                    </motion.span>
-                )}
+            {/* Línea vertical de acento crimson a la izquierda */}
+            <div className="absolute left-0 top-5 bottom-5 w-[3px] bg-gradient-to-b from-red-500 to-red-800 rounded-r-full"/>
+            {/* Glow detrás del icono al hover */}
+            <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-red-300/30 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity"/>
+
+            <div className="relative pl-2 flex items-start justify-between mb-3">
+                {/* Index editorial */}
+                <span className="text-2xl font-black text-stone-300 tracking-tight leading-none">{index}</span>
+                <div className="flex items-center gap-2">
+                    {badge && badge > 0 && (
+                        <motion.span
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            transition={{ type: 'spring', stiffness: 500, damping: 14 }}
+                            className="bg-gradient-to-br from-red-600 to-red-800 text-white text-[10px] font-extrabold min-w-[20px] h-5 px-1.5 flex items-center justify-center rounded-full shadow-md shadow-red-500/30 ring-1 ring-white/40"
+                        >
+                            {badge}
+                        </motion.span>
+                    )}
+                    {/* Icono GIF dentro de un chip glass */}
+                    <div className="w-11 h-11 rounded-xl bg-white/70 backdrop-blur ring-1 ring-white/70 border border-white/40 flex items-center justify-center shadow-sm">
+                        <AnimatedIcon name={icon} size={32} bounceOnMount={false}/>
+                    </div>
+                </div>
             </div>
-            <p className={`relative text-sm font-bold ${a.text} leading-tight`}>{label}</p>
-            <div className="relative flex items-center gap-1 mt-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                <span>Abrir</span>
-                <ChevronRight size={12} className="group-hover:translate-x-1 transition-transform"/>
+            <div className="relative pl-2">
+                <p className="text-sm font-extrabold text-stone-900 leading-tight tracking-tight">{label}</p>
+                <div className="flex items-center gap-1 mt-1.5 text-[10px] font-bold text-red-700 uppercase tracking-[0.2em]">
+                    <span>Abrir</span>
+                    <ArrowUpRight size={12} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform"/>
+                </div>
             </div>
         </motion.button>
     )
@@ -1055,47 +1174,58 @@ function DocItem({ id, label, state, onClick, type }: any) {
     const isUnlocked = status === 'unlocked'
     const isCompleted = status === 'completed'
     const isLocked = !isUnlocked && !isCompleted
-
-    // Colores dinámicos según SSOMA (Azul) o RRHH (Morado)
-    const activeColor = type === 'rrhh' ? 'purple' : 'blue'
-    const completedColor = 'slate'
+    const isOpenable = isUnlocked || isCompleted
 
     return (
         <motion.div
             onClick={onClick}
-            whileHover={!isLocked ? { y: -2, scale: 1.005 } : {}}
+            whileHover={!isLocked ? { y: -2 } : {}}
             whileTap={!isLocked ? { scale: 0.99 } : {}}
             transition={{ type: 'spring', stiffness: 400, damping: 22 }}
-            className={`group relative p-5 rounded-2xl border cursor-pointer overflow-hidden ${isUnlocked ? `bg-white border-${activeColor}-200 shadow-md hover:border-${activeColor}-400 hover:shadow-xl hover:shadow-${activeColor}-500/10` : isCompleted ? `bg-${completedColor}-50/80 border-${completedColor}-200 hover:bg-${completedColor}-100/70` : 'bg-white border-slate-100 opacity-60 grayscale hover:opacity-80'}`}
+            className={`group relative pl-6 pr-5 py-4 rounded-2xl border cursor-pointer overflow-hidden backdrop-blur-xl transition-all
+                ${isUnlocked ? 'bg-white/70 border-red-200 shadow-md shadow-red-900/5 hover:shadow-xl hover:shadow-red-900/15 hover:border-red-300 ring-1 ring-white/60' :
+                  isCompleted ? 'bg-white/60 border-stone-200 hover:bg-white/80 ring-1 ring-white/50' :
+                  'bg-stone-100/60 border-stone-200/60 opacity-60 grayscale hover:opacity-80'}`}
         >
-            {isUnlocked && <div className={`absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-${activeColor}-400 to-${activeColor}-600`}/>}
-            {isCompleted && <div className={`absolute left-0 top-0 bottom-0 w-1.5 bg-${completedColor}-500`}/>}
+            {/* Línea vertical de acento crimson por estado */}
+            <div className={`absolute left-0 top-4 bottom-4 w-[3px] rounded-r-full ${isCompleted ? 'bg-red-700' : isUnlocked ? 'bg-gradient-to-b from-red-400 to-red-700' : 'bg-stone-300'}`}/>
 
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
+            <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-4 min-w-0">
                     <motion.div
                         whileHover={!isLocked ? { rotate: [-2, 4, -2, 0], scale: 1.08 } : {}}
                         transition={{ duration: 0.5 }}
-                        className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${isCompleted ? `bg-${completedColor}-100 text-${completedColor}-700` : isUnlocked ? `bg-${activeColor}-100 text-${activeColor}-600` : 'bg-slate-100 text-slate-400'}`}
+                        className={`relative shrink-0 w-12 h-12 rounded-xl flex items-center justify-center backdrop-blur ring-1 transition-colors
+                            ${isCompleted ? 'bg-stone-100 text-red-700 ring-stone-200' :
+                              isUnlocked ? 'bg-white/80 text-red-700 ring-red-100' :
+                              'bg-white/40 text-stone-400 ring-stone-200/60'}`}
                     >
-                        {isCompleted ? <Eye size={24}/> : (type === 'rrhh' ? <Briefcase size={24} fill="currentColor" fillOpacity={0.12}/> : <FileText size={24} fill="currentColor" fillOpacity={0.12}/>)}
+                        {isCompleted ? <Eye size={22}/> : (type === 'rrhh' ? <Briefcase size={22} fill="currentColor" fillOpacity={0.12}/> : <FileText size={22} fill="currentColor" fillOpacity={0.12}/>)}
+                        {isCompleted && (
+                            <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-red-700 rounded-full ring-2 ring-white flex items-center justify-center">
+                                <CheckCircle size={9} className="text-white"/>
+                            </span>
+                        )}
                     </motion.div>
-                    <div>
-                        <h3 className={`font-bold text-base ${isUnlocked ? `text-${activeColor}-900` : 'text-slate-700'}`}>{label}</h3>
-                        <p className="text-xs font-bold mt-1 flex items-center gap-1.5">
-                            <span className={`w-1.5 h-1.5 rounded-full ${isCompleted ? `bg-${completedColor}-500` : isUnlocked ? `bg-${activeColor}-500 animate-pulse` : 'bg-slate-400'}`}></span>
-                            <span className={isCompleted ? `text-${completedColor}-700` : isUnlocked ? `text-${activeColor}-600` : 'text-slate-400'}>
-                                {isCompleted ? 'ENVIADO · VER O EDITAR' : isUnlocked ? 'DISPONIBLE PARA FIRMA' : 'BLOQUEADO'}
+                    <div className="min-w-0">
+                        <h3 className={`font-extrabold text-[15px] tracking-tight leading-tight ${isLocked ? 'text-stone-500' : 'text-stone-900'}`}>{label}</h3>
+                        <p className="text-[10px] font-bold mt-1.5 flex items-center gap-2 uppercase tracking-[0.18em]">
+                            <span className={`w-1.5 h-1.5 rounded-full ${isCompleted ? 'bg-red-700' : isUnlocked ? 'bg-red-500 animate-pulse' : 'bg-stone-400'}`}></span>
+                            <span className={isCompleted ? 'text-stone-600' : isUnlocked ? 'text-red-700' : 'text-stone-400'}>
+                                {isCompleted ? 'Enviado · Ver / Editar' : isUnlocked ? 'Disponible para firma' : 'Bloqueado'}
                             </span>
                         </p>
                     </div>
                 </div>
                 <motion.div
-                    animate={isLocked ? {} : { x: [0, 3, 0] }}
+                    animate={isLocked || !isOpenable ? {} : { x: [0, 3, 0] }}
                     transition={isLocked ? {} : { duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
-                    className={`p-2 rounded-full transition-colors ${isLocked ? 'bg-slate-50 text-slate-300' : `bg-${activeColor}-50 text-${activeColor}-500 group-hover:bg-${activeColor}-100`}`}
+                    className={`p-2 rounded-full backdrop-blur ring-1 transition-colors shrink-0 ${
+                        isLocked ? 'bg-stone-50 text-stone-300 ring-stone-200/60' :
+                        'bg-white/60 text-red-700 ring-red-100 group-hover:bg-red-50'
+                    }`}
                 >
-                    {isLocked ? <Lock size={20}/> : <ChevronRight size={20}/>}
+                    {isLocked ? <Lock size={18}/> : <ArrowUpRight size={18}/>}
                 </motion.div>
             </div>
         </motion.div>
@@ -1109,19 +1239,19 @@ function NavItem({ active, onClick, icon, activeIcon, label, badge }: any) {
             whileHover={{ x: active ? 0 : 3 }}
             whileTap={{ scale: 0.97 }}
             transition={{ type: 'spring', stiffness: 400, damping: 22 }}
-            className={`relative w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium group overflow-hidden ${active ? 'text-blue-700' : 'text-slate-500 hover:text-slate-800'}`}
+            className={`relative w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-bold group overflow-hidden ${active ? 'text-stone-900' : 'text-stone-600 hover:text-stone-900'}`}
         >
             {active && (
                 <motion.span
                     layoutId="nav-active-pill"
-                    className="absolute inset-0 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100/80 shadow-sm shadow-blue-500/5"
+                    className="absolute inset-0 bg-white/70 backdrop-blur-md rounded-xl border border-white/70 shadow-sm shadow-red-900/10 ring-1 ring-red-200/40"
                     transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                 />
             )}
             {active && (
                 <motion.span
                     layoutId="nav-active-bar"
-                    className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-gradient-to-b from-blue-500 to-indigo-600 rounded-r-full"
+                    className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-gradient-to-b from-red-500 to-red-800 rounded-r-full"
                     transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                 />
             )}
@@ -1132,7 +1262,7 @@ function NavItem({ active, onClick, icon, activeIcon, label, badge }: any) {
                     animate={{ scale: 1, rotate: 0, opacity: 1 }}
                     transition={{ type: 'spring', stiffness: 500, damping: 18 }}
                     whileHover={!active ? { scale: 1.15, rotate: -6 } : { scale: 1.08 }}
-                    className={`inline-flex ${active ? 'text-blue-600' : 'text-slate-400 group-hover:text-blue-500'}`}
+                    className={`inline-flex ${active ? 'text-red-700' : 'text-stone-400 group-hover:text-red-700'}`}
                 >
                     {active && activeIcon ? activeIcon : icon}
                 </motion.span>
@@ -1143,7 +1273,7 @@ function NavItem({ active, onClick, icon, activeIcon, label, badge }: any) {
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     transition={{ type: 'spring', stiffness: 500, damping: 14 }}
-                    className="relative z-10 bg-gradient-to-br from-red-500 to-rose-600 text-white text-[10px] font-bold min-w-[20px] h-5 px-1.5 flex items-center justify-center rounded-full shadow-md shadow-red-500/30"
+                    className="relative z-10 bg-gradient-to-br from-red-600 to-red-800 text-white text-[10px] font-extrabold min-w-[20px] h-5 px-1.5 flex items-center justify-center rounded-full shadow-md shadow-red-500/30 ring-1 ring-white/40"
                 >
                     {badge}
                 </motion.span>
@@ -1182,77 +1312,88 @@ function ProfileSettingsCard({ userEmail, supabase }: any) {
     }
 
     return (
-        <div className="bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden">
-            <div className="p-8 border-b border-slate-100 text-center bg-gradient-to-b from-white to-slate-50/50">
+        <div className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-xl shadow-red-900/10 border border-white/60 ring-1 ring-white/60 overflow-hidden">
+            {/* Hero glass crimson */}
+            <div className="relative overflow-hidden p-8 border-b border-white/60 text-center">
+                <div className="absolute inset-0 bg-gradient-to-br from-red-700 via-red-900 to-zinc-900 -z-10"/>
+                <motion.div
+                    aria-hidden
+                    animate={{ scale: [1, 1.15, 1], opacity: [0.3, 0.55, 0.3] }}
+                    transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }}
+                    className="absolute -top-12 -right-12 w-48 h-48 bg-white/15 rounded-full blur-3xl pointer-events-none"
+                />
                 <motion.div
                     initial={{ scale: 0, rotate: -180 }}
                     animate={{ scale: 1, rotate: 0 }}
                     transition={{ type: 'spring', stiffness: 240, damping: 16 }}
                     whileHover={{ rotate: [0, -8, 8, -4, 4, 0], transition: { duration: 0.6 } }}
-                    className="relative w-20 h-20 bg-gradient-to-br from-blue-100 to-indigo-200 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-white shadow-lg shadow-blue-500/20"
+                    className="relative w-20 h-20 bg-white/95 text-red-700 rounded-2xl flex items-center justify-center mx-auto mb-4 ring-4 ring-white/40 shadow-xl"
                 >
                     <motion.span
-                        className="absolute inset-0 rounded-full ring-2 ring-blue-400/40"
+                        className="absolute inset-0 rounded-2xl ring-2 ring-red-300/60"
                         animate={{ scale: [1, 1.18, 1], opacity: [0.5, 0, 0.5] }}
                         transition={{ duration: 2.4, repeat: Infinity, ease: 'easeOut' }}
                     />
                     <IdCard size={36} strokeWidth={2.2} fill="currentColor" fillOpacity={0.12}/>
                 </motion.div>
-                <h2 className="text-2xl font-bold text-slate-800">Configurar Cuenta</h2>
-                <p className="text-slate-500 text-sm mt-1 max-w-xs mx-auto">Actualiza tu correo y contraseña para asegurar tu acceso al sistema.</p>
+                <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/55">00 — Ajustes</span>
+                <h2 className="text-2xl md:text-3xl font-black text-stone-50 tracking-tight mt-2">
+                    Configurar <span className="italic text-red-300">Cuenta</span>
+                </h2>
+                <p className="text-white/70 text-xs md:text-sm mt-2 max-w-xs mx-auto leading-relaxed">Actualiza tu correo y contraseña para asegurar tu acceso al sistema.</p>
             </div>
-            
-            <form onSubmit={handleUpdate} className="p-8 space-y-6">
+
+            <form onSubmit={handleUpdate} className="p-8 space-y-5">
                 <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2 pl-1">Correo Electrónico</label>
+                    <label className="block text-[10px] font-bold text-red-700 uppercase tracking-[0.22em] mb-2 pl-1">Correo Electrónico</label>
                     <div className="relative">
-                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
-                        <input 
-                            type="email" 
-                            value={email} 
-                            onChange={e => setEmail(e.target.value)} 
-                            className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-red-500" size={18}/>
+                        <input
+                            type="email"
+                            value={email}
+                            onChange={e => setEmail(e.target.value)}
+                            className="w-full pl-11 pr-4 py-3 bg-white/70 backdrop-blur border border-white/60 ring-1 ring-stone-200/60 rounded-xl text-sm font-medium text-stone-900 placeholder:text-stone-400 focus:bg-white focus:ring-4 focus:ring-red-200/50 focus:border-red-400 outline-none transition-all"
                             placeholder="tuemail@ejemplo.com"
                         />
                     </div>
                 </div>
 
                 <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2 pl-1">Nueva Contraseña</label>
+                    <label className="block text-[10px] font-bold text-red-700 uppercase tracking-[0.22em] mb-2 pl-1">Nueva Contraseña</label>
                     <div className="relative">
-                        <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
-                        <input 
-                            type="password" 
-                            value={password} 
-                            onChange={e => setPassword(e.target.value)} 
-                            className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                        <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-red-500" size={18}/>
+                        <input
+                            type="password"
+                            value={password}
+                            onChange={e => setPassword(e.target.value)}
+                            className="w-full pl-11 pr-4 py-3 bg-white/70 backdrop-blur border border-white/60 ring-1 ring-stone-200/60 rounded-xl text-sm font-medium text-stone-900 placeholder:text-stone-400 focus:bg-white focus:ring-4 focus:ring-red-200/50 focus:border-red-400 outline-none transition-all"
                             placeholder="Mínimo 6 caracteres"
                         />
                     </div>
                 </div>
 
                 <div>
-                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2 pl-1">Confirmar Contraseña</label>
+                    <label className="block text-[10px] font-bold text-red-700 uppercase tracking-[0.22em] mb-2 pl-1">Confirmar Contraseña</label>
                     <div className="relative">
-                        <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
-                        <input 
-                            type="password" 
-                            value={confirmPassword} 
-                            onChange={e => setConfirmPassword(e.target.value)} 
-                            className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                        <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-red-500" size={18}/>
+                        <input
+                            type="password"
+                            value={confirmPassword}
+                            onChange={e => setConfirmPassword(e.target.value)}
+                            className="w-full pl-11 pr-4 py-3 bg-white/70 backdrop-blur border border-white/60 ring-1 ring-stone-200/60 rounded-xl text-sm font-medium text-stone-900 placeholder:text-stone-400 focus:bg-white focus:ring-4 focus:ring-red-200/50 focus:border-red-400 outline-none transition-all"
                             placeholder="Repite la contraseña"
                         />
                     </div>
                 </div>
 
                 <div className="pt-4">
-                    <button 
-                        type="submit" 
+                    <button
+                        type="submit"
                         disabled={loading}
-                        className="w-full py-4 bg-slate-900 text-white rounded-xl font-bold shadow-lg hover:bg-slate-800 disabled:opacity-70 flex items-center justify-center gap-3 transition-all active:scale-[0.98]"
+                        className="w-full py-4 bg-gradient-to-br from-red-600 to-red-900 text-white rounded-xl font-extrabold uppercase tracking-[0.18em] text-sm shadow-lg shadow-red-500/30 ring-1 ring-white/40 hover:shadow-xl hover:shadow-red-500/40 disabled:opacity-70 flex items-center justify-center gap-3 transition-all active:scale-[0.98]"
                     >
-                        {loading ? <Loader2 className="animate-spin" size={20}/> : <Save size={20}/>}
-                        {loading ? 'Actualizando...' : 'Guardar Cambios'}
+                        {loading ? <Loader2 className="animate-spin" size={18}/> : <Save size={18}/>}
+                        {loading ? 'Actualizando…' : 'Guardar Cambios'}
                     </button>
                 </div>
             </form>

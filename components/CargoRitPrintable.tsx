@@ -1,102 +1,102 @@
 /* eslint-disable @next/next/no-img-element */
 import React from 'react'
 import NormalizedSignatureImage from './NormalizedSignatureImage'
-import { buildWorkerFullNameUpper, toPrintUppercase } from './printText'
+import { buildWorkerFullNameUpper } from './printText'
+import { PrintableA4, DocHeader, FilledLine, FingerprintBox } from './printable/_primitives'
 
+/**
+ * SG-RIT-01 · ANEXO N° 3 · COMPROMISO
+ * Recepción del Reglamento Interno de Seguridad, Salud Ocupacional y Medio Ambiente
+ * de RUAG SRL.
+ *
+ * Replica fiel del PDF oficial entregado por SSOMA.
+ */
 export const CargoRitPrintable = ({ ficha }: { ficha: any }) => {
   const today = new Date()
-  const day = today.getDate()
-  const month = today.toLocaleString('es-ES', { month: 'long' })
-  const year = today.getFullYear()
+  const dd = String(today.getDate()).padStart(2, '0')
+  const mm = String(today.getMonth() + 1).padStart(2, '0')
+  const yyyy = today.getFullYear()
+  const fechaActual = `${dd}/${mm}/${yyyy}`
+
+  const nombres = buildWorkerFullNameUpper(ficha)
+  const dni = ficha?.dni ?? ''
 
   return (
-    <div
-      className="w-[210mm] h-[297mm] bg-white p-12 mx-auto relative font-sans text-sm leading-relaxed box-border"
-      style={{
-        pageBreakAfter: 'always',
-        color: '#000000',
-        backgroundColor: '#ffffff',
-      }}
-    >
-      <div className="flex mb-12 border border-black">
-        <div className="w-24 flex items-center justify-center p-2 border-r border-black">
-          <span className="font-bold text-xs text-black">Versión 01</span>
+    <PrintableA4>
+      <DocHeader
+        banner="SISTEMA DE GESTIÓN INTEGRADOS"
+        title="REGLAMENTO INTERNO DE SEGURIDAD Y SALUD EN EL TRABAJO"
+        code="SG-RIT-01"
+        revision="01"
+        date="4/01/2024"
+        page="54 de 54"
+        annex="ANEXO N° 3 COMPROMISO"
+      />
+
+      {/* Marco principal del compromiso */}
+      <div className="border border-black mt-3 mx-4 p-6 min-h-[210mm] relative">
+        <div className="text-center font-bold text-[12.5px] leading-snug">
+          <p>REGLAMENTO INTERNO DE SEGURIDAD, SALUD OCUPACIONAL Y MEDIO</p>
+          <p>AMBIENTE</p>
+          <p className="mt-3">RECEPCIÓN DEL REGLAMENTO Y COMPROMISO DE SEGURIDAD, SALUD</p>
+          <p>OCUPACIONAL Y MEDIO AMBIENTE</p>
         </div>
 
-        <div className="flex-1 flex items-center justify-center p-2 font-bold text-center text-base border-r border-black text-black">
-          REGLAMENTO INTERNO DE
-          <br />
-          TRABAJO
+        <div className="mt-12 text-[12px] text-justify leading-[1.8]">
+          <div className="flex items-end gap-2 mb-4">
+            <span className="shrink-0">Lugar:</span>
+            <FilledLine value="LIMA" width="flex-1" />
+            <span className="shrink-0">Fecha:</span>
+            <FilledLine value={fechaActual} width="w-[120px]" />
+          </div>
+
+          <p className="mb-2">
+            He recibido el Reglamento Interno de Seguridad, Salud Ocupacional y Medio
+            Ambiente de RUAG SRL, comprendo las disposiciones allí establecidas y me
+            comprometo a cumplirlas siendo éstas condición de empleo.
+          </p>
+          <p className="mb-2">
+            Así mismo, ratifico mi Compromiso con el cumplimiento de la Política de Seguridad,
+            Salud Ocupacional y
+          </p>
+          <p>
+            Medio Ambiente establecidos por RUAG SRL. FAVOR, ESCRIBIR CON LETRA
+            IMPRENTA Y CLARA.
+          </p>
         </div>
 
-        <div className="w-40 flex items-center justify-center p-2">
-          <img src="/logo_ruag.png" alt="RUAG" className="h-12 object-contain" />
-        </div>
-      </div>
-
-      <div className="text-center font-bold text-lg mb-12 uppercase decoration-black underline-offset-4 text-black">
-        CARGO
-      </div>
-
-      <div className="space-y-8 text-base text-justify px-4 text-black">
-        <p className="leading-8">
-          Yo, <span className="font-bold uppercase px-2">{buildWorkerFullNameUpper(ficha)}</span>,
-          identificado con DNI N° <span className="font-bold px-2">{ficha.dni}</span>,
-          colaborador de RUAG S.R.L., ocupando el cargo de <span className="font-bold uppercase px-2">{toPrintUppercase(ficha.cargo || 'OPERARIO')}</span>,
-          declaro lo siguiente:
-        </p>
-
-        <div className="pl-8 space-y-6 mt-8">
-          <div className="flex gap-4">
-            <span className="font-bold">1.</span>
-            <p>Haber recibido el Reglamento Interno de Trabajo.</p>
-          </div>
-          <div className="flex gap-4">
-            <span className="font-bold">2.</span>
-            <p>Haber leído y entendido el contenido del Reglamento Interno de Trabajo.</p>
-          </div>
-          <div className="flex gap-4">
-            <span className="font-bold">3.</span>
-            <p>Encontrarme conforme con todos sus términos.</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-16 px-4 text-base text-black">
-        Lima, <span className="inline-block w-12 text-center border-b border-black pb-1">{day}</span> de <span className="inline-block w-32 text-center border-b border-black capitalize pb-1">{month}</span> de 20<span className="inline-block w-10 text-center border-b border-black pb-1">{year.toString().slice(-2)}</span>.
-      </div>
-
-      <div className="mt-28 flex justify-center items-end relative text-black">
-        <div className="flex flex-col items-center w-64">
-          <div className="h-24 w-full flex items-end justify-center overflow-hidden mb-2">
-            {ficha.firma_url && (
-              <NormalizedSignatureImage
-                src={ficha.firma_url}
-                alt="Firma"
-                style={{ maxHeight: '56px', maxWidth: '82%', objectFit: 'contain' }}
-              />
-            )}
+        {/* Datos del trabajador */}
+        <div className="mt-14 space-y-7 text-[12px]">
+          <div>
+            <p className="font-semibold mb-1">Nombres y Apellidos</p>
+            <FilledLine value={nombres} width="w-full" align="left" />
           </div>
 
-          <div className="border-t border-black w-full pt-2 text-center">
-            <p className="font-bold text-sm">Firma y Huella dactilar</p>
+          <div className="w-[260px]">
+            <FilledLine value={dni} align="left" />
+            <p className="font-semibold mt-1">D.N.I.</p>
           </div>
         </div>
 
-        {ficha.huella_url ? (
-          <div className="absolute right-10 bottom-0 border border-black p-1 bg-white">
-            <img
-              src={ficha.huella_url}
-              alt="Huella"
-              className="h-28 w-20 object-contain mix-blend-multiply opacity-90"
-            />
+        {/* Firma + huella */}
+        <div className="mt-12 flex justify-between items-end pr-2">
+          <div className="w-[55%]">
+            <div className="h-[80px] flex items-end justify-start mb-1">
+              {ficha?.firma_url && (
+                <NormalizedSignatureImage
+                  src={ficha.firma_url}
+                  alt="Firma"
+                  style={{ maxHeight: '70px', maxWidth: '70%', objectFit: 'contain' }}
+                />
+              )}
+            </div>
+            <FilledLine value="" empty />
+            <p className="font-semibold mt-1">Firma</p>
           </div>
-        ) : (
-          <div className="absolute right-10 bottom-0 w-20 h-28 border border-black bg-white flex items-center justify-center text-xs text-gray-400">
-            Huella
-          </div>
-        )}
+
+          <FingerprintBox src={ficha?.huella_url} />
+        </div>
       </div>
-    </div>
+    </PrintableA4>
   )
 }

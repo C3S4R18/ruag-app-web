@@ -610,22 +610,26 @@ export default function FichaForm() {
 
   // --- WIZARD EDITABLE ---
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50 py-6 px-4 font-sans pb-32">
+    <div className="min-h-screen relative py-6 px-4 font-sans pb-32">
+      <div className="absolute inset-0 -z-10 bg-gradient-to-br from-stone-100 via-stone-50 to-red-50/40" />
+      <div className="absolute inset-0 -z-10 pointer-events-none" style={{
+          backgroundImage: 'radial-gradient(900px 500px at 90% -10%, rgba(220,38,38,0.10), transparent 60%), radial-gradient(700px 400px at -10% 110%, rgba(120,113,108,0.10), transparent 60%)'
+      }} />
       <div className="max-w-4xl mx-auto">
 
-        {/* Header de Pasos — moderno */}
+        {/* Header de Pasos — glass crimson */}
         <motion.div
             initial={{ y: -20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ type: 'spring', stiffness: 220, damping: 22 }}
-            className="bg-white/90 backdrop-blur-md rounded-3xl p-5 shadow-lg shadow-slate-200/60 border border-white mb-6 sticky top-2 z-20 ring-1 ring-slate-100"
+            className="bg-white/70 backdrop-blur-xl rounded-3xl p-5 shadow-lg shadow-red-900/10 border border-white/60 ring-1 ring-white/60 mb-6 sticky top-2 z-20"
         >
             <div className="flex justify-between items-center mb-3">
                 <div className="flex items-center gap-2">
-                    <span className="bg-slate-900 text-white text-[10px] font-extrabold px-2.5 py-1 rounded-full uppercase tracking-wider">
+                    <span className="bg-gradient-to-br from-red-700 to-red-900 text-white text-[10px] font-extrabold px-2.5 py-1 rounded-full uppercase tracking-[0.2em] ring-1 ring-white/40">
                         Paso {currentStep}/5
                     </span>
-                    <span className="text-sm font-bold text-slate-700 hidden sm:inline">
+                    <span className="text-sm font-extrabold text-stone-900 hidden sm:inline tracking-tight">
                         {STEPS.find(s => s.id === currentStep)?.title}
                     </span>
                 </div>
@@ -634,21 +638,21 @@ export default function FichaForm() {
                     initial={{ scale: 0.6, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ type: 'spring', stiffness: 400, damping: 18 }}
-                    className="text-xs font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-100 px-3 py-1 rounded-full"
+                    className="text-[11px] font-extrabold text-red-700 bg-white/70 backdrop-blur ring-1 ring-red-200 border border-white/60 px-3 py-1 rounded-full"
                 >
                     {Math.round((currentStep / 5) * 100)}% Completado
                 </motion.span>
             </div>
-            <div className="relative w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+            <div className="relative w-full bg-stone-200/70 rounded-full h-2 overflow-hidden">
                 <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${(currentStep / 5) * 100}%` }}
-                    className="absolute inset-y-0 left-0 bg-gradient-to-r from-blue-500 via-indigo-500 to-emerald-500 rounded-full"
+                    className="absolute inset-y-0 left-0 bg-gradient-to-r from-red-400 via-red-600 to-red-900 rounded-full"
                     transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
                 />
                 {/* Brillo sutil deslizándose */}
                 <motion.div
-                    className="absolute inset-y-0 w-12 bg-gradient-to-r from-transparent via-white/60 to-transparent"
+                    className="absolute inset-y-0 w-12 bg-gradient-to-r from-transparent via-white/70 to-transparent"
                     animate={{ x: ['-3rem', `calc(${(currentStep / 5) * 100}% + 3rem)`] }}
                     transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
                 />
@@ -669,10 +673,10 @@ export default function FichaForm() {
                             <motion.div
                                 animate={isCurrent ? { scale: [1, 1.08, 1] } : { scale: 1 }}
                                 transition={isCurrent ? { duration: 1.6, repeat: Infinity, ease: 'easeInOut' } : { duration: 0.2 }}
-                                className={`relative w-11 h-11 rounded-full flex items-center justify-center transition-all ${
-                                    isCurrent ? 'bg-white ring-2 ring-blue-500 shadow-lg shadow-blue-500/20' :
-                                    isDone ? 'bg-emerald-50 ring-1 ring-emerald-200' :
-                                    'bg-slate-50 ring-1 ring-slate-100 grayscale opacity-50'
+                                className={`relative w-11 h-11 rounded-full flex items-center justify-center transition-all backdrop-blur ${
+                                    isCurrent ? 'bg-white/80 ring-2 ring-red-500 shadow-lg shadow-red-500/25 border border-white/60' :
+                                    isDone ? 'bg-white/70 ring-1 ring-red-200 border border-white/50' :
+                                    'bg-stone-100/60 ring-1 ring-stone-200/60 grayscale opacity-50'
                                 }`}
                             >
                                 {isDone ? (
@@ -689,14 +693,14 @@ export default function FichaForm() {
                                 )}
                                 {isCurrent && (
                                     <motion.span
-                                        className="absolute inset-0 rounded-full ring-2 ring-blue-500/40 pointer-events-none"
+                                        className="absolute inset-0 rounded-full ring-2 ring-red-500/40 pointer-events-none"
                                         animate={{ scale: [1, 1.45], opacity: [0.55, 0] }}
                                         transition={{ duration: 1.4, repeat: Infinity, ease: 'easeOut' }}
                                     />
                                 )}
                             </motion.div>
-                            <span className={`text-[10px] font-bold hidden sm:block ${
-                                isCurrent ? 'text-slate-900' : isDone ? 'text-emerald-600' : 'text-slate-300'
+                            <span className={`text-[10px] font-bold hidden sm:block tracking-tight ${
+                                isCurrent ? 'text-stone-900' : isDone ? 'text-red-700' : 'text-stone-400'
                             }`}>{step.title}</span>
                         </motion.button>
                     )
@@ -704,7 +708,7 @@ export default function FichaForm() {
             </div>
         </motion.div>
 
-        <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden p-6 md:p-10 min-h-[500px] relative">
+        <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl shadow-red-900/10 border border-white/60 ring-1 ring-white/60 overflow-hidden p-6 md:p-10 min-h-[500px] relative">
              <AnimatePresence mode='wait'>
                 {currentStep === 1 && <StepWrapper key="1">
                     <SectionTitle title="Información Personal" animatedIcon="personal" />
@@ -878,14 +882,38 @@ export default function FichaForm() {
              </AnimatePresence>
         </div>
 
-        <div className="fixed bottom-0 left-0 w-full bg-white/80 backdrop-blur-md border-t border-slate-200 p-4 z-50">
-             <div className="max-w-5xl mx-auto flex justify-between items-center">
-                 <button onClick={() => setCurrentStep(p => Math.max(1, p - 1))} disabled={currentStep === 1} className={`flex items-center gap-2 font-bold px-6 py-3 rounded-xl transition-all ${currentStep === 1 ? 'opacity-0 pointer-events-none' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'}`}><ChevronLeft size={20}/> Atrás</button>
-                 {currentStep < 5 ? (
-                    <button onClick={handleNextStep} className="bg-slate-900 text-white font-bold px-8 py-3 rounded-xl hover:bg-slate-800 transition-all flex items-center gap-2 shadow-lg shadow-slate-900/20 active:scale-95">Siguiente <ChevronRight size={20}/></button>
-                 ) : (
-                    <button onClick={finalizarFicha} disabled={sending} className="bg-emerald-600 text-white font-bold px-10 py-3 rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/30 flex items-center gap-2 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed">{sending ? <Loader2 className="animate-spin"/> : <><CheckCircle/> ENVIAR FICHA</>}</button>
-                 )}
+        <div className="fixed bottom-0 left-0 w-full bg-white/70 backdrop-blur-xl border-t border-white/60 p-4 z-50 shadow-[0_-8px_24px_-12px_rgba(127,29,29,0.15)]">
+             <div className="max-w-5xl mx-auto">
+                 <div className="flex items-center justify-between mb-2 px-2">
+                    <span className="text-[9px] font-bold uppercase tracking-[0.22em] text-stone-400">Paso {String(currentStep).padStart(2,'0')} / 05</span>
+                    <span className="flex-1 h-px bg-stone-200 mx-3"/>
+                    <span className="text-[9px] font-bold uppercase tracking-[0.22em] text-red-700">{currentStep === 5 ? 'Enviar' : 'Siguiente'}</span>
+                 </div>
+                 <div className="flex justify-between items-center">
+                     <button
+                         onClick={() => setCurrentStep(p => Math.max(1, p - 1))}
+                         disabled={currentStep === 1}
+                         className={`flex items-center gap-2 font-extrabold px-6 py-3 rounded-xl uppercase tracking-[0.18em] text-xs transition-all ${currentStep === 1 ? 'opacity-0 pointer-events-none' : 'bg-white/70 backdrop-blur ring-1 ring-red-200 border border-white/60 text-red-700 hover:bg-white hover:shadow-md hover:shadow-red-500/10'}`}
+                     >
+                         <ChevronLeft size={18}/> Atrás
+                     </button>
+                     {currentStep < 5 ? (
+                        <button
+                            onClick={handleNextStep}
+                            className="bg-gradient-to-br from-red-600 to-red-900 text-white font-extrabold uppercase tracking-[0.18em] text-xs px-8 py-3 rounded-xl hover:from-red-700 hover:to-red-950 transition-all flex items-center gap-2 shadow-lg shadow-red-500/30 ring-1 ring-white/40 active:scale-95"
+                        >
+                            Siguiente <ArrowRight size={18}/>
+                        </button>
+                     ) : (
+                        <button
+                            onClick={finalizarFicha}
+                            disabled={sending}
+                            className="bg-gradient-to-br from-red-700 to-red-950 text-white font-extrabold uppercase tracking-[0.18em] text-xs px-10 py-3 rounded-xl hover:from-red-800 hover:to-zinc-900 transition-all shadow-lg shadow-red-500/30 ring-1 ring-white/40 flex items-center gap-2 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
+                        >
+                            {sending ? <Loader2 className="animate-spin" size={18}/> : <><CheckCircle size={18}/> Enviar Ficha</>}
+                        </button>
+                     )}
+                 </div>
              </div>
         </div>
       </div>
@@ -1410,26 +1438,26 @@ function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => voi
 
 function WelcomeScreen({onStart}:any) {
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-50 flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
-            {/* Blobs decorativos */}
+        <div className="min-h-screen bg-gradient-to-br from-stone-100 via-stone-50 to-red-50/40 flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
+            {/* Blobs decorativos crimson */}
             <motion.div
                 aria-hidden
-                animate={{ scale: [1, 1.15, 1], opacity: [0.5, 0.8, 0.5] }}
+                animate={{ scale: [1, 1.15, 1], opacity: [0.4, 0.7, 0.4] }}
                 transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }}
-                className="absolute -top-20 -right-20 w-72 h-72 bg-blue-300/40 rounded-full blur-3xl pointer-events-none"
+                className="absolute -top-20 -right-20 w-80 h-80 bg-red-300/40 rounded-full blur-3xl pointer-events-none"
             />
             <motion.div
                 aria-hidden
-                animate={{ scale: [1.1, 1, 1.1], opacity: [0.4, 0.7, 0.4] }}
+                animate={{ scale: [1.1, 1, 1.1], opacity: [0.3, 0.6, 0.3] }}
                 transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
-                className="absolute -bottom-24 -left-24 w-80 h-80 bg-indigo-300/40 rounded-full blur-3xl pointer-events-none"
+                className="absolute -bottom-24 -left-24 w-96 h-96 bg-stone-400/30 rounded-full blur-3xl pointer-events-none"
             />
 
             <motion.div
                 initial={{ y: 30, opacity: 0, scale: 0.95 }}
                 animate={{ y: 0, opacity: 1, scale: 1 }}
                 transition={{ type: 'spring', stiffness: 220, damping: 22 }}
-                className="relative max-w-md w-full bg-white/95 backdrop-blur-md p-10 rounded-3xl shadow-2xl shadow-blue-200/40 ring-1 ring-white"
+                className="relative max-w-md w-full bg-white/80 backdrop-blur-xl p-10 rounded-3xl shadow-2xl shadow-red-900/15 ring-1 ring-white/60 border border-white/60"
             >
                 <motion.div
                     initial={{ scale: 0, rotate: -180 }}
@@ -1439,29 +1467,32 @@ function WelcomeScreen({onStart}:any) {
                 >
                     <motion.span
                         aria-hidden
-                        className="absolute inset-0 rounded-2xl bg-blue-400/40 blur-xl"
+                        className="absolute inset-0 rounded-2xl bg-red-500/40 blur-xl"
                         animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0.9, 0.5] }}
                         transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
                     />
-                    <div className="relative p-5 bg-gradient-to-br from-blue-600 to-indigo-700 text-white rounded-2xl shadow-xl shadow-blue-500/40">
+                    <div className="relative p-5 bg-gradient-to-br from-red-700 to-red-950 text-white rounded-2xl shadow-xl shadow-red-500/40 ring-1 ring-white/40">
                         <FileBadge size={42} />
                     </div>
                 </motion.div>
-                <h1 className="text-3xl font-extrabold mb-3 text-slate-900 tracking-tight">Ficha de Datos</h1>
-                <p className="text-slate-500 mb-8 leading-relaxed">
-                    Bienvenido al sistema <span className="font-bold text-slate-900">RUAG</span>.
+                <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-red-700">00 — Bienvenida</span>
+                <h1 className="text-3xl md:text-4xl font-black mb-3 text-stone-900 tracking-tight mt-2">
+                    Ficha <span className="italic text-red-700">de Datos</span>
+                </h1>
+                <p className="text-stone-500 mb-8 leading-relaxed">
+                    Bienvenido al sistema <span className="font-extrabold text-stone-900">RUAG</span>.
                     Ten a mano tu DNI y documentos.
                 </p>
-                <ul className="text-left text-xs text-slate-500 space-y-2 mb-10 bg-slate-50 rounded-xl p-4 border border-slate-100">
-                    <li className="flex items-center gap-2"><CheckCircle size={14} className="text-emerald-500 shrink-0"/> Datos personales y bancarios</li>
-                    <li className="flex items-center gap-2"><CheckCircle size={14} className="text-emerald-500 shrink-0"/> Documentos del trabajador y familiares</li>
-                    <li className="flex items-center gap-2"><CheckCircle size={14} className="text-emerald-500 shrink-0"/> Firma digital de conformidad</li>
+                <ul className="text-left text-xs text-stone-600 space-y-2.5 mb-10 bg-white/70 backdrop-blur ring-1 ring-stone-200/60 border border-white/60 rounded-xl p-4">
+                    <li className="flex items-center gap-2"><CheckCircle size={14} className="text-red-700 shrink-0"/> Datos personales y bancarios</li>
+                    <li className="flex items-center gap-2"><CheckCircle size={14} className="text-red-700 shrink-0"/> Documentos del trabajador y familiares</li>
+                    <li className="flex items-center gap-2"><CheckCircle size={14} className="text-red-700 shrink-0"/> Firma digital de conformidad</li>
                 </ul>
                 <motion.button
-                    whileHover={{ scale: 1.03 }}
+                    whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.97 }}
                     onClick={onStart}
-                    className="w-full bg-gradient-to-r from-slate-900 to-slate-800 text-white py-4 rounded-xl font-bold text-lg shadow-xl shadow-slate-900/20 flex items-center justify-center gap-2"
+                    className="w-full bg-gradient-to-br from-red-700 to-red-950 text-white py-4 rounded-xl font-extrabold uppercase tracking-[0.18em] text-sm shadow-xl shadow-red-500/30 ring-1 ring-white/40 flex items-center justify-center gap-2 hover:shadow-2xl hover:shadow-red-500/40 transition-shadow"
                 >
                     Comenzar <ArrowRight size={20}/>
                 </motion.button>
@@ -1476,23 +1507,35 @@ function SectionTitle({title, icon, animatedIcon}: { title: string, icon?: any, 
             initial={{ x: -10, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}
             transition={{ duration: 0.4 }}
-            className="flex items-center gap-3 mb-6 pb-3 border-b border-slate-100"
+            className="flex items-center gap-3 mb-6 pb-3 border-b border-stone-200/70"
         >
             {animatedIcon ? (
-                <AnimatedIcon name={animatedIcon} size={36} surface="gradient" bounceOnMount />
+                <div className="w-12 h-12 rounded-xl bg-white/70 backdrop-blur ring-1 ring-white/70 border border-white/50 flex items-center justify-center shadow-sm shadow-red-900/5">
+                    <AnimatedIcon name={animatedIcon} size={32} bounceOnMount />
+                </div>
             ) : (
-                <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center text-blue-600 shadow-sm ring-1 ring-blue-100">
+                <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-red-50 to-stone-100 flex items-center justify-center text-red-700 shadow-sm ring-1 ring-red-100">
                     {icon}
                 </div>
             )}
             <div className="flex-1">
-                <h3 className="text-lg font-extrabold text-slate-900 tracking-tight leading-none">{title}</h3>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5 block">RUAG · FICHA</span>
+                <span className="text-[10px] font-bold text-red-700 uppercase tracking-[0.22em]">RUAG · Ficha</span>
+                <h3 className="text-lg font-black text-stone-900 tracking-tight leading-none mt-0.5">{title}</h3>
             </div>
         </motion.div>
     )
 }
-function SectionRead({title, icon, children}: any) { return <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm"><div className="flex items-center gap-2 mb-4 text-slate-900 font-bold border-b border-slate-100 pb-2"><span className="text-slate-500">{icon}</span><h3>{title}</h3></div>{children}</div>}
+function SectionRead({title, icon, children}: any) {
+    return (
+        <div className="bg-white/70 backdrop-blur-xl p-6 rounded-2xl border border-white/60 ring-1 ring-white/60 shadow-md shadow-red-900/5">
+            <div className="flex items-center gap-2 mb-4 text-stone-900 font-extrabold border-b border-stone-200/70 pb-2">
+                <span className="text-red-700">{icon}</span>
+                <h3 className="tracking-tight">{title}</h3>
+            </div>
+            {children}
+        </div>
+    )
+}
 function Input({label, name, val, set, type="text", required=false, readOnly=false, onChange, placeholder, className=""}: any) {
     if (type === 'date') {
         return <DateInput label={label} name={name} val={val} set={set} onChange={onChange} required={required} readOnly={readOnly} className={className} />

@@ -195,12 +195,12 @@ export default function ChatSystem({ workerId, workerName, currentUserId, isAdmi
                 whileHover={{ scale: 1.08, y: -2 }}
                 whileTap={{ scale: 0.94 }}
                 onClick={() => setIsMinimized(false)}
-                className="fixed bottom-6 right-6 w-16 h-16 bg-white rounded-full shadow-2xl shadow-blue-500/30 flex items-center justify-center z-50 border-2 border-white ring-1 ring-slate-200/70"
+                className="fixed bottom-6 right-6 w-16 h-16 bg-white/85 backdrop-blur-xl rounded-full shadow-2xl shadow-red-900/30 flex items-center justify-center z-50 border-2 border-white ring-1 ring-red-200/70"
             >
                 {/* Halo animado */}
                 <motion.span
                     aria-hidden
-                    className="absolute inset-0 rounded-full bg-gradient-to-br from-blue-400/30 to-indigo-500/30"
+                    className="absolute inset-0 rounded-full bg-gradient-to-br from-red-400/40 to-red-700/40"
                     animate={{ scale: [1, 1.18, 1], opacity: [0.55, 0, 0.55] }}
                     transition={{ duration: 2.2, repeat: Infinity, ease: 'easeOut' }}
                 />
@@ -225,7 +225,7 @@ export default function ChatSystem({ workerId, workerName, currentUserId, isAdmi
                         <motion.div
                             initial={{ scale: 0 }}
                             animate={{ scale: 1 }}
-                            className="absolute -top-2.5 -right-2.5 bg-gradient-to-br from-red-500 to-rose-600 text-white text-xs font-bold w-6 h-6 flex items-center justify-center rounded-full border-2 border-white shadow-md"
+                            className="absolute -top-2.5 -right-2.5 bg-gradient-to-br from-red-600 to-red-900 text-white text-xs font-extrabold w-6 h-6 flex items-center justify-center rounded-full border-2 border-white shadow-md ring-1 ring-red-300"
                         >
                             {unreadCount > 9 ? '+9' : unreadCount}
                         </motion.div>
@@ -238,72 +238,86 @@ export default function ChatSystem({ workerId, workerName, currentUserId, isAdmi
     if (isMinimized && isAdmin) return null
 
     // Estilos dinámicos según quién lo ve
-    const containerStyle = isAdmin 
-        ? "fixed inset-y-0 right-0 w-full max-w-md bg-white shadow-2xl z-[70] border-l border-slate-200 flex flex-col"
-        : "fixed bottom-24 right-6 w-80 md:w-96 h-[500px] bg-white rounded-2xl shadow-2xl z-50 border border-slate-200 flex flex-col overflow-hidden"
+    const containerStyle = isAdmin
+        ? "fixed inset-y-0 right-0 w-full max-w-md bg-white/85 backdrop-blur-xl shadow-2xl z-[70] border-l border-white/60 ring-1 ring-stone-900/5 flex flex-col"
+        : "fixed bottom-24 right-6 w-80 md:w-96 h-[520px] bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl shadow-red-900/20 z-50 border border-white/60 ring-1 ring-stone-900/5 flex flex-col overflow-hidden"
 
     return (
         <AnimatePresence>
             {!isMinimized && (
                 <>
-                    {isAdmin && <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} onClick={onClose} className="fixed inset-0 bg-slate-900/20 z-[65] backdrop-blur-sm" />}
-                    
-                    <motion.div 
+                    {isAdmin && <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} onClick={onClose} className="fixed inset-0 bg-stone-900/30 z-[65] backdrop-blur-sm" />}
+
+                    <motion.div
                         initial={isAdmin ? { x: "100%" } : { opacity: 0, y: 20, scale: 0.95 }}
                         animate={isAdmin ? { x: 0 } : { opacity: 1, y: 0, scale: 1 }}
                         exit={isAdmin ? { x: "100%" } : { opacity: 0, y: 20, scale: 0.95 }}
                         transition={{ type: "spring", damping: 25, stiffness: 300 }}
                         className={containerStyle}
                     >
-                        {/* HEADER */}
-                        <div className={`p-4 flex justify-between items-center shrink-0 ${isAdmin ? 'bg-white border-b border-slate-100' : 'bg-gradient-to-r from-slate-800 to-slate-900 text-white'}`}>
-                            <div className="flex items-center gap-3">
-                                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold shadow-sm ${isAdmin ? 'bg-blue-50 text-blue-600' : 'bg-white/10 text-white'}`}>
+                        {/* HEADER GLASS CRIMSON */}
+                        <div className="relative overflow-hidden p-4 flex justify-between items-center shrink-0 text-white">
+                            <div className="absolute inset-0 bg-gradient-to-br from-red-700 via-red-900 to-zinc-900 -z-10"/>
+                            <motion.div
+                                aria-hidden
+                                animate={{ scale: [1, 1.15, 1], opacity: [0.3, 0.55, 0.3] }}
+                                transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }}
+                                className="absolute -top-10 -right-10 w-40 h-40 bg-white/15 rounded-full blur-2xl pointer-events-none"
+                            />
+                            <div className="relative flex items-center gap-3 z-10">
+                                <div className="w-11 h-11 rounded-xl flex items-center justify-center font-black bg-white/95 text-red-700 shadow-md ring-1 ring-white/40">
                                     {isAdmin ? workerName.charAt(0) : <ShieldCheck size={20}/>}
                                 </div>
                                 <div>
-                                    <h3 className={`font-bold text-sm leading-tight ${isAdmin ? 'text-slate-800' : 'text-white'}`}>
-                                        {isAdmin ? workerName : 'Soporte SSOMA'}
+                                    <span className="text-[9px] font-bold uppercase tracking-[0.22em] text-white/55">00 — {isAdmin ? 'Trabajador' : 'Soporte'}</span>
+                                    <h3 className="font-black text-base tracking-tight text-white leading-tight">
+                                        {isAdmin ? workerName : 'Administrador'}
                                     </h3>
-                                    <div className="flex items-center gap-1.5">
-                                        <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></span>
-                                        <p className={`text-xs ${isAdmin ? 'text-slate-500' : 'text-slate-300'}`}>
-                                            {isConnected ? 'En línea' : 'Conectando...'}
+                                    <div className="flex items-center gap-1.5 mt-0.5">
+                                        <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-red-300 animate-pulse' : 'bg-amber-300'}`}></span>
+                                        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/70">
+                                            {isConnected ? 'En línea' : 'Conectando…'}
                                         </p>
                                     </div>
                                 </div>
                             </div>
-                            <button 
-                                onClick={() => isAdmin ? onClose() : setIsMinimized(true)} 
-                                className={`p-2 rounded-full transition-colors ${isAdmin ? 'hover:bg-slate-100 text-slate-400' : 'hover:bg-white/20 text-white/80'}`}
+                            <button
+                                onClick={() => isAdmin ? onClose() : setIsMinimized(true)}
+                                className="relative z-10 p-2 rounded-xl bg-white/10 backdrop-blur border border-white/20 hover:bg-white/20 text-white/85 transition-colors"
                             >
-                                <X size={20} />
+                                <X size={18} />
                             </button>
                         </div>
 
                         {/* MESSAGES LIST */}
-                        <div className="flex-1 overflow-y-auto p-4 bg-slate-50 space-y-3 scroll-smooth" ref={scrollRef}>
+                        <div className="flex-1 overflow-y-auto p-4 space-y-3 scroll-smooth bg-gradient-to-br from-stone-50 via-stone-50/80 to-red-50/40" ref={scrollRef}>
                             {loading ? (
-                                <div className="flex justify-center py-10"><Loader2 className="animate-spin text-slate-400"/></div>
+                                <div className="flex justify-center py-10"><Loader2 className="animate-spin text-red-700"/></div>
                             ) : messages.length === 0 ? (
-                                <div className="text-center text-slate-400 text-xs mt-10 space-y-2">
-                                    <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto text-slate-300"><MessageSquare size={24}/></div>
-                                    <p>No hay mensajes.<br/>Escribe para iniciar la conversación.</p>
+                                <div className="text-center text-stone-400 text-xs mt-10 space-y-3 py-6">
+                                    <div className="w-14 h-14 bg-white/70 backdrop-blur ring-1 ring-stone-200/60 border border-white/60 rounded-2xl flex items-center justify-center mx-auto text-red-700 shadow-md shadow-red-900/10">
+                                        <MessageSquare size={24}/>
+                                    </div>
+                                    <p className="text-[10px] font-bold text-stone-500 uppercase tracking-[0.18em]">SIN MENSAJES</p>
+                                    <p className="text-stone-500 max-w-[200px] mx-auto leading-relaxed">Escribe al administrador para iniciar la conversación.</p>
                                 </div>
                             ) : (
                                 messages.map((msg) => {
                                     const isMe = msg.sender_id === currentUserId
                                     return (
-                                        <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                                            <div 
-                                                className={`max-w-[85%] px-4 py-2.5 text-sm shadow-sm relative group transition-all ${
-                                                    isMe 
-                                                        ? 'bg-blue-600 text-white rounded-2xl rounded-br-none' 
-                                                        : 'bg-white text-slate-700 border border-slate-200 rounded-2xl rounded-bl-none'
+                                        <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                                            <span className={`text-[9px] font-bold uppercase tracking-[0.18em] mb-1 px-1 ${isMe ? 'text-red-700' : 'text-stone-500'}`}>
+                                                {isMe ? 'Tú' : 'Administrador'}
+                                            </span>
+                                            <div
+                                                className={`max-w-[85%] px-4 py-2.5 text-sm relative group transition-all ${
+                                                    isMe
+                                                        ? 'bg-gradient-to-br from-red-700 to-red-900 text-white rounded-2xl rounded-br-md shadow-md shadow-red-500/20 ring-1 ring-white/20'
+                                                        : 'bg-white/85 backdrop-blur ring-1 ring-stone-200/70 text-stone-800 border border-white/60 rounded-2xl rounded-bl-md shadow-sm'
                                                 }`}
                                             >
                                                 <p className="leading-relaxed whitespace-pre-wrap">{msg.content}</p>
-                                                <span className={`text-[10px] block mt-1 text-right opacity-70 ${isMe ? 'text-blue-100' : 'text-slate-400'}`}>
+                                                <span className={`text-[10px] block mt-1 text-right opacity-70 ${isMe ? 'text-red-100' : 'text-stone-400'}`}>
                                                     {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                 </span>
                                             </div>
@@ -311,22 +325,22 @@ export default function ChatSystem({ workerId, workerName, currentUserId, isAdmi
                                     )
                                 })
                             )}
-                            
+
                             {/* BUBBLE INDICATOR (Escribiendo...) */}
                             {isTyping && (
                                 <motion.div initial={{opacity:0, y:10}} animate={{opacity:1, y:0}} className="flex justify-start">
-                                    <div className="bg-white border border-slate-200 rounded-2xl rounded-bl-none px-4 py-3 shadow-sm flex items-center gap-1.5">
-                                        <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"></span>
-                                        <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce delay-100"></span>
-                                        <span className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce delay-200"></span>
+                                    <div className="bg-white/85 backdrop-blur border border-white/60 ring-1 ring-stone-200/60 rounded-2xl rounded-bl-md px-4 py-3 shadow-sm flex items-center gap-1.5">
+                                        <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-bounce"></span>
+                                        <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-bounce delay-100"></span>
+                                        <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-bounce delay-200"></span>
                                     </div>
                                 </motion.div>
                             )}
                         </div>
 
                         {/* INPUT FOOTER */}
-                        <form onSubmit={handleSend} className="p-3 bg-white border-t border-slate-100 flex gap-2 shrink-0 items-end">
-                            <textarea 
+                        <form onSubmit={handleSend} className="p-3 bg-white/70 backdrop-blur-xl border-t border-white/60 flex gap-2 shrink-0 items-end">
+                            <textarea
                                 rows={1}
                                 value={newMessage}
                                 onChange={handleInputChange}
@@ -337,12 +351,12 @@ export default function ChatSystem({ workerId, workerName, currentUserId, isAdmi
                                     }
                                 }}
                                 placeholder="Escribe un mensaje..."
-                                className="flex-1 bg-slate-50 border border-slate-200 text-slate-800 text-sm rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all resize-none max-h-24 scrollbar-hide"
+                                className="flex-1 bg-white/70 backdrop-blur border border-white/60 ring-1 ring-stone-200/60 text-stone-800 text-sm rounded-xl px-4 py-3 placeholder:text-stone-400 focus:outline-none focus:ring-4 focus:ring-red-200/50 focus:border-red-400 focus:bg-white transition-all resize-none max-h-24 scrollbar-hide"
                             />
-                            <button 
+                            <button
                                 type="submit"
-                                disabled={!newMessage.trim() || !isConnected} 
-                                className="bg-blue-600 text-white p-3 rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-lg shadow-blue-600/20 h-[46px] w-[46px] flex items-center justify-center"
+                                disabled={!newMessage.trim() || !isConnected}
+                                className="bg-gradient-to-br from-red-600 to-red-900 text-white p-3 rounded-xl hover:from-red-700 hover:to-red-950 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-red-500/30 ring-1 ring-white/40 h-[46px] w-[46px] flex items-center justify-center active:scale-95"
                             >
                                 <Send size={18} />
                             </button>
