@@ -169,11 +169,11 @@ export function FilledLine({
   return (
     <span
       className={`inline-flex flex-col ${width} ${className}`}
-      style={{ minHeight: '20px' }}
+      style={{ minHeight: '24px' }}
     >
       <span
-        className={`inline-flex ${justify} ${fontSize} font-semibold tracking-wide leading-tight pb-[3px] px-1`}
-        style={{ minHeight: '16px' }}
+        className={`inline-flex ${justify} ${fontSize} font-semibold tracking-wide leading-tight pb-[5px] px-1`}
+        style={{ minHeight: '18px' }}
       >
         {printedValue}
       </span>

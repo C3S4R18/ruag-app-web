@@ -38,12 +38,19 @@ type AnimatedIconProps = {
   surface?: 'none' | 'soft' | 'gradient'
   /** Subtle bounce on mount. */
   bounceOnMount?: boolean
+  /**
+   * Si true (default), aplica `mix-blend-mode: multiply` al GIF para que el
+   * fondo blanco del archivo se mezcle con el fondo del contenedor y no se
+   * vea el "cuadrado blanco" alrededor del icono. Pon `false` cuando lo uses
+   * sobre fondos oscuros donde quieras que el blanco siga visible.
+   */
+  blend?: boolean
 }
 
 const SURFACES: Record<NonNullable<AnimatedIconProps['surface']>, string> = {
   none: '',
-  soft: 'bg-slate-50 ring-1 ring-slate-100',
-  gradient: 'bg-gradient-to-br from-blue-50 via-white to-indigo-50 ring-1 ring-blue-100/70 shadow-sm',
+  soft: 'bg-stone-50 ring-1 ring-stone-100',
+  gradient: 'bg-gradient-to-br from-red-50 via-white to-stone-100 ring-1 ring-red-100/70 shadow-sm',
 }
 
 export default function AnimatedIcon({
@@ -55,6 +62,7 @@ export default function AnimatedIcon({
   glow = false,
   surface = 'none',
   bounceOnMount = true,
+  blend = true,
 }: AnimatedIconProps) {
   const src = ANIMATED_ICONS[name]
   const padding = surface === 'none' ? 0 : Math.round(size * 0.18)
@@ -73,7 +81,7 @@ export default function AnimatedIcon({
       {glow && (
         <motion.span
           aria-hidden
-          className="absolute inset-0 rounded-xl bg-blue-400/30 blur-md"
+          className="absolute inset-0 rounded-xl bg-red-400/30 blur-md"
           animate={{ opacity: [0.35, 0.7, 0.35], scale: [0.9, 1.05, 0.9] }}
           transition={{ duration: 2.6, repeat: Infinity, ease: 'easeInOut' }}
         />
@@ -87,6 +95,7 @@ export default function AnimatedIcon({
         priority
         className="relative z-[1] select-none pointer-events-none"
         draggable={false}
+        style={blend ? { mixBlendMode: 'multiply' } : undefined}
       />
     </motion.span>
   )

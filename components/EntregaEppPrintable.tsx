@@ -32,20 +32,28 @@ function lineValue(value?: string) {
   return (value || '').trim()
 }
 
+function formatPrintDate(value?: string) {
+  const raw = lineValue(value)
+  if (!raw) return ''
+  const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (iso) return `${iso[3]}/${iso[2]}/${iso[1]}`
+  return raw
+}
+
 const styles: Record<string, React.CSSProperties> = {
   page: {
     width: '297mm',
     minHeight: '210mm',
-    padding: '6mm',
+    padding: '3mm',
     background: '#fff',
     color: '#000',
     fontFamily: 'Arial, sans-serif',
     boxSizing: 'border-box',
   },
   frame: {
-    minHeight: '198mm',
+    minHeight: '204mm',
     border: '1px solid #000',
-    padding: '4mm',
+    padding: '2.8mm',
     boxSizing: 'border-box',
   },
   table: {
@@ -58,15 +66,15 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '3px 5px',
     verticalAlign: 'middle' as const,
     textAlign: 'center' as const,
-    fontSize: '8.8px',
+    fontSize: '8.5px',
     lineHeight: 1.1,
   },
   titleCell: {
     border: '1px solid #000',
     textAlign: 'center' as const,
     fontWeight: 700,
-    fontSize: '14px',
-    padding: '6px 10px',
+    fontSize: '14.2px',
+    padding: '7px 10px',
     lineHeight: 1.1,
   },
   softHeader: {
@@ -74,7 +82,7 @@ const styles: Record<string, React.CSSProperties> = {
     background: '#d9d9d9',
     textAlign: 'center' as const,
     fontWeight: 700,
-    fontSize: '8px',
+    fontSize: '8.2px',
     padding: '3px 4px',
     lineHeight: 1.1,
   },
@@ -96,49 +104,50 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     alignItems: 'flex-start',
     justifyContent: 'flex-start',
-    minHeight: '16px',
-    padding: '1px 6px 5px',
-    fontSize: '9.4px',
-    lineHeight: 1.05,
+    minHeight: '17px',
+    padding: '2px 6px 7px',
+    fontSize: '9px',
+    lineHeight: 1,
     textTransform: 'uppercase' as const,
   },
   topTextCenter: {
     display: 'flex',
     alignItems: 'flex-start',
     justifyContent: 'center',
-    minHeight: '16px',
-    padding: '1px 4px 5px',
-    fontSize: '9.1px',
-    lineHeight: 1.05,
+    minHeight: '17px',
+    padding: '2px 4px 7px',
+    fontSize: '8.8px',
+    lineHeight: 1,
     textTransform: 'uppercase' as const,
   },
   articleCell: {
     border: '1px solid #000',
-    padding: '1px 4px 4px',
-    fontSize: '8.5px',
+    padding: '1px 4px 5px',
+    fontSize: '8.3px',
     textAlign: 'left' as const,
     verticalAlign: 'top' as const,
     lineHeight: 1.05,
-    height: '7.1mm',
+    height: '7.35mm',
   },
   dataCell: {
     border: '1px solid #000',
-    height: '7.1mm',
+    height: '7.35mm',
     padding: 0,
-    verticalAlign: 'middle' as const,
+    verticalAlign: 'top' as const,
   },
   signatureCell: {
     border: '1px solid #000',
-    height: '7.1mm',
+    height: '7.35mm',
     padding: '1px 2px',
-    verticalAlign: 'middle' as const,
+    verticalAlign: 'top' as const,
   },
   signatureWrap: {
     width: '100%',
     height: '100%',
     display: 'flex',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'center',
+    paddingTop: '2px',
   },
 }
 
@@ -262,7 +271,7 @@ export const EntregaEppPrintable = forwardRef<HTMLDivElement, { ficha: any }>(({
               <tr key={item}>
                 <td style={styles.articleCell}>{item}</td>
                 {[1, 2, 3, 4].map((delivery) => {
-                  const dateValue = lineValue(docData[`epp_${rowIndex}_delivery_${delivery}_date`])
+                  const dateValue = formatPrintDate(docData[`epp_${rowIndex}_delivery_${delivery}_date`])
                   return (
                     <React.Fragment key={`${rowIndex}-${delivery}`}>
                       <td style={styles.dataCell}>
@@ -304,7 +313,7 @@ export const EntregaEppPrintable = forwardRef<HTMLDivElement, { ficha: any }>(({
             </tr>
             <tr>
               <td style={{ ...styles.softHeader, textAlign: 'left', paddingLeft: '6px' }}>Fecha:</td>
-              <td style={{ ...styles.cell, padding: 0 }}><div style={styles.topText}>{lineValue(docData.responsable_fecha)}</div></td>
+              <td style={{ ...styles.cell, padding: 0 }}><div style={styles.topText}>{formatPrintDate(docData.responsable_fecha)}</div></td>
             </tr>
             <tr>
               <td style={{ ...styles.softHeader, textAlign: 'left', paddingLeft: '6px' }}>Firma:</td>

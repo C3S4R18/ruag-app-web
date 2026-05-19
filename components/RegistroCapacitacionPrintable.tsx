@@ -13,8 +13,8 @@ export const RegistroCapacitacionPrintable = forwardRef<HTMLDivElement, { ficha:
       .padStart(2, '0')}/${today.getFullYear()}`
     const docData = ficha.doc_states?.capacitacion?.data || {}
 
-    const isChecked = (index: number, fallback = false) => {
-      if (docData[`topic_${index}`] === undefined) return fallback
+    const isChecked = (index: number) => {
+      if (docData[`topic_${index}`] === undefined) return false
       return !!docData[`topic_${index}`]
     }
 
@@ -25,11 +25,11 @@ export const RegistroCapacitacionPrintable = forwardRef<HTMLDivElement, { ficha:
       page: {
         width: '21cm',
         minHeight: '29.7cm',
-        padding: '1cm',
+        padding: '6mm',
         margin: '0 auto',
         backgroundColor: '#ffffff',
         fontFamily: 'Arial, sans-serif',
-        fontSize: '8px',
+        fontSize: '8.3px',
         color: '#000000',
         boxSizing: 'border-box' as const,
       },
@@ -41,7 +41,7 @@ export const RegistroCapacitacionPrintable = forwardRef<HTMLDivElement, { ficha:
       },
       cell: {
         border: '1px solid #000',
-        padding: '3px 4px',
+        padding: '4px 5px',
         verticalAlign: 'middle' as const,
         lineHeight: 1.15,
       },
@@ -50,12 +50,12 @@ export const RegistroCapacitacionPrintable = forwardRef<HTMLDivElement, { ficha:
         padding: '4px',
         fontWeight: 700,
         textAlign: 'center' as const,
-        fontSize: '8px',
+        fontSize: '8.2px',
         lineHeight: 1.1,
       },
       label: {
         fontWeight: 700,
-        fontSize: '7px',
+        fontSize: '7.5px',
       },
       metaRow: {
         display: 'grid',
@@ -63,8 +63,8 @@ export const RegistroCapacitacionPrintable = forwardRef<HTMLDivElement, { ficha:
         borderBottom: '1px solid #000',
       } as const,
       metaCell: {
-        padding: '3px 4px',
-        fontSize: '7px',
+        padding: '4px 5px',
+        fontSize: '7.5px',
         lineHeight: 1.15,
       },
       metaLabel: {
@@ -75,10 +75,10 @@ export const RegistroCapacitacionPrintable = forwardRef<HTMLDivElement, { ficha:
       },
       lineValue: {
         display: 'inline-block',
-        minWidth: '80px',
+        minWidth: '88px',
       },
       signatureCell: {
-        height: '30px',
+        height: '34px',
         padding: 0,
       },
       signatureWrap: {
@@ -87,10 +87,10 @@ export const RegistroCapacitacionPrintable = forwardRef<HTMLDivElement, { ficha:
         display: 'flex',
         alignItems: 'flex-end',
         justifyContent: 'center',
-        paddingBottom: '5px',
+        paddingBottom: '7px',
       },
       responsibleLine: {
-        height: '32px',
+        height: '34px',
       },
     }
 
@@ -101,7 +101,7 @@ export const RegistroCapacitacionPrintable = forwardRef<HTMLDivElement, { ficha:
         <style>{`
           @page {
             size: A4 portrait;
-            margin: 8mm;
+            margin: 5mm;
           }
         `}</style>
 
@@ -169,31 +169,31 @@ export const RegistroCapacitacionPrintable = forwardRef<HTMLDivElement, { ficha:
               <td style={{ ...styles.cell, width: '17%' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px' }}>
                   <strong>INDUCCION:</strong>
-                  <PrintableCheckbox checked={isChecked(0)} size={14} fontSize={10} />
+                  <PrintableCheckbox checked={isChecked(0)} size={13} fontSize={9} />
                 </div>
               </td>
               <td style={{ ...styles.cell, width: '17%' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px' }}>
                   <strong>CHARLA DE SEGURIDAD:</strong>
-                  <PrintableCheckbox checked={isChecked(1)} size={14} fontSize={10} />
+                  <PrintableCheckbox checked={isChecked(1)} size={13} fontSize={9} />
                 </div>
               </td>
               <td style={{ ...styles.cell, width: '19%' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px' }}>
                   <strong>ENTRENAMIENTO:</strong>
-                  <PrintableCheckbox checked={isChecked(2)} size={14} fontSize={10} />
+                  <PrintableCheckbox checked={isChecked(2)} size={13} fontSize={9} />
                 </div>
               </td>
               <td style={{ ...styles.cell, width: '23%' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px' }}>
                   <strong>SIMULACRO DE EMERGENCIA:</strong>
-                  <PrintableCheckbox checked={isChecked(3)} size={14} fontSize={10} />
+                  <PrintableCheckbox checked={isChecked(3)} size={13} fontSize={9} />
                 </div>
               </td>
               <td style={{ ...styles.cell, width: '24%' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px' }}>
                   <strong>CAPACITACION:</strong>
-                  <PrintableCheckbox checked={isChecked(4, true)} size={14} fontSize={10} />
+                  <PrintableCheckbox checked={isChecked(4)} size={13} fontSize={9} />
                 </div>
               </td>
             </tr>
@@ -255,7 +255,7 @@ export const RegistroCapacitacionPrintable = forwardRef<HTMLDivElement, { ficha:
           </thead>
           <tbody>
             <tr>
-              <td style={{ ...styles.cell, textAlign: 'center', height: '21px' }}>1</td>
+              <td style={{ ...styles.cell, textAlign: 'center', height: '22px' }}>1</td>
               <td style={styles.cell}>{trabajadorNombre}</td>
               <td style={{ ...styles.cell, textAlign: 'center' }}>{ficha.dni}</td>
               <td style={{ ...styles.cell, textAlign: 'center' }}>{especialidadEmpresa}</td>
@@ -274,7 +274,7 @@ export const RegistroCapacitacionPrintable = forwardRef<HTMLDivElement, { ficha:
 
             {blankRows.map((rowNumber) => (
               <tr key={rowNumber}>
-                <td style={{ ...styles.cell, textAlign: 'center', height: '21px' }}>{rowNumber}</td>
+                <td style={{ ...styles.cell, textAlign: 'center', height: '22px' }}>{rowNumber}</td>
                 <td style={styles.cell}></td>
                 <td style={styles.cell}></td>
                 <td style={styles.cell}></td>

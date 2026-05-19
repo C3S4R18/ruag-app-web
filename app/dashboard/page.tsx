@@ -904,33 +904,84 @@ export default function DashboardPage() {
                 )}
 
                 {/* VISTA: DOCUMENTOS (Firmas) */}
-                {activeTab === 'documents' && (
-                    <motion.div initial={{opacity:0, x: 20}} animate={{opacity:1, x: 0}} className="space-y-10 pb-20">
-                        {/* HEADER EDITORIAL */}
-                        <div>
-                            <div className="flex items-center gap-3 mb-3">
-                                <span className="text-[10px] font-bold text-red-700 uppercase tracking-[0.22em]">01 — Registros</span>
-                                <span className="flex-1 h-px bg-stone-200" />
+                {activeTab === 'documents' && (() => {
+                    const allDocs = [...Object.entries(DOC_LABELS_SSOMA_CLEAN), ...Object.entries(DOC_LABELS_RRHH)]
+                    const totalDocsView = allDocs.length
+                    const completedView = allDocs.filter(([id]) => docStates[id]?.status === 'completed').length
+                    const unlockedView = allDocs.filter(([id]) => docStates[id]?.status === 'unlocked').length
+                    const lockedView = totalDocsView - completedView - unlockedView
+                    const progressView = totalDocsView > 0 ? Math.round((completedView / totalDocsView) * 100) : 0
+
+                    return (
+                    <motion.div initial={{opacity:0, x: 20}} animate={{opacity:1, x: 0}} className="space-y-8 pb-20">
+
+                        {/* HERO COMPACTO con stats */}
+                        <div className="relative overflow-hidden rounded-3xl ring-1 ring-white/15 shadow-xl shadow-red-900/15">
+                            <div className="absolute inset-0 bg-gradient-to-br from-red-700 via-red-900 to-zinc-900 -z-10"/>
+                            <motion.div
+                                aria-hidden
+                                animate={{ scale: [1, 1.15, 1], opacity: [0.3, 0.55, 0.3] }}
+                                transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }}
+                                className="absolute -top-16 -right-12 w-64 h-64 bg-white/15 rounded-full blur-3xl pointer-events-none"
+                            />
+                            <div className="relative z-10 p-6 md:p-7 text-stone-50">
+                                <div className="flex items-start justify-between gap-4 mb-5">
+                                    <div>
+                                        <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur border border-white/20 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-[0.2em] mb-3">
+                                            <span className="relative flex">
+                                                <span className="absolute inline-flex h-1.5 w-1.5 rounded-full bg-red-300 opacity-75 animate-ping"/>
+                                                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-red-300"/>
+                                            </span>
+                                            <span>01 · Registros</span>
+                                        </div>
+                                        <h2 className="text-3xl md:text-4xl font-black tracking-tight leading-none">
+                                            Mis <span className="italic text-red-300">Registros</span>
+                                        </h2>
+                                        <p className="text-white/70 text-xs md:text-sm mt-2 max-w-xl">Documentos y firmas habilitados por el administrador.</p>
+                                    </div>
+                                    {/* Progress ring */}
+                                    <div className="bg-white/10 backdrop-blur-md p-3 rounded-2xl border border-white/20 flex items-center gap-3 min-w-[150px]">
+                                        <div className="relative w-12 h-12 flex items-center justify-center">
+                                            <svg className="w-full h-full -rotate-90" viewBox="0 0 56 56">
+                                                <circle cx="28" cy="28" r="24" stroke="currentColor" strokeWidth="4" fill="transparent" className="text-white/15"/>
+                                                <circle cx="28" cy="28" r="24" stroke="currentColor" strokeWidth="4" fill="transparent"
+                                                    strokeDasharray={150.8}
+                                                    strokeDashoffset={150.8 - (150.8 * progressView) / 100}
+                                                    strokeLinecap="round"
+                                                    className="text-red-300 transition-all duration-1000"/>
+                                            </svg>
+                                            <span className="absolute text-[10px] font-black">{progressView}%</span>
+                                        </div>
+                                        <div>
+                                            <p className="text-[9px] text-white/55 font-bold uppercase tracking-[0.18em]">Avance</p>
+                                            <p className="text-lg font-black leading-none mt-0.5">{completedView}<span className="text-white/40 text-xs"> / {totalDocsView}</span></p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Stats pills compactas */}
+                                <div className="grid grid-cols-3 gap-2">
+                                    <DocStatPill icon="✓" label="Firmados" value={completedView} accent="emerald" />
+                                    <DocStatPill icon="●" label="Disponibles" value={unlockedView} accent="amber" pulse />
+                                    <DocStatPill icon="🔒" label="Bloqueados" value={lockedView} accent="slate" />
+                                </div>
                             </div>
-                            <h2 className="text-3xl md:text-4xl font-black text-stone-900 tracking-tight">
-                                Mis <span className="italic text-red-700">Registros</span>
-                            </h2>
-                            <p className="text-sm text-stone-500 mt-2">Documentos y firmas habilitados por el administrador.</p>
                         </div>
 
                         {/* SECCIÓN SSOMA */}
-                        <div>
-                            <div className="flex items-center gap-3 mb-4">
-                                <span className="w-1 h-5 bg-red-600 rounded-full"/>
-                                <span className="text-[10px] font-bold text-stone-500 uppercase tracking-[0.22em]">02 — SSOMA · SEGURIDAD</span>
-                                <span className="flex-1 h-px bg-stone-200" />
-                            </div>
-                            <h3 className="text-xl font-black text-stone-900 tracking-tight mb-4">SSOMA · Seguridad</h3>
-                            <div className="grid gap-3">
-                                {Object.entries(DOC_LABELS_SSOMA_CLEAN).map(([docId, label]) => (
+                        <DocSection
+                            index="02"
+                            kicker="SSOMA · Seguridad"
+                            title="SSOMA"
+                            accent="Seguridad"
+                            count={Object.keys(DOC_LABELS_SSOMA_CLEAN).length}
+                        >
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                                {Object.entries(DOC_LABELS_SSOMA_CLEAN).map(([docId, label], i) => (
                                     <DocItem
                                         key={docId}
                                         id={docId}
+                                        index={(i + 1).toString().padStart(2, '0')}
                                         label={label}
                                         state={docStates[docId]}
                                         onClick={() => {
@@ -942,21 +993,22 @@ export default function DashboardPage() {
                                     />
                                 ))}
                             </div>
-                        </div>
+                        </DocSection>
 
                         {/* SECCIÓN RRHH */}
-                        <div>
-                            <div className="flex items-center gap-3 mb-4">
-                                <span className="w-1 h-5 bg-red-600 rounded-full"/>
-                                <span className="text-[10px] font-bold text-stone-500 uppercase tracking-[0.22em]">03 — RRHH · ADMINISTRATIVO</span>
-                                <span className="flex-1 h-px bg-stone-200" />
-                            </div>
-                            <h3 className="text-xl font-black text-stone-900 tracking-tight mb-4">Recursos Humanos</h3>
-                            <div className="grid gap-3">
-                                {Object.entries(DOC_LABELS_RRHH).map(([docId, label]) => (
+                        <DocSection
+                            index="03"
+                            kicker="RRHH · Administrativo"
+                            title="Recursos"
+                            accent="Humanos"
+                            count={Object.keys(DOC_LABELS_RRHH).length}
+                        >
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                                {Object.entries(DOC_LABELS_RRHH).map(([docId, label], i) => (
                                     <DocItem
                                         key={docId}
                                         id={docId}
+                                        index={(i + 1).toString().padStart(2, '0')}
                                         label={label}
                                         state={docStates[docId]}
                                         onClick={() => {
@@ -968,9 +1020,10 @@ export default function DashboardPage() {
                                     />
                                 ))}
                             </div>
-                        </div>
+                        </DocSection>
                     </motion.div>
-                )}
+                    )
+                })()}
 
                 {/* --- NUEVA VISTA: DOCUMENTOS SUBIDOS POR SSOMA --- */}
                 {activeTab === 'uploads' && (
@@ -1169,7 +1222,48 @@ function QuickAction({ icon, label, accent = 'blue', badge, onClick, index = '01
     )
 }
 
-function DocItem({ id, label, state, onClick, type }: any) {
+function DocStatPill({ icon, label, value, accent, pulse }: { icon: string, label: string, value: number, accent: 'emerald' | 'amber' | 'slate', pulse?: boolean }) {
+    const colors: Record<string, { bg: string, txt: string, dot: string }> = {
+        emerald: { bg: 'bg-emerald-300/15 border-emerald-300/30', txt: 'text-emerald-200', dot: 'bg-emerald-300' },
+        amber:   { bg: 'bg-amber-300/15 border-amber-300/30',     txt: 'text-amber-200',   dot: 'bg-amber-300' },
+        slate:   { bg: 'bg-white/8 border-white/15',               txt: 'text-white/65',    dot: 'bg-white/50' },
+    }
+    const c = colors[accent]
+    return (
+        <div className={`relative ${c.bg} border backdrop-blur rounded-xl px-3 py-2.5 flex items-center gap-3`}>
+            <span className={`relative inline-flex w-2 h-2 rounded-full ${c.dot}`}>
+                {pulse && <span className={`absolute inset-0 ${c.dot} rounded-full animate-ping opacity-75`}/>}
+            </span>
+            <div className="flex-1 min-w-0">
+                <p className={`text-[9px] font-bold uppercase tracking-[0.18em] ${c.txt}`}>{label}</p>
+                <p className="text-xl font-black text-white tracking-tight leading-none mt-0.5">{value.toString().padStart(2, '0')}</p>
+            </div>
+        </div>
+    )
+}
+
+function DocSection({ index, kicker, title, accent, count, children }: { index: string, kicker: string, title: string, accent: string, count: number, children: React.ReactNode }) {
+    return (
+        <div>
+            <div className="flex items-end justify-between gap-3 mb-4">
+                <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                        <span className="w-1 h-4 bg-red-600 rounded-full"/>
+                        <span className="text-[10px] font-bold text-red-700 uppercase tracking-[0.22em]">{index} — {kicker}</span>
+                        <span className="flex-1 h-px bg-stone-200" />
+                        <span className="text-[10px] font-bold text-stone-400 uppercase tracking-[0.18em]">{count.toString().padStart(2,'0')} docs</span>
+                    </div>
+                    <h3 className="text-xl md:text-2xl font-black text-stone-900 tracking-tight">
+                        {title} <span className="italic text-red-700">{accent}</span>
+                    </h3>
+                </div>
+            </div>
+            {children}
+        </div>
+    )
+}
+
+function DocItem({ id, label, state, onClick, type, index }: any) {
     const status = state?.status || 'locked'
     const isUnlocked = status === 'unlocked'
     const isCompleted = status === 'completed'
@@ -1179,54 +1273,89 @@ function DocItem({ id, label, state, onClick, type }: any) {
     return (
         <motion.div
             onClick={onClick}
-            whileHover={!isLocked ? { y: -2 } : {}}
+            whileHover={!isLocked ? { y: -3 } : {}}
             whileTap={!isLocked ? { scale: 0.99 } : {}}
             transition={{ type: 'spring', stiffness: 400, damping: 22 }}
-            className={`group relative pl-6 pr-5 py-4 rounded-2xl border cursor-pointer overflow-hidden backdrop-blur-xl transition-all
-                ${isUnlocked ? 'bg-white/70 border-red-200 shadow-md shadow-red-900/5 hover:shadow-xl hover:shadow-red-900/15 hover:border-red-300 ring-1 ring-white/60' :
-                  isCompleted ? 'bg-white/60 border-stone-200 hover:bg-white/80 ring-1 ring-white/50' :
-                  'bg-stone-100/60 border-stone-200/60 opacity-60 grayscale hover:opacity-80'}`}
+            className={`group relative rounded-2xl border cursor-pointer overflow-hidden transition-all
+                ${isCompleted ? 'bg-gradient-to-br from-emerald-50/70 via-white/80 to-white/80 border-emerald-200/80 ring-1 ring-emerald-100/60 hover:shadow-lg hover:shadow-emerald-900/10 hover:border-emerald-300' :
+                  isUnlocked ? 'bg-gradient-to-br from-red-50/70 via-white/80 to-white/80 border-red-200/80 ring-1 ring-red-100/60 shadow-md shadow-red-900/5 hover:shadow-xl hover:shadow-red-900/15 hover:border-red-300' :
+                  'bg-stone-100/50 border-stone-200/60 grayscale opacity-60 hover:opacity-80'}
+                backdrop-blur-xl`}
         >
-            {/* Línea vertical de acento crimson por estado */}
-            <div className={`absolute left-0 top-4 bottom-4 w-[3px] rounded-r-full ${isCompleted ? 'bg-red-700' : isUnlocked ? 'bg-gradient-to-b from-red-400 to-red-700' : 'bg-stone-300'}`}/>
+            {/* Línea vertical de acento por estado */}
+            <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${isCompleted ? 'bg-gradient-to-b from-emerald-400 to-emerald-700' : isUnlocked ? 'bg-gradient-to-b from-red-400 to-red-700' : 'bg-stone-300'}`}/>
 
-            <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-4 min-w-0">
+            {/* Glow al hover */}
+            {!isLocked && (
+                <div className={`absolute -right-12 -bottom-12 w-40 h-40 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity ${isCompleted ? 'bg-emerald-300/30' : 'bg-red-300/30'}`}/>
+            )}
+
+            <div className="relative p-4 flex items-start gap-4">
+                {/* Index + Icono */}
+                <div className="flex flex-col items-center gap-2 shrink-0">
+                    <span className={`text-xs font-black tracking-tight ${isCompleted ? 'text-emerald-600' : isUnlocked ? 'text-red-700' : 'text-stone-400'}`}>
+                        {index || ''}
+                    </span>
                     <motion.div
-                        whileHover={!isLocked ? { rotate: [-2, 4, -2, 0], scale: 1.08 } : {}}
+                        whileHover={!isLocked ? { rotate: [-3, 3, -3, 0], scale: 1.08 } : {}}
                         transition={{ duration: 0.5 }}
-                        className={`relative shrink-0 w-12 h-12 rounded-xl flex items-center justify-center backdrop-blur ring-1 transition-colors
-                            ${isCompleted ? 'bg-stone-100 text-red-700 ring-stone-200' :
-                              isUnlocked ? 'bg-white/80 text-red-700 ring-red-100' :
+                        className={`relative w-12 h-12 rounded-xl flex items-center justify-center ring-1 transition-colors backdrop-blur
+                            ${isCompleted ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' :
+                              isUnlocked ? 'bg-white/90 text-red-700 ring-red-200' :
                               'bg-white/40 text-stone-400 ring-stone-200/60'}`}
                     >
-                        {isCompleted ? <Eye size={22}/> : (type === 'rrhh' ? <Briefcase size={22} fill="currentColor" fillOpacity={0.12}/> : <FileText size={22} fill="currentColor" fillOpacity={0.12}/>)}
+                        {isCompleted ? (
+                            <Eye size={20} strokeWidth={2.2} fill="currentColor" fillOpacity={0.12}/>
+                        ) : type === 'rrhh' ? (
+                            <Briefcase size={20} strokeWidth={2.2} fill="currentColor" fillOpacity={0.12}/>
+                        ) : (
+                            <FileText size={20} strokeWidth={2.2} fill="currentColor" fillOpacity={0.12}/>
+                        )}
                         {isCompleted && (
-                            <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-red-700 rounded-full ring-2 ring-white flex items-center justify-center">
+                            <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-600 rounded-full ring-2 ring-white flex items-center justify-center">
                                 <CheckCircle size={9} className="text-white"/>
                             </span>
                         )}
                     </motion.div>
-                    <div className="min-w-0">
-                        <h3 className={`font-extrabold text-[15px] tracking-tight leading-tight ${isLocked ? 'text-stone-500' : 'text-stone-900'}`}>{label}</h3>
-                        <p className="text-[10px] font-bold mt-1.5 flex items-center gap-2 uppercase tracking-[0.18em]">
-                            <span className={`w-1.5 h-1.5 rounded-full ${isCompleted ? 'bg-red-700' : isUnlocked ? 'bg-red-500 animate-pulse' : 'bg-stone-400'}`}></span>
-                            <span className={isCompleted ? 'text-stone-600' : isUnlocked ? 'text-red-700' : 'text-stone-400'}>
-                                {isCompleted ? 'Enviado · Ver / Editar' : isUnlocked ? 'Disponible para firma' : 'Bloqueado'}
-                            </span>
-                        </p>
+                </div>
+
+                {/* Cuerpo: label + status + categoría */}
+                <div className="flex-1 min-w-0 flex flex-col gap-2">
+                    <div className="flex items-start justify-between gap-3">
+                        <h3 className={`font-extrabold text-[14px] tracking-tight leading-snug ${isLocked ? 'text-stone-500' : 'text-stone-900'}`}>
+                            {label}
+                        </h3>
+                        <motion.div
+                            animate={isLocked || !isOpenable ? {} : { x: [0, 3, 0] }}
+                            transition={isLocked ? {} : { duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+                            className={`shrink-0 p-1.5 rounded-lg ring-1 transition-colors ${
+                                isLocked ? 'bg-stone-50 text-stone-300 ring-stone-200/60' :
+                                isCompleted ? 'bg-white text-emerald-700 ring-emerald-200 group-hover:bg-emerald-50' :
+                                'bg-white text-red-700 ring-red-200 group-hover:bg-red-50'
+                            }`}
+                        >
+                            {isLocked ? <Lock size={14}/> : <ArrowUpRight size={14}/>}
+                        </motion.div>
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-wrap">
+                        {/* Categoría pill */}
+                        <span className={`text-[9px] font-bold uppercase tracking-[0.18em] px-2 py-0.5 rounded-full ring-1 ${
+                            type === 'rrhh' ? 'bg-violet-50 text-violet-700 ring-violet-200' : 'bg-stone-100 text-stone-600 ring-stone-200'
+                        }`}>
+                            {type === 'rrhh' ? 'RRHH' : 'SSOMA'}
+                        </span>
+                        {/* Estado pill */}
+                        <span className={`text-[9px] font-bold uppercase tracking-[0.18em] px-2 py-0.5 rounded-full ring-1 inline-flex items-center gap-1.5 ${
+                            isCompleted ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' :
+                            isUnlocked ? 'bg-red-50 text-red-700 ring-red-200' :
+                            'bg-stone-50 text-stone-500 ring-stone-200'
+                        }`}>
+                            <span className={`w-1 h-1 rounded-full ${isCompleted ? 'bg-emerald-600' : isUnlocked ? 'bg-red-600 animate-pulse' : 'bg-stone-400'}`}/>
+                            {isCompleted ? 'Enviado' : isUnlocked ? 'Pendiente firma' : 'Bloqueado'}
+                        </span>
                     </div>
                 </div>
-                <motion.div
-                    animate={isLocked || !isOpenable ? {} : { x: [0, 3, 0] }}
-                    transition={isLocked ? {} : { duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
-                    className={`p-2 rounded-full backdrop-blur ring-1 transition-colors shrink-0 ${
-                        isLocked ? 'bg-stone-50 text-stone-300 ring-stone-200/60' :
-                        'bg-white/60 text-red-700 ring-red-100 group-hover:bg-red-50'
-                    }`}
-                >
-                    {isLocked ? <Lock size={18}/> : <ArrowUpRight size={18}/>}
-                </motion.div>
             </div>
         </motion.div>
     )
