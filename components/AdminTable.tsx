@@ -339,8 +339,12 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                  if(payload.new.estado === 'completado') { toast.success(`🔔 Nuevo Ingreso: ${payload.new.nombres}`); playSystemSound() }
              }
           } else if (payload.eventType === 'UPDATE') {
+             // Capturamos la ficha previa REAL desde nuestro estado local
+             // (porque `payload.old` puede venir incompleto con REPLICA IDENTITY DEFAULT)
+             let prevFicha: any = null
              // Si se movió a vida ley O a cesados O a SCTR, lo sacamos de la lista
              setFichas((prev) => {
+                prevFicha = prev.find(f => f.id === payload.new.id) ?? null
                 if (payload.new.in_vida_ley === true || payload.new.es_cesado === true || payload.new.in_sctr === true) {
                     return prev.filter(f => f.id !== payload.new.id)
                 } else {
@@ -364,14 +368,37 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                 return currentSelected
              })
              
-             // Notificar si se confirmó el correo
-             if (payload.new.email_confirmed_at && !payload.old.email_confirmed_at) {
-                 toast.success(`📧 Correo confirmado por ${payload.new.nombres}`);
-                 playSystemSound();
+             // Realtime notifications — comparamos contra la ficha LOCAL previa
+             // (porque `payload.old` puede venir vacío con REPLICA IDENTITY DEFAULT).
+             // Así, un UPDATE que sólo cambia `foto_perfil_url` NO dispara las
+             // toasts de "correo confirmado" ni "completado".
+             const newPayload = payload.new
+
+             // 📧 Correo confirmado — sólo si antes era nulo
+             if (
+                 newPayload.email_confirmed_at &&
+                 prevFicha && !prevFicha.email_confirmed_at
+             ) {
+                 toast.success(`📧 Correo confirmado por ${newPayload.nombres}`)
+                 playSystemSound()
              }
-             if (payload.new.estado === 'completado' && payload.old.estado !== 'completado') { 
-                 toast.success(`✅ Completado: ${payload.new.nombres}`); 
-                 playSystemSound();
+
+             // ✅ Ficha completada — sólo si antes NO era 'completado'
+             if (
+                 newPayload.estado === 'completado' &&
+                 prevFicha && prevFicha.estado !== 'completado'
+             ) {
+                 toast.success(`✅ Completado: ${newPayload.nombres}`)
+                 playSystemSound()
+             }
+
+             // 📸 Foto de perfil — sólo si cambió respecto al estado local
+             if (
+                 newPayload.foto_perfil_url &&
+                 prevFicha &&
+                 newPayload.foto_perfil_url !== prevFicha.foto_perfil_url
+             ) {
+                 toast.success(`📸 Foto actualizada por ${newPayload.nombres}`)
              }
           } else if (payload.eventType === 'DELETE') {
              setFichas((prev) => {
@@ -1273,7 +1300,21 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                         {/* COLABORADOR - TRUNCATE PARA QUE NO SE SALGA */}
                         <td className="px-4 py-3 overflow-hidden">
                             <div className="flex items-center gap-3 max-w-full">
-                                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-50 to-blue-50 flex items-center justify-center text-blue-600 font-bold text-sm border border-blue-100 shadow-sm shrink-0 uppercase relative">{ficha.nombres?.charAt(0)}{ficha.apellido_paterno?.charAt(0)}<span className="absolute -bottom-1 -right-1 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full"></span></div>
+                                <div className="h-10 w-10 rounded-xl overflow-hidden bg-gradient-to-br from-indigo-50 to-blue-50 flex items-center justify-center text-blue-600 font-bold text-sm border border-blue-100 shadow-sm shrink-0 uppercase relative">
+                                    {(ficha as any).foto_perfil_url ? (
+                                        // eslint-disable-next-line @next/next/no-img-element
+                                        <img
+                                            src={(ficha as any).foto_perfil_url}
+                                            alt=""
+                                            className="absolute inset-0 w-full h-full object-cover"
+                                            loading="lazy"
+                                            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                                        />
+                                    ) : (
+                                        <>{ficha.nombres?.charAt(0)}{ficha.apellido_paterno?.charAt(0)}</>
+                                    )}
+                                    <span className="absolute -bottom-1 -right-1 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full"></span>
+                                </div>
                                 <div className="min-w-0">
                                     <p className="truncate text-[13px] font-bold text-slate-800 transition-colors group-hover:text-blue-700">{ficha.apellido_paterno} {ficha.apellido_materno}, {ficha.nombres}</p>
                                     <div className="flex items-center gap-2 mt-0.5"><span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">{ficha.dni}</span></div>
@@ -1610,8 +1651,13 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
                 <div id="drawer-header" className="h-24 px-8 border-b border-slate-100 flex justify-between items-center bg-white z-10 shrink-0 relative overflow-hidden">
                     <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none"><ShieldCheck size={120} /></div>
                     <div className="flex items-center gap-5 relative z-10">
-                        <div className="w-14 h-14 rounded-2xl bg-slate-900 text-white flex items-center justify-center font-bold text-xl shadow-lg shadow-slate-900/20 uppercase">
-                            {ficha.nombres.charAt(0)}{ficha.apellido_paterno.charAt(0)}
+                        <div className="relative w-14 h-14 rounded-2xl bg-slate-900 text-white flex items-center justify-center font-bold text-xl shadow-lg shadow-slate-900/20 uppercase overflow-hidden">
+                            {(ficha as any).foto_perfil_url ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={(ficha as any).foto_perfil_url} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                            ) : (
+                                <>{ficha.nombres.charAt(0)}{ficha.apellido_paterno.charAt(0)}</>
+                            )}
                         </div>
                         <div>
                             <h2 className="font-bold text-slate-900 text-2xl leading-none tracking-tight">{ficha.nombres}</h2>

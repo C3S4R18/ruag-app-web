@@ -10,9 +10,10 @@ import {
   CheckCircle, Save, X, Loader2, AlertCircle, Eye,
   Menu, Home, Key, Mail, ShieldCheck, Download, FileCheck, Briefcase, FileBadge,
   Folder, CloudOff, ExternalLink, Clock, MessageSquareText, Sparkles, ArrowUpRight, Layers3,
-  IdCard
+  IdCard, Camera
 } from 'lucide-react'
 import AnimatedIcon from '@/components/AnimatedIcon'
+import ProfilePhotoGate from '@/components/ProfilePhotoGate'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 
@@ -347,7 +348,9 @@ export default function DashboardPage() {
   
   // ESTADOS DE DOCUMENTOS
   const [docStates, setDocStates] = useState<any>({})
-  const [fichaStatus, setFichaStatus] = useState<string>('') 
+  const [fichaStatus, setFichaStatus] = useState<string>('')
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(null)
+  const [showPhotoGate, setShowPhotoGate] = useState(false) 
   
   // MODALES
   const [docToFill, setDocToFill] = useState<{id: string, category: 'ssoma' | 'rrhh'} | null>(null) 
@@ -519,6 +522,12 @@ export default function DashboardPage() {
           setFullWorkerData(data)
           setDocStates(data.doc_states || {})
           setFichaStatus(data.estado || '')
+
+          // ── Gate de foto de perfil ──
+          // Si no tiene foto, bloqueamos el dashboard hasta que suba una.
+          const photoUrl = (data as any).foto_perfil_url || null
+          setProfilePhotoUrl(photoUrl)
+          if (!photoUrl) setShowPhotoGate(true)
 
           // Comprobar descargas pendientes y llenar la cola una sola vez por envío
           const states = data.doc_states || {}
@@ -1121,7 +1130,12 @@ export default function DashboardPage() {
 
                 {/* VISTA: PERFIL */}
                 {activeTab === 'profile' && (
-                    <motion.div initial={{opacity:0, scale:0.95}} animate={{opacity:1, scale:1}} className="max-w-lg mx-auto pb-20">
+                    <motion.div initial={{opacity:0, scale:0.95}} animate={{opacity:1, scale:1}} className="max-w-lg mx-auto pb-20 space-y-6">
+                        <ProfilePhotoCard
+                            photoUrl={profilePhotoUrl}
+                            workerName={userName}
+                            onEdit={() => setShowPhotoGate(true)}
+                        />
                         <ProfileSettingsCard userEmail={userEmail} supabase={supabase} />
                     </motion.div>
                 )}
@@ -1161,15 +1175,32 @@ export default function DashboardPage() {
 
       {/* --- CHAT FLOTANTE --- */}
       {userId && (
-          <ChatSystem 
-              workerId={userId} 
+          <ChatSystem
+              workerId={userId}
               workerName={userName}
               currentUserId={userId}
               isAdmin={false}
-              isOpen={isChatOpen} 
-              onClose={() => setIsChatOpen(!isChatOpen)} 
+              isOpen={isChatOpen}
+              onClose={() => setIsChatOpen(!isChatOpen)}
           />
       )}
+
+      {/* --- GATE FOTO DE PERFIL (bloquea sólo si no hay foto previa) --- */}
+      <AnimatePresence>
+        {showPhotoGate && userId && (
+            <ProfilePhotoGate
+                userId={userId}
+                workerName={userName}
+                dismissible={!!profilePhotoUrl}
+                onDismiss={() => setShowPhotoGate(false)}
+                onUploaded={(url) => {
+                    setProfilePhotoUrl(url)
+                    setFullWorkerData((prev: any) => prev ? { ...prev, foto_perfil_url: url } : prev)
+                    setShowPhotoGate(false)
+                }}
+            />
+        )}
+      </AnimatePresence>
 
     </div>
   )
@@ -1412,6 +1443,66 @@ function NavItem({ active, onClick, icon, activeIcon, label, badge }: any) {
 }
 
 // --- CARD DE PERFIL ---
+function ProfilePhotoCard({ photoUrl, workerName, onEdit }: { photoUrl: string | null; workerName: string; onEdit: () => void }) {
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white rounded-3xl border border-slate-200 shadow-lg shadow-slate-900/[0.04] overflow-hidden"
+        >
+            <div className="p-6 flex items-center gap-5">
+                {/* Avatar grande */}
+                <motion.div
+                    whileHover={{ scale: 1.03 }}
+                    className="relative h-24 w-24 shrink-0 rounded-3xl overflow-hidden bg-slate-100 border border-slate-200 shadow-inner"
+                >
+                    {photoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={photoUrl} alt="Foto perfil" className="w-full h-full object-cover" />
+                    ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 text-slate-400 text-3xl font-black">
+                            {workerName?.charAt(0) || 'R'}
+                        </div>
+                    )}
+                    {photoUrl && (
+                        <motion.span
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            className="absolute bottom-1 right-1 h-5 w-5 rounded-full bg-emerald-500 ring-2 ring-white flex items-center justify-center text-white"
+                        >
+                            <CheckCircle size={12} />
+                        </motion.span>
+                    )}
+                </motion.div>
+
+                <div className="flex-1 min-w-0">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-emerald-600">Foto de perfil</p>
+                    <h3 className="mt-1 text-[17px] font-black text-slate-900 tracking-tight truncate">
+                        {photoUrl ? 'Foto activa' : 'Aún sin foto'}
+                    </h3>
+                    <p className="text-[12px] text-slate-500 mt-0.5 leading-snug">
+                        {photoUrl
+                            ? 'Toca el botón para reemplazarla con una nueva.'
+                            : 'Sube una foto formal para identificarte ante el administrador.'}
+                    </p>
+                </div>
+            </div>
+
+            <div className="px-6 pb-6">
+                <motion.button
+                    onClick={onEdit}
+                    whileHover={{ y: -1 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="w-full py-3.5 flex items-center justify-center gap-2 rounded-2xl bg-slate-900 text-white text-[12px] font-bold uppercase tracking-[0.18em] shadow-lg shadow-slate-900/15 hover:bg-slate-800 transition-all"
+                >
+                    <Camera size={16} />
+                    {photoUrl ? 'Cambiar foto' : 'Subir foto ahora'}
+                </motion.button>
+            </div>
+        </motion.div>
+    )
+}
+
 function ProfileSettingsCard({ userEmail, supabase }: any) {
     const [email, setEmail] = useState(userEmail)
     const [password, setPassword] = useState('')
