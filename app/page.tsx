@@ -135,9 +135,13 @@ export default function AuthPage() {
         password: register.password,
         options: {
           data: {
+            nombres: normalizedNombres,
+            apellido_paterno: normalizedApPaterno,
+            apellido_materno: normalizedApMaterno,
             full_name: [normalizedNombres, normalizedApPaterno, normalizedApMaterno].filter(Boolean).join(' '),
             dni: normalizedDni,
             telefono: normalizedTelefono,
+            role: 'obrero',
           },
         },
       })

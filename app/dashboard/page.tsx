@@ -617,9 +617,9 @@ export default function DashboardPage() {
   return (
     <div className="flex h-screen font-sans text-stone-900 overflow-hidden relative">
       {/* Fondo cálido global con sutil noise/gradient */}
-      <div className="absolute inset-0 -z-10 bg-gradient-to-br from-stone-100 via-stone-50 to-red-50/40" />
+      <div className="absolute inset-0 -z-10 bg-gradient-to-br from-stone-100 via-stone-50 to-emerald-50/30" />
       <div className="absolute inset-0 -z-10 pointer-events-none" style={{
-          backgroundImage: 'radial-gradient(1200px 600px at 90% -10%, rgba(220,38,38,0.10), transparent 60%), radial-gradient(900px 500px at -10% 110%, rgba(120,113,108,0.10), transparent 60%)'
+          backgroundImage: 'radial-gradient(1200px 600px at 90% -10%, rgba(16,185,129,0.10), transparent 60%), radial-gradient(900px 500px at -10% 110%, rgba(120,113,108,0.10), transparent 60%)'
       }} />
 
       {/* --- SIDEBAR OVERLAY --- */}
@@ -634,7 +634,7 @@ export default function DashboardPage() {
       </AnimatePresence>
 
       <motion.aside
-        className={`bg-white/70 backdrop-blur-xl border-r border-white/60 flex flex-col h-full shrink-0 z-50 fixed lg:relative shadow-2xl shadow-red-900/5 lg:shadow-none w-72 lg:w-64`}
+        className={`bg-white/70 backdrop-blur-xl border-r border-white/60 flex flex-col h-full shrink-0 z-50 fixed lg:relative shadow-2xl shadow-slate-900/5 lg:shadow-none w-72 lg:w-64`}
         initial={false}
         animate={{
             x: (isDesktop || isSidebarOpen) ? 0 : -288,
@@ -643,17 +643,17 @@ export default function DashboardPage() {
       >
         {/* Brand block — bloque crimson como el hero del móvil */}
         <div className="h-20 flex items-center gap-3 px-6 border-b border-stone-200/60 relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-red-700 via-red-900 to-zinc-900 -z-10" />
+            <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 -z-10" />
             <div className="absolute -right-8 -top-6 w-28 h-28 bg-white/10 rounded-full blur-2xl pointer-events-none" />
-            <div className="w-9 h-9 bg-white/95 rounded-lg flex items-center justify-center text-red-700 font-black text-lg shadow-lg ring-1 ring-white/40">R</div>
+            <div className="w-9 h-9 bg-white/95 rounded-lg flex items-center justify-center text-emerald-700 font-black text-lg shadow-lg ring-1 ring-white/40">R</div>
             <div>
                 <h1 className="font-extrabold text-lg text-white leading-none tracking-tight">RUAG</h1>
-                <span className="text-[10px] font-bold text-red-200 uppercase tracking-[0.18em]">Portal Obrero</span>
+                <span className="text-[10px] font-bold text-emerald-200 uppercase tracking-[0.18em]">Portal Obrero</span>
             </div>
         </div>
 
         <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto">
-            <div className="pt-1 pb-2 px-4 text-[10px] font-bold text-red-700 uppercase tracking-[0.2em] flex items-center gap-2">
+            <div className="pt-1 pb-2 px-4 text-[10px] font-bold text-emerald-700 uppercase tracking-[0.2em] flex items-center gap-2">
                 <span>Navegación</span>
                 <span className="flex-1 h-px bg-stone-200" />
             </div>
@@ -679,7 +679,7 @@ export default function DashboardPage() {
                 label="Archivos SSOMA"
             />
 
-            <div className="pt-5 pb-2 px-4 text-[10px] font-bold text-red-700 uppercase tracking-[0.2em] flex items-center gap-2">
+            <div className="pt-5 pb-2 px-4 text-[10px] font-bold text-emerald-700 uppercase tracking-[0.2em] flex items-center gap-2">
                 <span>Mi Cuenta</span>
                 <span className="flex-1 h-px bg-stone-200" />
             </div>
@@ -696,7 +696,7 @@ export default function DashboardPage() {
                 onClick={handleLogout}
                 whileHover={{ x: 2 }}
                 whileTap={{ scale: 0.97 }}
-                className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-stone-600 hover:bg-red-50/80 hover:text-red-700 hover:ring-1 hover:ring-red-200 backdrop-blur transition-all font-bold text-sm group"
+                className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-stone-600 hover:bg-emerald-50/80 hover:text-emerald-700 hover:ring-1 hover:ring-red-200 backdrop-blur transition-all font-bold text-sm group"
             >
                 <motion.span
                     className="inline-flex"
@@ -715,12 +715,12 @@ export default function DashboardPage() {
       <main className="flex-1 flex flex-col h-full min-w-0 relative overflow-hidden">
 
         {/* Header Superior — glass cream */}
-        <header className="h-16 bg-white/60 backdrop-blur-xl border-b border-white/60 px-4 md:px-8 flex items-center justify-between shrink-0 z-30 sticky top-0 shadow-sm shadow-red-900/5">
+        <header className="h-16 bg-white/60 backdrop-blur-xl border-b border-white/60 px-4 md:px-8 flex items-center justify-between shrink-0 z-30 sticky top-0 shadow-sm shadow-slate-900/5">
             <div className="flex items-center gap-4">
                 <motion.button
                     onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                     whileTap={{ scale: 0.9 }}
-                    className="lg:hidden p-2 rounded-xl bg-gradient-to-br from-red-600 to-red-800 text-white shadow-md shadow-red-500/25 ring-1 ring-white/40"
+                    className="lg:hidden p-2 rounded-xl bg-gradient-to-br from-slate-900 to-slate-800 text-white shadow-md shadow-red-500/25 ring-1 ring-white/40"
                 >
                     <motion.span
                         className="inline-flex"
@@ -731,7 +731,7 @@ export default function DashboardPage() {
                     </motion.span>
                 </motion.button>
                 <div className="flex flex-col leading-tight">
-                    <span className="text-[9px] font-bold text-red-700 uppercase tracking-[0.2em]">
+                    <span className="text-[9px] font-bold text-emerald-700 uppercase tracking-[0.2em]">
                         0{Math.max(1, ['home','documents','uploads','profile'].indexOf(activeTab) + 1)} · RUAG
                     </span>
                     <h2 className="text-base font-extrabold text-stone-900 tracking-tight">
@@ -762,12 +762,12 @@ export default function DashboardPage() {
                         {unreadCount > 0 && (
                             <>
                                 <motion.span
-                                    className="absolute top-1.5 right-2 w-2 h-2 bg-red-600 rounded-full border border-white"
+                                    className="absolute top-1.5 right-2 w-2 h-2 bg-emerald-600 rounded-full border border-white"
                                     animate={{ scale: [1, 1.25, 1] }}
                                     transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
                                 />
                                 <motion.span
-                                    className="absolute top-1.5 right-2 w-2 h-2 bg-red-500/70 rounded-full"
+                                    className="absolute top-1.5 right-2 w-2 h-2 bg-emerald-500/70 rounded-full"
                                     animate={{ scale: [1, 2.4], opacity: [0.7, 0] }}
                                     transition={{ duration: 1.6, repeat: Infinity, ease: 'easeOut' }}
                                 />
@@ -776,14 +776,14 @@ export default function DashboardPage() {
                     </motion.button>
                     <AnimatePresence>
                         {isNotifOpen && (
-                            <motion.div initial={{opacity:0, y: 10, scale: 0.95}} animate={{opacity:1, y: 0, scale: 1}} exit={{opacity:0, scale: 0.95}} className="absolute right-0 top-12 w-80 bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl shadow-red-900/10 border border-white/60 overflow-hidden z-50 origin-top-right ring-1 ring-stone-900/5">
-                                <div className="p-3 border-b border-stone-200/60 bg-gradient-to-br from-red-50/60 to-stone-50/60 flex justify-between items-center">
-                                    <span className="text-[10px] font-bold text-red-700 uppercase tracking-[0.18em]">Notificaciones</span>
-                                    <button onClick={() => setNotifications([])} className="text-red-700 hover:text-red-900 text-xs font-bold">Borrar</button>
+                            <motion.div initial={{opacity:0, y: 10, scale: 0.95}} animate={{opacity:1, y: 0, scale: 1}} exit={{opacity:0, scale: 0.95}} className="absolute right-0 top-12 w-80 bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl shadow-slate-900/10 border border-white/60 overflow-hidden z-50 origin-top-right ring-1 ring-stone-900/5">
+                                <div className="p-3 border-b border-stone-200/60 bg-gradient-to-br from-emerald-50/60 to-stone-50/60 flex justify-between items-center">
+                                    <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-[0.18em]">Notificaciones</span>
+                                    <button onClick={() => setNotifications([])} className="text-emerald-700 hover:text-red-900 text-xs font-bold">Borrar</button>
                                 </div>
                                 <div className="max-h-60 overflow-y-auto">
                                     {notifications.length === 0 ? <p className="p-6 text-center text-xs text-stone-400">Sin novedades</p> : notifications.map(n => (
-                                        <div key={n.id} className="p-3 border-b border-stone-100 hover:bg-red-50/40"><p className="text-sm text-stone-800 font-medium">{n.msg}</p><p className="text-[10px] text-stone-400 mt-1">{n.time}</p></div>
+                                        <div key={n.id} className="p-3 border-b border-stone-100 hover:bg-emerald-50/40"><p className="text-sm text-stone-800 font-medium">{n.msg}</p><p className="text-[10px] text-stone-400 mt-1">{n.time}</p></div>
                                     ))}
                                 </div>
                             </motion.div>
@@ -794,8 +794,8 @@ export default function DashboardPage() {
                     initial={{ scale: 0, rotate: -180 }}
                     animate={{ scale: 1, rotate: 0 }}
                     transition={{ type: 'spring', stiffness: 260, damping: 18, delay: 0.15 }}
-                    whileHover={{ scale: 1.1, boxShadow: '0 0 0 4px rgba(220,38,38,0.18)' }}
-                    className="w-9 h-9 bg-gradient-to-br from-red-600 to-red-900 text-white rounded-xl flex items-center justify-center font-black border-2 border-white shadow-md ring-1 ring-red-200 cursor-pointer select-none"
+                    whileHover={{ scale: 1.1, boxShadow: '0 0 0 4px rgba(16,185,129,0.18)' }}
+                    className="w-9 h-9 bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-xl flex items-center justify-center font-black border-2 border-white shadow-md ring-1 ring-red-200 cursor-pointer select-none"
                 >
                     {userName.charAt(0)}
                 </motion.div>
@@ -810,9 +810,9 @@ export default function DashboardPage() {
                 {activeTab === 'home' && (
                     <motion.div initial={{opacity:0, y: 20}} animate={{opacity:1, y: 0}} className="space-y-8 pb-20">
                         {/* HERO CRIMSON GLASS */}
-                        <div className="relative overflow-hidden rounded-3xl ring-1 ring-white/15 shadow-2xl shadow-red-900/20">
+                        <div className="relative overflow-hidden rounded-3xl ring-1 ring-white/15 shadow-2xl shadow-slate-900/20">
                             {/* fondo gradient */}
-                            <div className="absolute inset-0 bg-gradient-to-br from-red-700 via-red-900 to-zinc-900 -z-10"/>
+                            <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 -z-10"/>
                             {/* glow lights */}
                             <motion.div
                                 aria-hidden
@@ -824,15 +824,15 @@ export default function DashboardPage() {
                                 aria-hidden
                                 animate={{ scale: [1.1, 1, 1.1], opacity: [0.25, 0.5, 0.25] }}
                                 transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut' }}
-                                className="absolute -bottom-24 -left-12 w-80 h-80 bg-red-500/30 rounded-full blur-3xl pointer-events-none"
+                                className="absolute -bottom-24 -left-12 w-80 h-80 bg-emerald-500/30 rounded-full blur-3xl pointer-events-none"
                             />
                             <div className="relative z-10 p-8 text-stone-50">
                                 {/* Top meta-row */}
                                 <div className="flex justify-between items-center mb-6">
                                     <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md border border-white/20 px-3 py-1.5 rounded-full">
                                         <span className="relative flex">
-                                            <span className="absolute inline-flex h-2 w-2 rounded-full bg-red-300 opacity-75 animate-ping"/>
-                                            <span className="relative inline-flex rounded-full h-2 w-2 bg-red-300"/>
+                                            <span className="absolute inline-flex h-2 w-2 rounded-full bg-emerald-300 opacity-75 animate-ping"/>
+                                            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-300"/>
                                         </span>
                                         <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/85">Online · RUAG/01</span>
                                     </div>
@@ -845,7 +845,7 @@ export default function DashboardPage() {
                                         <h1 className="text-4xl md:text-5xl font-black tracking-tight leading-[0.95] mt-2 mb-3">
                                             {(userName || 'Compañero').toUpperCase()}
                                         </h1>
-                                        <div className="w-12 h-0.5 bg-red-300 mb-3"/>
+                                        <div className="w-12 h-0.5 bg-emerald-300 mb-3"/>
                                         <p className="text-white/75 max-w-md text-sm leading-relaxed">
                                             Portal RUAG. Gestiona tu ficha, firma documentos y mantén tu legajo al día — desde cualquier lugar.
                                         </p>
@@ -860,14 +860,14 @@ export default function DashboardPage() {
                                                     strokeDasharray={150.8}
                                                     strokeDashoffset={150.8 - (150.8 * progress) / 100}
                                                     strokeLinecap="round"
-                                                    className="text-red-300 transition-all duration-1000"/>
+                                                    className="text-emerald-300 transition-all duration-1000"/>
                                             </svg>
                                             <span className="absolute text-xs font-black">{progress}%</span>
                                         </div>
                                         <div>
                                             <p className="text-[9px] text-white/55 font-bold uppercase tracking-[0.18em]">Documentación</p>
                                             <p className="text-2xl font-black tracking-tight leading-none mt-1">{completedDocs.toString().padStart(2,'0')}<span className="text-white/40 text-base"> / {totalDocs}</span></p>
-                                            <p className="text-[10px] font-bold uppercase tracking-wider text-red-200 mt-0.5">listos</p>
+                                            <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-200 mt-0.5">listos</p>
                                         </div>
                                     </div>
                                 </div>
@@ -877,11 +877,11 @@ export default function DashboardPage() {
                         {/* Acciones rápidas */}
                         <div>
                             <div className="flex items-center gap-3 mb-4">
-                                <span className="text-[10px] font-bold text-red-700 uppercase tracking-[0.22em]">02 — Acciones</span>
+                                <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-[0.22em]">02 — Acciones</span>
                                 <span className="flex-1 h-px bg-stone-200" />
                             </div>
                             <h3 className="text-2xl md:text-3xl font-black text-stone-900 tracking-tight mb-1">
-                                Accesos <span className="italic text-red-700">rápidos</span>
+                                Accesos <span className="italic text-emerald-700">rápidos</span>
                             </h3>
                             <p className="text-sm text-stone-500 mb-5">Las tres rutas que más usas. Diseñadas para tocar, no para pensar.</p>
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -926,7 +926,7 @@ export default function DashboardPage() {
 
                         {/* HERO COMPACTO con stats */}
                         <div className="relative overflow-hidden rounded-3xl ring-1 ring-white/15 shadow-xl shadow-red-900/15">
-                            <div className="absolute inset-0 bg-gradient-to-br from-red-700 via-red-900 to-zinc-900 -z-10"/>
+                            <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 -z-10"/>
                             <motion.div
                                 aria-hidden
                                 animate={{ scale: [1, 1.15, 1], opacity: [0.3, 0.55, 0.3] }}
@@ -938,13 +938,13 @@ export default function DashboardPage() {
                                     <div>
                                         <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur border border-white/20 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-[0.2em] mb-3">
                                             <span className="relative flex">
-                                                <span className="absolute inline-flex h-1.5 w-1.5 rounded-full bg-red-300 opacity-75 animate-ping"/>
-                                                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-red-300"/>
+                                                <span className="absolute inline-flex h-1.5 w-1.5 rounded-full bg-emerald-300 opacity-75 animate-ping"/>
+                                                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-300"/>
                                             </span>
                                             <span>01 · Registros</span>
                                         </div>
                                         <h2 className="text-3xl md:text-4xl font-black tracking-tight leading-none">
-                                            Mis <span className="italic text-red-300">Registros</span>
+                                            Mis <span className="italic text-emerald-300">Registros</span>
                                         </h2>
                                         <p className="text-white/70 text-xs md:text-sm mt-2 max-w-xl">Documentos y firmas habilitados por el administrador.</p>
                                     </div>
@@ -957,7 +957,7 @@ export default function DashboardPage() {
                                                     strokeDasharray={150.8}
                                                     strokeDashoffset={150.8 - (150.8 * progressView) / 100}
                                                     strokeLinecap="round"
-                                                    className="text-red-300 transition-all duration-1000"/>
+                                                    className="text-emerald-300 transition-all duration-1000"/>
                                             </svg>
                                             <span className="absolute text-[10px] font-black">{progressView}%</span>
                                         </div>
@@ -1039,7 +1039,7 @@ export default function DashboardPage() {
                     <motion.div initial={{opacity:0, x: 20}} animate={{opacity:1, x: 0}} className="space-y-8 pb-20">
                         {/* HERO GLASS CRIMSON */}
                         <div className="relative overflow-hidden rounded-3xl ring-1 ring-white/15 shadow-xl shadow-red-900/15">
-                            <div className="absolute inset-0 bg-gradient-to-br from-red-700 via-red-900 to-zinc-900 -z-10"/>
+                            <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 -z-10"/>
                             <motion.div
                                 aria-hidden
                                 animate={{ scale: [1, 1.15, 1], opacity: [0.3, 0.55, 0.3] }}
@@ -1054,17 +1054,17 @@ export default function DashboardPage() {
                                     <div>
                                         <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/55">01 — Centro</span>
                                         <h2 className="text-2xl md:text-3xl font-black tracking-tight leading-none mt-1">
-                                            SSOMA <span className="italic text-red-300">Digital</span>
+                                            SSOMA <span className="italic text-emerald-300">Digital</span>
                                         </h2>
                                     </div>
                                 </div>
-                                <div className="w-12 h-0.5 bg-red-300 mb-3"/>
+                                <div className="w-12 h-0.5 bg-emerald-300 mb-3"/>
                                 <p className="text-white/75 text-sm max-w-xl leading-relaxed">PDFs, anexos y archivos que el administrador deja listos para tu revisión.</p>
                             </div>
                         </div>
 
                         <div className="flex items-center gap-3">
-                            <span className="w-1 h-5 bg-red-600 rounded-full"/>
+                            <span className="w-1 h-5 bg-emerald-600 rounded-full"/>
                             <span className="text-[10px] font-bold text-stone-500 uppercase tracking-[0.22em]">02 — Tus archivos</span>
                             <span className="flex-1 h-px bg-stone-200" />
                         </div>
@@ -1081,21 +1081,21 @@ export default function DashboardPage() {
                                         transition={{ type: 'spring', stiffness: 380, damping: 22 }}
                                         className={`relative p-5 rounded-2xl border backdrop-blur-xl overflow-hidden transition-all
                                             ${isAvailable
-                                                ? 'bg-white/70 border-red-200 ring-1 ring-white/60 shadow-md shadow-red-900/5 hover:shadow-xl hover:shadow-red-900/15 hover:border-red-300'
+                                                ? 'bg-white/70 border-red-200 ring-1 ring-white/60 shadow-md shadow-slate-900/5 hover:shadow-xl hover:shadow-red-900/15 hover:border-red-300'
                                                 : 'bg-stone-100/60 border-stone-200/60 opacity-70'}`}
                                     >
-                                        <div className={`absolute left-0 top-5 bottom-5 w-[3px] rounded-r-full ${isAvailable ? 'bg-gradient-to-b from-red-400 to-red-700' : 'bg-stone-300'}`}/>
+                                        <div className={`absolute left-0 top-5 bottom-5 w-[3px] rounded-r-full ${isAvailable ? 'bg-gradient-to-b from-emerald-300 to-emerald-600' : 'bg-stone-300'}`}/>
                                         <div className="pl-2 flex items-start justify-between mb-4">
                                             <div className="flex items-center gap-3 min-w-0">
                                                 <span className="text-2xl font-black text-stone-300 leading-none tracking-tight">{(idx+1).toString().padStart(2,'0')}</span>
                                                 <div className={`w-11 h-11 rounded-xl backdrop-blur ring-1 flex items-center justify-center shrink-0
-                                                    ${isAvailable ? 'bg-white/80 text-red-700 ring-red-100' : 'bg-white/40 text-stone-400 ring-stone-200/60'}`}>
+                                                    ${isAvailable ? 'bg-white/80 text-emerald-700 ring-red-100' : 'bg-white/40 text-stone-400 ring-stone-200/60'}`}>
                                                     <FileText size={20}/>
                                                 </div>
                                                 <div className="min-w-0">
                                                     <h3 className={`font-extrabold text-[14px] tracking-tight leading-tight line-clamp-2 ${isAvailable ? 'text-stone-900' : 'text-stone-500'}`} title={doc.label}>{doc.label}</h3>
-                                                    <p className={`text-[10px] font-bold mt-1 uppercase tracking-[0.2em] flex items-center gap-1.5 ${isAvailable ? 'text-red-700' : 'text-stone-400'}`}>
-                                                        <span className={`w-1.5 h-1.5 rounded-full ${isAvailable ? 'bg-red-500 animate-pulse' : 'bg-stone-400'}`}/>
+                                                    <p className={`text-[10px] font-bold mt-1 uppercase tracking-[0.2em] flex items-center gap-1.5 ${isAvailable ? 'text-emerald-700' : 'text-stone-400'}`}>
+                                                        <span className={`w-1.5 h-1.5 rounded-full ${isAvailable ? 'bg-emerald-500 animate-pulse' : 'bg-stone-400'}`}/>
                                                         {isAvailable ? 'Disponible' : 'Pendiente de carga'}
                                                     </p>
                                                 </div>
@@ -1105,12 +1105,12 @@ export default function DashboardPage() {
                                         {isAvailable ? (
                                             <div className="pl-2 space-y-3">
                                                 <div className="flex items-center gap-2 text-[11px] text-stone-600 bg-white/50 backdrop-blur ring-1 ring-stone-200/60 p-2.5 rounded-lg">
-                                                    <Clock size={12} className="text-red-700 shrink-0"/>
+                                                    <Clock size={12} className="text-emerald-700 shrink-0"/>
                                                     <span className="font-medium">Subido: {new Date(fileData.uploaded_at).toLocaleDateString()}</span>
                                                 </div>
                                                 <button
                                                     onClick={() => window.open(fileData.url, '_blank')}
-                                                    className="w-full py-2.5 bg-gradient-to-br from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 text-white rounded-xl text-[11px] font-extrabold uppercase tracking-[0.2em] flex items-center justify-center gap-2 transition-all shadow-md shadow-red-500/20 ring-1 ring-white/40 active:scale-95"
+                                                    className="w-full py-2.5 bg-gradient-to-br from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-900 text-white rounded-xl text-[11px] font-extrabold uppercase tracking-[0.2em] flex items-center justify-center gap-2 transition-all shadow-md shadow-red-500/20 ring-1 ring-white/40 active:scale-95"
                                                 >
                                                     <ExternalLink size={14}/> Ver documento
                                                 </button>
@@ -1215,12 +1215,12 @@ function QuickAction({ icon, label, accent = 'blue', badge, onClick, index = '01
             whileHover={{ y: -3, scale: 1.01 }}
             whileTap={{ scale: 0.98 }}
             transition={{ type: 'spring', stiffness: 380, damping: 20 }}
-            className="group relative bg-white/70 backdrop-blur-xl ring-1 ring-white/60 border border-white/60 rounded-2xl p-5 text-left overflow-hidden shadow-md shadow-red-900/5 hover:shadow-xl hover:shadow-red-900/15 hover:ring-red-200 transition-all"
+            className="group relative bg-white/70 backdrop-blur-xl ring-1 ring-white/60 border border-white/60 rounded-2xl p-5 text-left overflow-hidden shadow-md shadow-slate-900/5 hover:shadow-xl hover:shadow-red-900/15 hover:ring-red-200 transition-all"
         >
             {/* Línea vertical de acento crimson a la izquierda */}
-            <div className="absolute left-0 top-5 bottom-5 w-[3px] bg-gradient-to-b from-red-500 to-red-800 rounded-r-full"/>
+            <div className="absolute left-0 top-5 bottom-5 w-[3px] bg-gradient-to-b from-emerald-400 to-emerald-600 rounded-r-full"/>
             {/* Glow detrás del icono al hover */}
-            <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-red-300/30 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity"/>
+            <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-emerald-300/30 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity"/>
 
             <div className="relative pl-2 flex items-start justify-between mb-3">
                 {/* Index editorial */}
@@ -1231,7 +1231,7 @@ function QuickAction({ icon, label, accent = 'blue', badge, onClick, index = '01
                             initial={{ scale: 0 }}
                             animate={{ scale: 1 }}
                             transition={{ type: 'spring', stiffness: 500, damping: 14 }}
-                            className="bg-gradient-to-br from-red-600 to-red-800 text-white text-[10px] font-extrabold min-w-[20px] h-5 px-1.5 flex items-center justify-center rounded-full shadow-md shadow-red-500/30 ring-1 ring-white/40"
+                            className="bg-gradient-to-br from-slate-900 to-slate-800 text-white text-[10px] font-extrabold min-w-[20px] h-5 px-1.5 flex items-center justify-center rounded-full shadow-md shadow-emerald-500/30 ring-1 ring-white/40"
                         >
                             {badge}
                         </motion.span>
@@ -1244,7 +1244,7 @@ function QuickAction({ icon, label, accent = 'blue', badge, onClick, index = '01
             </div>
             <div className="relative pl-2">
                 <p className="text-sm font-extrabold text-stone-900 leading-tight tracking-tight">{label}</p>
-                <div className="flex items-center gap-1 mt-1.5 text-[10px] font-bold text-red-700 uppercase tracking-[0.2em]">
+                <div className="flex items-center gap-1 mt-1.5 text-[10px] font-bold text-emerald-700 uppercase tracking-[0.2em]">
                     <span>Abrir</span>
                     <ArrowUpRight size={12} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform"/>
                 </div>
@@ -1279,13 +1279,13 @@ function DocSection({ index, kicker, title, accent, count, children }: { index: 
             <div className="flex items-end justify-between gap-3 mb-4">
                 <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
-                        <span className="w-1 h-4 bg-red-600 rounded-full"/>
-                        <span className="text-[10px] font-bold text-red-700 uppercase tracking-[0.22em]">{index} — {kicker}</span>
+                        <span className="w-1 h-4 bg-emerald-600 rounded-full"/>
+                        <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-[0.22em]">{index} — {kicker}</span>
                         <span className="flex-1 h-px bg-stone-200" />
                         <span className="text-[10px] font-bold text-stone-400 uppercase tracking-[0.18em]">{count.toString().padStart(2,'0')} docs</span>
                     </div>
                     <h3 className="text-xl md:text-2xl font-black text-stone-900 tracking-tight">
-                        {title} <span className="italic text-red-700">{accent}</span>
+                        {title} <span className="italic text-emerald-700">{accent}</span>
                     </h3>
                 </div>
             </div>
@@ -1309,22 +1309,22 @@ function DocItem({ id, label, state, onClick, type, index }: any) {
             transition={{ type: 'spring', stiffness: 400, damping: 22 }}
             className={`group relative rounded-2xl border cursor-pointer overflow-hidden transition-all
                 ${isCompleted ? 'bg-gradient-to-br from-emerald-50/70 via-white/80 to-white/80 border-emerald-200/80 ring-1 ring-emerald-100/60 hover:shadow-lg hover:shadow-emerald-900/10 hover:border-emerald-300' :
-                  isUnlocked ? 'bg-gradient-to-br from-red-50/70 via-white/80 to-white/80 border-red-200/80 ring-1 ring-red-100/60 shadow-md shadow-red-900/5 hover:shadow-xl hover:shadow-red-900/15 hover:border-red-300' :
+                  isUnlocked ? 'bg-gradient-to-br from-emerald-50/70 via-white/80 to-white/80 border-emerald-200/80 ring-1 ring-emerald-100/60 shadow-md shadow-slate-900/5 hover:shadow-xl hover:shadow-red-900/15 hover:border-red-300' :
                   'bg-stone-100/50 border-stone-200/60 grayscale opacity-60 hover:opacity-80'}
                 backdrop-blur-xl`}
         >
             {/* Línea vertical de acento por estado */}
-            <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${isCompleted ? 'bg-gradient-to-b from-emerald-400 to-emerald-700' : isUnlocked ? 'bg-gradient-to-b from-red-400 to-red-700' : 'bg-stone-300'}`}/>
+            <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${isCompleted ? 'bg-gradient-to-b from-emerald-400 to-emerald-700' : isUnlocked ? 'bg-gradient-to-b from-emerald-300 to-emerald-600' : 'bg-stone-300'}`}/>
 
             {/* Glow al hover */}
             {!isLocked && (
-                <div className={`absolute -right-12 -bottom-12 w-40 h-40 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity ${isCompleted ? 'bg-emerald-300/30' : 'bg-red-300/30'}`}/>
+                <div className={`absolute -right-12 -bottom-12 w-40 h-40 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity ${isCompleted ? 'bg-emerald-300/30' : 'bg-emerald-300/30'}`}/>
             )}
 
             <div className="relative p-4 flex items-start gap-4">
                 {/* Index + Icono */}
                 <div className="flex flex-col items-center gap-2 shrink-0">
-                    <span className={`text-xs font-black tracking-tight ${isCompleted ? 'text-emerald-600' : isUnlocked ? 'text-red-700' : 'text-stone-400'}`}>
+                    <span className={`text-xs font-black tracking-tight ${isCompleted ? 'text-emerald-600' : isUnlocked ? 'text-emerald-700' : 'text-stone-400'}`}>
                         {index || ''}
                     </span>
                     <motion.div
@@ -1332,7 +1332,7 @@ function DocItem({ id, label, state, onClick, type, index }: any) {
                         transition={{ duration: 0.5 }}
                         className={`relative w-12 h-12 rounded-xl flex items-center justify-center ring-1 transition-colors backdrop-blur
                             ${isCompleted ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' :
-                              isUnlocked ? 'bg-white/90 text-red-700 ring-red-200' :
+                              isUnlocked ? 'bg-white/90 text-emerald-700 ring-red-200' :
                               'bg-white/40 text-stone-400 ring-stone-200/60'}`}
                     >
                         {isCompleted ? (
@@ -1362,7 +1362,7 @@ function DocItem({ id, label, state, onClick, type, index }: any) {
                             className={`shrink-0 p-1.5 rounded-lg ring-1 transition-colors ${
                                 isLocked ? 'bg-stone-50 text-stone-300 ring-stone-200/60' :
                                 isCompleted ? 'bg-white text-emerald-700 ring-emerald-200 group-hover:bg-emerald-50' :
-                                'bg-white text-red-700 ring-red-200 group-hover:bg-red-50'
+                                'bg-white text-emerald-700 ring-red-200 group-hover:bg-emerald-50'
                             }`}
                         >
                             {isLocked ? <Lock size={14}/> : <ArrowUpRight size={14}/>}
@@ -1379,10 +1379,10 @@ function DocItem({ id, label, state, onClick, type, index }: any) {
                         {/* Estado pill */}
                         <span className={`text-[9px] font-bold uppercase tracking-[0.18em] px-2 py-0.5 rounded-full ring-1 inline-flex items-center gap-1.5 ${
                             isCompleted ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' :
-                            isUnlocked ? 'bg-red-50 text-red-700 ring-red-200' :
+                            isUnlocked ? 'bg-emerald-50 text-emerald-700 ring-red-200' :
                             'bg-stone-50 text-stone-500 ring-stone-200'
                         }`}>
-                            <span className={`w-1 h-1 rounded-full ${isCompleted ? 'bg-emerald-600' : isUnlocked ? 'bg-red-600 animate-pulse' : 'bg-stone-400'}`}/>
+                            <span className={`w-1 h-1 rounded-full ${isCompleted ? 'bg-emerald-600' : isUnlocked ? 'bg-emerald-600 animate-pulse' : 'bg-stone-400'}`}/>
                             {isCompleted ? 'Enviado' : isUnlocked ? 'Pendiente firma' : 'Bloqueado'}
                         </span>
                     </div>
@@ -1404,14 +1404,14 @@ function NavItem({ active, onClick, icon, activeIcon, label, badge }: any) {
             {active && (
                 <motion.span
                     layoutId="nav-active-pill"
-                    className="absolute inset-0 bg-white/70 backdrop-blur-md rounded-xl border border-white/70 shadow-sm shadow-red-900/10 ring-1 ring-red-200/40"
+                    className="absolute inset-0 bg-white/70 backdrop-blur-md rounded-xl border border-white/70 shadow-sm shadow-slate-900/10 ring-1 ring-red-200/40"
                     transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                 />
             )}
             {active && (
                 <motion.span
                     layoutId="nav-active-bar"
-                    className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-gradient-to-b from-red-500 to-red-800 rounded-r-full"
+                    className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-gradient-to-b from-emerald-400 to-emerald-600 rounded-r-full"
                     transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                 />
             )}
@@ -1422,7 +1422,7 @@ function NavItem({ active, onClick, icon, activeIcon, label, badge }: any) {
                     animate={{ scale: 1, rotate: 0, opacity: 1 }}
                     transition={{ type: 'spring', stiffness: 500, damping: 18 }}
                     whileHover={!active ? { scale: 1.15, rotate: -6 } : { scale: 1.08 }}
-                    className={`inline-flex ${active ? 'text-red-700' : 'text-stone-400 group-hover:text-red-700'}`}
+                    className={`inline-flex ${active ? 'text-emerald-700' : 'text-stone-400 group-hover:text-emerald-700'}`}
                 >
                     {active && activeIcon ? activeIcon : icon}
                 </motion.span>
@@ -1433,7 +1433,7 @@ function NavItem({ active, onClick, icon, activeIcon, label, badge }: any) {
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     transition={{ type: 'spring', stiffness: 500, damping: 14 }}
-                    className="relative z-10 bg-gradient-to-br from-red-600 to-red-800 text-white text-[10px] font-extrabold min-w-[20px] h-5 px-1.5 flex items-center justify-center rounded-full shadow-md shadow-red-500/30 ring-1 ring-white/40"
+                    className="relative z-10 bg-gradient-to-br from-slate-900 to-slate-800 text-white text-[10px] font-extrabold min-w-[20px] h-5 px-1.5 flex items-center justify-center rounded-full shadow-md shadow-emerald-500/30 ring-1 ring-white/40"
                 >
                     {badge}
                 </motion.span>
@@ -1532,10 +1532,10 @@ function ProfileSettingsCard({ userEmail, supabase }: any) {
     }
 
     return (
-        <div className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-xl shadow-red-900/10 border border-white/60 ring-1 ring-white/60 overflow-hidden">
+        <div className="bg-white/70 backdrop-blur-xl rounded-3xl shadow-xl shadow-slate-900/10 border border-white/60 ring-1 ring-white/60 overflow-hidden">
             {/* Hero glass crimson */}
             <div className="relative overflow-hidden p-8 border-b border-white/60 text-center">
-                <div className="absolute inset-0 bg-gradient-to-br from-red-700 via-red-900 to-zinc-900 -z-10"/>
+                <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 -z-10"/>
                 <motion.div
                     aria-hidden
                     animate={{ scale: [1, 1.15, 1], opacity: [0.3, 0.55, 0.3] }}
@@ -1547,10 +1547,10 @@ function ProfileSettingsCard({ userEmail, supabase }: any) {
                     animate={{ scale: 1, rotate: 0 }}
                     transition={{ type: 'spring', stiffness: 240, damping: 16 }}
                     whileHover={{ rotate: [0, -8, 8, -4, 4, 0], transition: { duration: 0.6 } }}
-                    className="relative w-20 h-20 bg-white/95 text-red-700 rounded-2xl flex items-center justify-center mx-auto mb-4 ring-4 ring-white/40 shadow-xl"
+                    className="relative w-20 h-20 bg-white/95 text-emerald-700 rounded-2xl flex items-center justify-center mx-auto mb-4 ring-4 ring-white/40 shadow-xl"
                 >
                     <motion.span
-                        className="absolute inset-0 rounded-2xl ring-2 ring-red-300/60"
+                        className="absolute inset-0 rounded-2xl ring-2 ring-emerald-300/60"
                         animate={{ scale: [1, 1.18, 1], opacity: [0.5, 0, 0.5] }}
                         transition={{ duration: 2.4, repeat: Infinity, ease: 'easeOut' }}
                     />
@@ -1558,49 +1558,49 @@ function ProfileSettingsCard({ userEmail, supabase }: any) {
                 </motion.div>
                 <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/55">00 — Ajustes</span>
                 <h2 className="text-2xl md:text-3xl font-black text-stone-50 tracking-tight mt-2">
-                    Configurar <span className="italic text-red-300">Cuenta</span>
+                    Configurar <span className="italic text-emerald-300">Cuenta</span>
                 </h2>
                 <p className="text-white/70 text-xs md:text-sm mt-2 max-w-xs mx-auto leading-relaxed">Actualiza tu correo y contraseña para asegurar tu acceso al sistema.</p>
             </div>
 
             <form onSubmit={handleUpdate} className="p-8 space-y-5">
                 <div>
-                    <label className="block text-[10px] font-bold text-red-700 uppercase tracking-[0.22em] mb-2 pl-1">Correo Electrónico</label>
+                    <label className="block text-[10px] font-bold text-emerald-700 uppercase tracking-[0.22em] mb-2 pl-1">Correo Electrónico</label>
                     <div className="relative">
-                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-red-500" size={18}/>
+                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500" size={18}/>
                         <input
                             type="email"
                             value={email}
                             onChange={e => setEmail(e.target.value)}
-                            className="w-full pl-11 pr-4 py-3 bg-white/70 backdrop-blur border border-white/60 ring-1 ring-stone-200/60 rounded-xl text-sm font-medium text-stone-900 placeholder:text-stone-400 focus:bg-white focus:ring-4 focus:ring-red-200/50 focus:border-red-400 outline-none transition-all"
+                            className="w-full pl-11 pr-4 py-3 bg-white/70 backdrop-blur border border-white/60 ring-1 ring-stone-200/60 rounded-xl text-sm font-medium text-stone-900 placeholder:text-stone-400 focus:bg-white focus:ring-4 focus:ring-emerald-200/50 focus:border-emerald-400 outline-none transition-all"
                             placeholder="tuemail@ejemplo.com"
                         />
                     </div>
                 </div>
 
                 <div>
-                    <label className="block text-[10px] font-bold text-red-700 uppercase tracking-[0.22em] mb-2 pl-1">Nueva Contraseña</label>
+                    <label className="block text-[10px] font-bold text-emerald-700 uppercase tracking-[0.22em] mb-2 pl-1">Nueva Contraseña</label>
                     <div className="relative">
-                        <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-red-500" size={18}/>
+                        <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500" size={18}/>
                         <input
                             type="password"
                             value={password}
                             onChange={e => setPassword(e.target.value)}
-                            className="w-full pl-11 pr-4 py-3 bg-white/70 backdrop-blur border border-white/60 ring-1 ring-stone-200/60 rounded-xl text-sm font-medium text-stone-900 placeholder:text-stone-400 focus:bg-white focus:ring-4 focus:ring-red-200/50 focus:border-red-400 outline-none transition-all"
+                            className="w-full pl-11 pr-4 py-3 bg-white/70 backdrop-blur border border-white/60 ring-1 ring-stone-200/60 rounded-xl text-sm font-medium text-stone-900 placeholder:text-stone-400 focus:bg-white focus:ring-4 focus:ring-emerald-200/50 focus:border-emerald-400 outline-none transition-all"
                             placeholder="Mínimo 6 caracteres"
                         />
                     </div>
                 </div>
 
                 <div>
-                    <label className="block text-[10px] font-bold text-red-700 uppercase tracking-[0.22em] mb-2 pl-1">Confirmar Contraseña</label>
+                    <label className="block text-[10px] font-bold text-emerald-700 uppercase tracking-[0.22em] mb-2 pl-1">Confirmar Contraseña</label>
                     <div className="relative">
-                        <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-red-500" size={18}/>
+                        <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500" size={18}/>
                         <input
                             type="password"
                             value={confirmPassword}
                             onChange={e => setConfirmPassword(e.target.value)}
-                            className="w-full pl-11 pr-4 py-3 bg-white/70 backdrop-blur border border-white/60 ring-1 ring-stone-200/60 rounded-xl text-sm font-medium text-stone-900 placeholder:text-stone-400 focus:bg-white focus:ring-4 focus:ring-red-200/50 focus:border-red-400 outline-none transition-all"
+                            className="w-full pl-11 pr-4 py-3 bg-white/70 backdrop-blur border border-white/60 ring-1 ring-stone-200/60 rounded-xl text-sm font-medium text-stone-900 placeholder:text-stone-400 focus:bg-white focus:ring-4 focus:ring-emerald-200/50 focus:border-emerald-400 outline-none transition-all"
                             placeholder="Repite la contraseña"
                         />
                     </div>
@@ -1610,7 +1610,7 @@ function ProfileSettingsCard({ userEmail, supabase }: any) {
                     <button
                         type="submit"
                         disabled={loading}
-                        className="w-full py-4 bg-gradient-to-br from-red-600 to-red-900 text-white rounded-xl font-extrabold uppercase tracking-[0.18em] text-sm shadow-lg shadow-red-500/30 ring-1 ring-white/40 hover:shadow-xl hover:shadow-red-500/40 disabled:opacity-70 flex items-center justify-center gap-3 transition-all active:scale-[0.98]"
+                        className="w-full py-4 bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-xl font-extrabold uppercase tracking-[0.18em] text-sm shadow-lg shadow-emerald-500/30 ring-1 ring-white/40 hover:shadow-xl hover:shadow-emerald-500/40 disabled:opacity-70 flex items-center justify-center gap-3 transition-all active:scale-[0.98]"
                     >
                         {loading ? <Loader2 className="animate-spin" size={18}/> : <Save size={18}/>}
                         {loading ? 'Actualizando…' : 'Guardar Cambios'}
@@ -2368,7 +2368,7 @@ function DownloadModal({ data, queueCount, onDownload, userName }: any) {
                     </div>
 
                     <div className="bg-indigo-50 rounded-2xl p-4 flex items-center gap-4 text-left border border-indigo-100">
-                        <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm text-red-500 shrink-0"><FileText size={24} /></div>
+                        <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm text-emerald-500 shrink-0"><FileText size={24} /></div>
                         <div>
                             <p className="font-bold text-slate-800 text-sm">{data.label}</p>
                             <p className="text-xs text-slate-500 truncate w-48">{data.file}</p>

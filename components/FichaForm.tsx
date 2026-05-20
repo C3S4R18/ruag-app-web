@@ -353,6 +353,47 @@ export default function FichaForm() {
       }
   }
 
+  const ensureProfileExists = async (sessionUser: any, payload: any) => {
+    if (!sessionUser?.id) {
+      return { ok: false, error: "Sesión no disponible." }
+    }
+
+    const { data: existingProfile, error: lookupError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', sessionUser.id)
+      .maybeSingle()
+
+    if (lookupError) {
+      return { ok: false, error: lookupError.message }
+    }
+
+    if (existingProfile?.id) {
+      return { ok: true }
+    }
+
+    const meta: any = sessionUser.user_metadata || {}
+    const profileRescue = {
+      id: sessionUser.id,
+      nombres: payload.nombres || meta.nombres || meta.full_name || '',
+      apellido_paterno: payload.apellido_paterno || meta.apellido_paterno || '',
+      apellido_materno: payload.apellido_materno || meta.apellido_materno || '',
+      dni: payload.dni || meta.dni || null,
+      telefono: payload.celular || meta.telefono || null,
+      role: 'obrero',
+    }
+
+    const { error: upsertError } = await supabase
+      .from('profiles')
+      .upsert(profileRescue, { onConflict: 'id' })
+
+    if (upsertError) {
+      return { ok: false, error: upsertError.message }
+    }
+
+    return { ok: true }
+  }
+
   const guardarProgreso = async (complete: boolean = false, silent: boolean = false) => {
     // Refrescar el token activamente antes de guardar (evita FK error por JWT expirado)
     const { data: { session }, error: refreshError } = await supabase.auth.refreshSession()
@@ -397,12 +438,40 @@ export default function FichaForm() {
     }
     
     Object.keys(payload).forEach((key:any) => { if ((payload as any)[key] === '') (payload as any)[key] = null });
+
+    const profileReady = await ensureProfileExists(sessionUser, payload)
+    if (!profileReady.ok) {
+        if (!silent) {
+            toast.error("No se pudo validar tu perfil", {
+                description: profileReady.error || "Intenta cerrar sesión e ingresar nuevamente.",
+            })
+        }
+        return { message: profileReady.error || "No se pudo validar el perfil." } as any
+    }
     
-    const { data, error } = await supabase
+    let { data, error } = await supabase
         .from('fichas')
         .upsert({ user_id: sessionUser.id, correo: sessionUser.email, ...payload }, { onConflict: 'user_id' })
         .select().single()
-    
+
+    // ── Auto-fix: si el profile no existe (FK violation), lo creamos y reintentamos.
+    // Esto puede pasar en cuentas creadas antes del trigger on_auth_user_created.
+    if (error && (error.code === '23503' || /fichas_user_id_fkey|violates foreign key/i.test(error.message))) {
+        const retryProfile = await ensureProfileExists(sessionUser, payload)
+        if (retryProfile.ok) {
+            const retry = await supabase
+                .from('fichas')
+                .upsert({ user_id: sessionUser.id, correo: sessionUser.email, ...payload }, { onConflict: 'user_id' })
+                .select().single()
+            data = retry.data
+            error = retry.error
+        } else if (!silent) {
+            toast.error("Falta tu perfil base", {
+                description: retryProfile.error || "Pide al administrador que ejecute la migración de perfiles.",
+            })
+        }
+    }
+
     if (data) setFormData((prev:any) => ({...prev, id: data.id}))
     if (complete) return error
     if (!error && !silent) toast.success("Progreso guardado")
