@@ -30,6 +30,7 @@ import { CargoRecomendacionesPrintable } from '@/components/CargoRecomendaciones
 import { CargoRitPrintable } from '@/components/CargoRitPrintable'
 import { CargoPoliticaPrevencionPrintable } from '@/components/CargoPoliticaPrevencionPrintable'
 import WiredLinealIcon from '@/components/WiredLinealIcon'
+import AdminGifIcon, { AdminGifFilters } from '@/components/AdminGifIcon'
 
 import {
   LayoutGrid, Users, LogOut, ShieldCheck,
@@ -848,7 +849,10 @@ export default function AdminPage() {
 
   return (
     <div className="flex h-screen bg-[#F8FAFC] font-sans text-slate-900 overflow-hidden">
-      
+
+      {/* Filtro SVG chromakey — referenciado por todos los AdminGifIcon */}
+      <AdminGifFilters />
+
       <AnimatePresence>
         {isMobile && isSidebarOpen && (
             <motion.div 
@@ -859,23 +863,26 @@ export default function AdminPage() {
         )}
       </AnimatePresence>
 
-      <motion.aside 
+      <motion.aside
         initial={false}
-        animate={{ 
-            width: isSidebarOpen ? 280 : 0, 
+        animate={{
+            // En desktop colapsado dejamos 80px (solo iconos)
+            // En móvil cerramos por completo (width 280) deslizándolo fuera
+            width: isMobile ? 280 : (isSidebarOpen ? 280 : 80),
             x: isMobile && !isSidebarOpen ? -280 : 0,
-            opacity: !isMobile && !isSidebarOpen ? 0 : 1
         }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        className={`bg-slate-900 text-white flex flex-col h-full shrink-0 z-50 shadow-2xl border-r border-slate-800 ${isMobile ? 'fixed left-0 top-0 bottom-0' : 'relative'} overflow-hidden whitespace-nowrap`}
+        data-collapsed={!isSidebarOpen && !isMobile ? 'true' : 'false'}
+        className={`group/aside bg-white text-slate-700 flex flex-col h-full shrink-0 z-50 shadow-xl shadow-slate-200/40 border-r border-slate-200 ${isMobile ? 'fixed left-0 top-0 bottom-0' : 'relative'} overflow-hidden whitespace-nowrap`}
       >
-        <div className="h-20 flex items-center gap-4 px-6 border-b border-slate-800/50 bg-slate-900/50 backdrop-blur-md">
-            <div className="bg-gradient-to-tr from-blue-600 to-indigo-600 p-2.5 rounded-xl shadow-lg shadow-blue-900/50">
-                <ShieldCheck size={22} className="text-white" />
+        <div className="h-20 flex items-center gap-3 px-4 border-b border-slate-300 bg-white group-data-[collapsed=true]/aside:justify-center group-data-[collapsed=true]/aside:px-0">
+            <div className="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-900 shrink-0">
+                <ShieldCheck size={20} className="text-emerald-300" />
+                <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white shadow-[0_0_10px_rgba(16,185,129,0.6)]" />
             </div>
-            <div className="min-w-0">
-                <h1 className="font-bold text-xl tracking-tight text-white leading-none">RUAG</h1>
-                <span className="text-xs text-blue-400 font-medium tracking-wide">Panel Administrativo</span>
+            <div className="min-w-0 group-data-[collapsed=true]/aside:hidden">
+                <h1 className="font-black text-[18px] tracking-tight text-slate-900 leading-none">RUAG</h1>
+                <span className="text-[10px] text-slate-500 font-bold tracking-[0.18em] uppercase">Panel Admin · 2026</span>
             </div>
         </div>
 
@@ -883,23 +890,23 @@ export default function AdminPage() {
         <nav className="flex-1 px-3 py-6 space-y-8 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-600">
             {/* Dashboard General */}
             <div>
-                <SidebarItem active={activeView === 'dashboard'} onClick={() => handleNavClick('dashboard')} icon={<WiredLinealIcon name="dashboard" size={20} variant="sidebar" />} label="Dashboard General" />
+                <SidebarItem active={activeView === 'dashboard'} onClick={() => handleNavClick('dashboard')} icon={<AdminGifIcon name="dashboard-general.gif" size={30} variant="bare" />} label="Dashboard General" />
             </div>
 
             {/* GRUPO 1 */}
             <div>
                 <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }} className="px-4 mb-3 mt-2">
-                    <h3 className="text-xs font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-indigo-300 uppercase tracking-widest">Gestión de Talento</h3>
+                    <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em] group-data-[collapsed=true]/aside:hidden">Gestión de Talento</h3>
                 </motion.div>
                 <div className="space-y-1">
                     <div id="nav-rrhh">
-                        <SidebarItem active={activeView === 'rrhh'} onClick={() => handleNavClick('rrhh')} icon={<Briefcase size={20} className="text-purple-400"/>} label="Gestión RRHH" />
+                        <SidebarItem active={activeView === 'rrhh'} onClick={() => handleNavClick('rrhh')} icon={<AdminGifIcon name="gestion-rrhh.gif" size={30} variant="bare" />} label="Gestión RRHH" />
                     </div>
                     <div id="nav-vida_ley">
-                        <SidebarItem active={activeView === 'vida_ley'} onClick={() => handleNavClick('vida_ley')} icon={<FileSpreadsheet size={20} className="text-emerald-400"/>} label="Trama Vida Ley" />
+                        <SidebarItem active={activeView === 'vida_ley'} onClick={() => handleNavClick('vida_ley')} icon={<AdminGifIcon name="trama-vida-ley.gif" size={30} variant="bare" />} label="Trama Vida Ley" />
                     </div>
                     <div id="nav-cesados">
-                        <SidebarItem active={activeView === 'cesados'} onClick={() => handleNavClick('cesados')} icon={<UserX size={20} className="text-rose-400"/>} label="Historial Cesados" />
+                        <SidebarItem active={activeView === 'cesados'} onClick={() => handleNavClick('cesados')} icon={<AdminGifIcon name="historial-cesados.gif" size={30} variant="bare" />} label="Historial Cesados" />
                     </div>
                 </div>
             </div>
@@ -907,23 +914,23 @@ export default function AdminPage() {
             {/* GRUPO 2 */}
             <div>
                 <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 }} className="px-4 mb-3 mt-2">
-                    <h3 className="text-xs font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-indigo-300 uppercase tracking-widest">Seguridad (SSOMA)</h3>
+                    <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em] group-data-[collapsed=true]/aside:hidden">Seguridad (SSOMA)</h3>
                 </motion.div>
                 <div className="space-y-1">
                     <div id="nav-documentos">
-                        <SidebarItem active={activeView === 'documentos'} onClick={() => handleNavClick('documentos')} icon={<HardHat size={20} className="text-blue-400"/>} label="Registros SIG" />
+                        <SidebarItem active={activeView === 'documentos'} onClick={() => handleNavClick('documentos')} icon={<AdminGifIcon name="registros-sig.gif" size={30} variant="bare" />} label="Registros SIG" />
                     </div>
-                    <Link href="/admin/ssoma/reporte-estadistico" className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-all duration-200 group">
-                        <WiredLinealIcon name="reporte" size={20} variant="sidebar" />
-                        <span className="tracking-wide">Reporte Estadistico</span>
-                        <ChevronRight size={14} className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity -translate-x-2 group-hover:translate-x-0"/>
+                    <Link href="/admin/ssoma/reporte-estadistico" title="Reporte Estadistico" className="w-full flex items-center gap-3 pl-1.5 pr-3 py-2 rounded-2xl text-[13px] font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all duration-200 group group-data-[collapsed=true]/aside:justify-center group-data-[collapsed=true]/aside:px-0">
+                        <AdminGifIcon name="reporte-estadistico.gif" size={30} variant="bare" />
+                        <span className="tracking-wide group-data-[collapsed=true]/aside:hidden">Reporte Estadistico</span>
+                        <ChevronRight size={14} className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity -translate-x-2 group-hover:translate-x-0 group-data-[collapsed=true]/aside:hidden"/>
                     </Link>
                     <div id="nav-upload-docs">
                          {/* --- NUEVA OPCIÓN SIDEBAR --- */}
-                        <SidebarItem active={activeView === 'upload_docs'} onClick={() => handleNavClick('upload_docs')} icon={<FolderUp size={20} className="text-amber-400"/>} label="Subir Documentos" />
+                        <SidebarItem active={activeView === 'upload_docs'} onClick={() => handleNavClick('upload_docs')} icon={<AdminGifIcon name="subir-documentos.gif" size={30} variant="bare" />} label="Subir Documentos" />
                     </div>
                     <div id="nav-sctr">
-                        <SidebarItem active={activeView === 'sctr'} onClick={() => handleNavClick('sctr')} icon={<ShieldCheck size={20} className="text-amber-400"/>} label="Trama SCTR" />
+                        <SidebarItem active={activeView === 'sctr'} onClick={() => handleNavClick('sctr')} icon={<AdminGifIcon name="trama-sctr.gif" size={30} variant="bare" />} label="Trama SCTR" />
                     </div>
                 </div>
             </div>
@@ -931,11 +938,16 @@ export default function AdminPage() {
             {/* GRUPO 3 */}
             <div>
                 <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }} className="px-4 mb-3 mt-2">
-                    <h3 className="text-xs font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-indigo-300 uppercase tracking-widest">Control Operativo</h3>
+                    <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em] group-data-[collapsed=true]/aside:hidden">Control Operativo</h3>
                 </motion.div>
                 <div className="space-y-1">
                     <div id="nav-biometria">
-                        <SidebarItem active={activeView === 'biometria'} onClick={() => handleNavClick('biometria')} icon={<Fingerprint size={20} className="text-sky-400"/>} label="Biometría y Firmas" />
+                        <SidebarItem
+                            active={activeView === 'biometria'}
+                            onClick={() => handleNavClick('biometria')}
+                            icon={<AdminGifIcon names={["biometria.gif", "firma.gif"]} intervalMs={2600} size={30} variant="bare" />}
+                            label="Biometría y Firmas"
+                        />
                     </div>
                 </div>
             </div>
@@ -943,10 +955,10 @@ export default function AdminPage() {
             {/* GRUPO 4 */}
             <div>
                 <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.4 }} className="px-4 mb-3 mt-2">
-                    <h3 className="text-xs font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-indigo-300 uppercase tracking-widest">Sistema</h3>
+                    <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.18em] group-data-[collapsed=true]/aside:hidden">Sistema</h3>
                 </motion.div>
                 <div className="space-y-1">
-                    <SidebarItem active={activeView === 'profile'} onClick={() => handleNavClick('profile')} icon={<UserCog size={20}/>} label="Mi Perfil" />
+                    <SidebarItem active={activeView === 'profile'} onClick={() => handleNavClick('profile')} icon={<AdminGifIcon name="mi-perfil.gif" size={30} variant="bare" />} label="Mi Perfil" />
                 </div>
             </div>
         </nav>
@@ -957,49 +969,62 @@ export default function AdminPage() {
             closeDrawer={closeDrawersForTour}
         />
 
-        <div className="p-4 bg-slate-900/30 border-t border-slate-800/50">
-             <button onClick={async () => { await supabase.auth.signOut(); router.push('/') }} className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-rose-500/10 hover:text-rose-400 transition-all group">
-                <LogOut size={20} className="group-hover:-translate-x-1 transition-transform"/>
-                <span className="text-sm font-medium">Cerrar Sesión</span>
+        <div className="p-3 border-t border-slate-300">
+             <button onClick={async () => { await supabase.auth.signOut(); router.push('/') }} title="Cerrar Sesión" className="w-full flex items-center gap-3 pl-1.5 pr-3 py-2 rounded-2xl text-slate-600 hover:bg-rose-50 hover:text-rose-600 transition-all group group-data-[collapsed=true]/aside:justify-center group-data-[collapsed=true]/aside:px-0">
+                <AdminGifIcon name="cerrar-sesion.gif" size={30} variant="bare" />
+                <span className="text-[13px] font-semibold tracking-wide group-data-[collapsed=true]/aside:hidden">Cerrar Sesión</span>
              </button>
         </div>
       </motion.aside>
 
       {/* --- CONTENIDO PRINCIPAL --- */}
-      <main className="flex-1 flex flex-col h-full min-w-0 bg-[#F8FAFC] relative">
+      <main className="flex-1 flex flex-col h-full min-w-0 bg-[#EEF1F6] relative">
         
-        <header className="h-20 bg-white/80 backdrop-blur-xl border-b border-slate-200/60 px-6 flex items-center justify-between shrink-0 sticky top-0 z-30 shadow-sm">
+        <header className="h-20 bg-white/85 backdrop-blur-xl border-b border-slate-200/70 px-6 flex items-center justify-between shrink-0 sticky top-0 z-30">
             <div className="flex items-center gap-4">
-                <button 
-                    onClick={() => setSidebarOpen(!isSidebarOpen)} 
+                <button
+                    onClick={() => setSidebarOpen(!isSidebarOpen)}
                     className="p-2.5 hover:bg-slate-100 rounded-xl text-slate-600 transition-colors border border-transparent hover:border-slate-200"
                 >
-                    <Menu size={22}/>
+                    <Menu size={20}/>
                 </button>
-                
-                <div id="tour-welcome">
-                    <h2 className="text-xl font-bold text-slate-800 tracking-tight">
-                        {activeView === 'dashboard' && 'Resumen General'}
-                        {activeView === 'biometria' && 'Control Biométrico'}
-                        {activeView === 'documentos' && 'Gestión Documental SSOMA'}
-                        {activeView === 'upload_docs' && 'Subir Documentos a Obrero'}
-                        {activeView === 'rrhh' && 'Gestión de Recursos Humanos'}
-                        {activeView === 'vida_ley' && 'Trama Vida Ley'}
-                        {activeView === 'sctr' && 'Trama SCTR'}
-                        {activeView === 'cesados' && 'Historial de Cesados'}
-                        {activeView === 'profile' && 'Configuración de Cuenta'}
-                    </h2>
-                    <p className="text-xs text-slate-400 hidden sm:block">Panel de administración centralizada</p>
+
+                <div id="tour-welcome" className="flex items-center gap-3">
+                    <span className="hidden sm:inline-flex h-7 px-2.5 items-center rounded-full bg-slate-900 text-white text-[10px] font-bold tracking-[0.18em] uppercase">
+                        {activeView === 'dashboard' && '01 · Inicio'}
+                        {activeView === 'biometria' && '02 · Biometría'}
+                        {activeView === 'documentos' && '03 · SSOMA'}
+                        {activeView === 'upload_docs' && '04 · Subir'}
+                        {activeView === 'rrhh' && '05 · RRHH'}
+                        {activeView === 'vida_ley' && '06 · Vida Ley'}
+                        {activeView === 'sctr' && '07 · SCTR'}
+                        {activeView === 'cesados' && '08 · Cesados'}
+                        {activeView === 'profile' && '09 · Perfil'}
+                    </span>
+                    <div>
+                        <h2 className="text-[20px] font-black text-slate-900 tracking-tight leading-none">
+                            {activeView === 'dashboard' && 'Resumen General'}
+                            {activeView === 'biometria' && 'Control Biométrico'}
+                            {activeView === 'documentos' && 'Gestión Documental SSOMA'}
+                            {activeView === 'upload_docs' && 'Subir Documentos a Obrero'}
+                            {activeView === 'rrhh' && 'Gestión de Recursos Humanos'}
+                            {activeView === 'vida_ley' && 'Trama Vida Ley'}
+                            {activeView === 'sctr' && 'Trama SCTR'}
+                            {activeView === 'cesados' && 'Historial de Cesados'}
+                            {activeView === 'profile' && 'Configuración de Cuenta'}
+                        </h2>
+                        <p className="text-[11px] text-slate-400 hidden sm:block mt-1 tracking-wide">Panel de administración centralizada</p>
+                    </div>
                 </div>
             </div>
 
             <div className="flex items-center gap-6">
                 <button
                     onClick={() => openDocumentCenter()}
-                    className="flex items-center gap-2 px-3 md:px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 shadow-sm hover:border-blue-300 hover:text-blue-600 hover:shadow-md transition-all"
+                    className="flex items-center gap-2.5 pl-2 pr-4 py-2 bg-white border border-slate-200 rounded-2xl text-xs font-bold text-slate-700 shadow-sm hover:border-slate-300 hover:shadow-md hover:-translate-y-px transition-all"
                 >
-                    <WiredLinealIcon name="center" size={18} variant="button" />
-                    <span className="hidden md:inline">Centro Documental</span>
+                    <AdminGifIcon name="centro-documental.gif" size={22} variant="button" />
+                    <span className="hidden md:inline tracking-wide">Centro Documental</span>
                 </button>
                  
                 {/* ADMINS CONECTADOS */}
@@ -1049,42 +1074,48 @@ export default function AdminPage() {
                 {activeView === 'dashboard' && (
                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-8 pb-20 max-w-7xl mx-auto">
                         
-                        <div className="flex flex-wrap gap-4">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                             <button
                                 onClick={() => openDocumentCenter()}
-                                className="flex items-center gap-2 px-5 py-3 bg-white text-slate-700 border border-slate-200 rounded-xl text-xs font-bold shadow-sm hover:border-blue-300 hover:text-blue-600 hover:shadow-md transition-all"
+                                className="group flex flex-col items-center justify-center gap-2 px-3 py-4 bg-white text-slate-800 border border-slate-300 rounded-2xl text-[11px] font-bold shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:-translate-y-px hover:border-slate-300 hover:shadow-md transition-all min-h-[96px]"
                             >
-                                <Layers size={18}/> CENTRO DOCUMENTAL
+                                <AdminGifIcon name="centro-documental.gif" size={40} variant="bare" />
+                                <span className="tracking-wide text-center leading-tight">CENTRO DOCUMENTAL</span>
                             </button>
 
-                            <Link href="/admin/ssoma/induccion" className="flex items-center gap-2 px-5 py-3 rounded-xl bg-slate-900 text-white text-xs font-bold shadow-xl shadow-slate-900/20 hover:scale-[1.02] transition-all cursor-pointer border border-slate-700">
-                                <HardHat size={18}/> Gestion SSOMA
+                            <Link href="/admin/ssoma/induccion" className="group flex flex-col items-center justify-center gap-2 px-3 py-4 bg-white text-slate-800 border border-slate-300 rounded-2xl text-[11px] font-bold shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:-translate-y-px hover:border-slate-300 hover:shadow-md transition-all cursor-pointer min-h-[96px]">
+                                <AdminGifIcon name="gestion-ssoma.gif" size={40} variant="bare" />
+                                <span className="tracking-wide text-center leading-tight">GESTIÓN SSOMA</span>
                             </Link>
 
-                            <Link href="/admin/ssoma/reporte-estadistico" className="flex items-center gap-2 px-5 py-3 rounded-xl bg-cyan-600 text-white text-xs font-bold shadow-xl shadow-cyan-600/20 hover:scale-[1.02] transition-all cursor-pointer border border-cyan-500">
-                                <FileSpreadsheet size={18}/> REPORTE ESTADISTICO
+                            <Link href="/admin/ssoma/reporte-estadistico" className="group flex flex-col items-center justify-center gap-2 px-3 py-4 bg-white text-slate-800 border border-slate-300 rounded-2xl text-[11px] font-bold shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:-translate-y-px hover:border-slate-300 hover:shadow-md transition-all cursor-pointer min-h-[96px]">
+                                <AdminGifIcon name="reporte-estadistico.gif" size={40} variant="bare" />
+                                <span className="tracking-wide text-center leading-tight">REPORTE ESTADÍSTICO</span>
                             </Link>
 
                             <button
                                 onClick={() => setShowBioImport(true)}
-                                className="flex items-center gap-2 px-5 py-3 bg-blue-600 text-white border border-blue-500 rounded-xl text-xs font-bold shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all"
+                                className="group flex flex-col items-center justify-center gap-2 px-3 py-4 bg-white text-slate-800 border border-slate-300 rounded-2xl text-[11px] font-bold shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:-translate-y-px hover:border-slate-300 hover:shadow-md transition-all min-h-[96px]"
                             >
-                                <ScanFace size={18}/> IMPORTAR FIRMAS/HUELLAS
+                                <AdminGifIcon names={["firma.gif", "biometria.gif"]} intervalMs={2600} size={40} variant="bare" />
+                                <span className="tracking-wide text-center leading-tight">IMPORTAR FIRMAS/HUELLAS</span>
                             </button>
 
                             <button
                                 id="tour-import"
                                 onClick={() => setShowImport(true)}
-                                className="flex items-center gap-2 px-5 py-3 bg-white text-slate-700 border border-slate-200 rounded-xl text-xs font-bold shadow-sm hover:border-blue-300 hover:text-blue-600 hover:shadow-md transition-all"
+                                className="group flex flex-col items-center justify-center gap-2 px-3 py-4 bg-white text-slate-800 border border-slate-300 rounded-2xl text-[11px] font-bold shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:-translate-y-px hover:border-slate-300 hover:shadow-md transition-all min-h-[96px]"
                             >
-                                <UploadCloud size={18}/> CARGA MASIVA DATA
+                                <AdminGifIcon name="carga-masiva-data.gif" size={40} variant="bare" />
+                                <span className="tracking-wide text-center leading-tight">CARGA MASIVA DATA</span>
                             </button>
 
                             <button
                                 onClick={() => setShowCostCenter(!showCostCenter)}
-                                className={`flex items-center gap-2 px-5 py-3 border rounded-xl text-xs font-bold shadow-sm transition-all ${showCostCenter ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-indigo-700 border-indigo-200 hover:bg-indigo-50'}`}
+                                className={`group flex flex-col items-center justify-center gap-2 px-3 py-4 border rounded-2xl text-[11px] font-bold shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:-translate-y-px hover:shadow-md transition-all min-h-[96px] ${showCostCenter ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-800 border-slate-300 hover:border-slate-300'}`}
                             >
-                                <Building size={18}/> CENTRO DE COSTO
+                                <AdminGifIcon name="centro-de-costo.gif" size={40} variant="bare" />
+                                <span className="tracking-wide text-center leading-tight">CENTRO DE COSTO</span>
                             </button>
                         </div>
 
@@ -1160,22 +1191,22 @@ export default function AdminPage() {
 
                         {/* ... Tarjetas de Estadísticas ... */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6" id="tour-stats">
-                            <StatCard 
-                                title="Total Personal" 
-                                value={(workersData.length + adminsData.length).toString()} 
-                                desc="Base de datos global" 
-                                icon={<Users size={24} className="text-white"/>} 
-                                bg="bg-gradient-to-br from-blue-500 to-blue-600"
-                                delay={0.1} 
+                            <StatCard
+                                title="Total Personal"
+                                value={(workersData.length + adminsData.length).toString()}
+                                desc="Base de datos global"
+                                icon={<AdminGifIcon name="personal.gif" size={44} variant="bare"/>}
+                                bg="bg-slate-50 border border-slate-200"
+                                delay={0.1}
                             />
                             <div onClick={() => setShowAdminModal(true)} className="cursor-pointer">
-                                <StatCard 
-                                    title="Administradores" 
-                                    value={adminsData.length.toString()} 
-                                    desc="Ver lista de admins" 
-                                    icon={<UserCog size={24} className="text-white"/>} 
-                                    bg="bg-gradient-to-br from-indigo-500 to-purple-600"
-                                    delay={0.2} 
+                                <StatCard
+                                    title="Administradores"
+                                    value={adminsData.length.toString()}
+                                    desc="Ver lista de admins"
+                                    icon={<AdminGifIcon name="administradores.gif" size={44} variant="bare"/>}
+                                    bg="bg-slate-50 border border-slate-200"
+                                    delay={0.2}
                                 />
                             </div>
                             <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
@@ -1960,23 +1991,46 @@ function DocumentCenterModal({ mode, workers, selectedWorker, selectedDocs, proc
 }
 
 function SidebarItem({ active, onClick, icon, label }: any) {
-    const iconByLabel: Record<string, any> = {
-        'Dashboard General': <WiredLinealIcon name="dashboard" size={20} variant="sidebar" />,
-        'GestiÃ³n RRHH': <WiredLinealIcon name="rrhh" size={20} variant="sidebar" />,
-        'Trama Vida Ley': <WiredLinealIcon name="vidaLey" size={20} variant="sidebar" />,
-        'Historial Cesados': <WiredLinealIcon name="cesados" size={20} variant="sidebar" />,
-        'Registros SIG': <WiredLinealIcon name="documentos" size={20} variant="sidebar" />,
-        'Subir Documentos': <WiredLinealIcon name="upload" size={20} variant="sidebar" />,
-        'Trama SCTR': <WiredLinealIcon name="sctr" size={20} variant="sidebar" />,
-        'BiometrÃ­a y Firmas': <WiredLinealIcon name="biometria" size={20} variant="sidebar" />,
-        'Mi Perfil': <WiredLinealIcon name="profile" size={20} variant="sidebar" />,
-    }
-    const displayIcon = iconByLabel[label] || icon
-
-    return <button onClick={onClick} className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-all duration-200 group relative ${active ? 'text-white' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>{active && (<motion.div layoutId="active-bg" className="absolute inset-0 bg-blue-600 rounded-xl shadow-lg shadow-blue-900/40" initial={false} transition={{type:'spring', stiffness: 500, damping: 30}} />)}<motion.span whileHover={{ scale: 1.12, rotate: active ? 0 : -6, y: -1 }} whileTap={{ scale: 0.95 }} className="relative z-10 flex h-6 w-6 items-center justify-center">{displayIcon}</motion.span><span className="relative z-10 tracking-wide">{label}</span>{!active && <ChevronRight size={14} className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity -translate-x-2 group-hover:translate-x-0"/>}</button>
+    return (
+        <button
+            onClick={onClick}
+            title={label}
+            className={`w-full flex items-center gap-3 pl-1.5 pr-3 py-2 rounded-2xl text-[13px] font-semibold transition-all duration-200 group relative group-data-[collapsed=true]/aside:justify-center group-data-[collapsed=true]/aside:px-0 ${
+                active
+                    ? 'text-slate-900'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+            }`}
+        >
+            {active && (
+                <motion.div
+                    layoutId="active-bg"
+                    className="absolute inset-0 bg-slate-100 border border-slate-200 rounded-2xl"
+                    initial={false}
+                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                />
+            )}
+            {active && (
+                <span className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-[3px] rounded-r-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)] z-10 group-data-[collapsed=true]/aside:hidden" />
+            )}
+            <motion.span
+                whileHover={{ y: -1 }}
+                whileTap={{ scale: 0.96 }}
+                className="relative z-10 flex items-center justify-center shrink-0"
+            >
+                {icon}
+            </motion.span>
+            <span className="relative z-10 tracking-wide truncate group-data-[collapsed=true]/aside:hidden">{label}</span>
+            {!active && (
+                <ChevronRight
+                    size={14}
+                    className="relative z-10 ml-auto opacity-0 group-hover:opacity-60 transition-opacity -translate-x-2 group-hover:translate-x-0 group-data-[collapsed=true]/aside:hidden"
+                />
+            )}
+        </button>
+    )
 }
 function StatCard({title, value, desc, icon, bg, delay}: any) {
-    return <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay }} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-lg transition-all"><div className="flex justify-between items-start"><div><p className="text-slate-500 text-sm font-medium mb-1">{title}</p><h3 className="text-3xl font-bold text-slate-800 tracking-tight">{value}</h3></div><div className={`p-3 rounded-2xl shadow-lg shadow-blue-900/10 ${bg}`}>{icon}</div></div><div className="mt-4 pt-4 border-t border-slate-50"><div className="text-xs font-bold text-slate-400 flex items-center gap-1.5"><TrendingUp size={14} className="text-emerald-500"/> <span className="text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">{desc}</span></div></div></motion.div>
+    return <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay }} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-lg hover:border-slate-300 transition-all"><div className="flex justify-between items-start"><div><p className="text-slate-500 text-sm font-medium mb-1">{title}</p><h3 className="text-3xl font-bold text-slate-800 tracking-tight">{value}</h3></div><div className={`p-2 rounded-2xl ${bg ?? 'bg-slate-50 border border-slate-200'} flex items-center justify-center`}>{icon}</div></div><div className="mt-4 pt-4 border-t border-slate-100"><div className="text-xs font-bold text-slate-400 flex items-center gap-1.5"><TrendingUp size={14} className="text-emerald-500"/> <span className="text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">{desc}</span></div></div></motion.div>
 }
 
 // --- NUEVO COMPONENTE: MODAL DETALLE DE OBRA ---

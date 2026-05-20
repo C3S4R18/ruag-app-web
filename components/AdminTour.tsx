@@ -3,8 +3,9 @@
 import { useEffect, useRef } from 'react'
 import { driver, type Alignment, type DriveStep, type Side } from 'driver.js'
 import 'driver.js/dist/driver.css'
-import { Compass, Sparkles } from 'lucide-react'
+import { Sparkles } from 'lucide-react'
 import confetti from 'canvas-confetti'
+import AdminGifIcon from '@/components/AdminGifIcon'
 
 interface AdminTourProps {
   changeView: (view: 'dashboard' | 'biometria' | 'documentos' | 'rrhh' | 'vida_ley' | 'cesados' | 'profile') => void
@@ -365,19 +366,18 @@ export default function AdminTour({ changeView, openFirstDrawer, closeDrawer }: 
   }
 
   return (
-    <div className="px-3 pb-3">
+    <div className="px-3 pb-3 group-data-[collapsed=true]/aside:px-2">
       <button
         onClick={startTour}
-        className="group w-full flex items-center gap-3 px-3 py-3 rounded-xl border border-slate-700/50 bg-gradient-to-r from-slate-800 to-slate-800/60 hover:border-sky-500/40 hover:to-sky-900/30 transition-all duration-200 shadow-md"
+        title="Capacitación Guiada · Tour interactivo"
+        className="group w-full flex items-center gap-3 px-2.5 py-2.5 rounded-2xl border border-slate-200 bg-white hover:border-emerald-300 hover:shadow-md hover:bg-emerald-50/40 transition-all duration-200 shadow-sm group-data-[collapsed=true]/aside:justify-center group-data-[collapsed=true]/aside:px-1"
       >
-        <div className="shrink-0 w-9 h-9 rounded-xl bg-sky-500/10 border border-sky-400/20 flex items-center justify-center text-sky-300">
-          <Compass size={18} />
+        <AdminGifIcon name="capacitacion.gif" size={36} variant="bare" />
+        <div className="flex-1 text-left min-w-0 group-data-[collapsed=true]/aside:hidden">
+          <p className="text-[12.5px] font-bold text-slate-900 leading-tight truncate">Capacitación Guiada</p>
+          <p className="text-[10px] text-slate-500 leading-tight mt-0.5 truncate">Tour interactivo del sistema</p>
         </div>
-        <div className="flex-1 text-left min-w-0">
-          <p className="text-xs font-bold text-white leading-tight truncate">Capacitación Guiada</p>
-          <p className="text-[10px] text-slate-400 leading-tight mt-0.5 truncate">Tour interactivo del sistema</p>
-        </div>
-        <span className="shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-sky-500/15 text-sky-300 text-[10px] font-bold border border-sky-400/20 group-hover:bg-sky-500/25 transition-colors">
+        <span className="shrink-0 flex items-center gap-1 px-2 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200 group-hover:bg-emerald-100 transition-colors group-data-[collapsed=true]/aside:hidden">
           <Sparkles size={10} />
           Iniciar
         </span>

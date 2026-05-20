@@ -16,6 +16,7 @@ import { getSignatureUrl, normalizeBiometricFields } from '@/utils/biometric'
 import DocumentPreviewModal from './DocumentPreviewModal'
 import NormalizedSignatureImage from './NormalizedSignatureImage'
 import WiredLinealIcon from './WiredLinealIcon'
+import AdminGifIcon from './AdminGifIcon'
 
 // --- DOCUMENTOS IMPRIMIBLES SSOMA ---
 import { CargoRisstPrintable } from './CargoRisstPrintable'
@@ -994,17 +995,17 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
 
             <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto justify-end">
                 
-                {/* --- NUEVO BOTÓN: GESTIÓN BENEFICIOS (18-24) --- */}
+                {/* --- BOTÓN GESTIÓN BENEFICIOS (18-24) --- */}
                 <div className="relative">
-                    <button onClick={() => setShowBirthdayDropdown(!showBirthdayDropdown)} className={`relative p-2.5 rounded-xl border transition-all ${showBirthdayDropdown ? 'bg-pink-50 border-pink-200 text-pink-600' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
-                        <Cake size={18} />
+                    <button onClick={() => setShowBirthdayDropdown(!showBirthdayDropdown)} className={`relative p-2 rounded-xl border transition-all ${showBirthdayDropdown ? 'bg-pink-50 border-pink-200' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
+                        <AdminGifIcon name="gestion-beneficios.gif" size={24} variant="bare" />
                         {adultChildrenAlerts.length > 0 && <span className="absolute top-1.5 right-2 w-2.5 h-2.5 bg-pink-500 border-2 border-white rounded-full animate-pulse"></span>}
                     </button>
                     <AnimatePresence>
                         {showBirthdayDropdown && (
                             <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }} className="absolute right-0 top-full mt-3 w-96 bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden z-50 origin-top-right">
                                 <div className="p-4 border-b border-slate-100 bg-pink-50/50 flex justify-between items-center">
-                                    <h4 className="font-bold text-pink-800 text-sm flex items-center gap-2"><Cake size={16}/> Gestión Beneficios (18+)</h4>
+                                    <h4 className="font-bold text-pink-800 text-sm flex items-center gap-2"><AdminGifIcon name="gestion-beneficios.gif" size={20} variant="bare"/> Gestión Beneficios (18+)</h4>
                                     <span className="text-[10px] font-bold bg-white px-2 py-0.5 rounded-full text-pink-600 border border-pink-200">{adultChildrenAlerts.length} Pendientes</span>
                                 </div>
                                 <div className="max-h-80 overflow-y-auto bg-slate-50/50">
@@ -1164,9 +1165,9 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                     </AnimatePresence>
                 </div>
 
-                <button id="tour-audio" onClick={toggleAudio} className={`relative overflow-hidden flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border transition-all active:scale-95 ${audioEnabled ? 'bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}>
-                    {audioEnabled ? <BellRing size={16} className="animate-pulse"/> : <BellOff size={16}/>}
-                    <span className="hidden sm:inline">{audioEnabled ? 'Sonido ON' : 'Sonido OFF'}</span>
+                <button id="tour-audio" onClick={toggleAudio} className={`relative overflow-hidden flex items-center gap-2 pl-1.5 pr-3.5 py-1.5 rounded-2xl text-[12px] font-bold border transition-all active:scale-95 ${audioEnabled ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
+                    <AdminGifIcon name={audioEnabled ? 'sonido-on.gif' : 'sonido-off.gif'} size={26} variant="bare" />
+                    <span className="hidden sm:inline tracking-wide">{audioEnabled ? 'Sonido ON' : 'Sonido OFF'}</span>
                 </button>
 
                 <div className="flex items-center gap-2 bg-slate-50/50 p-1 rounded-xl border border-slate-200" id="tour-filters">
@@ -1178,9 +1179,11 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                         </select>
                     </div>
                     <div className="w-[1px] h-5 bg-slate-200"></div>
-                    <div className="relative">
-                        <Filter size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
-                        <select className="pl-9 pr-8 py-2 bg-transparent text-sm font-semibold text-slate-600 outline-none cursor-pointer hover:text-slate-900 transition-colors appearance-none" value={filterEstado} onChange={(e) => setFilterEstado(e.target.value)}><option value="Todos">Todos los Estados</option><option value="Completado">✅ Completados</option><option value="Pendiente">⏳ Pendientes</option></select>
+                    <div className="relative flex items-center">
+                        <div className="absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none">
+                            <AdminGifIcon name="filtrar.gif" size={22} variant="bare" />
+                        </div>
+                        <select className="pl-10 pr-8 py-2 bg-transparent text-sm font-semibold text-slate-700 outline-none cursor-pointer hover:text-slate-900 transition-colors appearance-none" value={filterEstado} onChange={(e) => setFilterEstado(e.target.value)}><option value="Todos">Todos los Estados</option><option value="Completado">✅ Completados</option><option value="Pendiente">⏳ Pendientes</option></select>
                     </div>
                 </div>
                 
@@ -1333,37 +1336,37 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                                 <motion.div
                                     animate={getSignatureUrl(ficha) ? biometricLoop : undefined}
                                     whileHover={{ y: -1, scale: 1.05 }}
-                                    className={`relative flex h-10 w-10 items-center justify-center rounded-2xl border shadow-sm transition-all ${getSignatureUrl(ficha) ? 'border-emerald-200 bg-emerald-50 text-emerald-600 shadow-emerald-100/70' : 'border-slate-200 bg-slate-50 text-slate-300'}`}
+                                    className={`relative flex h-10 w-10 items-center justify-center rounded-2xl border shadow-sm transition-all ${getSignatureUrl(ficha) ? 'border-emerald-200 bg-emerald-50 shadow-emerald-100/70' : 'border-slate-200 bg-slate-50 opacity-40 grayscale'}`}
                                     title={getSignatureUrl(ficha) ? 'Firma registrada' : 'Falta firma'}
                                 >
-                                    <WiredLinealIcon name="signature" size={16} variant="chip" />
+                                    <AdminGifIcon name="firma.gif" size={22} variant="bare" />
                                     <span className={`absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-white ${getSignatureUrl(ficha) ? 'bg-emerald-500' : 'bg-slate-300'}`}></span>
                                 </motion.div>
                                 <motion.div
                                     animate={ficha.huella_url ? fingerprintLoop : undefined}
                                     whileHover={{ y: -1, scale: 1.05 }}
-                                    className={`relative flex h-10 w-10 items-center justify-center rounded-2xl border shadow-sm transition-all ${ficha.huella_url ? 'border-cyan-200 bg-cyan-50 text-cyan-600 shadow-cyan-100/70' : 'border-slate-200 bg-slate-50 text-slate-300'}`}
+                                    className={`relative flex h-10 w-10 items-center justify-center rounded-2xl border shadow-sm transition-all ${ficha.huella_url ? 'border-cyan-200 bg-cyan-50 shadow-cyan-100/70' : 'border-slate-200 bg-slate-50 opacity-40 grayscale'}`}
                                     title={ficha.huella_url ? 'Huella registrada' : 'Falta huella'}
                                 >
-                                    <WiredLinealIcon name="fingerprint" size={16} variant="chip" />
+                                    <AdminGifIcon name="biometria.gif" size={22} variant="bare" />
                                     <span className={`absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-white ${ficha.huella_url ? 'bg-cyan-500' : 'bg-slate-300'}`}></span>
                                 </motion.div>
                             </div>
                         </td>
-                        
+
                         {/* ACCIONES */}
                         <td className="px-4 py-3 text-right">
                             <div className="flex items-center justify-end">
                                 <div className="flex items-center gap-1.5 rounded-2xl border border-slate-200/90 bg-white/90 px-2 py-1.5 shadow-sm transition-all group-hover:border-slate-300 group-hover:shadow-md">
                                     {onOpenChat && (
-                                        <motion.button animate={actionLoops.chat} whileHover={{ y: -1, scale: 1.06 }} whileTap={{ scale: 0.96 }} onClick={(e) => { e.stopPropagation(); handleChatClick(ficha) }} className="relative flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 transition-all hover:bg-indigo-600 hover:text-white" title="Chat con trabajador">
-                                            <WiredLinealIcon name="chat" size={16} variant="button" />
+                                        <motion.button animate={actionLoops.chat} whileHover={{ y: -1, scale: 1.06 }} whileTap={{ scale: 0.96 }} onClick={(e) => { e.stopPropagation(); handleChatClick(ficha) }} className="relative flex h-9 w-9 items-center justify-center rounded-xl transition-all hover:bg-slate-100" title="Chat con trabajador">
+                                            <AdminGifIcon name="chat-con-trabajador.gif" size={22} variant="bare" />
                                             {unreadCounts[ficha.user_id] > 0 && (<span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white shadow-sm ring-2 ring-white">{unreadCounts[ficha.user_id]}</span>)}
                                         </motion.button>
                                     )}
-                                    <motion.button animate={actionLoops.view} whileHover={{ y: -1, scale: 1.06 }} whileTap={{ scale: 0.96 }} onClick={(e) => { e.stopPropagation(); setDocumentsFicha(ficha) }} className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 transition-all hover:bg-slate-700 hover:text-white" title="Ver documentos subidos"><WiredLinealIcon name="eye" size={16} variant="button" /></motion.button>
-                                    <motion.button animate={actionLoops.edit} whileHover={{ y: -1, scale: 1.06 }} whileTap={{ scale: 0.96 }} onClick={(e) => { e.stopPropagation(); setSelectedFicha(ficha) }} className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 transition-all hover:bg-blue-600 hover:text-white" title="Editar Ficha"><WiredLinealIcon name="edit" size={16} variant="button" /></motion.button>
-                                    <motion.button animate={actionLoops.download} whileHover={{ y: -1, scale: 1.06 }} whileTap={{ scale: 0.96 }} onClick={(e) => { e.stopPropagation(); handleDownloadPDF(ficha) }} className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-500 transition-all hover:bg-emerald-600 hover:text-white" title="Descargar PDF"><WiredLinealIcon name="download" size={16} variant="button" /></motion.button>
+                                    <motion.button animate={actionLoops.view} whileHover={{ y: -1, scale: 1.06 }} whileTap={{ scale: 0.96 }} onClick={(e) => { e.stopPropagation(); setDocumentsFicha(ficha) }} className="flex h-9 w-9 items-center justify-center rounded-xl transition-all hover:bg-slate-100" title="Ver documentos subidos"><AdminGifIcon name="ver-documentos-subidos.gif" size={22} variant="bare" /></motion.button>
+                                    <motion.button animate={actionLoops.edit} whileHover={{ y: -1, scale: 1.06 }} whileTap={{ scale: 0.96 }} onClick={(e) => { e.stopPropagation(); setSelectedFicha(ficha) }} className="flex h-9 w-9 items-center justify-center rounded-xl transition-all hover:bg-slate-100" title="Editar Ficha"><AdminGifIcon name="editar-ficha.gif" size={22} variant="bare" /></motion.button>
+                                    <motion.button animate={actionLoops.download} whileHover={{ y: -1, scale: 1.06 }} whileTap={{ scale: 0.96 }} onClick={(e) => { e.stopPropagation(); handleDownloadPDF(ficha) }} className="flex h-9 w-9 items-center justify-center rounded-xl transition-all hover:bg-slate-100" title="Descargar PDF"><AdminGifIcon name="descargar-pdf.gif" size={22} variant="bare" /></motion.button>
                                 </div>
                             </div>
                         </td>
@@ -1620,11 +1623,11 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
                 </div>
                 <div className="flex-1 overflow-y-auto p-8 space-y-8 bg-slate-50 scroll-smooth">
                     <div id="drawer-actions-top" className="flex gap-3 sticky top-0 z-10 pb-4 bg-slate-50/95 backdrop-blur-sm pt-2">
-                        <button onClick={onDownload} disabled={downloading} className="flex-1 flex items-center justify-center gap-2 bg-white border border-slate-200 text-slate-700 py-3.5 rounded-xl text-sm font-bold shadow-sm hover:border-blue-300 hover:text-blue-600 transition-all disabled:opacity-50 active:scale-95">{downloading ? <Loader2 className="animate-spin" size={16}/> : <><Download size={16}/> Descargar PDF</>}</button>
-                        <button onClick={() => setIsEditing(!isEditing)} className={`flex-1 flex items-center justify-center gap-2 border py-3.5 rounded-xl text-sm font-bold shadow-sm transition-all active:scale-95 ${isEditing ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:bg-white hover:border-slate-300'}`}>{isEditing ? 'Cancelar Edición' : 'Editar Datos'}</button>
+                        <button onClick={onDownload} disabled={downloading} className="flex-1 flex items-center justify-center gap-2 bg-white border border-slate-200 text-slate-700 py-3 rounded-xl text-sm font-bold shadow-sm hover:border-slate-300 transition-all disabled:opacity-50 active:scale-95">{downloading ? <Loader2 className="animate-spin" size={16}/> : <><AdminGifIcon name="descargar-pdf.gif" size={22} variant="bare"/> Descargar PDF</>}</button>
+                        <button onClick={() => setIsEditing(!isEditing)} className={`flex-1 flex items-center justify-center gap-2 border py-3 rounded-xl text-sm font-bold shadow-sm transition-all active:scale-95 ${isEditing ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:bg-white hover:border-slate-300'}`}>{isEditing ? 'Cancelar Edición' : <><AdminGifIcon name="editar-ficha.gif" size={22} variant="bare"/> Editar Datos</>}</button>
                     </div>
                     <div id="drawer-info-section">
-                        <Section title="Información Personal" icon={<User size={18}/>}>
+                        <Section title="Información Personal" icon={<AdminGifIcon folder="icons" name="personal.gif" size={20} variant="bare"/>}>
                             <Grid>
                                 <Field label="Apellido Paterno" name="apellido_paterno" val={formData.apellido_paterno} edit={isEditing} set={setFormData}/>
                                 <Field label="Apellido Materno" name="apellido_materno" val={formData.apellido_materno} edit={isEditing} set={setFormData}/>
@@ -1638,7 +1641,7 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
                                 <Field label="Celular" name="celular" val={formData.celular} edit={isEditing} set={setFormData}/>
                             </Grid>
                         </Section>
-                        <Section title="Familia" icon={<Users size={18}/>}>
+                        <Section title="Familia" icon={<AdminGifIcon folder="icons" name="familia.gif" size={20} variant="bare"/>}>
                              <div className="mb-4 pb-4 border-b border-slate-200">
                                 <h4 className="text-xs font-bold text-slate-500 mb-2">ESPOSA / CONVIVIENTE</h4>
                                 <Grid>
@@ -1666,21 +1669,21 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
                                 ))}
                              </div>
                         </Section>
-                        <Section title="Sistema de Pensiones" icon={<ShieldCheck size={18}/>}>
+                        <Section title="Sistema de Pensiones" icon={<AdminGifIcon folder="icons" name="check.gif" size={20} variant="bare"/>}>
                             <Grid>
                                 <Field label="Régimen" name="sistema_pension" val={formData.sistema_pension} edit={isEditing} set={setFormData}/>
                                 <Field label="Nombre AFP" name="afp_nombre" val={formData.afp_nombre} edit={isEditing} set={setFormData}/>
                                 <Field label="CUSPP" name="cuspp" val={formData.cuspp} edit={isEditing} set={setFormData}/>
                             </Grid>
                         </Section>
-                        <Section title="Datos Bancarios" icon={<Wallet size={18}/>}>
+                        <Section title="Datos Bancarios" icon={<AdminGifIcon folder="icons" name="datos-bancarios.gif" size={20} variant="bare"/>}>
                             <Grid>
                                 <Field label="Banco" name="banco" val={formData.banco} edit={isEditing} set={setFormData}/>
                                 <Field label="N° Cuenta" name="numero_cuenta" val={formData.numero_cuenta} edit={isEditing} set={setFormData}/>
                                 <Field label="CCI" name="cci" val={formData.cci} edit={isEditing} set={setFormData}/>
                             </Grid>
                         </Section>
-                        <Section title="Información Laboral" icon={<HardHat size={18}/>}>
+                        <Section title="Información Laboral" icon={<AdminGifIcon folder="icons" name="laboral.gif" size={20} variant="bare"/>}>
                             <Grid>
                                 <Field label="Categoría" name="categoria" val={formData.categoria} edit={isEditing} set={setFormData}/>
                                 <Field label="Cargo" name="cargo" val={formData.cargo} edit={isEditing} set={setFormData}/>
@@ -1688,21 +1691,21 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
                                 <Field label="Obra" name="nombre_obra" val={formData.nombre_obra} edit={isEditing} set={setFormData}/>
                             </Grid>
                         </Section>
-                        <Section title="Educación" icon={<GraduationCap size={18}/>}>
+                        <Section title="Educación" icon={<AdminGifIcon folder="icons" name="formacion-academica.gif" size={20} variant="bare"/>}>
                             <Grid>
                                 <Field label="Nivel" name="nivel_educacion" val={formData.nivel_educacion} edit={isEditing} set={setFormData}/>
                                 <Field label="Carrera" name="carrera" val={formData.carrera} edit={isEditing} set={setFormData}/>
                                 <Field label="Institución" name="universidad" val={formData.universidad} edit={isEditing} set={setFormData} full/>
                             </Grid>
                         </Section>
-                        <Section title="Emergencia" icon={<HeartPulse size={18}/>}>
+                        <Section title="Emergencia" icon={<AdminGifIcon folder="icons" name="contacto-emergencia.gif" size={20} variant="bare"/>}>
                             <Grid>
                                 <Field label="Nombre Contacto" name="emergencia_nombre" val={formData.emergencia_nombre} edit={isEditing} set={setFormData}/>
                                 <Field label="Parentesco" name="emergencia_relacion" val={formData.emergencia_relacion} edit={isEditing} set={setFormData}/>
                                 <Field label="Teléfono" name="emergencia_celular" val={formData.emergencia_celular} edit={isEditing} set={setFormData}/>
                             </Grid>
                         </Section>
-                        <Section title="Documentos Adjuntos" icon={<FileBadge size={18}/>}>
+                        <Section title="Documentos Adjuntos" icon={<AdminGifIcon folder="icons" name="docs.gif" size={20} variant="bare"/>}>
                             <div className="grid grid-cols-2 gap-4">
                                 <DocumentCard label="DNI (Frontal y Reverso)" url={formData.url_dni_frontal} onDelete={() => handleDeleteDoc('url_dni_frontal')} isEditing={isEditing} onUpload={(f:File)=>handleAdminDocUpload(f, 'url_dni_frontal')} />
                                 <DocumentCard label="Carnet RETCC" url={formData.url_carnet} onDelete={() => handleDeleteDoc('url_carnet')} isEditing={isEditing} onUpload={(f:File)=>handleAdminDocUpload(f, 'url_carnet')} />
@@ -1716,7 +1719,7 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
                                 <DocumentCard label="Estudios Hijos" url={formData.url_constancia_estudios} onDelete={() => handleDeleteDoc('url_constancia_estudios')} isEditing={isEditing} onUpload={(f:File)=>handleAdminDocUpload(f, 'url_constancia_estudios')} />
                             </div>
                         </Section>
-                        <Section title="Firma Registrada" icon={<PenTool size={18}/>}>
+                        <Section title="Firma Registrada" icon={<AdminGifIcon folder="icons" name="firma.gif" size={20} variant="bare"/>}>
                                 <div className="border border-dashed border-slate-300 rounded-lg p-4 bg-slate-50 flex justify-center">
                                     {getSignatureUrl(formData) ? (
                                     <NormalizedSignatureImage src={getSignatureUrl(formData) || ''} alt="Firma" className="max-h-24 object-contain" />

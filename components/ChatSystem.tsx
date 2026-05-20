@@ -195,21 +195,21 @@ export default function ChatSystem({ workerId, workerName, currentUserId, isAdmi
                 whileHover={{ scale: 1.08, y: -2 }}
                 whileTap={{ scale: 0.94 }}
                 onClick={() => setIsMinimized(false)}
-                className="fixed bottom-6 right-6 w-16 h-16 bg-white/85 backdrop-blur-xl rounded-full shadow-2xl shadow-red-900/30 flex items-center justify-center z-50 border-2 border-white ring-1 ring-red-200/70"
+                className="fixed bottom-6 right-6 w-16 h-16 bg-[#0B1220] rounded-full shadow-2xl shadow-slate-900/30 flex items-center justify-center z-50 border border-white/10"
             >
                 {/* Halo animado */}
                 <motion.span
                     aria-hidden
-                    className="absolute inset-0 rounded-full bg-gradient-to-br from-red-400/40 to-red-700/40"
-                    animate={{ scale: [1, 1.18, 1], opacity: [0.55, 0, 0.55] }}
-                    transition={{ duration: 2.2, repeat: Infinity, ease: 'easeOut' }}
+                    className="absolute inset-0 rounded-full bg-emerald-400/30"
+                    animate={{ scale: [1, 1.22, 1], opacity: [0.5, 0, 0.5] }}
+                    transition={{ duration: 2.4, repeat: Infinity, ease: 'easeOut' }}
                 />
                 {/* Halo extra cuando hay no leídos */}
                 {unreadCount > 0 && (
                     <motion.span
                         aria-hidden
-                        className="absolute inset-0 rounded-full ring-2 ring-red-400/60"
-                        animate={{ scale: [1, 1.35], opacity: [0.7, 0] }}
+                        className="absolute inset-0 rounded-full ring-2 ring-emerald-400/60"
+                        animate={{ scale: [1, 1.35], opacity: [0.75, 0] }}
                         transition={{ duration: 1.4, repeat: Infinity, ease: 'easeOut' }}
                     />
                 )}
@@ -218,14 +218,14 @@ export default function ChatSystem({ workerId, workerName, currentUserId, isAdmi
                     <AnimatedIcon name="chat" size={36} bounceOnMount={false} />
 
                     {/* INDICADOR DE CONEXIÓN */}
-                    <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${isConnected ? 'bg-green-400' : 'bg-amber-400'}`}></span>
+                    <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#0B1220] ${isConnected ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.7)]' : 'bg-amber-400'}`}></span>
 
                     {/* CONTADOR DE MENSAJES NO LEÍDOS */}
                     {unreadCount > 0 && (
                         <motion.div
                             initial={{ scale: 0 }}
                             animate={{ scale: 1 }}
-                            className="absolute -top-2.5 -right-2.5 bg-gradient-to-br from-red-600 to-red-900 text-white text-xs font-extrabold w-6 h-6 flex items-center justify-center rounded-full border-2 border-white shadow-md ring-1 ring-red-300"
+                            className="absolute -top-2.5 -right-2.5 bg-emerald-500 text-white text-xs font-extrabold w-6 h-6 flex items-center justify-center rounded-full border-2 border-[#0B1220] shadow-md"
                         >
                             {unreadCount > 9 ? '+9' : unreadCount}
                         </motion.div>
@@ -239,14 +239,14 @@ export default function ChatSystem({ workerId, workerName, currentUserId, isAdmi
 
     // Estilos dinámicos según quién lo ve
     const containerStyle = isAdmin
-        ? "fixed inset-y-0 right-0 w-full max-w-md bg-white/85 backdrop-blur-xl shadow-2xl z-[70] border-l border-white/60 ring-1 ring-stone-900/5 flex flex-col"
-        : "fixed bottom-24 right-6 w-80 md:w-96 h-[520px] bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl shadow-red-900/20 z-50 border border-white/60 ring-1 ring-stone-900/5 flex flex-col overflow-hidden"
+        ? "fixed inset-y-0 right-0 w-full max-w-md bg-white shadow-[0_-12px_60px_rgba(15,23,42,0.18)] z-[70] border-l border-slate-200/80 flex flex-col"
+        : "fixed bottom-24 right-6 w-80 md:w-96 h-[520px] bg-white rounded-3xl shadow-2xl shadow-slate-900/15 z-50 border border-slate-200/70 flex flex-col overflow-hidden"
 
     return (
         <AnimatePresence>
             {!isMinimized && (
                 <>
-                    {isAdmin && <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} onClick={onClose} className="fixed inset-0 bg-stone-900/30 z-[65] backdrop-blur-sm" />}
+                    {isAdmin && <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} onClick={onClose} className="fixed inset-0 bg-slate-900/40 z-[65] backdrop-blur-sm" />}
 
                     <motion.div
                         initial={isAdmin ? { x: "100%" } : { opacity: 0, y: 20, scale: 0.95 }}
@@ -255,27 +255,29 @@ export default function ChatSystem({ workerId, workerName, currentUserId, isAdmi
                         transition={{ type: "spring", damping: 25, stiffness: 300 }}
                         className={containerStyle}
                     >
-                        {/* HEADER GLASS CRIMSON */}
-                        <div className="relative overflow-hidden p-4 flex justify-between items-center shrink-0 text-white">
-                            <div className="absolute inset-0 bg-gradient-to-br from-red-700 via-red-900 to-zinc-900 -z-10"/>
+                        {/* HEADER · charcoal minimalista + accent emerald */}
+                        <div className="relative overflow-hidden px-5 py-4 flex justify-between items-center shrink-0 text-white border-b border-slate-800/50">
+                            <div className="absolute inset-0 bg-[#0B1220] -z-10"/>
                             <motion.div
                                 aria-hidden
-                                animate={{ scale: [1, 1.15, 1], opacity: [0.3, 0.55, 0.3] }}
-                                transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }}
-                                className="absolute -top-10 -right-10 w-40 h-40 bg-white/15 rounded-full blur-2xl pointer-events-none"
+                                animate={{ scale: [1, 1.18, 1], opacity: [0.15, 0.3, 0.15] }}
+                                transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
+                                className="absolute -top-12 -right-12 w-44 h-44 bg-emerald-400/20 rounded-full blur-3xl pointer-events-none"
                             />
-                            <div className="relative flex items-center gap-3 z-10">
-                                <div className="w-11 h-11 rounded-xl flex items-center justify-center font-black bg-white/95 text-red-700 shadow-md ring-1 ring-white/40">
-                                    {isAdmin ? workerName.charAt(0) : <ShieldCheck size={20}/>}
+                            <div className="relative flex items-center gap-3 z-10 min-w-0">
+                                <div className="relative shrink-0">
+                                    <div className="w-11 h-11 rounded-2xl flex items-center justify-center font-black bg-white/10 text-emerald-300 border border-white/15 backdrop-blur-sm">
+                                        {isAdmin ? workerName.charAt(0) : <ShieldCheck size={18}/>}
+                                    </div>
+                                    <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full ring-2 ring-[#0B1220] ${isConnected ? 'bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.7)]' : 'bg-amber-400'}`}></span>
                                 </div>
-                                <div>
-                                    <span className="text-[9px] font-bold uppercase tracking-[0.22em] text-white/55">00 — {isAdmin ? 'Trabajador' : 'Soporte'}</span>
-                                    <h3 className="font-black text-base tracking-tight text-white leading-tight">
+                                <div className="min-w-0">
+                                    <span className="text-[9px] font-bold uppercase tracking-[0.22em] text-slate-400">{isAdmin ? 'Trabajador' : 'Soporte RUAG'}</span>
+                                    <h3 className="font-black text-[15px] tracking-tight text-white leading-tight truncate uppercase">
                                         {isAdmin ? workerName : 'Administrador'}
                                     </h3>
                                     <div className="flex items-center gap-1.5 mt-0.5">
-                                        <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-red-300 animate-pulse' : 'bg-amber-300'}`}></span>
-                                        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/70">
+                                        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
                                             {isConnected ? 'En línea' : 'Conectando…'}
                                         </p>
                                     </div>
@@ -283,41 +285,45 @@ export default function ChatSystem({ workerId, workerName, currentUserId, isAdmi
                             </div>
                             <button
                                 onClick={() => isAdmin ? onClose() : setIsMinimized(true)}
-                                className="relative z-10 p-2 rounded-xl bg-white/10 backdrop-blur border border-white/20 hover:bg-white/20 text-white/85 transition-colors"
+                                className="relative z-10 flex h-9 w-9 items-center justify-center rounded-xl bg-white/[0.06] border border-white/10 hover:bg-white/[0.12] text-slate-300 hover:text-white transition-colors shrink-0"
                             >
-                                <X size={18} />
+                                <X size={16} />
                             </button>
                         </div>
 
                         {/* MESSAGES LIST */}
-                        <div className="flex-1 overflow-y-auto p-4 space-y-3 scroll-smooth bg-gradient-to-br from-stone-50 via-stone-50/80 to-red-50/40" ref={scrollRef}>
+                        <div className="flex-1 overflow-y-auto px-4 py-5 space-y-2.5 scroll-smooth bg-slate-50/60" ref={scrollRef}>
                             {loading ? (
-                                <div className="flex justify-center py-10"><Loader2 className="animate-spin text-red-700"/></div>
+                                <div className="flex justify-center py-10"><Loader2 className="animate-spin text-emerald-600"/></div>
                             ) : messages.length === 0 ? (
-                                <div className="text-center text-stone-400 text-xs mt-10 space-y-3 py-6">
-                                    <div className="w-14 h-14 bg-white/70 backdrop-blur ring-1 ring-stone-200/60 border border-white/60 rounded-2xl flex items-center justify-center mx-auto text-red-700 shadow-md shadow-red-900/10">
-                                        <MessageSquare size={24}/>
+                                <div className="text-center text-slate-400 text-xs mt-10 space-y-3 py-6">
+                                    <div className="w-14 h-14 bg-white border border-slate-200 rounded-2xl flex items-center justify-center mx-auto text-emerald-600 shadow-sm">
+                                        <MessageSquare size={22}/>
                                     </div>
-                                    <p className="text-[10px] font-bold text-stone-500 uppercase tracking-[0.18em]">SIN MENSAJES</p>
-                                    <p className="text-stone-500 max-w-[200px] mx-auto leading-relaxed">Escribe al administrador para iniciar la conversación.</p>
+                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.18em]">SIN MENSAJES</p>
+                                    <p className="text-slate-500 max-w-[220px] mx-auto leading-relaxed">Empieza la conversación con un saludo.</p>
                                 </div>
                             ) : (
-                                messages.map((msg) => {
+                                messages.map((msg, idx) => {
                                     const isMe = msg.sender_id === currentUserId
+                                    const prevMsg = idx > 0 ? messages[idx - 1] : null
+                                    const samePrev = prevMsg && prevMsg.sender_id === msg.sender_id
                                     return (
-                                        <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                                            <span className={`text-[9px] font-bold uppercase tracking-[0.18em] mb-1 px-1 ${isMe ? 'text-red-700' : 'text-stone-500'}`}>
-                                                {isMe ? 'Tú' : 'Administrador'}
-                                            </span>
+                                        <div key={msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} ${samePrev ? '!mt-0.5' : 'mt-2'}`}>
+                                            {!samePrev && (
+                                                <span className={`text-[9px] font-bold uppercase tracking-[0.18em] mb-1 px-1 ${isMe ? 'text-emerald-700' : 'text-slate-500'}`}>
+                                                    {isMe ? 'Tú' : (isAdmin ? workerName.split(' ')[0] : 'Administrador')}
+                                                </span>
+                                            )}
                                             <div
-                                                className={`max-w-[85%] px-4 py-2.5 text-sm relative group transition-all ${
+                                                className={`max-w-[82%] px-3.5 py-2 text-[13.5px] leading-snug relative transition-all ${
                                                     isMe
-                                                        ? 'bg-gradient-to-br from-red-700 to-red-900 text-white rounded-2xl rounded-br-md shadow-md shadow-red-500/20 ring-1 ring-white/20'
-                                                        : 'bg-white/85 backdrop-blur ring-1 ring-stone-200/70 text-stone-800 border border-white/60 rounded-2xl rounded-bl-md shadow-sm'
+                                                        ? `bg-emerald-600 text-white shadow-sm shadow-emerald-500/20 ${samePrev ? 'rounded-2xl rounded-br-md' : 'rounded-2xl rounded-br-md'}`
+                                                        : `bg-white text-slate-800 border border-slate-200/80 shadow-sm ${samePrev ? 'rounded-2xl rounded-bl-md' : 'rounded-2xl rounded-bl-md'}`
                                                 }`}
                                             >
-                                                <p className="leading-relaxed whitespace-pre-wrap">{msg.content}</p>
-                                                <span className={`text-[10px] block mt-1 text-right opacity-70 ${isMe ? 'text-red-100' : 'text-stone-400'}`}>
+                                                <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+                                                <span className={`text-[10px] block mt-1 text-right opacity-70 ${isMe ? 'text-emerald-100' : 'text-slate-400'}`}>
                                                     {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                 </span>
                                             </div>
@@ -328,18 +334,18 @@ export default function ChatSystem({ workerId, workerName, currentUserId, isAdmi
 
                             {/* BUBBLE INDICATOR (Escribiendo...) */}
                             {isTyping && (
-                                <motion.div initial={{opacity:0, y:10}} animate={{opacity:1, y:0}} className="flex justify-start">
-                                    <div className="bg-white/85 backdrop-blur border border-white/60 ring-1 ring-stone-200/60 rounded-2xl rounded-bl-md px-4 py-3 shadow-sm flex items-center gap-1.5">
-                                        <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-bounce"></span>
-                                        <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-bounce delay-100"></span>
-                                        <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-bounce delay-200"></span>
+                                <motion.div initial={{opacity:0, y:10}} animate={{opacity:1, y:0}} className="flex justify-start mt-2">
+                                    <div className="bg-white border border-slate-200/80 rounded-2xl rounded-bl-md px-4 py-3 shadow-sm flex items-center gap-1.5">
+                                        <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-bounce"></span>
+                                        <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-bounce delay-100"></span>
+                                        <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-bounce delay-200"></span>
                                     </div>
                                 </motion.div>
                             )}
                         </div>
 
                         {/* INPUT FOOTER */}
-                        <form onSubmit={handleSend} className="p-3 bg-white/70 backdrop-blur-xl border-t border-white/60 flex gap-2 shrink-0 items-end">
+                        <form onSubmit={handleSend} className="p-3 bg-white border-t border-slate-200/80 flex gap-2 shrink-0 items-end">
                             <textarea
                                 rows={1}
                                 value={newMessage}
@@ -350,15 +356,15 @@ export default function ChatSystem({ workerId, workerName, currentUserId, isAdmi
                                         handleSend();
                                     }
                                 }}
-                                placeholder="Escribe un mensaje..."
-                                className="flex-1 bg-white/70 backdrop-blur border border-white/60 ring-1 ring-stone-200/60 text-stone-800 text-sm rounded-xl px-4 py-3 placeholder:text-stone-400 focus:outline-none focus:ring-4 focus:ring-red-200/50 focus:border-red-400 focus:bg-white transition-all resize-none max-h-24 scrollbar-hide"
+                                placeholder="Escribe un mensaje…"
+                                className="flex-1 bg-slate-50 border border-slate-200 text-slate-800 text-[13.5px] rounded-xl px-4 py-3 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-emerald-100 focus:border-emerald-400 focus:bg-white transition-all resize-none max-h-24 scrollbar-hide"
                             />
                             <button
                                 type="submit"
                                 disabled={!newMessage.trim() || !isConnected}
-                                className="bg-gradient-to-br from-red-600 to-red-900 text-white p-3 rounded-xl hover:from-red-700 hover:to-red-950 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-red-500/30 ring-1 ring-white/40 h-[46px] w-[46px] flex items-center justify-center active:scale-95"
+                                className="bg-[#0B1220] text-white p-3 rounded-xl hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all h-[46px] w-[46px] flex items-center justify-center active:scale-95 group"
                             >
-                                <Send size={18} />
+                                <Send size={16} className="text-emerald-300 group-hover:translate-x-0.5 transition-transform"/>
                             </button>
                         </form>
                     </motion.div>
