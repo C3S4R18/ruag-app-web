@@ -34,8 +34,8 @@ import { CargoRecomendacionesPrintable } from './CargoRecomendacionesPrintable'
 import { CargoRitPrintable } from './CargoRitPrintable' 
 import { CargoPoliticaPrevencionPrintable } from './CargoPoliticaPrevencionPrintable'
 
-import { 
-  FileText, Search, Download, Trash2, 
+import {
+  FileText, Search, Download, Trash2, Maximize2,
   CheckCircle, ShieldCheck, X, Save, 
   Loader2, Building2, Printer, 
   ChevronLeft, ChevronRight, User, Wallet, HardHat, 
@@ -413,25 +413,28 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
           }
       }).subscribe()
 
-    // Listener de Chat
+    // Listener de Chat — todos los admins reciben TODOS los mensajes de obreros
+    // (independientemente del canal RRHH/SSOMA y sin filtrar por receiver_id).
     const chatChannel = supabase.channel('global-chat-notifications')
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload: any) => {
             const newMsg = payload.new
             if (!newMsg.is_admin) {
                 playChatSound()
-                toast.info("Nuevo mensaje de chat recibido")
+                const channelLabel = newMsg.channel === 'ssoma' ? 'SSOMA' : (newMsg.channel === 'rrhh' ? 'RRHH' : 'Chat')
+                toast.info(`${channelLabel} · Nuevo mensaje del obrero`)
                 setUnreadCounts(prev => ({
                     ...prev,
                     [newMsg.worker_id]: (prev[newMsg.worker_id] || 0) + 1
                 }))
                 setNotifications(prev => [
-                    { 
-                        id: newMsg.id, 
-                        type: 'chat', // TIPO CHAT (SE PUEDE BORRAR)
+                    {
+                        id: newMsg.id,
+                        type: 'chat',
                         worker_id: newMsg.worker_id,
-                        msg: newMsg.content || 'Adjunto enviado',
+                        channel: newMsg.channel || 'general',
+                        msg: `[${channelLabel}] ${newMsg.content || 'Adjunto enviado'}`,
                         time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-                    }, 
+                    },
                     ...prev
                 ])
             }
@@ -945,6 +948,8 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
   
   // SEPARAR NOTIFICACIONES PARA RENDERIZAR
   const chatNotifs = notifications.filter(n => n.type === 'chat')
+  const rrhhNotifs = chatNotifs.filter(n => (n.channel || 'general') !== 'ssoma')
+  const ssomaNotifs = chatNotifs.filter(n => n.channel === 'ssoma')
   const actionNotifs = notifications.filter(n => n.type === 'action')
 
   useEffect(() => { setCurrentPage(1) }, [searchTerm, filterObra, filterEstado])
@@ -1114,28 +1119,66 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
 
                                 <div className="max-h-[400px] overflow-y-auto bg-slate-50/80">
                                     
-                                    {/* SECCIÓN 1: MENSAJES (Borrables) */}
-                                    {chatNotifs.length > 0 && (
+                                    {/* SECCIÓN 1A: MENSAJES RRHH */}
+                                    {rrhhNotifs.length > 0 && (
                                         <div className="mb-2">
                                             <div className="px-4 py-2.5 bg-blue-50/90 border-b border-blue-100 flex justify-between items-center sticky top-0 backdrop-blur-md z-10 shadow-sm">
-                                                <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider flex items-center gap-1.5"><MessageSquare size={14}/> Mensajes Recientes</span>
+                                                <span className="text-[10px] font-bold text-blue-700 uppercase tracking-wider flex items-center gap-1.5">
+                                                    <Briefcase size={12}/> RR.HH. · {rrhhNotifs.length}
+                                                </span>
                                                 <button onClick={handleClearChats} className="text-[10px] bg-white border border-blue-200 px-2 py-1 rounded-md text-blue-600 font-bold hover:bg-blue-600 hover:text-white transition-colors shadow-sm active:scale-95">Limpiar</button>
                                             </div>
                                             <div className="p-2 space-y-2">
                                                 <AnimatePresence mode="popLayout">
-                                                    {chatNotifs.map((notif) => {
-                                                        const w = fichas.find(f => f.user_id === notif.worker_id); 
-                                                        const name = w ? w.nombres.split(' ')[0] : 'Obrero';
+                                                    {rrhhNotifs.map((notif) => {
+                                                        const w = fichas.find(f => f.user_id === notif.worker_id)
+                                                        const name = w ? w.nombres.split(' ')[0] : 'Obrero'
                                                         return (
                                                             <motion.div layout initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, scale: 0.9, x: 20 }} key={notif.id} onClick={() => handleNotificationClick(notif)} className="p-3 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-blue-300 transition-all cursor-pointer group">
                                                                 <div className="flex items-start gap-3">
-                                                                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-100 to-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center text-sm font-bold shrink-0 shadow-inner">{name.charAt(0)}</div>
+                                                                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-100 to-blue-50 border border-blue-200 text-blue-700 flex items-center justify-center text-sm font-bold shrink-0 shadow-inner">{name.charAt(0)}</div>
                                                                     <div className="min-w-0 flex-1">
                                                                         <div className="flex justify-between items-start">
                                                                             <p className="text-sm font-bold text-slate-800 group-hover:text-blue-700 transition-colors truncate pr-2">{name}</p>
                                                                             <span className="text-[9px] font-medium text-slate-400 whitespace-nowrap bg-slate-100 px-1.5 py-0.5 rounded">{notif.time}</span>
                                                                         </div>
                                                                         <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">{notif.msg}</p>
+                                                                        <span className="inline-block mt-1.5 text-[9px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">RR.HH.</span>
+                                                                    </div>
+                                                                </div>
+                                                            </motion.div>
+                                                        )
+                                                    })}
+                                                </AnimatePresence>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* SECCIÓN 1B: MENSAJES SSOMA */}
+                                    {ssomaNotifs.length > 0 && (
+                                        <div className="mb-2">
+                                            <div className="px-4 py-2.5 bg-amber-50/90 border-b border-amber-100 flex justify-between items-center sticky top-0 backdrop-blur-md z-10 shadow-sm">
+                                                <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider flex items-center gap-1.5">
+                                                    <HardHat size={12}/> SSOMA · {ssomaNotifs.length}
+                                                </span>
+                                                <button onClick={handleClearChats} className="text-[10px] bg-white border border-amber-200 px-2 py-1 rounded-md text-amber-700 font-bold hover:bg-amber-600 hover:text-white transition-colors shadow-sm active:scale-95">Limpiar</button>
+                                            </div>
+                                            <div className="p-2 space-y-2">
+                                                <AnimatePresence mode="popLayout">
+                                                    {ssomaNotifs.map((notif) => {
+                                                        const w = fichas.find(f => f.user_id === notif.worker_id)
+                                                        const name = w ? w.nombres.split(' ')[0] : 'Obrero'
+                                                        return (
+                                                            <motion.div layout initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, scale: 0.9, x: 20 }} key={notif.id} onClick={() => handleNotificationClick(notif)} className="p-3 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-amber-300 transition-all cursor-pointer group">
+                                                                <div className="flex items-start gap-3">
+                                                                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-amber-100 to-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center text-sm font-bold shrink-0 shadow-inner">{name.charAt(0)}</div>
+                                                                    <div className="min-w-0 flex-1">
+                                                                        <div className="flex justify-between items-start">
+                                                                            <p className="text-sm font-bold text-slate-800 group-hover:text-amber-800 transition-colors truncate pr-2">{name}</p>
+                                                                            <span className="text-[9px] font-medium text-slate-400 whitespace-nowrap bg-slate-100 px-1.5 py-0.5 rounded">{notif.time}</span>
+                                                                        </div>
+                                                                        <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">{notif.msg}</p>
+                                                                        <span className="inline-block mt-1.5 text-[9px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">SSOMA</span>
                                                                     </div>
                                                                 </div>
                                                             </motion.div>
@@ -1547,6 +1590,7 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
     }))
     const [saving, setSaving] = useState(false)
     const [loadingAction, setLoadingAction] = useState(false)
+    const [photoZoomOpen, setPhotoZoomOpen] = useState(false)
 
     // ESTADO DEL MODAL DE CONFIRMACIÓN EN EL DRAWER
     const [confirmDialog, setConfirmDialog] = useState<{
@@ -1651,14 +1695,25 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
                 <div id="drawer-header" className="h-24 px-8 border-b border-slate-100 flex justify-between items-center bg-white z-10 shrink-0 relative overflow-hidden">
                     <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none"><ShieldCheck size={120} /></div>
                     <div className="flex items-center gap-5 relative z-10">
-                        <div className="relative w-14 h-14 rounded-2xl bg-slate-900 text-white flex items-center justify-center font-bold text-xl shadow-lg shadow-slate-900/20 uppercase overflow-hidden">
+                        <motion.button
+                            type="button"
+                            whileHover={(ficha as any).foto_perfil_url ? { scale: 1.04 } : undefined}
+                            whileTap={(ficha as any).foto_perfil_url ? { scale: 0.96 } : undefined}
+                            onClick={() => { if ((ficha as any).foto_perfil_url) setPhotoZoomOpen(true) }}
+                            className={`relative w-14 h-14 rounded-2xl bg-slate-900 text-white flex items-center justify-center font-bold text-xl shadow-lg shadow-slate-900/20 uppercase overflow-hidden ${(ficha as any).foto_perfil_url ? 'cursor-zoom-in ring-2 ring-emerald-400/0 hover:ring-emerald-400/60 transition-all' : ''}`}
+                        >
                             {(ficha as any).foto_perfil_url ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img src={(ficha as any).foto_perfil_url} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                                <>
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img src={(ficha as any).foto_perfil_url} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                                    <span className="absolute bottom-0 right-0 w-4 h-4 rounded-tl-lg bg-emerald-500 text-white flex items-center justify-center">
+                                        <Maximize2 size={10}/>
+                                    </span>
+                                </>
                             ) : (
                                 <>{ficha.nombres.charAt(0)}{ficha.apellido_paterno.charAt(0)}</>
                             )}
-                        </div>
+                        </motion.button>
                         <div>
                             <h2 className="font-bold text-slate-900 text-2xl leading-none tracking-tight">{ficha.nombres}</h2>
                             <p className="font-medium text-slate-500 text-lg">{ficha.apellido_paterno}</p>
@@ -1787,6 +1842,108 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
                         <button onClick={handleSave} className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 shadow-lg transition-colors active:scale-95">
                             {saving ? <Loader2 className="animate-spin" size={18}/> : <><Save size={18}/> GUARDAR CAMBIOS</>}</button>
                     )}
+                </div>
+            </motion.div>
+
+            {/* Modal zoom de la foto de perfil */}
+            <AnimatePresence>
+                {photoZoomOpen && (ficha as any).foto_perfil_url && (
+                    <ProfilePhotoZoomModal
+                        url={(ficha as any).foto_perfil_url}
+                        workerName={`${ficha.nombres} ${ficha.apellido_paterno}`}
+                        dni={ficha.dni}
+                        onClose={() => setPhotoZoomOpen(false)}
+                    />
+                )}
+            </AnimatePresence>
+        </motion.div>
+    )
+}
+
+function ProfilePhotoZoomModal({ url, workerName, dni, onClose }: { url: string; workerName: string; dni: string; onClose: () => void }) {
+    const handleDownload = async () => {
+        try {
+            const res = await fetch(url, { mode: 'cors' })
+            const blob = await res.blob()
+            const ext = (blob.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg')
+            const safe = workerName.replace(/[^a-z0-9]+/gi, '_').toUpperCase()
+            const filename = `FOTO_${dni}_${safe}.${ext}`
+            const objectUrl = URL.createObjectURL(blob)
+            const link = document.createElement('a')
+            link.href = objectUrl
+            link.download = filename
+            document.body.appendChild(link)
+            link.click()
+            document.body.removeChild(link)
+            setTimeout(() => URL.revokeObjectURL(objectUrl), 500)
+            toast.success('Foto descargada')
+        } catch (e: any) {
+            // Fallback si CORS bloquea el fetch
+            const link = document.createElement('a')
+            link.href = url
+            link.download = `FOTO_${dni}.jpg`
+            link.target = '_blank'
+            link.rel = 'noreferrer'
+            document.body.appendChild(link)
+            link.click()
+            document.body.removeChild(link)
+        }
+    }
+
+    return (
+        <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="fixed inset-0 z-[110] bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-6"
+        >
+            <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                transition={{ type: 'spring', damping: 22, stiffness: 240 }}
+                onClick={(e) => e.stopPropagation()}
+                className="relative w-full max-w-md bg-white rounded-[28px] shadow-2xl shadow-black/40 overflow-hidden border border-white/20"
+            >
+                {/* Header */}
+                <div className="relative p-4 flex items-center justify-between border-b border-slate-200/80 bg-white">
+                    <div className="min-w-0">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-emerald-700">Foto de perfil</p>
+                        <h3 className="font-black text-[14px] text-slate-900 tracking-tight truncate uppercase">{workerName}</h3>
+                    </div>
+                    <button
+                        onClick={onClose}
+                        className="shrink-0 flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition"
+                    >
+                        <X size={16} />
+                    </button>
+                </div>
+
+                {/* Imagen */}
+                <div className="relative bg-slate-50 aspect-square">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                        src={url}
+                        alt={workerName}
+                        className="absolute inset-0 w-full h-full object-contain"
+                    />
+                </div>
+
+                {/* Footer */}
+                <div className="p-4 grid grid-cols-2 gap-2 bg-white border-t border-slate-200/80">
+                    <button
+                        onClick={onClose}
+                        className="py-3 flex items-center justify-center gap-2 text-[12px] font-bold rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50 transition"
+                    >
+                        Cerrar
+                    </button>
+                    <button
+                        onClick={handleDownload}
+                        className="py-3 flex items-center justify-center gap-2 text-[12px] font-bold rounded-xl bg-emerald-500 text-white shadow-lg shadow-emerald-500/30 hover:-translate-y-0.5 transition active:scale-95"
+                    >
+                        <Download size={14}/> Descargar
+                    </button>
                 </div>
             </motion.div>
         </motion.div>

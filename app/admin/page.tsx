@@ -41,7 +41,7 @@ import {
   HeartHandshake, CheckSquare, Square, ExternalLink, ArrowUpDown,
   Award, BookOpen, ShieldAlert, FileSpreadsheet, UserX, Wifi, WifiOff,
   Building, ArrowRightCircle, PlusCircle, Maximize2, FileCheck, Layers, Eye,
-  Minimize2, FolderUp, Paperclip, Download, ChevronLeft, Wrench, ChevronDown
+  Minimize2, FolderUp, Paperclip, Download, ChevronLeft, Wrench, ChevronDown, Clock
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
@@ -458,7 +458,14 @@ export default function AdminPage() {
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'fichas' }, (payload: any) => {
             const newRow = normalizeBiometricFields(payload.new)
             setWorkersData(prev => prev.map(w => w.id === newRow.id ? newRow : w))
-            
+
+            // Drawers abiertos: sincronizar en vivo para que la descarga
+            // del obrero aparezca como "Descargado · hh:mm" sin refrescar.
+            setSelectedWorkerDocs((prev: any) => (prev && prev.id === newRow.id ? { ...prev, ...newRow } : prev))
+            setSelectedWorkerRRHH((prev: any) => (prev && prev.id === newRow.id ? { ...prev, ...newRow } : prev))
+            setSelectedWorkerUpload((prev: any) => (prev && prev.id === newRow.id ? { ...prev, ...newRow } : prev))
+            setSelectedWorkerBiometria((prev: any) => (prev && prev.id === newRow.id ? { ...prev, ...newRow } : prev))
+
             // Si la ficha actualizada pertenece a la obra actual
             if (currentObra && newRow.nombre_obra === currentObra.nombre) {
                 setWorkersInCurrentObra(prev => {
@@ -2395,29 +2402,44 @@ function AdminDocsDrawer({ worker, onClose, onUpdate }: any) {
 
                 <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/50">
                     
-                    {/* SECCIÓN DE DESCARGAS */}
+                    {/* SECCIÓN: SUSTENTO DE DESCARGA (LECTURA OBLIGATORIA) */}
                     <div>
-                        <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-3 pl-1">Documentos de Lectura</p>
-                        <div className="space-y-4">
-                            {SSOMA_DOWNLOADS.map((doc) => (
-                                <div key={doc.id} className={`p-4 rounded-2xl border shadow-sm ${doc.styles.bg} ${doc.styles.border}`}>
-                                    <div className="flex items-start gap-3">
-                                        <div className={`p-2 rounded-lg ${doc.styles.iconBg} ${doc.styles.iconText}`}>
-                                            {doc.icon}
-                                        </div>
-                                        <div>
-                                            <h4 className={`font-bold text-sm ${doc.styles.title}`}>{doc.label}</h4>
-                                            <p className={`text-xs mt-1 leading-relaxed ${doc.styles.desc}`}>{doc.desc}</p>
+                        <div className="flex items-baseline justify-between mb-3 pl-1">
+                            <p className="text-xs text-slate-500 uppercase font-bold tracking-wider">Lectura · Sustento de descarga</p>
+                            <span className="text-[10px] text-slate-400">Visible siempre en la app</span>
+                        </div>
+                        <div className="space-y-3">
+                            {SSOMA_DOWNLOADS.map((doc) => {
+                                const state = (worker.doc_states || {})[doc.id] || {}
+                                const isDownloaded = state.status === 'downloaded'
+                                const when = state.downloaded_at
+                                    ? new Date(state.downloaded_at).toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' })
+                                    : null
+                                return (
+                                    <div key={doc.id} className={`p-4 rounded-2xl border shadow-sm ${isDownloaded ? 'bg-emerald-50/50 border-emerald-200' : 'bg-white border-slate-200'}`}>
+                                        <div className="flex items-start gap-3">
+                                            <div className={`p-2 rounded-lg ${isDownloaded ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                                                {doc.icon}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <h4 className="font-bold text-sm text-slate-800">{doc.label}</h4>
+                                                <p className="text-xs text-slate-500 mt-1 leading-relaxed">{doc.desc}</p>
+                                                <div className="mt-2">
+                                                    {isDownloaded ? (
+                                                        <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 bg-emerald-100 border border-emerald-200 px-2 py-1 rounded-full">
+                                                            <CheckCircle size={12}/> Descargado · {when}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded-full">
+                                                            <Clock size={12}/> Pendiente de descarga
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
-                                    <button 
-                                        onClick={() => sendPdfToWorker(doc)} 
-                                        className={`mt-3 w-full py-2.5 text-white text-xs font-bold rounded-xl transition-colors flex items-center justify-center gap-2 shadow-lg active:scale-95 ${doc.styles.btn}`}
-                                    >
-                                        <Send size={14}/> Enviar PDF al Obrero
-                                    </button>
-                                </div>
-                            ))}
+                                )
+                            })}
                         </div>
                     </div>
 
@@ -2798,69 +2820,50 @@ function AdminRRHHDrawer({ worker, onClose, onUpdate }: any) {
                 
                 <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/50">
                     
-                    {/* SECCIÓN ENVÍO DE PDFS */}
-                    <div className="space-y-4">
-                        <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-2">Envío de Documentos (Lectura)</p>
-                        
-                        {/* RIT */}
-                        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-3">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-purple-100 text-purple-600 rounded-lg"><FileBadge size={20}/></div>
-                                <div>
-                                    <h4 className="font-bold text-slate-800 text-sm">Reglamento Interno (RIT)</h4>
-                                    <p className="text-xs text-slate-500">Lectura obligatoria</p>
-                                </div>
-                            </div>
-                            <button onClick={() => sendPdfToWorker('rit_pdf_download', 'Reglamento Interno de Trabajo')} className="w-full py-2 bg-slate-900 text-white text-xs font-bold rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-center gap-2"><Send size={14}/> Enviar RIT</button>
+                    {/* SECCIÓN: SUSTENTO DE DESCARGA (LECTURA OBLIGATORIA RRHH) */}
+                    <div className="space-y-3">
+                        <div className="flex items-baseline justify-between mb-1">
+                            <p className="text-xs text-slate-500 uppercase font-bold tracking-wider">Lectura · Sustento de descarga</p>
+                            <span className="text-[10px] text-slate-400">Visible siempre en la app</span>
                         </div>
-
-                        {/* POLÍTICA HOSTIGAMIENTO */}
-                        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-3">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-pink-100 text-pink-600 rounded-lg"><ShieldCheck size={20}/></div>
-                                <div>
-                                    <h4 className="font-bold text-slate-800 text-sm">Política Hostigamiento</h4>
-                                    <p className="text-xs text-slate-500">Prevención y sanción</p>
-                                </div>
-                            </div>
-                            <button onClick={() => sendPdfToWorker('hostigamiento_pdf_download', 'Política de Hostigamiento Sexual')} className="w-full py-2 bg-slate-900 text-white text-xs font-bold rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-center gap-2"><Send size={14}/> Enviar Política</button>
-                        </div>
-
-                        {/* DECLARACIÓN BENEFICIARIOS */}
-                        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-3">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-orange-100 text-orange-600 rounded-lg"><HeartHandshake size={20}/></div>
-                                <div>
-                                    <h4 className="font-bold text-slate-800 text-sm">Declaración Beneficiarios</h4>
-                                    <p className="text-xs text-slate-500">Vida Ley D. LEG. 688</p>
-                                </div>
-                            </div>
-                            <button onClick={() => sendPdfToWorker('beneficiarios_pdf_download', 'Declaración de Beneficiarios Vida Ley')} className="w-full py-2 bg-slate-900 text-white text-xs font-bold rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-center gap-2"><Send size={14}/> Enviar Declaración</button>
-                        </div>
-
-                        {/* ÉTICA */}
-                        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-3">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-sky-100 text-sky-600 rounded-lg"><BookOpen size={20}/></div>
-                                <div>
-                                    <h4 className="font-bold text-slate-800 text-sm">Código de Ética y Conducta</h4>
-                                    <p className="text-xs text-slate-500">Normas de comportamiento</p>
-                                </div>
-                            </div>
-                            <button onClick={() => sendPdfToWorker('etica_pdf_download', 'Código de Ética y Conducta')} className="w-full py-2 bg-slate-900 text-white text-xs font-bold rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-center gap-2"><Send size={14}/> Enviar Código</button>
-                        </div>
-
-                        {/* ANTISOBORNO */}
-                        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-3">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-rose-100 text-rose-600 rounded-lg"><ShieldAlert size={20}/></div>
-                                <div>
-                                    <h4 className="font-bold text-slate-800 text-sm">Política Antisoborno</h4>
-                                    <p className="text-xs text-slate-500">Prevención de corrupción</p>
-                                </div>
-                            </div>
-                            <button onClick={() => sendPdfToWorker('antisoborno_pdf_download', 'Política Antisoborno')} className="w-full py-2 bg-slate-900 text-white text-xs font-bold rounded-xl hover:bg-slate-800 transition-colors flex items-center justify-center gap-2"><Send size={14}/> Enviar Política</button>
-                        </div>
+                        {(() => {
+                            const RRHH_LECTURA = [
+                                { id: 'rit_pdf_download', label: 'Reglamento Interno (RIT)', desc: 'Lectura obligatoria', bg: 'bg-purple-100', fg: 'text-purple-600', icon: <FileBadge size={20}/> },
+                                { id: 'hostigamiento_pdf_download', label: 'Política Hostigamiento', desc: 'Prevención y sanción', bg: 'bg-pink-100', fg: 'text-pink-600', icon: <ShieldCheck size={20}/> },
+                                { id: 'beneficiarios_pdf_download', label: 'Declaración Beneficiarios', desc: 'Vida Ley D. LEG. 688', bg: 'bg-orange-100', fg: 'text-orange-600', icon: <HeartHandshake size={20}/> },
+                                { id: 'etica_pdf_download', label: 'Código de Ética y Conducta', desc: 'Normas de comportamiento', bg: 'bg-sky-100', fg: 'text-sky-600', icon: <BookOpen size={20}/> },
+                                { id: 'antisoborno_pdf_download', label: 'Política Antisoborno', desc: 'Prevención de corrupción', bg: 'bg-rose-100', fg: 'text-rose-600', icon: <ShieldAlert size={20}/> },
+                            ]
+                            return RRHH_LECTURA.map((doc) => {
+                                const state = docStates[doc.id] || {}
+                                const isDownloaded = state.status === 'downloaded'
+                                const when = state.downloaded_at
+                                    ? new Date(state.downloaded_at).toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' })
+                                    : null
+                                return (
+                                    <div key={doc.id} className={`p-4 rounded-2xl border shadow-sm ${isDownloaded ? 'bg-emerald-50/50 border-emerald-200' : 'bg-white border-slate-200'}`}>
+                                        <div className="flex items-start gap-3">
+                                            <div className={`p-2 rounded-lg ${isDownloaded ? 'bg-emerald-100 text-emerald-700' : `${doc.bg} ${doc.fg}`}`}>{doc.icon}</div>
+                                            <div className="flex-1 min-w-0">
+                                                <h4 className="font-bold text-slate-800 text-sm">{doc.label}</h4>
+                                                <p className="text-xs text-slate-500">{doc.desc}</p>
+                                                <div className="mt-2">
+                                                    {isDownloaded ? (
+                                                        <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 bg-emerald-100 border border-emerald-200 px-2 py-1 rounded-full">
+                                                            <CheckCircle size={12}/> Descargado · {when}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded-full">
+                                                            <Clock size={12}/> Pendiente de descarga
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )
+                            })
+                        })()}
                     </div>
 
                     <div className="h-px bg-slate-200"></div>

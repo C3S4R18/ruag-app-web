@@ -335,7 +335,7 @@ export default function DashboardPage() {
   const router = useRouter()
   
   // ESTADOS PRINCIPALES (Agregado 'uploads')
-  const [activeTab, setActiveTab] = useState<'home' | 'documents' | 'uploads' | 'profile'>('home')
+  const [activeTab, setActiveTab] = useState<'home' | 'documents' | 'uploads' | 'lectura' | 'profile'>('home')
   const [isSidebarOpen, setIsSidebarOpen] = useState(false) 
   const [isDesktop, setIsDesktop] = useState(true)
 
@@ -472,19 +472,8 @@ export default function DashboardPage() {
                         toast.warning(`🔒 Bloqueado: ${docName}`)
                     }
                     
-                    // DETECCIÓN DE DESCARGAS PENDIENTES
-                    if (shouldPromptMandatoryDownload(newDocs[key])) {
-                        const config = MANDATORY_DOWNLOADS[key]
-                        if (config) {
-                            const alreadyInQueue = downloadQueueRef.current.some(item => item.key === key)
-                            if (!alreadyInQueue) {
-                                setDownloadQueue(prev => [...prev, { key, label: config.label, file: config.file }])
-                                void markMandatoryDownloadsPrompted([key])
-                                playNotificationSound()
-                                toast.success(`Documento obligatorio recibido: ${config.label}`)
-                            }
-                        }
-                    }
+                    // Los PDF de lectura ahora estan siempre disponibles.
+                    // El sustento se registra solo cuando el trabajador descarga.
                 })
 
                 // Detectar si el Admin subió un archivo nuevo en 'uploads_state'
@@ -529,23 +518,7 @@ export default function DashboardPage() {
           setProfilePhotoUrl(photoUrl)
           if (!photoUrl) setShowPhotoGate(true)
 
-          // Comprobar descargas pendientes y llenar la cola una sola vez por envío
-          const states = data.doc_states || {}
-          const newQueue: any[] = []
-          const keysToMarkAsPrompted: string[] = []
-          
-          Object.keys(MANDATORY_DOWNLOADS).forEach(key => {
-              if (shouldPromptMandatoryDownload(states[key])) {
-                  const config = MANDATORY_DOWNLOADS[key]
-                  newQueue.push({ key, label: config.label, file: config.file })
-                  keysToMarkAsPrompted.push(key)
-              }
-          })
-          
-          if (newQueue.length > 0) {
-              setDownloadQueue(newQueue)
-              void markMandatoryDownloadsPrompted(keysToMarkAsPrompted)
-          }
+          setDownloadQueue([])
       }
   }
 
@@ -559,8 +532,7 @@ export default function DashboardPage() {
       setNotifications(prev => [newNotif, ...prev])
   }
 
-  const handleDownloadAndNext = async () => {
-      const currentItem = downloadQueue[0]
+  const handleMandatoryDownload = async (currentItem: { key: string, label: string, file: string }) => {
       if (!currentItem) return
 
       const link = document.createElement('a');
@@ -579,22 +551,18 @@ export default function DashboardPage() {
               [currentItem.key]: { 
                   ...(currentStates[currentItem.key] || {}),
                   status: 'downloaded', 
-                  downloaded_at: new Date().toISOString() 
+                  downloaded_at: new Date().toISOString(),
+                  label: currentItem.label,
+                  file: currentItem.file
               } 
           }
           
           await supabase.from('fichas').update({ doc_states: newStates }).eq('id', fichaId)
-          
-          const updatedQueue = downloadQueue.slice(1)
-          setDownloadQueue(updatedQueue)
-          
-          if (updatedQueue.length > 0) {
-              toast.success("Documento descargado. Siguiente...")
-          } else {
-              toast.success("¡Todo listo! Has descargado todos los documentos obligatorios.")
-          }
-          
+
+          docStatesRef.current = newStates
+          setFullWorkerData((prev: any) => prev ? { ...prev, doc_states: newStates } : prev)
           setDocStates(newStates)
+          toast.success(`Descarga registrada: ${currentItem.label}`)
       } catch (e) {
           console.error("Error al confirmar descarga", e)
           toast.error("Error de conexión. Intenta de nuevo.")
@@ -610,8 +578,10 @@ export default function DashboardPage() {
   const totalDocs = allDocKeys.length
   const completedDocs = allDocKeys.filter(key => docStates[key]?.status === 'completed').length
   const unlockedSignDocs = allDocKeys.filter(key => docStates[key]?.status === 'unlocked').length
-  const pendingDownloadsCount = downloadQueue.length
-  const totalPendingAction = unlockedSignDocs + pendingDownloadsCount
+  const pendingMandatoryDownloads = Object.keys(MANDATORY_DOWNLOADS).filter(
+      (k) => docStates[k]?.status !== 'downloaded'
+  ).length
+  const totalPendingAction = unlockedSignDocs
   const progress = totalDocs > 0 ? Math.round((completedDocs / totalDocs) * 100) : 0
 
   return (
@@ -679,6 +649,15 @@ export default function DashboardPage() {
                 label="Archivos SSOMA"
             />
 
+            {/* --- LECTURA OBLIGATORIA (PDFs siempre disponibles) --- */}
+            <NavItem
+                active={activeTab === 'lectura'}
+                onClick={() => { setActiveTab('lectura'); if(!isDesktop) setIsSidebarOpen(false) }}
+                icon={<AnimatedIcon name="actualizarFicha" size={26} bounceOnMount={false}/>}
+                label="Lectura Obligatoria"
+                badge={pendingMandatoryDownloads > 0 ? pendingMandatoryDownloads : undefined}
+            />
+
             <div className="pt-5 pb-2 px-4 text-[10px] font-bold text-emerald-700 uppercase tracking-[0.2em] flex items-center gap-2">
                 <span>Mi Cuenta</span>
                 <span className="flex-1 h-px bg-stone-200" />
@@ -738,6 +717,7 @@ export default function DashboardPage() {
                         {activeTab === 'home' && 'Bienvenido'}
                         {activeTab === 'documents' && 'Firmas Digitales'}
                         {activeTab === 'uploads' && 'Documentos SSOMA'}
+                        {activeTab === 'lectura' && 'Lectura Obligatoria'}
                         {activeTab === 'profile' && 'Configuración de Cuenta'}
                     </h2>
                 </div>
@@ -1128,6 +1108,85 @@ export default function DashboardPage() {
                     </motion.div>
                 )}
 
+                {/* VISTA: LECTURA OBLIGATORIA — PDFs siempre disponibles */}
+                {activeTab === 'lectura' && (
+                    <motion.div initial={{opacity:0, y:10}} animate={{opacity:1, y:0}} className="max-w-4xl mx-auto pb-20 space-y-6">
+                        <div className="bg-white/80 backdrop-blur-xl border border-white/60 ring-1 ring-stone-200/60 rounded-3xl p-6 shadow-md shadow-slate-900/5">
+                            <div className="flex items-start justify-between gap-4">
+                                <div>
+                                    <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-emerald-700 mb-2">Lectura · Obligatoria</p>
+                                    <h2 className="text-2xl font-black tracking-tight text-stone-900">Documentos para leer</h2>
+                                    <p className="text-sm text-stone-500 mt-2 leading-relaxed">
+                                        Estos PDF están siempre disponibles. Cada vez que descargues uno, queda registrado como evidencia de que lo recibiste.
+                                    </p>
+                                </div>
+                                <div className="hidden sm:flex flex-col items-end shrink-0">
+                                    <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-stone-500">Pendientes</span>
+                                    <span className="text-3xl font-black text-stone-900 leading-none mt-1">{pendingMandatoryDownloads.toString().padStart(2, '0')}</span>
+                                    <span className="text-[10px] text-stone-400 mt-1">de {Object.keys(MANDATORY_DOWNLOADS).length}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {Object.entries(MANDATORY_DOWNLOADS).map(([key, cfg]) => {
+                                const state = docStates[key] || {}
+                                const isDownloaded = state.status === 'downloaded'
+                                const downloadedAt = state.downloaded_at
+                                    ? new Date(state.downloaded_at).toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' })
+                                    : null
+                                return (
+                                    <motion.div
+                                        key={key}
+                                        initial={{opacity:0, y:8}} animate={{opacity:1, y:0}}
+                                        className={`relative overflow-hidden rounded-2xl border bg-white/80 backdrop-blur shadow-md shadow-slate-900/5 hover:shadow-lg transition-all ${isDownloaded ? 'border-emerald-200' : 'border-stone-200'}`}
+                                    >
+                                        <div className={`absolute left-0 top-4 bottom-4 w-[3px] rounded-r-full ${isDownloaded ? 'bg-gradient-to-b from-emerald-400 to-emerald-700' : 'bg-gradient-to-b from-stone-400 to-stone-600'}`}/>
+                                        <div className="p-5 pl-6">
+                                            <div className="flex items-start gap-3">
+                                                <div className={`p-2.5 rounded-xl shrink-0 ${isDownloaded ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' : 'bg-stone-100 text-stone-600 ring-1 ring-stone-200'}`}>
+                                                    <FileBadge size={20}/>
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <h3 className="font-extrabold text-sm text-stone-900 leading-tight">{cfg.label}</h3>
+                                                    <p className="text-xs text-stone-500 mt-1 truncate">{cfg.file}</p>
+                                                    {isDownloaded && downloadedAt ? (
+                                                        <p className="text-[11px] text-emerald-700 mt-2 font-bold flex items-center gap-1.5">
+                                                            <CheckCircle size={12}/> Descargado · {downloadedAt}
+                                                        </p>
+                                                    ) : (
+                                                        <p className="text-[11px] text-amber-700 mt-2 font-bold flex items-center gap-1.5">
+                                                            <Clock size={12}/> Pendiente de descarga
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <button
+                                                onClick={() => handleMandatoryDownload({ key, label: cfg.label, file: cfg.file })}
+                                                className={`mt-4 w-full py-2.5 flex items-center justify-center gap-2 rounded-xl text-[11px] font-extrabold uppercase tracking-[0.18em] transition-all active:scale-95 shadow-md ${
+                                                    isDownloaded
+                                                        ? 'bg-white border border-emerald-300 text-emerald-700 hover:bg-emerald-50'
+                                                        : 'bg-gradient-to-br from-slate-900 to-slate-800 text-white hover:shadow-lg'
+                                                }`}
+                                            >
+                                                <Download size={14}/> {isDownloaded ? 'Descargar de nuevo' : 'Descargar PDF'}
+                                            </button>
+                                        </div>
+                                    </motion.div>
+                                )
+                            })}
+                        </div>
+
+                        <div className="bg-emerald-50/60 border border-emerald-200 rounded-2xl p-4 flex items-start gap-3">
+                            <AlertCircle size={18} className="text-emerald-700 shrink-0 mt-0.5"/>
+                            <p className="text-xs text-emerald-900 leading-relaxed">
+                                <strong>Importante:</strong> cada descarga queda registrada con fecha y hora en tu ficha. El administrador puede consultar este registro como evidencia de que recibiste y descargaste el documento.
+                            </p>
+                        </div>
+                    </motion.div>
+                )}
+
                 {/* VISTA: PERFIL */}
                 {activeTab === 'profile' && (
                     <motion.div initial={{opacity:0, scale:0.95}} animate={{opacity:1, scale:1}} className="max-w-lg mx-auto pb-20 space-y-6">
@@ -1161,17 +1220,9 @@ export default function DashboardPage() {
         )}
       </AnimatePresence>
 
-      {/* --- MODAL DE DESCARGA OBLIGATORIA (COLA DE ESPERA) --- */}
-      <AnimatePresence>
-        {downloadQueue.length > 0 && (
-            <DownloadModal 
-                data={downloadQueue[0]} // Muestra siempre el primero
-                queueCount={downloadQueue.length}
-                onDownload={handleDownloadAndNext}
-                userName={userName}
-            />
-        )}
-      </AnimatePresence>
+      {/* MODAL DE DESCARGA OBLIGATORIA — removido. Ahora los PDF de lectura
+          están siempre disponibles en la pestaña "Lectura Obligatoria"
+          del sidebar. La descarga registra evidencia en doc_states. */}
 
       {/* --- CHAT FLOTANTE --- */}
       {userId && (
