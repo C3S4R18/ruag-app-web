@@ -696,7 +696,7 @@ export default function DashboardPage() {
                 onClick={handleLogout}
                 whileHover={{ x: 2 }}
                 whileTap={{ scale: 0.97 }}
-                className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-stone-600 hover:bg-emerald-50/80 hover:text-emerald-700 hover:ring-1 hover:ring-red-200 backdrop-blur transition-all font-bold text-sm group"
+                className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-stone-600 hover:bg-emerald-50/80 hover:text-emerald-700 hover:ring-1 hover:ring-emerald-200 backdrop-blur transition-all font-bold text-sm group"
             >
                 <motion.span
                     className="inline-flex"
@@ -720,7 +720,7 @@ export default function DashboardPage() {
                 <motion.button
                     onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                     whileTap={{ scale: 0.9 }}
-                    className="lg:hidden p-2 rounded-xl bg-gradient-to-br from-slate-900 to-slate-800 text-white shadow-md shadow-red-500/25 ring-1 ring-white/40"
+                    className="lg:hidden p-2 rounded-xl bg-gradient-to-br from-slate-900 to-slate-800 text-white shadow-md shadow-slate-900/25 ring-1 ring-white/40"
                 >
                     <motion.span
                         className="inline-flex"
@@ -749,7 +749,7 @@ export default function DashboardPage() {
                         onClick={() => { setIsNotifOpen(!isNotifOpen); setNotifications(prev => prev.map(n => ({...n, read: true}))) }}
                         whileHover={{ scale: 1.08 }}
                         whileTap={{ scale: 0.92 }}
-                        className="relative p-2.5 rounded-xl bg-white/70 backdrop-blur border border-white/60 hover:border-red-200 hover:bg-white transition-colors text-stone-700 shadow-sm"
+                        className="relative p-2.5 rounded-xl bg-white/70 backdrop-blur border border-white/60 hover:border-emerald-200 hover:bg-white transition-colors text-stone-700 shadow-sm"
                     >
                         <motion.span
                             className="inline-flex"
@@ -779,7 +779,7 @@ export default function DashboardPage() {
                             <motion.div initial={{opacity:0, y: 10, scale: 0.95}} animate={{opacity:1, y: 0, scale: 1}} exit={{opacity:0, scale: 0.95}} className="absolute right-0 top-12 w-80 bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl shadow-slate-900/10 border border-white/60 overflow-hidden z-50 origin-top-right ring-1 ring-stone-900/5">
                                 <div className="p-3 border-b border-stone-200/60 bg-gradient-to-br from-emerald-50/60 to-stone-50/60 flex justify-between items-center">
                                     <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-[0.18em]">Notificaciones</span>
-                                    <button onClick={() => setNotifications([])} className="text-emerald-700 hover:text-red-900 text-xs font-bold">Borrar</button>
+                                    <button onClick={() => setNotifications([])} className="text-emerald-700 hover:text-slate-900 text-xs font-bold">Borrar</button>
                                 </div>
                                 <div className="max-h-60 overflow-y-auto">
                                     {notifications.length === 0 ? <p className="p-6 text-center text-xs text-stone-400">Sin novedades</p> : notifications.map(n => (
@@ -795,7 +795,7 @@ export default function DashboardPage() {
                     animate={{ scale: 1, rotate: 0 }}
                     transition={{ type: 'spring', stiffness: 260, damping: 18, delay: 0.15 }}
                     whileHover={{ scale: 1.1, boxShadow: '0 0 0 4px rgba(16,185,129,0.18)' }}
-                    className="w-9 h-9 bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-xl flex items-center justify-center font-black border-2 border-white shadow-md ring-1 ring-red-200 cursor-pointer select-none"
+                    className="w-9 h-9 bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-xl flex items-center justify-center font-black border-2 border-white shadow-md ring-1 ring-emerald-200 cursor-pointer select-none"
                 >
                     {userName.charAt(0)}
                 </motion.div>
@@ -925,7 +925,7 @@ export default function DashboardPage() {
                     <motion.div initial={{opacity:0, x: 20}} animate={{opacity:1, x: 0}} className="space-y-8 pb-20">
 
                         {/* HERO COMPACTO con stats */}
-                        <div className="relative overflow-hidden rounded-3xl ring-1 ring-white/15 shadow-xl shadow-red-900/15">
+                        <div className="relative overflow-hidden rounded-3xl ring-1 ring-white/15 shadow-xl shadow-slate-900/15">
                             <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 -z-10"/>
                             <motion.div
                                 aria-hidden
@@ -1038,7 +1038,7 @@ export default function DashboardPage() {
                 {activeTab === 'uploads' && (
                     <motion.div initial={{opacity:0, x: 20}} animate={{opacity:1, x: 0}} className="space-y-8 pb-20">
                         {/* HERO GLASS CRIMSON */}
-                        <div className="relative overflow-hidden rounded-3xl ring-1 ring-white/15 shadow-xl shadow-red-900/15">
+                        <div className="relative overflow-hidden rounded-3xl ring-1 ring-white/15 shadow-xl shadow-slate-900/15">
                             <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 -z-10"/>
                             <motion.div
                                 aria-hidden
@@ -1081,7 +1081,7 @@ export default function DashboardPage() {
                                         transition={{ type: 'spring', stiffness: 380, damping: 22 }}
                                         className={`relative p-5 rounded-2xl border backdrop-blur-xl overflow-hidden transition-all
                                             ${isAvailable
-                                                ? 'bg-white/70 border-red-200 ring-1 ring-white/60 shadow-md shadow-slate-900/5 hover:shadow-xl hover:shadow-red-900/15 hover:border-red-300'
+                                                ? 'bg-white/70 border-emerald-200 ring-1 ring-white/60 shadow-md shadow-slate-900/5 hover:shadow-xl hover:shadow-slate-900/15 hover:border-emerald-300'
                                                 : 'bg-stone-100/60 border-stone-200/60 opacity-70'}`}
                                     >
                                         <div className={`absolute left-0 top-5 bottom-5 w-[3px] rounded-r-full ${isAvailable ? 'bg-gradient-to-b from-emerald-300 to-emerald-600' : 'bg-stone-300'}`}/>
@@ -1089,7 +1089,7 @@ export default function DashboardPage() {
                                             <div className="flex items-center gap-3 min-w-0">
                                                 <span className="text-2xl font-black text-stone-300 leading-none tracking-tight">{(idx+1).toString().padStart(2,'0')}</span>
                                                 <div className={`w-11 h-11 rounded-xl backdrop-blur ring-1 flex items-center justify-center shrink-0
-                                                    ${isAvailable ? 'bg-white/80 text-emerald-700 ring-red-100' : 'bg-white/40 text-stone-400 ring-stone-200/60'}`}>
+                                                    ${isAvailable ? 'bg-white/80 text-emerald-700 ring-emerald-100' : 'bg-white/40 text-stone-400 ring-stone-200/60'}`}>
                                                     <FileText size={20}/>
                                                 </div>
                                                 <div className="min-w-0">
@@ -1110,7 +1110,7 @@ export default function DashboardPage() {
                                                 </div>
                                                 <button
                                                     onClick={() => window.open(fileData.url, '_blank')}
-                                                    className="w-full py-2.5 bg-gradient-to-br from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-900 text-white rounded-xl text-[11px] font-extrabold uppercase tracking-[0.2em] flex items-center justify-center gap-2 transition-all shadow-md shadow-red-500/20 ring-1 ring-white/40 active:scale-95"
+                                                    className="w-full py-2.5 bg-gradient-to-br from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-900 text-white rounded-xl text-[11px] font-extrabold uppercase tracking-[0.2em] flex items-center justify-center gap-2 transition-all shadow-md shadow-slate-900/20 ring-1 ring-white/40 active:scale-95"
                                                 >
                                                     <ExternalLink size={14}/> Ver documento
                                                 </button>
@@ -1215,7 +1215,7 @@ function QuickAction({ icon, label, accent = 'blue', badge, onClick, index = '01
             whileHover={{ y: -3, scale: 1.01 }}
             whileTap={{ scale: 0.98 }}
             transition={{ type: 'spring', stiffness: 380, damping: 20 }}
-            className="group relative bg-white/70 backdrop-blur-xl ring-1 ring-white/60 border border-white/60 rounded-2xl p-5 text-left overflow-hidden shadow-md shadow-slate-900/5 hover:shadow-xl hover:shadow-red-900/15 hover:ring-red-200 transition-all"
+            className="group relative bg-white/70 backdrop-blur-xl ring-1 ring-white/60 border border-white/60 rounded-2xl p-5 text-left overflow-hidden shadow-md shadow-slate-900/5 hover:shadow-xl hover:shadow-slate-900/15 hover:ring-emerald-200 transition-all"
         >
             {/* Línea vertical de acento crimson a la izquierda */}
             <div className="absolute left-0 top-5 bottom-5 w-[3px] bg-gradient-to-b from-emerald-400 to-emerald-600 rounded-r-full"/>
@@ -1309,7 +1309,7 @@ function DocItem({ id, label, state, onClick, type, index }: any) {
             transition={{ type: 'spring', stiffness: 400, damping: 22 }}
             className={`group relative rounded-2xl border cursor-pointer overflow-hidden transition-all
                 ${isCompleted ? 'bg-gradient-to-br from-emerald-50/70 via-white/80 to-white/80 border-emerald-200/80 ring-1 ring-emerald-100/60 hover:shadow-lg hover:shadow-emerald-900/10 hover:border-emerald-300' :
-                  isUnlocked ? 'bg-gradient-to-br from-emerald-50/70 via-white/80 to-white/80 border-emerald-200/80 ring-1 ring-emerald-100/60 shadow-md shadow-slate-900/5 hover:shadow-xl hover:shadow-red-900/15 hover:border-red-300' :
+                  isUnlocked ? 'bg-gradient-to-br from-emerald-50/70 via-white/80 to-white/80 border-emerald-200/80 ring-1 ring-emerald-100/60 shadow-md shadow-slate-900/5 hover:shadow-xl hover:shadow-slate-900/15 hover:border-emerald-300' :
                   'bg-stone-100/50 border-stone-200/60 grayscale opacity-60 hover:opacity-80'}
                 backdrop-blur-xl`}
         >
@@ -1332,7 +1332,7 @@ function DocItem({ id, label, state, onClick, type, index }: any) {
                         transition={{ duration: 0.5 }}
                         className={`relative w-12 h-12 rounded-xl flex items-center justify-center ring-1 transition-colors backdrop-blur
                             ${isCompleted ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' :
-                              isUnlocked ? 'bg-white/90 text-emerald-700 ring-red-200' :
+                              isUnlocked ? 'bg-white/90 text-emerald-700 ring-emerald-200' :
                               'bg-white/40 text-stone-400 ring-stone-200/60'}`}
                     >
                         {isCompleted ? (
@@ -1362,7 +1362,7 @@ function DocItem({ id, label, state, onClick, type, index }: any) {
                             className={`shrink-0 p-1.5 rounded-lg ring-1 transition-colors ${
                                 isLocked ? 'bg-stone-50 text-stone-300 ring-stone-200/60' :
                                 isCompleted ? 'bg-white text-emerald-700 ring-emerald-200 group-hover:bg-emerald-50' :
-                                'bg-white text-emerald-700 ring-red-200 group-hover:bg-emerald-50'
+                                'bg-white text-emerald-700 ring-emerald-200 group-hover:bg-emerald-50'
                             }`}
                         >
                             {isLocked ? <Lock size={14}/> : <ArrowUpRight size={14}/>}
@@ -1379,7 +1379,7 @@ function DocItem({ id, label, state, onClick, type, index }: any) {
                         {/* Estado pill */}
                         <span className={`text-[9px] font-bold uppercase tracking-[0.18em] px-2 py-0.5 rounded-full ring-1 inline-flex items-center gap-1.5 ${
                             isCompleted ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' :
-                            isUnlocked ? 'bg-emerald-50 text-emerald-700 ring-red-200' :
+                            isUnlocked ? 'bg-emerald-50 text-emerald-700 ring-emerald-200' :
                             'bg-stone-50 text-stone-500 ring-stone-200'
                         }`}>
                             <span className={`w-1 h-1 rounded-full ${isCompleted ? 'bg-emerald-600' : isUnlocked ? 'bg-emerald-600 animate-pulse' : 'bg-stone-400'}`}/>
@@ -1404,7 +1404,7 @@ function NavItem({ active, onClick, icon, activeIcon, label, badge }: any) {
             {active && (
                 <motion.span
                     layoutId="nav-active-pill"
-                    className="absolute inset-0 bg-white/70 backdrop-blur-md rounded-xl border border-white/70 shadow-sm shadow-slate-900/10 ring-1 ring-red-200/40"
+                    className="absolute inset-0 bg-white/70 backdrop-blur-md rounded-xl border border-white/70 shadow-sm shadow-slate-900/10 ring-1 ring-emerald-200/40"
                     transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                 />
             )}
