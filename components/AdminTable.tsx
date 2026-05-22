@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import { toast } from 'sonner'
 import { pdf } from '@react-pdf/renderer'
@@ -17,6 +17,7 @@ import DocumentPreviewModal from './DocumentPreviewModal'
 import NormalizedSignatureImage from './NormalizedSignatureImage'
 import WiredLinealIcon from './WiredLinealIcon'
 import AdminGifIcon from './AdminGifIcon'
+import { getExpiryInfo, formatDate, extractDocDates, type ExpiryInfo } from '@/utils/docExpiry'
 
 // --- DOCUMENTOS IMPRIMIBLES SSOMA ---
 import { CargoRisstPrintable } from './CargoRisstPrintable'
@@ -44,7 +45,7 @@ import {
   FileCheck, MessageSquare, Filter, ScanFace, Briefcase, 
   HeartPulse, GraduationCap, UploadCloud, Plus, Users, Zap, Mail,
   MailCheck, Clock, AlertCircle, RotateCcw, Monitor, ArrowUpDown,
-  ArrowRightCircle, FileSpreadsheet, UserX, Cake, CalendarClock, Ban, Check, History, Eye
+  ArrowRightCircle, FileSpreadsheet, UserX, Cake, CalendarClock, Ban, Check, History, Eye, Wand2
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -1102,6 +1103,9 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                     </AnimatePresence>
                 </div>
 
+                {/* --- CAMPANA DE VENCIMIENTOS DE DOCUMENTOS --- */}
+                <VencimientosBell workers={fichas} onSelectWorker={(w:any) => setSelectedFicha(w)} />
+
                 {/* --- CAMPANA DE NOTIFICACIONES MODIFICADA --- */}
                 <div className="relative" id="tour-notifications">
                     <button onClick={() => setShowNotifDropdown(!showNotifDropdown)} className={`relative p-2.5 rounded-xl border transition-all ${showNotifDropdown ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
@@ -1360,7 +1364,33 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                                 </div>
                                 <div className="min-w-0">
                                     <p className="truncate text-[13px] font-bold text-slate-800 transition-colors group-hover:text-blue-700">{ficha.apellido_paterno} {ficha.apellido_materno}, {ficha.nombres}</p>
-                                    <div className="flex items-center gap-2 mt-0.5"><span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">{ficha.dni}</span></div>
+                                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                        <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">{ficha.dni}</span>
+                                        {(() => {
+                                            const hasDni = !!(ficha as any).url_dni_frontal
+                                            const hasRetcc = !!(ficha as any).url_carnet
+                                            const hasAntec = !!(ficha as any).url_antecedentes
+                                            const d = getExpiryInfo((ficha as any).dni_fecha_vencimiento, 'dni')
+                                            const r = getExpiryInfo((ficha as any).fecha_vencimiento_retcc, 'retcc')
+                                            const a = getExpiryInfo((ficha as any).antecedentes_fecha_vencimiento, 'antecedentes')
+                                            const candidates = [
+                                                ...(hasDni ? [{ info: d, which: 'DNI' }] : []),
+                                                ...(hasRetcc ? [{ info: r, which: 'RETCC' }] : []),
+                                                ...(hasAntec ? [{ info: a, which: 'ANTEC' }] : []),
+                                            ]
+                                            const worstC = candidates.filter(x => x.info.level === 'vencido' || x.info.level === 'por_vencer')
+                                                .sort((x, y) => (x.info.level === 'vencido' ? -1 : 1))[0]
+                                            if (!worstC) return null
+                                            const worst = worstC.info
+                                            const which = worstC.which
+                                            const s = expiryStyle(worst.level)
+                                            return (
+                                                <span className={`inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border ${s.chip}`} title={worst.detail}>
+                                                    <Clock size={9}/> {which} · {worst.label}
+                                                </span>
+                                            )
+                                        })()}
+                                    </div>
                                 </div>
                             </div>
                         </td>
@@ -1591,6 +1621,77 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
     const [saving, setSaving] = useState(false)
     const [loadingAction, setLoadingAction] = useState(false)
     const [photoZoomOpen, setPhotoZoomOpen] = useState(false)
+    const [analyzingIa, setAnalyzingIa] = useState(false)
+
+    // Re-ejecuta la IA sobre el RETCC y Antecedentes ya subidos (imagen o PDF).
+    const lastDocUrl = (raw: string | null | undefined): string | null => {
+        if (!raw) return null
+        const v = String(raw).trim()
+        if (v.startsWith('[')) {
+            try { const arr = JSON.parse(v); return Array.isArray(arr) && arr.length ? arr[arr.length - 1] : null } catch { return v }
+        }
+        return v
+    }
+
+    const runIaExtraction = async (auto = false) => {
+        setAnalyzingIa(true)
+        try {
+            // En modo automático sólo analizamos lo que aún NO tiene fecha.
+            const needDni = !auto || !formData.dni_fecha_vencimiento
+            const needRetcc = !auto || !formData.fecha_vencimiento_retcc
+            const needAntec = !auto || !formData.antecedentes_fecha_vencimiento
+            const targets: { docType: 'retcc' | 'antecedentes' | 'dni'; url: string | null }[] = [
+                { docType: 'dni', url: needDni ? lastDocUrl(formData.url_dni_frontal) : null },
+                { docType: 'retcc', url: needRetcc ? lastDocUrl(formData.url_carnet) : null },
+                { docType: 'antecedentes', url: needAntec ? lastDocUrl(formData.url_antecedentes) : null },
+            ]
+            const patch: any = {}
+            let detected = 0
+            for (const t of targets) {
+                if (!t.url) continue
+                const dates = await extractDocDates(t.url, t.docType)
+                if (!dates) continue
+                if (t.docType === 'dni') {
+                    if (dates.fecha_caducidad) { patch.dni_fecha_vencimiento = dates.fecha_caducidad; detected++ }
+                } else if (t.docType === 'retcc') {
+                    if (dates.fecha_caducidad) { patch.fecha_vencimiento_retcc = dates.fecha_caducidad; detected++ }
+                    if (dates.fecha_inscripcion) patch.retcc_fecha_inscripcion = dates.fecha_inscripcion
+                } else {
+                    if (dates.fecha_caducidad) { patch.antecedentes_fecha_vencimiento = dates.fecha_caducidad; detected++ }
+                    if (dates.fecha_emision) patch.antecedentes_fecha_emision = dates.fecha_emision
+                }
+            }
+            if (Object.keys(patch).length === 0) {
+                if (!auto) toast.message('La IA no pudo leer fechas. Verifica que el documento se vea claro.')
+                return
+            }
+            const { error } = await supabase.from('fichas').update(patch).eq('id', ficha.id)
+            if (error) { if (!auto) toast.error('No se pudo guardar: ' + error.message); return }
+            setFormData((prev: any) => ({ ...prev, ...patch }))
+            // refresca la fila/ficha en la lista
+            Object.assign(ficha, patch)
+            if (detected > 0) toast.success(`IA: ${detected} fecha(s) de vencimiento detectada(s).`)
+        } catch (e: any) {
+            if (!auto) toast.error('Error al analizar: ' + (e?.message ?? ''))
+        } finally {
+            setAnalyzingIa(false)
+        }
+    }
+
+    // ── Automático: al abrir la ficha, si hay documento subido pero aún sin
+    // fecha de vencimiento, la IA la lee sola (una sola vez por trabajador).
+    const iaAutoRanRef = useRef<string | null>(null)
+    useEffect(() => {
+        if (iaAutoRanRef.current === ficha.id) return
+        const dniNeedsRead = !!formData.url_dni_frontal && !formData.dni_fecha_vencimiento
+        const retccNeedsRead = !!formData.url_carnet && !formData.fecha_vencimiento_retcc
+        const antecNeedsRead = !!formData.url_antecedentes && !formData.antecedentes_fecha_vencimiento
+        if (dniNeedsRead || retccNeedsRead || antecNeedsRead) {
+            iaAutoRanRef.current = ficha.id
+            runIaExtraction(true)
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [ficha.id, formData.url_dni_frontal, formData.url_carnet, formData.url_antecedentes])
 
     // ESTADO DEL MODAL DE CONFIRMACIÓN EN EL DRAWER
     const [confirmDialog, setConfirmDialog] = useState<{
@@ -1806,6 +1907,47 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
                                 <Field label="Teléfono" name="emergencia_celular" val={formData.emergencia_celular} edit={isEditing} set={setFormData}/>
                             </Grid>
                         </Section>
+                        <Section title="Vencimientos (IA)" icon={<AdminGifIcon folder="admin" name="vencimientos-ia.gif" size={22} variant="bare"/>}>
+                            <div className="grid grid-cols-1 gap-3">
+                                {([
+                                    { title: 'DNI', kind: 'dni' as const, missingKey: 'url_dni_frontal', dateKey: 'dni_fecha_vencimiento', extra: undefined as string | undefined },
+                                    { title: 'Carnet RETCC', kind: 'retcc' as const, missingKey: 'url_carnet', dateKey: 'fecha_vencimiento_retcc', extra: formData.retcc_fecha_inscripcion ? `Inscrito: ${formatDate(formData.retcc_fecha_inscripcion)}` : undefined },
+                                    { title: 'Antecedentes / Certiadulto', kind: 'antecedentes' as const, missingKey: 'url_antecedentes', dateKey: 'antecedentes_fecha_vencimiento', extra: formData.antecedentes_fecha_emision ? `Emitido: ${formatDate(formData.antecedentes_fecha_emision)}` : undefined },
+                                ]).map((row) => (
+                                    <div key={row.dateKey}>
+                                        <ExpiryRow
+                                            title={row.title}
+                                            missing={!formData[row.missingKey]}
+                                            info={getExpiryInfo(formData[row.dateKey], row.kind)}
+                                            extra={row.extra}
+                                        />
+                                        {isEditing && (
+                                            <div className="mt-1.5 flex items-center gap-2 px-1">
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide shrink-0">Corregir fecha:</span>
+                                                <input
+                                                    type="date"
+                                                    value={formData[row.dateKey] ? String(formData[row.dateKey]).slice(0, 10) : ''}
+                                                    onChange={(e) => setFormData((prev: any) => ({ ...prev, [row.dateKey]: e.target.value || null }))}
+                                                    className="flex-1 text-xs font-semibold text-slate-700 border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:border-slate-400"
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                                <button
+                                    type="button"
+                                    onClick={() => runIaExtraction(false)}
+                                    disabled={analyzingIa || (!formData.url_carnet && !formData.url_antecedentes)}
+                                    className="mt-1 w-full py-3 flex items-center justify-center gap-2 rounded-2xl bg-slate-900 text-white text-[11px] font-bold uppercase tracking-[0.18em] shadow-lg hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98]"
+                                >
+                                    {analyzingIa ? <Loader2 size={15} className="animate-spin"/> : <Wand2 size={15}/>}
+                                    {analyzingIa ? 'Leyendo con IA…' : 'Re-analizar fechas con IA'}
+                                </button>
+                                <p className="text-[10px] text-slate-400 text-center leading-snug">
+                                    El análisis es automático al abrir la ficha. Usa este botón solo para volver a leer el Carnet RETCC y Antecedentes (imagen o PDF).
+                                </p>
+                            </div>
+                        </Section>
                         <Section title="Documentos Adjuntos" icon={<AdminGifIcon folder="icons" name="docs.gif" size={20} variant="bare"/>}>
                             <div className="grid grid-cols-2 gap-4">
                                 <DocumentCard label="DNI (Frontal y Reverso)" url={formData.url_dni_frontal} onDelete={() => handleDeleteDoc('url_dni_frontal')} isEditing={isEditing} onUpload={(f:File)=>handleAdminDocUpload(f, 'url_dni_frontal')} />
@@ -1857,6 +1999,154 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
                 )}
             </AnimatePresence>
         </motion.div>
+    )
+}
+
+// Estilos por nivel de vigencia
+function VencimientosBell({ workers, onSelectWorker }: { workers: any[]; onSelectWorker: (w: any) => void }) {
+    const [open, setOpen] = useState(false)
+
+    const alerts = useMemo(() => {
+        const out: { worker: any; doc: string; level: 'vencido' | 'por_vencer'; label: string; days: number }[] = []
+        for (const w of workers || []) {
+            const checks: { has: boolean; iso: any; kind: 'dni' | 'retcc' | 'antecedentes'; doc: string }[] = [
+                { has: !!w.url_dni_frontal, iso: w.dni_fecha_vencimiento, kind: 'dni', doc: 'DNI' },
+                { has: !!w.url_carnet, iso: w.fecha_vencimiento_retcc, kind: 'retcc', doc: 'Carnet RETCC' },
+                { has: !!w.url_antecedentes, iso: w.antecedentes_fecha_vencimiento, kind: 'antecedentes', doc: 'Antecedentes' },
+            ]
+            for (const c of checks) {
+                if (!c.has) continue
+                const info = getExpiryInfo(c.iso, c.kind)
+                if (info.level === 'vencido' || info.level === 'por_vencer')
+                    out.push({ worker: w, doc: c.doc, level: info.level, label: info.label, days: info.days ?? 0 })
+            }
+        }
+        return out.sort((x, y) => {
+            if (x.level !== y.level) return x.level === 'vencido' ? -1 : 1
+            return x.days - y.days
+        })
+    }, [workers])
+
+    const vencidos = alerts.filter(a => a.level === 'vencido').length
+    const total = alerts.length
+
+    return (
+        <div className="relative" id="tour-vencimientos">
+            <button
+                onClick={() => setOpen(v => !v)}
+                className={`relative p-1.5 rounded-xl border transition-all ${open ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-200 hover:bg-slate-50'}`}
+                title="Vencimientos de documentos"
+            >
+                <AdminGifIcon name="vencimiento-documentos.gif" size={26} variant="bare" />
+                {total > 0 && (
+                    <span className={`absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-black text-white flex items-center justify-center border-2 border-white ${vencidos > 0 ? 'bg-rose-500' : 'bg-amber-500'}`}>
+                        {total}
+                    </span>
+                )}
+                {vencidos > 0 && (
+                    <motion.span
+                        className="absolute -top-1.5 -right-1.5 w-[18px] h-[18px] rounded-full bg-rose-500/60"
+                        animate={{ scale: [1, 1.9], opacity: [0.7, 0] }}
+                        transition={{ duration: 1.5, repeat: Infinity, ease: 'easeOut' }}
+                    />
+                )}
+            </button>
+
+            <AnimatePresence>
+                {open && (
+                    <>
+                        <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+                        <motion.div
+                            initial={{ opacity: 0, y: 8, scale: 0.97 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 8, scale: 0.97 }}
+                            transition={{ duration: 0.18 }}
+                            className="absolute right-0 top-full mt-3 w-[380px] max-w-[92vw] bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-50 origin-top-right"
+                        >
+                            <div className="p-4 border-b border-slate-100 bg-gradient-to-br from-amber-50/70 to-white flex items-center justify-between">
+                                <div>
+                                    <h4 className="font-black text-slate-900 text-sm flex items-center gap-2">
+                                        <CalendarClock size={16} className="text-amber-600"/> Vencimientos
+                                    </h4>
+                                    <p className="text-[11px] text-slate-500 mt-0.5">
+                                        {total === 0 ? 'Todo al día' : `${vencidos} vencido(s) · ${total - vencidos} por vencer`}
+                                    </p>
+                                </div>
+                                <button onClick={() => setOpen(false)} className="p-1 hover:bg-slate-100 rounded-md"><X size={16} className="text-slate-400"/></button>
+                            </div>
+                            <div className="max-h-[420px] overflow-y-auto bg-slate-50/60">
+                                {total === 0 ? (
+                                    <div className="p-10 text-center text-slate-400">
+                                        <CheckCircle size={28} className="mx-auto mb-2 text-emerald-400"/>
+                                        <p className="text-xs font-medium">Ningún documento por vencer.</p>
+                                    </div>
+                                ) : (
+                                    <div className="p-2 space-y-2">
+                                        {alerts.map((al, i) => {
+                                            const venc = al.level === 'vencido'
+                                            return (
+                                                <button
+                                                    key={i}
+                                                    onClick={() => { onSelectWorker(al.worker); setOpen(false) }}
+                                                    className={`w-full text-left p-3 rounded-xl border bg-white hover:shadow-md transition-all flex items-center gap-3 ${venc ? 'border-rose-200 hover:border-rose-300' : 'border-amber-200 hover:border-amber-300'}`}
+                                                >
+                                                    <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 ${venc ? 'bg-rose-500' : 'bg-amber-500'}`}>
+                                                        {al.worker.nombres?.charAt(0)}{al.worker.apellido_paterno?.charAt(0)}
+                                                    </div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="text-sm font-bold text-slate-800 truncate">{al.worker.apellido_paterno} {al.worker.nombres}</p>
+                                                        <p className="text-[11px] text-slate-500 truncate">{al.doc} · DNI {al.worker.dni || '—'}</p>
+                                                    </div>
+                                                    <span className={`shrink-0 text-[10px] font-bold uppercase px-2 py-1 rounded-full border whitespace-nowrap ${venc ? 'bg-rose-100 text-rose-700 border-rose-200' : 'bg-amber-100 text-amber-700 border-amber-200'}`}>
+                                                        {al.label}
+                                                    </span>
+                                                </button>
+                                            )
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
+        </div>
+    )
+}
+
+function expiryStyle(level: ExpiryInfo['level']) {
+    switch (level) {
+        case 'vencido': return { bg: 'bg-rose-50', border: 'border-rose-200', text: 'text-rose-700', dot: 'bg-rose-500', chip: 'bg-rose-100 text-rose-700 border-rose-200' }
+        case 'por_vencer': return { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-700', dot: 'bg-amber-500', chip: 'bg-amber-100 text-amber-700 border-amber-200' }
+        case 'vigente': return { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700', dot: 'bg-emerald-500', chip: 'bg-emerald-100 text-emerald-700 border-emerald-200' }
+        default: return { bg: 'bg-slate-50', border: 'border-slate-200', text: 'text-slate-500', dot: 'bg-slate-300', chip: 'bg-slate-100 text-slate-500 border-slate-200' }
+    }
+}
+
+function ExpiryRow({ title, info, extra, missing }: { title: string; info: ExpiryInfo; extra?: string; missing?: boolean }) {
+    const s = missing ? expiryStyle('sin_fecha') : expiryStyle(info.level)
+    const pulse = !missing && (info.level === 'vencido' || info.level === 'por_vencer')
+    const detail = missing ? 'Documento no cargado.' : info.detail
+    const label = missing ? 'Sin documento' : info.label
+    return (
+        <div className={`relative overflow-hidden rounded-2xl border ${s.border} ${s.bg} p-3.5`}>
+            <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                        <span className={`relative flex h-2.5 w-2.5`}>
+                            {pulse && <span className={`absolute inline-flex h-full w-full rounded-full ${s.dot} opacity-60 animate-ping`} />}
+                            <span className={`relative inline-flex h-2.5 w-2.5 rounded-full ${s.dot}`} />
+                        </span>
+                        <p className="text-sm font-bold text-slate-800 truncate">{title}</p>
+                    </div>
+                    <p className={`text-[12px] mt-1.5 ${s.text} font-medium leading-snug`}>{detail}</p>
+                    {!missing && extra && <p className="text-[10px] text-slate-400 mt-0.5">{extra}</p>}
+                </div>
+                <span className={`shrink-0 text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full border ${s.chip} whitespace-nowrap`}>
+                    {label}
+                </span>
+            </div>
+        </div>
     )
 }
 

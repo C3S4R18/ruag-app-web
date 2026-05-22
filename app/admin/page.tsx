@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useMemo } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -1033,7 +1033,7 @@ export default function AdminPage() {
                     <AdminGifIcon name="centro-documental.gif" size={22} variant="button" />
                     <span className="hidden md:inline tracking-wide">Centro Documental</span>
                 </button>
-                 
+
                 {/* ADMINS CONECTADOS */}
                 <div className="flex items-center gap-2">
                     <span className="text-[10px] font-bold text-slate-400 uppercase mr-1 hidden md:inline">En línea:</span>

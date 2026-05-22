@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import { getSignatureUrl } from '@/utils/biometric'
+import { extractDocDates } from '@/utils/docExpiry'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 import SignatureCanvas from 'react-signature-canvas'
@@ -477,6 +478,67 @@ export default function FichaForm() {
     if (!error && !silent) toast.success("Progreso guardado")
   }
 
+  // ── IA: lee las fechas de vencimiento del documento recién subido y las
+  // guarda en la ficha. Se ejecuta en segundo plano (no bloquea la subida).
+  const analyzeDocWithAI = async (docType: 'retcc' | 'antecedentes' | 'dni', serializedUrl: string) => {
+      try {
+          const uid = user?.id
+          if (!uid || !serializedUrl) return
+          // serializedUrl puede ser JSON array o url simple; tomamos la última imagen
+          let imageUrl = serializedUrl
+          if (serializedUrl.trim().startsWith('[')) {
+              try {
+                  const arr = JSON.parse(serializedUrl)
+                  imageUrl = Array.isArray(arr) && arr.length ? arr[arr.length - 1] : serializedUrl
+              } catch { /* noop */ }
+          }
+          // Gemini 2.5 lee imágenes y PDFs, así que enviamos cualquiera de los dos.
+          toast.loading('Leyendo fechas del documento con IA…', { id: `ia-${docType}` })
+          const dates = await extractDocDates(imageUrl, docType)
+          toast.dismiss(`ia-${docType}`)
+          if (!dates) {
+              toast.message('No se pudieron leer las fechas automáticamente. El administrador podrá revisarlas.')
+              return
+          }
+
+          const update: any = { ia_meta_patch: true }
+          if (docType === 'retcc') {
+              update.fecha_vencimiento_retcc = dates.fecha_caducidad
+              update.retcc_fecha_inscripcion = dates.fecha_inscripcion
+          } else if (docType === 'dni') {
+              update.dni_fecha_vencimiento = dates.fecha_caducidad
+          } else {
+              update.antecedentes_fecha_vencimiento = dates.fecha_caducidad
+              update.antecedentes_fecha_emision = dates.fecha_emision
+          }
+          delete update.ia_meta_patch
+
+          const { error: upErr } = await supabase.from('fichas').update(update).eq('user_id', uid)
+          if (!upErr) {
+              setFormData((prev: any) => ({ ...prev, ...update }))
+              if (dates.fecha_caducidad) {
+                  toast.success(`Fecha de vencimiento detectada: ${new Date(dates.fecha_caducidad).toLocaleDateString('es-PE')}`)
+              }
+          }
+      } catch {
+          toast.dismiss(`ia-${docType}`)
+      }
+  }
+
+  // Cuando se elimina un documento, también borramos las fechas detectadas por la IA.
+  const clearDocDates = async (docType: 'retcc' | 'antecedentes' | 'dni') => {
+      try {
+          const update: any = docType === 'retcc'
+              ? { fecha_vencimiento_retcc: null, retcc_fecha_inscripcion: null }
+              : docType === 'dni'
+              ? { dni_fecha_vencimiento: null }
+              : { antecedentes_fecha_vencimiento: null, antecedentes_fecha_emision: null }
+          setFormData((prev: any) => ({ ...prev, ...update }))
+          const uid = user?.id
+          if (uid) await supabase.from('fichas').update(update).eq('user_id', uid)
+      } catch { /* noop */ }
+  }
+
   const finalizarFicha = async () => {
     let hasSignature = !!formData.url_firma;
     if (sigPad.current && !sigPad.current.isEmpty()) {
@@ -902,10 +964,10 @@ export default function FichaForm() {
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                         <div className="md:col-span-2">
-                             <ImageUpload label="DNI (Frontal y Reverso)" bucket="documentos" required currentUrl={formData.doc_dni_trabajador} onUpload={(u:any)=>setFormData((prev: any) => ({...prev, doc_dni_trabajador:u}))} />
+                             <ImageUpload label="DNI (Frontal y Reverso)" bucket="documentos" required currentUrl={formData.doc_dni_trabajador} onUpload={(u:any)=>{ setFormData((prev: any) => ({...prev, doc_dni_trabajador:u})); if (u) analyzeDocWithAI('dni', u); else clearDocDates('dni') }} />
                         </div>
-                        <ImageUpload label="Certiadulto (Antecedentes)" bucket="documentos" required currentUrl={formData.doc_certiadulto} onUpload={(u:any)=>setFormData((prev: any) => ({...prev, doc_certiadulto:u}))} />
-                        <ImageUpload label="Carnet RETCC" bucket="documentos" required currentUrl={formData.doc_carnet_retcc} onUpload={(u:any)=>setFormData((prev: any) => ({...prev, doc_carnet_retcc:u}))} />
+                        <ImageUpload label="Certiadulto (Antecedentes)" bucket="documentos" required currentUrl={formData.doc_certiadulto} onUpload={(u:any)=>{ setFormData((prev: any) => ({...prev, doc_certiadulto:u})); if (u) analyzeDocWithAI('antecedentes', u); else clearDocDates('antecedentes') }} />
+                        <ImageUpload label="Carnet RETCC" bucket="documentos" required currentUrl={formData.doc_carnet_retcc} onUpload={(u:any)=>{ setFormData((prev: any) => ({...prev, doc_carnet_retcc:u})); if (u) analyzeDocWithAI('retcc', u); else clearDocDates('retcc') }} />
                         <ImageUpload label="Ant. Policiales" bucket="documentos" currentUrl={formData.doc_policiales} onUpload={(u:any)=>setFormData((prev: any) => ({...prev, doc_policiales:u}))} />
                         <ImageUpload label="Ant. Penales" bucket="documentos" currentUrl={formData.doc_penales} onUpload={(u:any)=>setFormData((prev: any) => ({...prev, doc_penales:u}))} />
                     </div>
@@ -1168,6 +1230,99 @@ function ImageUpload({label, bucket, onUpload, currentUrl, required = false}: an
     )
 }
 
+/**
+ * Realce automático tipo escáner (sin librerías):
+ *  1. Auto-niveles: blanquea el fondo y oscurece el texto (estira el histograma).
+ *  2. Contraste suave alrededor del medio.
+ *  3. Escala de grises opcional (B/N).
+ * Hace que la foto se vea nítida y "escaneada" en vez de una foto plana.
+ */
+function enhanceDocumentCanvas(
+    canvas: HTMLCanvasElement,
+    opts: { grayscale?: boolean; contrast?: number } = {},
+) {
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    const { grayscale = false, contrast = 1.12 } = opts
+    const w = canvas.width
+    const h = canvas.height
+    if (w === 0 || h === 0) return
+
+    const imageData = ctx.getImageData(0, 0, w, h)
+    const data = imageData.data
+    const total = w * h
+
+    // Histograma de luminancia
+    const hist = new Array(256).fill(0)
+    for (let i = 0; i < data.length; i += 4) {
+        const lum = (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114) | 0
+        hist[lum]++
+    }
+    // Percentiles 2% / 98% para los puntos negro y blanco
+    const loCut = total * 0.02
+    const hiCut = total * 0.02
+    let acc = 0
+    let lo = 0
+    for (let v = 0; v < 256; v++) { acc += hist[v]; if (acc >= loCut) { lo = v; break } }
+    acc = 0
+    let hi = 255
+    for (let v = 255; v >= 0; v--) { acc += hist[v]; if (acc >= hiCut) { hi = v; break } }
+    if (hi - lo < 16) { lo = 0; hi = 255 } // imagen muy plana: no estirar
+    const range = hi - lo || 255
+
+    for (let i = 0; i < data.length; i += 4) {
+        for (let c = 0; c < 3; c++) {
+            let v = data[i + c]
+            v = ((v - lo) / range) * 255      // auto-niveles
+            v = (v - 128) * contrast + 128     // contraste
+            data[i + c] = v < 0 ? 0 : v > 255 ? 255 : v
+        }
+        if (grayscale) {
+            const g = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114
+            data[i] = data[i + 1] = data[i + 2] = g
+        }
+    }
+    ctx.putImageData(imageData, 0, 0)
+}
+
+/** Enfoque (unsharp mask) ligero con kernel 3x3 para que el texto se lea más nítido. */
+function sharpenCanvas(canvas: HTMLCanvasElement, amount = 0.6) {
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    const w = canvas.width
+    const h = canvas.height
+    if (w === 0 || h === 0) return
+    // Evita procesar imágenes gigantescas (coste/memoria)
+    if (w * h > 6_000_000) return
+
+    const src = ctx.getImageData(0, 0, w, h)
+    const out = ctx.createImageData(w, h)
+    const s = src.data
+    const o = out.data
+    const c = 1 + 4 * amount
+    const e = -amount
+    for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+            const idx = (y * w + x) * 4
+            if (x === 0 || y === 0 || x === w - 1 || y === h - 1) {
+                o[idx] = s[idx]; o[idx + 1] = s[idx + 1]; o[idx + 2] = s[idx + 2]; o[idx + 3] = s[idx + 3]
+                continue
+            }
+            for (let ch = 0; ch < 3; ch++) {
+                const p = idx + ch
+                let v = s[p] * c
+                    + s[p - 4] * e
+                    + s[p + 4] * e
+                    + s[p - w * 4] * e
+                    + s[p + w * 4] * e
+                o[p] = v < 0 ? 0 : v > 255 ? 255 : v
+            }
+            o[idx + 3] = s[idx + 3]
+        }
+    }
+    ctx.putImageData(out, 0, 0)
+}
+
 // --- MODAL TIPO CAMSCANNER (CORREGIDO AL 100% + DOBLE CARA) ---
 function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => void, onCapture: (file: File) => void, format: 'id-card' | 'a4' }) {
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -1307,13 +1462,16 @@ function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => voi
 
             ctx.translate(canvas.width / 2, canvas.height / 2);
             ctx.rotate((rotation * Math.PI) / 180);
-            
-            if (filter === 'bw') ctx.filter = 'grayscale(100%) contrast(1.2)';
-            if (filter === 'high-contrast') ctx.filter = 'grayscale(100%) contrast(2.0)';
-            
             ctx.drawImage(img, -img.width / 2, -img.height / 2);
-            
-            const processedImage = canvas.toDataURL('image/jpeg', 0.85);
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+            // Realce automático tipo escáner (siempre): blanquea fondo, sube contraste y enfoca.
+            const gray = filter === 'bw' || filter === 'high-contrast';
+            const contrastBoost = filter === 'high-contrast' ? 1.5 : filter === 'bw' ? 1.25 : 1.12;
+            enhanceDocumentCanvas(canvas, { grayscale: gray, contrast: contrastBoost });
+            sharpenCanvas(canvas, 0.6);
+
+            const processedImage = canvas.toDataURL('image/jpeg', 0.92);
 
             // --- LÓGICA DE DNI (DOBLE CARA) ---
             if (format === 'id-card' && !capturedSide1) {
@@ -1460,7 +1618,7 @@ function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => voi
                             className="max-w-full max-h-full object-contain shadow-2xl border border-white/5"
                             style={{ 
                                 transform: `rotate(${rotation}deg)`,
-                                filter: filter === 'bw' ? 'grayscale(100%) contrast(1.2)' : filter === 'high-contrast' ? 'grayscale(100%) contrast(2.0)' : 'none',
+                                filter: filter === 'bw' ? 'grayscale(100%) contrast(1.45) brightness(1.05)' : filter === 'high-contrast' ? 'grayscale(100%) contrast(2.0) brightness(1.05)' : 'contrast(1.14) brightness(1.05) saturate(1.05)',
                                 transition: 'filter 0.3s ease, transform 0.3s ease'
                             }}
                         />
@@ -1474,7 +1632,7 @@ function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => voi
                             </button>
                             <button onClick={()=>setFilter(f => f === 'original' ? 'bw' : f === 'bw' ? 'high-contrast' : 'original')} className="text-slate-300 flex flex-col items-center gap-2 text-[10px] font-medium transition-colors hover:text-white group">
                                 <div className={`p-3 rounded-full border ${filter !== 'original' ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-white/5 border-white/5 group-hover:bg-white/10'}`}><Wand2 size={20}/></div>
-                                <span>{filter === 'original' ? 'ORIGINAL' : filter === 'bw' ? 'B/N' : 'REALCE'}</span>
+                                <span>{filter === 'original' ? 'AUTO COLOR' : filter === 'bw' ? 'B/N' : 'ALTO CONTR.'}</span>
                             </button>
                         </div>
 

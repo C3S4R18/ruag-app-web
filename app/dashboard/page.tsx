@@ -10,10 +10,11 @@ import {
   CheckCircle, Save, X, Loader2, AlertCircle, Eye,
   Menu, Home, Key, Mail, ShieldCheck, Download, FileCheck, Briefcase, FileBadge,
   Folder, CloudOff, ExternalLink, Clock, MessageSquareText, Sparkles, ArrowUpRight, Layers3,
-  IdCard, Camera
+  IdCard, Camera, FileWarning
 } from 'lucide-react'
 import AnimatedIcon from '@/components/AnimatedIcon'
 import ProfilePhotoGate from '@/components/ProfilePhotoGate'
+import { getExpiryInfo } from '@/utils/docExpiry'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 
@@ -789,6 +790,8 @@ export default function DashboardPage() {
                 {/* VISTA: HOME */}
                 {activeTab === 'home' && (
                     <motion.div initial={{opacity:0, y: 20}} animate={{opacity:1, y: 0}} className="space-y-8 pb-20">
+                        {/* BANNER DE VENCIMIENTOS (IA) */}
+                        <ExpiryAlertBanner worker={fullWorkerData} />
                         {/* HERO CRIMSON GLASS */}
                         <div className="relative overflow-hidden rounded-3xl ring-1 ring-white/15 shadow-2xl shadow-slate-900/20">
                             {/* fondo gradient */}
@@ -1494,6 +1497,54 @@ function NavItem({ active, onClick, icon, activeIcon, label, badge }: any) {
 }
 
 // --- CARD DE PERFIL ---
+function ExpiryAlertBanner({ worker }: { worker: any }) {
+    if (!worker) return null
+    const items = [
+        ...(worker.url_dni_frontal ? [{ title: 'DNI', info: getExpiryInfo(worker.dni_fecha_vencimiento, 'dni') }] : []),
+        ...(worker.url_carnet ? [{ title: 'Carnet RETCC', info: getExpiryInfo(worker.fecha_vencimiento_retcc, 'retcc') }] : []),
+        ...(worker.url_antecedentes ? [{ title: 'Antecedentes', info: getExpiryInfo(worker.antecedentes_fecha_vencimiento, 'antecedentes') }] : []),
+    ].filter(x => x.info.level === 'vencido' || x.info.level === 'por_vencer')
+
+    if (items.length === 0) return null
+
+    return (
+        <div className="space-y-3">
+            {items.map(({ title, info }) => {
+                const vencido = info.level === 'vencido'
+                return (
+                    <motion.div
+                        key={title}
+                        initial={{ opacity: 0, y: -8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className={`relative overflow-hidden rounded-2xl border p-4 flex items-center gap-4 ${vencido ? 'bg-rose-50 border-rose-200' : 'bg-amber-50 border-amber-200'}`}
+                    >
+                        <motion.div
+                            aria-hidden
+                            className={`absolute -right-8 -top-8 w-28 h-28 rounded-full blur-2xl ${vencido ? 'bg-rose-300/40' : 'bg-amber-300/40'}`}
+                            animate={{ scale: [1, 1.2, 1], opacity: [0.4, 0.7, 0.4] }}
+                            transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+                        />
+                        <motion.div
+                            className={`relative shrink-0 flex h-12 w-12 items-center justify-center rounded-2xl ${vencido ? 'bg-rose-500' : 'bg-amber-500'} text-white shadow-lg`}
+                            animate={{ rotate: [0, -8, 8, -4, 4, 0] }}
+                            transition={{ duration: 1.4, repeat: Infinity, repeatDelay: 2 }}
+                        >
+                            <FileWarning size={22} />
+                        </motion.div>
+                        <div className="relative min-w-0 flex-1">
+                            <p className={`text-[10px] font-bold uppercase tracking-[0.2em] ${vencido ? 'text-rose-700' : 'text-amber-700'}`}>
+                                {vencido ? 'Documento vencido' : 'Por vencer'}
+                            </p>
+                            <p className="text-[15px] font-black text-slate-900 leading-tight mt-0.5">{title} · {info.label}</p>
+                            <p className="text-[12px] text-slate-600 mt-1 leading-snug">{info.detail}</p>
+                        </div>
+                    </motion.div>
+                )
+            })}
+        </div>
+    )
+}
+
 function ProfilePhotoCard({ photoUrl, workerName, onEdit }: { photoUrl: string | null; workerName: string; onEdit: () => void }) {
     return (
         <motion.div
