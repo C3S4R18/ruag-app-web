@@ -5,9 +5,19 @@ export const maxDuration = 30
 
 const GEMINI_MODEL = 'gemini-2.5-flash'
 
-type DocType = 'retcc' | 'antecedentes' | 'dni'
+type DocType = 'retcc' | 'antecedentes' | 'dni' | 'examen_medico'
 
 function buildPrompt(docType: DocType): string {
+    if (docType === 'examen_medico') {
+        return `Eres un extractor de datos de documentos peruanos. La imagen/PDF es un "Certificado de Aptitud Médico Ocupacional" (examen médico ocupacional).
+Extrae EXCLUSIVAMENTE estas dos fechas:
+- "fecha_emision": la fecha de emisión o evaluación del examen. Búscala en etiquetas como "Fec. emisión", "Fecha de evaluación", "Fecha de evaluacion", o la "Fecha" del encabezado del certificado.
+- "fecha_caducidad": la fecha de vencimiento/vigencia del examen. Búscala en etiquetas como "Fec. Caducidad", "Fecha de Caducidad", "Fecha de vigencia", "Válido hasta", "Vence". Si NO hay ninguna fecha de caducidad/vigencia impresa en el documento, devuelve null (NO la inventes ni la calcules).
+Responde SOLO con un objeto JSON válido, sin texto adicional ni markdown, con esta forma exacta:
+{"fecha_emision":"YYYY-MM-DD","fecha_caducidad":"YYYY-MM-DD"}
+Convierte cualquier formato de fecha (dd-mm-yyyy, dd/mm/yyyy, "17 enero 2026", etc.) a ISO YYYY-MM-DD.
+Si una fecha no se ve o no existe, usa null en ese campo.`
+    }
     if (docType === 'dni') {
         return `Eres un extractor de datos de documentos peruanos. La imagen/PDF es un "DNI" (Documento Nacional de Identidad) peruano, frontal y/o reverso.
 Extrae EXCLUSIVAMENTE la fecha de caducidad del documento.
@@ -96,7 +106,7 @@ export async function POST(req: NextRequest) {
         }
 
         const { imageUrl, docType } = (await req.json()) as { imageUrl?: string; docType?: DocType }
-        if (!imageUrl || (docType !== 'retcc' && docType !== 'antecedentes' && docType !== 'dni')) {
+        if (!imageUrl || (docType !== 'retcc' && docType !== 'antecedentes' && docType !== 'dni' && docType !== 'examen_medico')) {
             return NextResponse.json(
                 { ok: false, error: 'Parámetros inválidos (imageUrl, docType).' },
                 { status: 400 },
@@ -140,12 +150,28 @@ export async function POST(req: NextRequest) {
             json?.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
         const parsed = parseJsonLoose(text)
 
+        const fechaEmision = toIso(parsed.fecha_emision)
+        let fechaCaducidad = toIso(parsed.fecha_caducidad)
+        let caducidadInferida = false
+
+        // Examen médico ocupacional: si no trae caducidad impresa pero sí emisión,
+        // la vigencia estándar es 1 año → calculamos emisión + 1 año.
+        if (docType === 'examen_medico' && !fechaCaducidad && fechaEmision) {
+            const d = new Date(fechaEmision)
+            if (!isNaN(d.getTime())) {
+                d.setFullYear(d.getFullYear() + 1)
+                fechaCaducidad = d.toISOString().slice(0, 10)
+                caducidadInferida = true
+            }
+        }
+
         const result = {
             ok: true,
             docType,
-            fecha_emision: toIso(parsed.fecha_emision),
-            fecha_caducidad: toIso(parsed.fecha_caducidad),
+            fecha_emision: fechaEmision,
+            fecha_caducidad: fechaCaducidad,
             fecha_inscripcion: toIso(parsed.fecha_inscripcion),
+            caducidad_inferida: caducidadInferida,
             raw: parsed,
             extracted_at: new Date().toISOString(),
         }

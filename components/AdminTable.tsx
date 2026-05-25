@@ -1107,6 +1107,9 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                 {/* --- CAMPANA DE VENCIMIENTOS DE DOCUMENTOS --- */}
                 <VencimientosBell workers={fichas} onSelectWorker={(w:any) => setSelectedFicha(w)} />
 
+                {/* --- ALERTA MÉDICA (exámenes médicos por vencer / vencidos) --- */}
+                <MedicalAlertBell workers={fichas} onSelectWorker={(w:any) => setSelectedFicha(w)} />
+
                 {/* --- CAMPANA DE NOTIFICACIONES MODIFICADA --- */}
                 <div className="relative" id="tour-notifications">
                     <button onClick={() => setShowNotifDropdown(!showNotifDropdown)} className={`relative p-2.5 rounded-xl border transition-all ${showNotifDropdown ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
@@ -1371,13 +1374,16 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                                             const hasDni = !!(ficha as any).url_dni_frontal
                                             const hasRetcc = !!(ficha as any).url_carnet
                                             const hasAntec = !!(ficha as any).url_antecedentes
+                                            const hasExamen = !!(ficha as any).examen_medico_url
                                             const d = getExpiryInfo((ficha as any).dni_fecha_vencimiento, 'dni')
                                             const r = getExpiryInfo((ficha as any).fecha_vencimiento_retcc, 'retcc')
                                             const a = getExpiryInfo((ficha as any).antecedentes_fecha_vencimiento, 'antecedentes')
+                                            const em = getExpiryInfo((ficha as any).examen_medico_fecha_vencimiento, 'examen_medico')
                                             const candidates = [
                                                 ...(hasDni ? [{ info: d, which: 'DNI' }] : []),
                                                 ...(hasRetcc ? [{ info: r, which: 'RETCC' }] : []),
                                                 ...(hasAntec ? [{ info: a, which: 'ANTEC' }] : []),
+                                                ...(hasExamen ? [{ info: em, which: 'EXM. MÉD' }] : []),
                                             ]
                                             const worstC = candidates.filter(x => x.info.level === 'vencido' || x.info.level === 'por_vencer')
                                                 .sort((x, y) => (x.info.level === 'vencido' ? -1 : 1))[0]
@@ -1623,6 +1629,7 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
     const [loadingAction, setLoadingAction] = useState(false)
     const [photoZoomOpen, setPhotoZoomOpen] = useState(false)
     const [analyzingIa, setAnalyzingIa] = useState(false)
+    const [uploadingExamen, setUploadingExamen] = useState(false)
 
     // Re-ejecuta la IA sobre el RETCC y Antecedentes ya subidos (imagen o PDF).
     const lastDocUrl = (raw: string | null | undefined): string | null => {
@@ -1641,10 +1648,12 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
             const needDni = !auto || !formData.dni_fecha_vencimiento
             const needRetcc = !auto || !formData.fecha_vencimiento_retcc
             const needAntec = !auto || !formData.antecedentes_fecha_vencimiento
-            const targets: { docType: 'retcc' | 'antecedentes' | 'dni'; url: string | null }[] = [
+            const needExamen = !auto || !formData.examen_medico_fecha_vencimiento
+            const targets: { docType: 'retcc' | 'antecedentes' | 'dni' | 'examen_medico'; url: string | null }[] = [
                 { docType: 'dni', url: needDni ? lastDocUrl(formData.url_dni_frontal) : null },
                 { docType: 'retcc', url: needRetcc ? lastDocUrl(formData.url_carnet) : null },
                 { docType: 'antecedentes', url: needAntec ? lastDocUrl(formData.url_antecedentes) : null },
+                { docType: 'examen_medico', url: needExamen ? lastDocUrl(formData.examen_medico_url) : null },
             ]
             const patch: any = {}
             let detected = 0
@@ -1657,6 +1666,9 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
                 } else if (t.docType === 'retcc') {
                     if (dates.fecha_caducidad) { patch.fecha_vencimiento_retcc = dates.fecha_caducidad; detected++ }
                     if (dates.fecha_inscripcion) patch.retcc_fecha_inscripcion = dates.fecha_inscripcion
+                } else if (t.docType === 'examen_medico') {
+                    if (dates.fecha_caducidad) { patch.examen_medico_fecha_vencimiento = dates.fecha_caducidad; detected++ }
+                    if (dates.fecha_emision) patch.examen_medico_fecha_emision = dates.fecha_emision
                 } else {
                     if (dates.fecha_caducidad) { patch.antecedentes_fecha_vencimiento = dates.fecha_caducidad; detected++ }
                     if (dates.fecha_emision) patch.antecedentes_fecha_emision = dates.fecha_emision
@@ -1687,12 +1699,13 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
         const dniNeedsRead = !!formData.url_dni_frontal && !formData.dni_fecha_vencimiento
         const retccNeedsRead = !!formData.url_carnet && !formData.fecha_vencimiento_retcc
         const antecNeedsRead = !!formData.url_antecedentes && !formData.antecedentes_fecha_vencimiento
-        if (dniNeedsRead || retccNeedsRead || antecNeedsRead) {
+        const examenNeedsRead = !!formData.examen_medico_url && !formData.examen_medico_fecha_vencimiento
+        if (dniNeedsRead || retccNeedsRead || antecNeedsRead || examenNeedsRead) {
             iaAutoRanRef.current = ficha.id
             runIaExtraction(true)
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [ficha.id, formData.url_dni_frontal, formData.url_carnet, formData.url_antecedentes])
+    }, [ficha.id, formData.url_dni_frontal, formData.url_carnet, formData.url_antecedentes, formData.examen_medico_url])
 
     // ESTADO DEL MODAL DE CONFIRMACIÓN EN EL DRAWER
     const [confirmDialog, setConfirmDialog] = useState<{
@@ -1772,6 +1785,49 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
             toast.success("Documento subido (Guardar cambios para confirmar)", { id: toastId })
         } catch(e) {
             toast.error("Error al subir", { id: toastId })
+        }
+    }
+
+    // Examen médico: lo sube el ADMIN. Persiste de inmediato y la IA lee la fecha.
+    const handleExamenMedicoUpload = async (file: File) => {
+        if (!file) return
+        setUploadingExamen(true)
+        const toastId = toast.loading("Subiendo examen médico…")
+        try {
+            const fileExt = file.name.split('.').pop() || 'pdf'
+            const fileName = `examen_medico_${ficha.id}_${Date.now()}.${fileExt}`
+            const { error: upErr } = await supabase.storage.from('documentos').upload(fileName, file, { contentType: file.type })
+            if (upErr) throw upErr
+            const { data } = supabase.storage.from('documentos').getPublicUrl(fileName)
+            const url = data.publicUrl
+            // Persistimos la URL y limpiamos fechas anteriores para releer.
+            const base = { examen_medico_url: url, examen_medico_fecha_vencimiento: null, examen_medico_fecha_emision: null }
+            await supabase.from('fichas').update(base).eq('id', ficha.id)
+            setFormData((prev: any) => ({ ...prev, ...base }))
+            Object.assign(ficha, base)
+            toast.loading("Leyendo fecha de vencimiento con IA…", { id: toastId })
+            // IA: leer fechas del examen. El archivo recién subido puede tardar un
+            // instante en estar disponible para el servidor, así que reintentamos.
+            let dates: Awaited<ReturnType<typeof extractDocDates>> = null
+            for (let attempt = 0; attempt < 4; attempt++) {
+                dates = await extractDocDates(url, 'examen_medico')
+                if (dates && dates.fecha_caducidad) break
+                await new Promise((r) => setTimeout(r, 1500))
+            }
+            if (dates && dates.fecha_caducidad) {
+                const patch: any = { examen_medico_fecha_vencimiento: dates.fecha_caducidad }
+                if (dates.fecha_emision) patch.examen_medico_fecha_emision = dates.fecha_emision
+                await supabase.from('fichas').update(patch).eq('id', ficha.id)
+                setFormData((prev: any) => ({ ...prev, ...patch }))
+                Object.assign(ficha, patch)
+                toast.success(`Examen médico vence el ${formatDate(dates.fecha_caducidad)}`, { id: toastId })
+            } else {
+                toast.message("Examen subido. No se detectó la fecha; corrígela manualmente.", { id: toastId })
+            }
+        } catch (e: any) {
+            toast.error("Error al subir el examen médico", { id: toastId })
+        } finally {
+            setUploadingExamen(false)
         }
     }
     return (
@@ -1935,17 +1991,60 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
                                         )}
                                     </div>
                                 ))}
+
+                                {/* EXAMEN MÉDICO — lo sube el ADMIN (no el obrero) */}
+                                <div className="rounded-2xl border border-indigo-200 bg-indigo-50/50 p-3.5 space-y-2.5">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <p className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                                            <span className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center"><HeartPulse size={16}/></span>
+                                            Examen Médico
+                                        </p>
+                                        <label className={`inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide px-3 py-1.5 rounded-lg cursor-pointer transition-all ${uploadingExamen ? 'bg-slate-200 text-slate-400' : 'bg-indigo-600 text-white hover:bg-indigo-700 active:scale-95'}`}>
+                                            <input type="file" accept="image/*,.pdf" className="hidden" disabled={uploadingExamen} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleExamenMedicoUpload(f); e.target.value = '' }} />
+                                            {uploadingExamen ? <Loader2 size={13} className="animate-spin"/> : <UploadCloud size={13}/>}
+                                            {formData.examen_medico_url ? 'Reemplazar' : 'Subir'}
+                                        </label>
+                                    </div>
+                                    {formData.examen_medico_url ? (
+                                        <>
+                                            <ExpiryRow
+                                                title="Aptitud Médico Ocupacional"
+                                                info={getExpiryInfo(formData.examen_medico_fecha_vencimiento, 'examen_medico')}
+                                                extra={formData.examen_medico_fecha_emision ? `Emitido: ${formatDate(formData.examen_medico_fecha_emision)}` : undefined}
+                                            />
+                                            {isEditing && (
+                                                <div className="flex items-center gap-2 px-1">
+                                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide shrink-0">Corregir fecha:</span>
+                                                    <input
+                                                        type="date"
+                                                        value={formData.examen_medico_fecha_vencimiento ? String(formData.examen_medico_fecha_vencimiento).slice(0, 10) : ''}
+                                                        onChange={(e) => setFormData((prev: any) => ({ ...prev, examen_medico_fecha_vencimiento: e.target.value || null }))}
+                                                        className="flex-1 text-xs font-semibold text-slate-700 border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:border-slate-400"
+                                                    />
+                                                </div>
+                                            )}
+                                            <a href={lastDocUrl(formData.examen_medico_url) || '#'} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-[11px] font-bold text-indigo-600 hover:text-indigo-800">
+                                                <FileText size={13}/> Ver examen médico
+                                            </a>
+                                        </>
+                                    ) : (
+                                        <p className="text-[11px] text-slate-500 leading-snug">
+                                            Sube el Certificado de Aptitud Médico Ocupacional (imagen o PDF). La IA leerá automáticamente la fecha de vencimiento y avisará cuando esté por vencer.
+                                        </p>
+                                    )}
+                                </div>
+
                                 <button
                                     type="button"
                                     onClick={() => runIaExtraction(false)}
-                                    disabled={analyzingIa || (!formData.url_carnet && !formData.url_antecedentes)}
+                                    disabled={analyzingIa || (!formData.url_carnet && !formData.url_antecedentes && !formData.url_dni_frontal && !formData.examen_medico_url)}
                                     className="mt-1 w-full py-3 flex items-center justify-center gap-2 rounded-2xl bg-slate-900 text-white text-[11px] font-bold uppercase tracking-[0.18em] shadow-lg hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98]"
                                 >
                                     {analyzingIa ? <Loader2 size={15} className="animate-spin"/> : <Wand2 size={15}/>}
                                     {analyzingIa ? 'Leyendo con IA…' : 'Re-analizar fechas con IA'}
                                 </button>
                                 <p className="text-[10px] text-slate-400 text-center leading-snug">
-                                    El análisis es automático al abrir la ficha. Usa este botón solo para volver a leer el Carnet RETCC y Antecedentes (imagen o PDF).
+                                    El análisis es automático al abrir la ficha. Usa este botón solo para volver a leer DNI, Carnet RETCC, Antecedentes o Examen Médico (imagen o PDF).
                                 </p>
                             </div>
                         </Section>
@@ -2007,29 +2106,41 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
 function VencimientosBell({ workers, onSelectWorker }: { workers: any[]; onSelectWorker: (w: any) => void }) {
     const [open, setOpen] = useState(false)
 
-    const alerts = useMemo(() => {
-        const out: { worker: any; doc: string; level: 'vencido' | 'por_vencer'; label: string; days: number }[] = []
+    // Agrupamos por trabajador: cada persona aparece una sola vez con TODOS
+    // sus documentos por vencer/vencidos juntos.
+    const groups = useMemo(() => {
+        const map = new Map<string, { worker: any; items: { doc: string; level: 'vencido' | 'por_vencer'; label: string; days: number }[] }>()
         for (const w of workers || []) {
-            const checks: { has: boolean; iso: any; kind: 'dni' | 'retcc' | 'antecedentes'; doc: string }[] = [
+            const checks: { has: boolean; iso: any; kind: 'dni' | 'retcc' | 'antecedentes' | 'examen_medico'; doc: string }[] = [
                 { has: !!w.url_dni_frontal, iso: w.dni_fecha_vencimiento, kind: 'dni', doc: 'DNI' },
                 { has: !!w.url_carnet, iso: w.fecha_vencimiento_retcc, kind: 'retcc', doc: 'Carnet RETCC' },
                 { has: !!w.url_antecedentes, iso: w.antecedentes_fecha_vencimiento, kind: 'antecedentes', doc: 'Antecedentes' },
+                { has: !!w.examen_medico_url, iso: w.examen_medico_fecha_vencimiento, kind: 'examen_medico', doc: 'Examen Médico' },
             ]
             for (const c of checks) {
                 if (!c.has) continue
                 const info = getExpiryInfo(c.iso, c.kind)
-                if (info.level === 'vencido' || info.level === 'por_vencer')
-                    out.push({ worker: w, doc: c.doc, level: info.level, label: info.label, days: info.days ?? 0 })
+                if (info.level === 'vencido' || info.level === 'por_vencer') {
+                    const key = String(w.id)
+                    if (!map.has(key)) map.set(key, { worker: w, items: [] })
+                    map.get(key)!.items.push({ doc: c.doc, level: info.level, label: info.label, days: info.days ?? 0 })
+                }
             }
         }
-        return out.sort((x, y) => {
-            if (x.level !== y.level) return x.level === 'vencido' ? -1 : 1
-            return x.days - y.days
+        const arr = Array.from(map.values())
+        // Ordena los documentos dentro de cada trabajador (vencido primero).
+        arr.forEach(g => g.items.sort((a, b) => (a.level !== b.level ? (a.level === 'vencido' ? -1 : 1) : a.days - b.days)))
+        // Ordena los trabajadores por su documento más crítico.
+        arr.sort((x, y) => {
+            const a = x.items[0], b = y.items[0]
+            if (a.level !== b.level) return a.level === 'vencido' ? -1 : 1
+            return a.days - b.days
         })
+        return arr
     }, [workers])
 
-    const vencidos = alerts.filter(a => a.level === 'vencido').length
-    const total = alerts.length
+    const total = groups.reduce((n, g) => n + g.items.length, 0)
+    const vencidos = groups.reduce((n, g) => n + g.items.filter(i => i.level === 'vencido').length, 0)
 
     return (
         <div className="relative" id="tour-vencimientos">
@@ -2082,6 +2193,131 @@ function VencimientosBell({ workers, onSelectWorker }: { workers: any[]; onSelec
                                         <p className="text-xs font-medium">Ningún documento por vencer.</p>
                                     </div>
                                 ) : (
+                                    <div className="p-2 space-y-2.5">
+                                        {groups.map((g, gi) => {
+                                            const worstVenc = g.items[0].level === 'vencido'
+                                            return (
+                                                <button
+                                                    key={gi}
+                                                    onClick={() => { onSelectWorker(g.worker); setOpen(false) }}
+                                                    className={`w-full text-left rounded-xl border bg-white hover:shadow-md transition-all overflow-hidden ${worstVenc ? 'border-rose-200 hover:border-rose-300' : 'border-amber-200 hover:border-amber-300'}`}
+                                                >
+                                                    {/* Cabecera del trabajador */}
+                                                    <div className="flex items-center gap-3 p-3 border-b border-slate-100">
+                                                        <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 ${worstVenc ? 'bg-rose-500' : 'bg-amber-500'}`}>
+                                                            {g.worker.nombres?.charAt(0)}{g.worker.apellido_paterno?.charAt(0)}
+                                                        </div>
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className="text-sm font-bold text-slate-800 truncate">{g.worker.apellido_paterno} {g.worker.nombres}</p>
+                                                            <p className="text-[11px] text-slate-500 truncate">DNI {g.worker.dni || '—'}</p>
+                                                        </div>
+                                                        <span className={`shrink-0 text-[10px] font-black w-6 h-6 flex items-center justify-center rounded-full ${worstVenc ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'}`}>
+                                                            {g.items.length}
+                                                        </span>
+                                                    </div>
+                                                    {/* Documentos del trabajador */}
+                                                    <div className="px-3 py-2 space-y-1.5 bg-slate-50/40">
+                                                        {g.items.map((it, ii) => {
+                                                            const venc = it.level === 'vencido'
+                                                            return (
+                                                                <div key={ii} className="flex items-center justify-between gap-2">
+                                                                    <span className="flex items-center gap-1.5 text-[12px] font-semibold text-slate-700 truncate">
+                                                                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${venc ? 'bg-rose-500' : 'bg-amber-500'}`}/>
+                                                                        {it.doc}
+                                                                    </span>
+                                                                    <span className={`shrink-0 text-[9px] font-bold uppercase px-2 py-0.5 rounded-full border whitespace-nowrap ${venc ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+                                                                        {it.label}
+                                                                    </span>
+                                                                </div>
+                                                            )
+                                                        })}
+                                                    </div>
+                                                </button>
+                                            )
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
+        </div>
+    )
+}
+
+function MedicalAlertBell({ workers, onSelectWorker }: { workers: any[]; onSelectWorker: (w: any) => void }) {
+    const [open, setOpen] = useState(false)
+
+    const alerts = useMemo(() => {
+        const out: { worker: any; level: 'vencido' | 'por_vencer'; label: string; days: number; detail: string }[] = []
+        for (const w of workers || []) {
+            if (!w.examen_medico_url) continue
+            const info = getExpiryInfo(w.examen_medico_fecha_vencimiento, 'examen_medico')
+            if (info.level === 'vencido' || info.level === 'por_vencer')
+                out.push({ worker: w, level: info.level, label: info.label, days: info.days ?? 0, detail: info.detail })
+        }
+        return out.sort((x, y) => {
+            if (x.level !== y.level) return x.level === 'vencido' ? -1 : 1
+            return x.days - y.days
+        })
+    }, [workers])
+
+    const vencidos = alerts.filter(a => a.level === 'vencido').length
+    const total = alerts.length
+
+    return (
+        <div className="relative">
+            <button
+                onClick={() => setOpen(v => !v)}
+                className={`relative p-1.5 rounded-xl border transition-all ${open ? 'bg-indigo-50 border-indigo-200' : 'bg-white border-slate-200 hover:bg-slate-50'}`}
+                title="Alerta médica (exámenes por vencer)"
+            >
+                <AdminGifIcon name="alerta-medica.gif" size={26} variant="bare" />
+                {total > 0 && (
+                    <span className={`absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-black text-white flex items-center justify-center border-2 border-white ${vencidos > 0 ? 'bg-rose-500' : 'bg-amber-500'}`}>
+                        {total}
+                    </span>
+                )}
+                {vencidos > 0 && (
+                    <motion.span
+                        className="absolute -top-1.5 -right-1.5 w-[18px] h-[18px] rounded-full bg-rose-500/60"
+                        animate={{ scale: [1, 1.9], opacity: [0.7, 0] }}
+                        transition={{ duration: 1.5, repeat: Infinity, ease: 'easeOut' }}
+                    />
+                )}
+            </button>
+
+            <AnimatePresence>
+                {open && (
+                    <>
+                        <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+                        <motion.div
+                            initial={{ opacity: 0, y: 8, scale: 0.97 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 8, scale: 0.97 }}
+                            transition={{ duration: 0.18 }}
+                            className="absolute right-0 top-full mt-3 w-[380px] max-w-[92vw] bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-50 origin-top-right"
+                        >
+                            <div className="p-4 border-b border-slate-100 bg-gradient-to-br from-indigo-50/70 to-white flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <AdminGifIcon name="alerta-medica.gif" size={26} variant="bare" />
+                                    <div>
+                                        <h4 className="font-black text-slate-900 text-sm">Alerta Médica</h4>
+                                        <p className="text-[11px] text-slate-500 mt-0.5">
+                                            {total === 0 ? 'Exámenes médicos al día' : `${vencidos} vencido(s) · ${total - vencidos} por vencer`}
+                                        </p>
+                                    </div>
+                                </div>
+                                <button onClick={() => setOpen(false)} className="p-1 hover:bg-slate-100 rounded-md"><X size={16} className="text-slate-400"/></button>
+                            </div>
+                            <div className="max-h-[420px] overflow-y-auto bg-slate-50/60">
+                                {total === 0 ? (
+                                    <div className="p-10 text-center text-slate-400">
+                                        <CheckCircle size={28} className="mx-auto mb-2 text-emerald-400"/>
+                                        <p className="text-xs font-medium">Ningún examen médico por vencer.</p>
+                                    </div>
+                                ) : (
                                     <div className="p-2 space-y-2">
                                         {alerts.map((al, i) => {
                                             const venc = al.level === 'vencido'
@@ -2096,7 +2332,7 @@ function VencimientosBell({ workers, onSelectWorker }: { workers: any[]; onSelec
                                                     </div>
                                                     <div className="min-w-0 flex-1">
                                                         <p className="text-sm font-bold text-slate-800 truncate">{al.worker.apellido_paterno} {al.worker.nombres}</p>
-                                                        <p className="text-[11px] text-slate-500 truncate">{al.doc} · DNI {al.worker.dni || '—'}</p>
+                                                        <p className="text-[11px] text-slate-500 truncate">Examen Médico · DNI {al.worker.dni || '—'}</p>
                                                     </div>
                                                     <span className={`shrink-0 text-[10px] font-bold uppercase px-2 py-1 rounded-full border whitespace-nowrap ${venc ? 'bg-rose-100 text-rose-700 border-rose-200' : 'bg-amber-100 text-amber-700 border-amber-200'}`}>
                                                         {al.label}

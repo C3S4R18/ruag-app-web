@@ -18,6 +18,7 @@ export const EXPIRY_THRESHOLDS = {
     retcc: 30,          // RETCC: avisa 30 días antes
     antecedentes: 15,   // Antecedentes (vigencia 3 meses): avisa 15 días antes
     dni: 60,            // DNI: avisa 60 días antes (renovación toma tiempo)
+    examen_medico: 30,  // Examen médico ocupacional (vigencia ~1 año): avisa 30 días antes
 } as const
 
 export type DocKind = keyof typeof EXPIRY_THRESHOLDS
@@ -26,6 +27,7 @@ const DOC_TITLES: Record<DocKind, string> = {
     retcc: 'Carnet RETCC',
     antecedentes: 'Antecedentes',
     dni: 'DNI',
+    examen_medico: 'Examen Médico',
 }
 
 /**
