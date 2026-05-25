@@ -191,9 +191,13 @@ export default function FichaForm() {
         }
         
         supabase.channel('my-ficha').on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'fichas', filter: `user_id=eq.${user.id}` }, (payload) => {
-            if(payload.new.estado === 'pendiente') { 
-                setIsCompleted(false)
-                toast.info("Edición habilitada") 
+            if(payload.new.estado === 'pendiente') {
+                // Solo avisamos si REALMENTE se reabrió (pasó de completado → pendiente),
+                // no en cada autoguardado mientras el obrero edita.
+                setIsCompleted(prev => {
+                    if (prev) toast.info("Edición habilitada")
+                    return false
+                })
             }
             else if (payload.new.estado === 'completado') {
                 setIsCompleted(true)
@@ -742,9 +746,9 @@ export default function FichaForm() {
   // --- WIZARD EDITABLE ---
   return (
     <div className="min-h-screen relative py-6 px-4 font-sans pb-32">
-      <div className="absolute inset-0 -z-10 bg-gradient-to-br from-stone-100 via-stone-50 to-red-50/40" />
+      <div className="absolute inset-0 -z-10 bg-gradient-to-br from-slate-100 via-slate-50 to-emerald-50/40" />
       <div className="absolute inset-0 -z-10 pointer-events-none" style={{
-          backgroundImage: 'radial-gradient(900px 500px at 90% -10%, rgba(220,38,38,0.10), transparent 60%), radial-gradient(700px 400px at -10% 110%, rgba(120,113,108,0.10), transparent 60%)'
+          backgroundImage: 'radial-gradient(900px 500px at 90% -10%, rgba(16,185,129,0.10), transparent 60%), radial-gradient(700px 400px at -10% 110%, rgba(100,116,139,0.10), transparent 60%)'
       }} />
       <div className="max-w-4xl mx-auto">
 
@@ -753,11 +757,11 @@ export default function FichaForm() {
             initial={{ y: -20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ type: 'spring', stiffness: 220, damping: 22 }}
-            className="bg-white/70 backdrop-blur-xl rounded-3xl p-5 shadow-lg shadow-red-900/10 border border-white/60 ring-1 ring-white/60 mb-6 sticky top-2 z-20"
+            className="bg-white/70 backdrop-blur-xl rounded-3xl p-5 shadow-lg shadow-slate-900/10 border border-white/60 ring-1 ring-white/60 mb-6 sticky top-2 z-20"
         >
             <div className="flex justify-between items-center mb-3">
                 <div className="flex items-center gap-2">
-                    <span className="bg-gradient-to-br from-red-700 to-red-900 text-white text-[10px] font-extrabold px-2.5 py-1 rounded-full uppercase tracking-[0.2em] ring-1 ring-white/40">
+                    <span className="bg-gradient-to-br from-emerald-600 to-emerald-700 text-white text-[10px] font-extrabold px-2.5 py-1 rounded-full uppercase tracking-[0.2em] ring-1 ring-white/40">
                         Paso {currentStep}/5
                     </span>
                     <span className="text-sm font-extrabold text-stone-900 hidden sm:inline tracking-tight">
@@ -769,7 +773,7 @@ export default function FichaForm() {
                     initial={{ scale: 0.6, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ type: 'spring', stiffness: 400, damping: 18 }}
-                    className="text-[11px] font-extrabold text-red-700 bg-white/70 backdrop-blur ring-1 ring-red-200 border border-white/60 px-3 py-1 rounded-full"
+                    className="text-[11px] font-extrabold text-emerald-700 bg-white/70 backdrop-blur ring-1 ring-emerald-200 border border-white/60 px-3 py-1 rounded-full"
                 >
                     {Math.round((currentStep / 5) * 100)}% Completado
                 </motion.span>
@@ -778,7 +782,7 @@ export default function FichaForm() {
                 <motion.div
                     initial={{ width: 0 }}
                     animate={{ width: `${(currentStep / 5) * 100}%` }}
-                    className="absolute inset-y-0 left-0 bg-gradient-to-r from-red-400 via-red-600 to-red-900 rounded-full"
+                    className="absolute inset-y-0 left-0 bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-700 rounded-full"
                     transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
                 />
                 {/* Brillo sutil deslizándose */}
@@ -805,8 +809,8 @@ export default function FichaForm() {
                                 animate={isCurrent ? { scale: [1, 1.08, 1] } : { scale: 1 }}
                                 transition={isCurrent ? { duration: 1.6, repeat: Infinity, ease: 'easeInOut' } : { duration: 0.2 }}
                                 className={`relative w-11 h-11 rounded-full flex items-center justify-center transition-all backdrop-blur ${
-                                    isCurrent ? 'bg-white/80 ring-2 ring-red-500 shadow-lg shadow-red-500/25 border border-white/60' :
-                                    isDone ? 'bg-white/70 ring-1 ring-red-200 border border-white/50' :
+                                    isCurrent ? 'bg-white/80 ring-2 ring-emerald-500 shadow-lg shadow-emerald-500/25 border border-white/60' :
+                                    isDone ? 'bg-white/70 ring-1 ring-emerald-200 border border-white/50' :
                                     'bg-stone-100/60 ring-1 ring-stone-200/60 grayscale opacity-50'
                                 }`}
                             >
@@ -824,14 +828,14 @@ export default function FichaForm() {
                                 )}
                                 {isCurrent && (
                                     <motion.span
-                                        className="absolute inset-0 rounded-full ring-2 ring-red-500/40 pointer-events-none"
+                                        className="absolute inset-0 rounded-full ring-2 ring-emerald-500/40 pointer-events-none"
                                         animate={{ scale: [1, 1.45], opacity: [0.55, 0] }}
                                         transition={{ duration: 1.4, repeat: Infinity, ease: 'easeOut' }}
                                     />
                                 )}
                             </motion.div>
                             <span className={`text-[10px] font-bold hidden sm:block tracking-tight ${
-                                isCurrent ? 'text-stone-900' : isDone ? 'text-red-700' : 'text-stone-400'
+                                isCurrent ? 'text-stone-900' : isDone ? 'text-emerald-700' : 'text-stone-400'
                             }`}>{step.title}</span>
                         </motion.button>
                     )
@@ -839,7 +843,7 @@ export default function FichaForm() {
             </div>
         </motion.div>
 
-        <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl shadow-red-900/10 border border-white/60 ring-1 ring-white/60 overflow-hidden p-6 md:p-10 min-h-[500px] relative">
+        <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-xl shadow-slate-900/10 border border-white/60 ring-1 ring-white/60 overflow-hidden p-6 md:p-10 min-h-[500px] relative">
              <AnimatePresence mode='wait'>
                 {currentStep === 1 && <StepWrapper key="1">
                     <SectionTitle title="Información Personal" animatedIcon="personal" />
@@ -947,7 +951,7 @@ export default function FichaForm() {
 
                 {currentStep === 4 && <StepWrapper key="4">
                     <SectionTitle title="En caso de emergencia llamar a:" animatedIcon="contactoEmergencia" />
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5 bg-red-50/50 p-6 rounded-2xl mb-10 border border-red-100">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5 bg-emerald-50/50 p-6 rounded-2xl mb-10 border border-emerald-100">
                         <Input label="Nombre Completo" name="emergencia_nombre" val={formData.emergencia_nombre} set={handleChange} required />
                         <Input label="Parentesco" name="emergencia_parentesco" val={formData.emergencia_parentesco} set={handleChange} required />
                         <Input label="Teléfono" name="emergencia_telefono" val={formData.emergencia_telefono} set={handleChange} required />
@@ -1013,25 +1017,25 @@ export default function FichaForm() {
              </AnimatePresence>
         </div>
 
-        <div className="fixed bottom-0 left-0 w-full bg-white/70 backdrop-blur-xl border-t border-white/60 p-4 z-50 shadow-[0_-8px_24px_-12px_rgba(127,29,29,0.15)]">
+        <div className="fixed bottom-0 left-0 w-full bg-white/70 backdrop-blur-xl border-t border-white/60 p-4 z-50 shadow-[0_-8px_24px_-12px_rgba(15,23,42,0.15)]">
              <div className="max-w-5xl mx-auto">
                  <div className="flex items-center justify-between mb-2 px-2">
                     <span className="text-[9px] font-bold uppercase tracking-[0.22em] text-stone-400">Paso {String(currentStep).padStart(2,'0')} / 05</span>
                     <span className="flex-1 h-px bg-stone-200 mx-3"/>
-                    <span className="text-[9px] font-bold uppercase tracking-[0.22em] text-red-700">{currentStep === 5 ? 'Enviar' : 'Siguiente'}</span>
+                    <span className="text-[9px] font-bold uppercase tracking-[0.22em] text-emerald-700">{currentStep === 5 ? 'Enviar' : 'Siguiente'}</span>
                  </div>
                  <div className="flex justify-between items-center">
                      <button
                          onClick={() => setCurrentStep(p => Math.max(1, p - 1))}
                          disabled={currentStep === 1}
-                         className={`flex items-center gap-2 font-extrabold px-6 py-3 rounded-xl uppercase tracking-[0.18em] text-xs transition-all ${currentStep === 1 ? 'opacity-0 pointer-events-none' : 'bg-white/70 backdrop-blur ring-1 ring-red-200 border border-white/60 text-red-700 hover:bg-white hover:shadow-md hover:shadow-red-500/10'}`}
+                         className={`flex items-center gap-2 font-extrabold px-6 py-3 rounded-xl uppercase tracking-[0.18em] text-xs transition-all ${currentStep === 1 ? 'opacity-0 pointer-events-none' : 'bg-white/70 backdrop-blur ring-1 ring-slate-200 border border-white/60 text-slate-700 hover:bg-white hover:shadow-md hover:shadow-slate-500/10'}`}
                      >
                          <ChevronLeft size={18}/> Atrás
                      </button>
                      {currentStep < 5 ? (
                         <button
                             onClick={handleNextStep}
-                            className="bg-gradient-to-br from-red-600 to-red-900 text-white font-extrabold uppercase tracking-[0.18em] text-xs px-8 py-3 rounded-xl hover:from-red-700 hover:to-red-950 transition-all flex items-center gap-2 shadow-lg shadow-red-500/30 ring-1 ring-white/40 active:scale-95"
+                            className="bg-gradient-to-br from-emerald-600 to-emerald-700 text-white font-extrabold uppercase tracking-[0.18em] text-xs px-8 py-3 rounded-xl hover:from-emerald-700 hover:to-emerald-800 transition-all flex items-center gap-2 shadow-lg shadow-emerald-500/30 ring-1 ring-white/40 active:scale-95"
                         >
                             Siguiente <ArrowRight size={18}/>
                         </button>
@@ -1039,7 +1043,7 @@ export default function FichaForm() {
                         <button
                             onClick={finalizarFicha}
                             disabled={sending}
-                            className="bg-gradient-to-br from-red-700 to-red-950 text-white font-extrabold uppercase tracking-[0.18em] text-xs px-10 py-3 rounded-xl hover:from-red-800 hover:to-zinc-900 transition-all shadow-lg shadow-red-500/30 ring-1 ring-white/40 flex items-center gap-2 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
+                            className="bg-gradient-to-br from-slate-900 to-slate-800 text-white font-extrabold uppercase tracking-[0.18em] text-xs px-10 py-3 rounded-xl hover:from-slate-800 hover:to-slate-700 transition-all shadow-lg shadow-slate-900/30 ring-1 ring-white/40 flex items-center gap-2 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
                         >
                             {sending ? <Loader2 className="animate-spin" size={18}/> : <><CheckCircle size={18}/> Enviar Ficha</>}
                         </button>
@@ -1054,8 +1058,9 @@ export default function FichaForm() {
 
 // --- COMPONENTE MEJORADO: SOPORTE CAMARA, PDF AUTO, ENCUADRE REAL Y PREVIEW ---
 function ImageUpload({label, bucket, onUpload, currentUrl, required = false}: any) {
-    const [uploading, setUploading] = useState(false); 
+    const [uploading, setUploading] = useState(false);
     const [showCamera, setShowCamera] = useState(false);
+    const [showScanTutorial, setShowScanTutorial] = useState(false);
     const [previewModal, setPreviewModal] = useState(false);
     const [previewIndex, setPreviewIndex] = useState(0);
     const supabase = createClient(); 
@@ -1146,7 +1151,7 @@ function ImageUpload({label, bucket, onUpload, currentUrl, required = false}: an
                                     <UploadCloud size={18}/>
                                     {documentUrls.length ? 'Agregar hoja' : 'Subir archivo'}
                                 </label>
-                                <button type="button" onClick={() => setShowCamera(true)} className="inline-flex items-center gap-2 bg-white px-3 py-2 rounded-lg shadow-sm border border-slate-200 text-slate-500 hover:text-emerald-600 hover:border-emerald-200 transition-colors active:scale-95 text-xs font-bold" title="Tomar Foto">
+                                <button type="button" onClick={() => setShowScanTutorial(true)} className="inline-flex items-center gap-2 bg-white px-3 py-2 rounded-lg shadow-sm border border-slate-200 text-slate-500 hover:text-emerald-600 hover:border-emerald-200 transition-colors active:scale-95 text-xs font-bold" title="Tomar Foto">
                                     <Camera size={18}/>
                                     Escanear
                                 </button>
@@ -1209,11 +1214,20 @@ function ImageUpload({label, bucket, onUpload, currentUrl, required = false}: an
                 {primaryUrl && isPdf && <div className="absolute inset-0 z-0 opacity-10 flex items-center justify-center"><FileText size={60} className="text-red-500"/></div>}
             </div> 
 
+            {showScanTutorial && (
+                <ScanTutorialModal
+                    format={captureFormat}
+                    label={label}
+                    onClose={() => setShowScanTutorial(false)}
+                    onStart={() => { setShowScanTutorial(false); setShowCamera(true); }}
+                />
+            )}
+
             {showCamera && (
-                <CameraCaptureModal 
-                    onClose={() => setShowCamera(false)} 
-                    onCapture={handleCameraCapture} 
-                    format={captureFormat} 
+                <CameraCaptureModal
+                    onClose={() => setShowCamera(false)}
+                    onCapture={handleCameraCapture}
+                    format={captureFormat}
                 />
             )}
 
@@ -1321,6 +1335,97 @@ function sharpenCanvas(canvas: HTMLCanvasElement, amount = 0.6) {
         }
     }
     ctx.putImageData(out, 0, 0)
+}
+
+// --- TUTORIAL ANIMADO ANTES DEL ESCÁNER (igual que en la app móvil) ---
+function ScanTutorialModal({ format, label, onClose, onStart }: { format: 'id-card' | 'a4', label: string, onClose: () => void, onStart: () => void }) {
+    const isId = format === 'id-card';
+    const steps: { icon: any; text: string; accent?: boolean }[] = isId ? [
+        { icon: <FileBadge size={18}/>, text: 'Coloca el documento sobre una superficie plana y con buena luz, sin reflejos.' },
+        { icon: <Camera size={18}/>, text: 'Encuádralo dentro del recuadro verde y toma la foto.' },
+        { icon: <FileText size={18}/>, text: 'Captura el FRENTE del documento.', accent: true },
+        { icon: <RotateCw size={18}/>, text: 'Voltea el DNI y captura el REVERSO.', accent: true },
+        { icon: <CheckCircle size={18}/>, text: 'Revisa, aplica realce si quieres y confirma.' },
+    ] : [
+        { icon: <FileText size={18}/>, text: 'Coloca el documento completo sobre una superficie plana y con buena luz.' },
+        { icon: <Camera size={18}/>, text: 'Encuádralo dentro del recuadro y toma la foto.' },
+        { icon: <Plus size={18}/>, text: 'Si tiene varias hojas, agrégalas una a una.' },
+        { icon: <CheckCircle size={18}/>, text: 'Revisa el resultado y confirma.' },
+    ];
+
+    return (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <motion.div
+                initial={{ opacity: 0, scale: 0.94, y: 12 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                transition={{ duration: 0.26, ease: 'easeOut' }}
+                className="w-full max-w-md max-h-[92vh] overflow-y-auto rounded-3xl bg-white shadow-2xl border border-slate-200"
+            >
+                <div className="p-5 space-y-4 bg-gradient-to-b from-white via-sky-50/40 to-white">
+                    {/* Header */}
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                            <h3 className="text-2xl font-extrabold text-slate-900 leading-tight">¿Cómo escanear?</h3>
+                            <p className="text-xs font-semibold text-slate-500 mt-1">
+                                {label} · {isId ? '2 caras (frente y reverso)' : 'una o varias hojas'}
+                            </p>
+                        </div>
+                        <div className="shrink-0 w-11 h-11 rounded-full bg-white border border-sky-100 flex items-center justify-center shadow-sm">
+                            <Camera size={20} className="text-sky-600"/>
+                        </div>
+                    </div>
+
+                    {/* Video de demostración */}
+                    <div className="relative w-full rounded-2xl overflow-hidden bg-slate-900 flex items-center justify-center" style={{ maxHeight: '52vh' }}>
+                        <video
+                            src="/escaneo-demo.mp4"
+                            autoPlay
+                            loop
+                            muted
+                            playsInline
+                            className="w-full h-auto max-h-[52vh] object-contain"
+                        />
+                        <span className="absolute top-3 left-3 text-[9px] font-bold tracking-wider text-white bg-black/50 px-2.5 py-1 rounded-full">DEMOSTRACIÓN</span>
+                        {isId && (
+                            <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-2">
+                                <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-white bg-white/10 border border-emerald-400/60 px-3 py-1 rounded-full"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400"/>FRENTE</span>
+                                <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-white bg-white/10 border border-amber-400/60 px-3 py-1 rounded-full"><span className="w-1.5 h-1.5 rounded-full bg-amber-400"/>REVERSO</span>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Pasos */}
+                    <div className="space-y-2.5">
+                        {steps.map((s, i) => (
+                            <motion.div
+                                key={i}
+                                initial={{ opacity: 0, x: -8 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: 0.08 * i + 0.1, duration: 0.25 }}
+                                className="flex items-center gap-3"
+                            >
+                                <div className={`shrink-0 w-9 h-9 rounded-full flex items-center justify-center ${s.accent ? 'bg-emerald-100 text-emerald-600' : 'bg-sky-100 text-sky-600'}`}>
+                                    {s.icon}
+                                </div>
+                                <div className="min-w-0">
+                                    <p className="text-[9px] font-bold text-slate-400 tracking-wider uppercase">Paso {i + 1}</p>
+                                    <p className="text-[13px] font-medium text-slate-700 leading-snug">{s.text}</p>
+                                </div>
+                            </motion.div>
+                        ))}
+                    </div>
+
+                    {/* Botones */}
+                    <button onClick={onStart} className="w-full py-3.5 rounded-2xl bg-sky-600 hover:bg-sky-700 text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg shadow-sky-600/20 transition-all active:scale-[0.98]">
+                        <Camera size={18}/> Comenzar escaneo
+                    </button>
+                    <button onClick={onClose} className="w-full py-3 rounded-2xl border border-slate-200 text-slate-500 font-bold text-sm hover:bg-slate-50 transition-colors">
+                        Cancelar
+                    </button>
+                </div>
+            </motion.div>
+        </div>
+    )
 }
 
 // --- MODAL TIPO CAMSCANNER (CORREGIDO AL 100% + DOBLE CARA) ---
@@ -1664,65 +1769,97 @@ function CameraCaptureModal({ onClose, onCapture, format }: { onClose: () => voi
 // --- COMPONENTES AUXILIARES (DEFINIDOS AL FINAL PARA SOLUCIONAR ERRORES) ---
 
 function WelcomeScreen({onStart}:any) {
+    const checklist: { key: AnimatedIconKey; text: string }[] = [
+        { key: 'personal', text: 'Datos personales y bancarios' },
+        { key: 'docs', text: 'Documentos del trabajador y familiares' },
+        { key: 'firma', text: 'Firma digital de conformidad' },
+    ]
     return (
-        <div className="min-h-screen bg-gradient-to-br from-stone-100 via-stone-50 to-red-50/40 flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
-            {/* Blobs decorativos crimson */}
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-emerald-50/40 flex items-center justify-center p-4 sm:p-6 relative overflow-y-auto">
+            {/* Blobs decorativos mint */}
             <motion.div
                 aria-hidden
-                animate={{ scale: [1, 1.15, 1], opacity: [0.4, 0.7, 0.4] }}
+                animate={{ scale: [1, 1.15, 1], opacity: [0.35, 0.6, 0.35] }}
                 transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }}
-                className="absolute -top-20 -right-20 w-80 h-80 bg-red-300/40 rounded-full blur-3xl pointer-events-none"
+                className="absolute -top-24 -right-20 w-80 h-80 bg-emerald-300/30 rounded-full blur-3xl pointer-events-none"
             />
             <motion.div
                 aria-hidden
-                animate={{ scale: [1.1, 1, 1.1], opacity: [0.3, 0.6, 0.3] }}
+                animate={{ scale: [1.1, 1, 1.1], opacity: [0.25, 0.5, 0.25] }}
                 transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
-                className="absolute -bottom-24 -left-24 w-96 h-96 bg-stone-400/30 rounded-full blur-3xl pointer-events-none"
+                className="absolute -bottom-24 -left-24 w-96 h-96 bg-slate-300/30 rounded-full blur-3xl pointer-events-none"
             />
 
             <motion.div
-                initial={{ y: 30, opacity: 0, scale: 0.95 }}
+                initial={{ y: 24, opacity: 0, scale: 0.97 }}
                 animate={{ y: 0, opacity: 1, scale: 1 }}
-                transition={{ type: 'spring', stiffness: 220, damping: 22 }}
-                className="relative max-w-md w-full bg-white/80 backdrop-blur-xl p-10 rounded-3xl shadow-2xl shadow-red-900/15 ring-1 ring-white/60 border border-white/60"
+                transition={{ type: 'spring', stiffness: 200, damping: 24 }}
+                className="relative w-full max-w-4xl grid md:grid-cols-2 bg-white rounded-[28px] shadow-2xl shadow-slate-900/10 ring-1 ring-slate-200/70 overflow-hidden my-auto"
             >
-                <motion.div
-                    initial={{ scale: 0, rotate: -180 }}
-                    animate={{ scale: 1, rotate: 0 }}
-                    transition={{ type: 'spring', stiffness: 240, damping: 14, delay: 0.2 }}
-                    className="relative mb-8 inline-flex"
-                >
+                {/* HERO oscuro — arriba en móvil, izquierda en PC */}
+                <div className="relative bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 p-8 sm:p-10 flex flex-col justify-between text-white overflow-hidden min-h-[230px] md:min-h-[460px]">
                     <motion.span
                         aria-hidden
-                        className="absolute inset-0 rounded-2xl bg-red-500/40 blur-xl"
-                        animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0.9, 0.5] }}
-                        transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+                        className="absolute -top-16 -right-16 w-56 h-56 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none"
+                        animate={{ scale: [1, 1.2, 1], opacity: [0.4, 0.7, 0.4] }}
+                        transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
                     />
-                    <div className="relative p-5 bg-gradient-to-br from-red-700 to-red-950 text-white rounded-2xl shadow-xl shadow-red-500/40 ring-1 ring-white/40">
-                        <FileBadge size={42} />
+                    <div className="relative">
+                        <span className="text-[10px] font-bold uppercase tracking-[0.24em] text-emerald-400">Portal Obrero · RUAG</span>
+                        <h2 className="text-2xl sm:text-3xl font-black mt-3 leading-tight">
+                            Tu legajo,<br/><span className="text-emerald-400">en orden.</span>
+                        </h2>
                     </div>
-                </motion.div>
-                <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-red-700">00 — Bienvenida</span>
-                <h1 className="text-3xl md:text-4xl font-black mb-3 text-stone-900 tracking-tight mt-2">
-                    Ficha <span className="italic text-red-700">de Datos</span>
-                </h1>
-                <p className="text-stone-500 mb-8 leading-relaxed">
-                    Bienvenido al sistema <span className="font-extrabold text-stone-900">RUAG</span>.
-                    Ten a mano tu DNI y documentos.
-                </p>
-                <ul className="text-left text-xs text-stone-600 space-y-2.5 mb-10 bg-white/70 backdrop-blur ring-1 ring-stone-200/60 border border-white/60 rounded-xl p-4">
-                    <li className="flex items-center gap-2"><CheckCircle size={14} className="text-red-700 shrink-0"/> Datos personales y bancarios</li>
-                    <li className="flex items-center gap-2"><CheckCircle size={14} className="text-red-700 shrink-0"/> Documentos del trabajador y familiares</li>
-                    <li className="flex items-center gap-2"><CheckCircle size={14} className="text-red-700 shrink-0"/> Firma digital de conformidad</li>
-                </ul>
-                <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.97 }}
-                    onClick={onStart}
-                    className="w-full bg-gradient-to-br from-red-700 to-red-950 text-white py-4 rounded-xl font-extrabold uppercase tracking-[0.18em] text-sm shadow-xl shadow-red-500/30 ring-1 ring-white/40 flex items-center justify-center gap-2 hover:shadow-2xl hover:shadow-red-500/40 transition-shadow"
-                >
-                    Comenzar <ArrowRight size={20}/>
-                </motion.button>
+                    <div className="relative my-7 flex justify-center md:justify-start">
+                        <motion.div
+                            initial={{ scale: 0.6, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            transition={{ type: 'spring', stiffness: 220, damping: 16, delay: 0.2 }}
+                            className="w-28 h-28 sm:w-32 sm:h-32 rounded-3xl bg-white flex items-center justify-center shadow-xl shadow-emerald-900/20 ring-1 ring-white/30"
+                        >
+                            <AnimatedIcon name="docs" size={84} bounceOnMount={false}/>
+                        </motion.div>
+                    </div>
+                    <p className="relative text-xs sm:text-sm text-slate-300 leading-relaxed">
+                        Completa tu ficha una sola vez. Nosotros la mantenemos sincronizada y al día.
+                    </p>
+                </div>
+
+                {/* CONTENIDO — abajo en móvil, derecha en PC */}
+                <div className="p-8 sm:p-10 flex flex-col justify-center">
+                    <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-emerald-600">00 — Bienvenida</span>
+                    <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight mt-2 mb-3">
+                        Ficha <span className="italic text-emerald-600">de Datos</span>
+                    </h1>
+                    <p className="text-slate-500 text-sm leading-relaxed mb-7">
+                        Bienvenido al sistema <span className="font-extrabold text-slate-900">RUAG</span>.
+                        Ten a mano tu DNI y documentos.
+                    </p>
+                    <ul className="space-y-3 mb-8">
+                        {checklist.map((item, i) => (
+                            <motion.li
+                                key={item.key}
+                                initial={{ opacity: 0, x: -8 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: 0.15 + i * 0.08, duration: 0.3 }}
+                                className="flex items-center gap-3 text-sm text-slate-700"
+                            >
+                                <span className="shrink-0 w-10 h-10 rounded-xl bg-emerald-50 ring-1 ring-emerald-100 flex items-center justify-center">
+                                    <AnimatedIcon name={item.key} size={24} bounceOnMount={false}/>
+                                </span>
+                                <span className="font-medium">{item.text}</span>
+                            </motion.li>
+                        ))}
+                    </ul>
+                    <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.97 }}
+                        onClick={onStart}
+                        className="w-full bg-slate-900 hover:bg-slate-800 text-white py-4 rounded-2xl font-extrabold uppercase tracking-[0.18em] text-sm shadow-lg shadow-slate-900/20 flex items-center justify-center gap-2 transition-colors"
+                    >
+                        Comenzar <ArrowRight size={20}/>
+                    </motion.button>
+                </div>
             </motion.div>
         </div>
     )
@@ -1737,16 +1874,16 @@ function SectionTitle({title, icon, animatedIcon}: { title: string, icon?: any, 
             className="flex items-center gap-3 mb-6 pb-3 border-b border-stone-200/70"
         >
             {animatedIcon ? (
-                <div className="w-12 h-12 rounded-xl bg-white/70 backdrop-blur ring-1 ring-white/70 border border-white/50 flex items-center justify-center shadow-sm shadow-red-900/5">
+                <div className="w-12 h-12 rounded-xl bg-white/70 backdrop-blur ring-1 ring-white/70 border border-white/50 flex items-center justify-center shadow-sm shadow-slate-900/5">
                     <AnimatedIcon name={animatedIcon} size={32} bounceOnMount />
                 </div>
             ) : (
-                <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-red-50 to-stone-100 flex items-center justify-center text-red-700 shadow-sm ring-1 ring-red-100">
+                <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-50 to-slate-100 flex items-center justify-center text-emerald-700 shadow-sm ring-1 ring-emerald-100">
                     {icon}
                 </div>
             )}
             <div className="flex-1">
-                <span className="text-[10px] font-bold text-red-700 uppercase tracking-[0.22em]">RUAG · Ficha</span>
+                <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-[0.22em]">RUAG · Ficha</span>
                 <h3 className="text-lg font-black text-stone-900 tracking-tight leading-none mt-0.5">{title}</h3>
             </div>
         </motion.div>
@@ -1754,9 +1891,9 @@ function SectionTitle({title, icon, animatedIcon}: { title: string, icon?: any, 
 }
 function SectionRead({title, icon, children}: any) {
     return (
-        <div className="bg-white/70 backdrop-blur-xl p-6 rounded-2xl border border-white/60 ring-1 ring-white/60 shadow-md shadow-red-900/5">
+        <div className="bg-white/70 backdrop-blur-xl p-6 rounded-2xl border border-white/60 ring-1 ring-white/60 shadow-md shadow-slate-900/5">
             <div className="flex items-center gap-2 mb-4 text-stone-900 font-extrabold border-b border-stone-200/70 pb-2">
-                <span className="text-red-700">{icon}</span>
+                <span className="text-emerald-700">{icon}</span>
                 <h3 className="tracking-tight">{title}</h3>
             </div>
             {children}

@@ -279,11 +279,12 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
   // --- HELPER PARA ESTILOS DINÁMICOS DE NOTIFICACIONES ---
   const getActionStyle = (actionMsg: string) => {
       const msg = actionMsg.toLowerCase();
-      if (msg.includes('validó')) return { icon: <CheckCircle size={14}/>, bg: 'bg-emerald-50', text: 'text-emerald-600', border: 'border-emerald-200' };
-      if (msg.includes('reabrió') || msg.includes('editó')) return { icon: <Unlock size={14}/>, bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-amber-200' };
+      if (msg.includes('validó')) return { icon: <AdminGifIcon name="valido.gif" size={28} variant="bare"/>, bg: 'bg-white', text: 'text-emerald-600', border: 'border-emerald-200' };
+      if (msg.includes('editó')) return { icon: <AdminGifIcon name="edito.gif" size={28} variant="bare"/>, bg: 'bg-white', text: 'text-amber-600', border: 'border-amber-200' };
+      if (msg.includes('reabrió')) return { icon: <AdminGifIcon name="reabrio.gif" size={28} variant="bare"/>, bg: 'bg-white', text: 'text-amber-600', border: 'border-amber-200' };
       if (msg.includes('eliminó') || msg.includes('cesó') || msg.includes('baja')) return { icon: <Trash2 size={14}/>, bg: 'bg-red-50', text: 'text-red-600', border: 'border-red-200' };
       if (msg.includes('exportó')) return { icon: <FileSpreadsheet size={14}/>, bg: 'bg-indigo-50', text: 'text-indigo-600', border: 'border-indigo-200' };
-      if (msg.includes('imprimiendo')) return { icon: <Printer size={14}/>, bg: 'bg-slate-100', text: 'text-slate-600', border: 'border-slate-300' };
+      if (msg.includes('imprimiendo')) return { icon: <AdminGifIcon name="esta-imprimiendo.gif" size={28} variant="bare"/>, bg: 'bg-white', text: 'text-slate-600', border: 'border-slate-300' };
       return { icon: <Zap size={14}/>, bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-200' }; // Default (ej. movió a SCTR)
   };
 

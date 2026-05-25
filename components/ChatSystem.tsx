@@ -401,7 +401,9 @@ export default function ChatSystem({ workerId, workerName, currentUserId, isAdmi
                 )}
 
                 <div className="relative">
-                    <AnimatedIcon name="chat" size={36} bounceOnMount={false} />
+                    <span className="flex items-center justify-center w-11 h-11 rounded-full bg-white shadow-inner">
+                        <AnimatedIcon name="chat" size={30} bounceOnMount={false} blend={false} />
+                    </span>
 
                     {/* INDICADOR DE CONEXIÓN */}
                     <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-[#0B1220] ${isConnected ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.7)]' : 'bg-amber-400'}`}></span>
