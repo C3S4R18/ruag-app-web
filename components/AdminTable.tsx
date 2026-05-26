@@ -16,6 +16,7 @@ import { getSignatureUrl, normalizeBiometricFields } from '@/utils/biometric'
 import DocumentPreviewModal from './DocumentPreviewModal'
 import NormalizedSignatureImage from './NormalizedSignatureImage'
 import WiredLinealIcon from './WiredLinealIcon'
+import LottieJsonIcon from './LottieJsonIcon'
 import AdminGifIcon from './AdminGifIcon'
 import { getExpiryInfo, formatDate, extractDocDates, type ExpiryInfo } from '@/utils/docExpiry'
 
@@ -40,12 +41,12 @@ import {
   CheckCircle, ShieldCheck, X, Save, 
   Loader2, Building2, Printer, 
   ChevronLeft, ChevronRight, User, Wallet, HardHat, 
-  CheckSquare, Square, Unlock, Lock, FileBadge, BellRing, BellOff, Bell,
+  CheckSquare, Square, Unlock, Lock, FileBadge,
   PenTool, Fingerprint, Share2, MoreHorizontal, Edit3,
   FileCheck, MessageSquare, Filter, ScanFace, Briefcase, 
   HeartPulse, GraduationCap, UploadCloud, Plus, Users, Zap, Mail,
   MailCheck, Clock, AlertCircle, RotateCcw, Monitor, ArrowUpDown,
-  ArrowRightCircle, FileSpreadsheet, UserX, Cake, CalendarClock, Ban, Check, History, Eye, Wand2
+  ArrowRightCircle, FileSpreadsheet, UserX, Cake, CalendarClock, Ban, Check, History, Eye
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -285,7 +286,8 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
       if (msg.includes('eliminó') || msg.includes('cesó') || msg.includes('baja')) return { icon: <Trash2 size={14}/>, bg: 'bg-red-50', text: 'text-red-600', border: 'border-red-200' };
       if (msg.includes('exportó')) return { icon: <FileSpreadsheet size={14}/>, bg: 'bg-indigo-50', text: 'text-indigo-600', border: 'border-indigo-200' };
       if (msg.includes('imprimiendo')) return { icon: <AdminGifIcon name="esta-imprimiendo.gif" size={28} variant="bare"/>, bg: 'bg-white', text: 'text-slate-600', border: 'border-slate-300' };
-      return { icon: <Zap size={14}/>, bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-200' }; // Default (ej. movió a SCTR)
+      if (msg.includes('movi')) return { icon: <AdminGifIcon name="movio.gif" size={28} variant="bare"/>, bg: 'bg-white', text: 'text-blue-600', border: 'border-blue-200' };
+      return { icon: <Zap size={14}/>, bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-200' }; // Default
   };
 
   // --- 1. CARGAR NOTIFICACIONES GUARDADAS AL INICIO ---
@@ -1110,10 +1112,15 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                 {/* --- ALERTA MÉDICA (exámenes médicos por vencer / vencidos) --- */}
                 <MedicalAlertBell workers={fichas} onSelectWorker={(w:any) => setSelectedFicha(w)} />
 
-                {/* --- CAMPANA DE NOTIFICACIONES MODIFICADA --- */}
+                {/* --- CENTRO DE NOTIFICACIONES --- */}
                 <div className="relative" id="tour-notifications">
-                    <button onClick={() => setShowNotifDropdown(!showNotifDropdown)} className={`relative p-2.5 rounded-xl border transition-all ${showNotifDropdown ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'}`}>
-                        <Bell size={18} />
+                    <button
+                        onClick={() => setShowNotifDropdown(!showNotifDropdown)}
+                        aria-label="Centro de notificaciones"
+                        title="Centro de notificaciones"
+                        className={`relative flex h-10 w-10 items-center justify-center rounded-xl border transition-all active:scale-95 ${showNotifDropdown ? 'bg-indigo-50 border-indigo-200 text-indigo-600 shadow-sm' : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50 hover:border-indigo-200'}`}
+                    >
+                        <AdminGifIcon name="centro-de-notificaciones.gif" size={26} variant="bare" />
                         {(chatNotifs.length + actionNotifs.length) > 0 && <span className="absolute top-1.5 right-2 w-2.5 h-2.5 bg-red-500 border-2 border-white rounded-full animate-pulse"></span>}
                     </button>
                     <AnimatePresence>
@@ -1121,7 +1128,10 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                             <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }} className="absolute right-0 top-full mt-3 w-[400px] bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden z-50 origin-top-right">
                                 {/* Cabecera Principal */}
                                 <div className="p-4 border-b border-slate-100 bg-white flex justify-between items-center">
-                                    <h4 className="font-bold text-slate-800 text-sm">Centro de Notificaciones</h4>
+                                    <h4 className="font-bold text-slate-800 text-sm flex items-center gap-2">
+                                        <AdminGifIcon name="centro-de-notificaciones.gif" size={24} variant="bare" />
+                                        Centro de notificaciones
+                                    </h4>
                                     <button onClick={() => setShowNotifDropdown(false)} className="p-1 hover:bg-slate-100 rounded-md transition-colors"><X size={16} className="text-slate-400 hover:text-slate-600"/></button>
                                 </div>
 
@@ -1232,7 +1242,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
 
                                     {notifications.length === 0 && (
                                         <div className="p-8 text-center text-slate-400">
-                                            <Bell size={24} className="mx-auto mb-2 opacity-20"/>
+                                            <AdminGifIcon name="centro-de-notificaciones.gif" size={34} variant="bare" className="mx-auto mb-2 opacity-60" />
                                             <p className="text-xs font-medium">Sin novedades</p>
                                         </div>
                                     )}
@@ -2040,7 +2050,21 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
                                     disabled={analyzingIa || (!formData.url_carnet && !formData.url_antecedentes && !formData.url_dni_frontal && !formData.examen_medico_url)}
                                     className="mt-1 w-full py-3 flex items-center justify-center gap-2 rounded-2xl bg-slate-900 text-white text-[11px] font-bold uppercase tracking-[0.18em] shadow-lg hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-[0.98]"
                                 >
-                                    {analyzingIa ? <Loader2 size={15} className="animate-spin"/> : <Wand2 size={15}/>}
+                                    {analyzingIa ? (
+                                        <LottieJsonIcon
+                                            src="/admin/leyendo-con-ia.json"
+                                            size={24}
+                                            loop
+                                            title="Leyendo con IA"
+                                        />
+                                    ) : (
+                                        <LottieJsonIcon
+                                            src="/admin/re-analizar.json"
+                                            size={22}
+                                            loop={false}
+                                            title="Re-analizar con IA"
+                                        />
+                                    )}
                                     {analyzingIa ? 'Leyendo con IA…' : 'Re-analizar fechas con IA'}
                                 </button>
                                 <p className="text-[10px] text-slate-400 text-center leading-snug">

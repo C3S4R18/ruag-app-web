@@ -1,6 +1,6 @@
 'use client'
 
-import { CSSProperties, createElement } from 'react'
+import { CSSProperties, createElement, useEffect } from 'react'
 
 export const LORDICON_SOURCES = {
   sidebar: {
@@ -36,6 +36,7 @@ type LordIconProps = {
   title?: string
   loading?: 'lazy' | 'interaction' | 'delay'
   target?: string
+  fallbackSrc?: string
 }
 
 const toFallbackSvg = (src: string) => {
@@ -53,8 +54,21 @@ export default function LordIcon({
   title,
   loading = 'interaction',
   target,
+  fallbackSrc: fallbackOverride,
 }: LordIconProps) {
-  const fallbackSrc = toFallbackSvg(src)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    if (window.customElements.get('lord-icon')) return
+    if (document.querySelector('script[data-ruag-lordicon]')) return
+
+    const script = document.createElement('script')
+    script.src = 'https://cdn.lordicon.com/lordicon.js'
+    script.async = true
+    script.dataset.ruagLordicon = 'true'
+    document.head.appendChild(script)
+  }, [])
+
+  const fallbackSrc = fallbackOverride || toFallbackSvg(src)
 
   return createElement(
     'lord-icon',
