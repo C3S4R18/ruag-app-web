@@ -1,6 +1,11 @@
 'use client'
 
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, createContext, useContext } from 'react'
+import { useCollabPeers, useViewingWorker, useEditingFieldPeer, useCollab } from '@/components/AdminCollaboration'
+
+// Pasa el workerId del drawer abierto a los `Field` para que puedan anunciar
+// que estoy editando ese input y mostrar quién más lo está editando.
+const FieldOwnerContext = createContext<string | null>(null)
 import { createClient } from '@/utils/supabase/client'
 import { toast } from 'sonner'
 import { pdf } from '@react-pdf/renderer'
@@ -133,6 +138,18 @@ const getCaptureBounds = (element: HTMLElement) => {
 
 export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyChange }: AdminTableProps) {
   const supabase = createClient()
+  // Peers de colaboración en tiempo real (otros admins viendo el panel).
+  const collabPeers = useCollabPeers()
+  const viewersByWorker = useMemo(() => {
+      const map = new Map<string, typeof collabPeers>()
+      for (const p of collabPeers) {
+          if (!p.viewingWorkerId) continue
+          const arr = map.get(p.viewingWorkerId) || []
+          arr.push(p)
+          map.set(p.viewingWorkerId, arr)
+      }
+      return map
+  }, [collabPeers])
   const [fichas, setFichas] = useState<any[]>([])
   const [selectedFicha, setSelectedFicha] = useState<any>(null)
   const [documentsFicha, setDocumentsFicha] = useState<any>(null)
@@ -1407,6 +1424,31 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                                                 </span>
                                             )
                                         })()}
+                                        {/* COLABORACIÓN: otros admins viendo esta ficha ahora */}
+                                        {(() => {
+                                            const viewers = viewersByWorker.get(ficha.id) || []
+                                            if (viewers.length === 0) return null
+                                            return (
+                                                <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700" title={viewers.map(v=>v.name).join(', ') + ' viendo ahora'}>
+                                                    <span className="relative flex w-1.5 h-1.5">
+                                                        <span className="absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75 animate-ping" />
+                                                        <span className="relative inline-flex w-1.5 h-1.5 rounded-full bg-amber-500" />
+                                                    </span>
+                                                    <span className="flex -space-x-1">
+                                                        {viewers.slice(0, 2).map(v => (
+                                                            v.photo ? (
+                                                                /* eslint-disable-next-line @next/next/no-img-element */
+                                                                <img key={v.userId} src={v.photo} alt="" className="w-4 h-4 rounded-full object-cover ring-[1.5px] ring-white" style={{ outline: `1.5px solid ${v.color}` }}/>
+                                                            ) : (
+                                                                <span key={v.userId} className="w-4 h-4 rounded-full ring-[1.5px] ring-white flex items-center justify-center text-[7px] font-black text-white" style={{ backgroundColor: v.color }}>{v.name.charAt(0).toUpperCase()}</span>
+                                                            )
+                                                        ))}
+                                                    </span>
+                                                    {viewers.length > 2 && <span>+{viewers.length - 2}</span>}
+                                                    Viendo
+                                                </span>
+                                            )
+                                        })()}
                                     </div>
                                 </div>
                             </div>
@@ -1628,6 +1670,11 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
 }
 
 function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloading, onPrintPreview, onNotifyChange }: FichaDrawerProps & { onNotifyChange?: (a:string, d:string)=>void }) {
+    // Anuncia a los otros admins que estoy viendo esta ficha (colaboración).
+    useViewingWorker(ficha.id)
+    const collabPeers = useCollabPeers()
+    const otherViewers = collabPeers.filter(p => p.viewingWorkerId === ficha.id)
+
     const [isEditing, setIsEditing] = useState(false)
     const supabase = createClient()
     const [formData, setFormData] = useState<any>(() => ({
@@ -1841,6 +1888,7 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
         }
     }
     return (
+        <FieldOwnerContext.Provider value={ficha.id}>
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex justify-end" onClick={onClose}>
             <motion.div initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", damping: 30, stiffness: 300 }} className="w-full max-w-2xl bg-white h-full shadow-2xl flex flex-col border-l border-white/20 relative" onClick={e => e.stopPropagation()}>
                 
@@ -1888,6 +1936,39 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
                             <span className="inline-block mt-1 px-2 py-0.5 bg-slate-100 rounded text-[10px] font-mono text-slate-500">{ficha.dni}</span>
                         </div>
                     </div>
+                    {/* Indicador "X también está viendo esta ficha" */}
+                    {otherViewers.length > 0 && (
+                        <div className="relative z-10 flex items-center gap-2 mr-3 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200">
+                            <span className="relative flex w-2 h-2">
+                                <motion.span
+                                    aria-hidden
+                                    className="absolute inline-flex h-full w-full rounded-full bg-amber-400"
+                                    animate={{ scale: [1, 2], opacity: [0.7, 0] }}
+                                    transition={{ duration: 1.4, repeat: Infinity, ease: 'easeOut' }}
+                                />
+                                <span className="relative inline-flex w-2 h-2 rounded-full bg-amber-500" />
+                            </span>
+                            <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wide hidden sm:inline">Viendo juntos</span>
+                            <div className="flex -space-x-2">
+                                {otherViewers.slice(0, 3).map(v => (
+                                    <div key={v.userId} className="relative group">
+                                        {v.photo ? (
+                                            /* eslint-disable-next-line @next/next/no-img-element */
+                                            <img src={v.photo} alt={v.name} className="w-6 h-6 rounded-full object-cover ring-2 ring-white" style={{ outline: `1.5px solid ${v.color}` }}/>
+                                        ) : (
+                                            <span className="w-6 h-6 rounded-full ring-2 ring-white flex items-center justify-center text-[9px] font-black text-white" style={{ backgroundColor: v.color }}>
+                                                {v.name.charAt(0).toUpperCase()}
+                                            </span>
+                                        )}
+                                        <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10">{v.name}</div>
+                                    </div>
+                                ))}
+                                {otherViewers.length > 3 && (
+                                    <div className="w-6 h-6 rounded-full ring-2 ring-white bg-slate-900 text-white text-[8px] font-bold flex items-center justify-center">+{otherViewers.length - 3}</div>
+                                )}
+                            </div>
+                        </div>
+                    )}
                     <button id="drawer-close-btn" onClick={onClose} className="p-2.5 bg-slate-50 hover:bg-slate-100 rounded-full transition-colors relative z-10 text-slate-500"><X size={20}/></button>
                 </div>
                 <div className="flex-1 overflow-y-auto p-8 space-y-8 bg-slate-50 scroll-smooth">
@@ -2123,6 +2204,7 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
                 )}
             </AnimatePresence>
         </motion.div>
+        </FieldOwnerContext.Provider>
     )
 }
 
@@ -2618,7 +2700,42 @@ ${body}`;
 
 function Section({title, icon, children}: any) { return <div className="space-y-4 pt-2 bg-white p-5 rounded-2xl border border-slate-100 shadow-sm"><h3 className="font-bold text-xs text-slate-800 uppercase tracking-wider flex items-center gap-2 mb-4 pb-2 border-b border-slate-50"><span className="p-1.5 bg-blue-50 text-blue-600 rounded-lg">{icon}</span> {title}</h3><div className="">{children}</div></div> }
 function Grid({children}: any) { return <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6">{children}</div> }
-function Field({label, name, val, edit, set, full, customChange, type="text"}: any) { return <div className={full ? 'md:col-span-2' : ''}><label className="block text-[10px] font-bold text-slate-400 uppercase mb-2 tracking-wide ml-1">{label}</label>{edit ? <input type={type} value={val||''} onChange={customChange ? (e)=>customChange(e.target.value) : (e)=>set((p:any)=>({...p,[name]:e.target.value}))} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all shadow-sm font-medium text-slate-700"/> : <div className="font-medium text-slate-800 text-sm border-b border-slate-100 py-1.5 px-1 truncate min-h-[32px]">{val||<span className="text-slate-300 italic">Sin datos</span>}</div>}</div>}
+function Field({label, name, val, edit, set, full, customChange, type="text"}: any) {
+    const workerId = useContext(FieldOwnerContext)
+    const { setEditingField } = useCollab()
+    const editingPeer = useEditingFieldPeer(workerId, name)
+    return (
+        <div className={full ? 'md:col-span-2' : ''}>
+            <label className="flex items-center justify-between text-[10px] font-bold text-slate-400 uppercase mb-2 tracking-wide ml-1">
+                <span>{label}</span>
+                {editingPeer && (
+                    <span className="inline-flex items-center gap-1 normal-case tracking-normal text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white" style={{ backgroundColor: editingPeer.color }}>
+                        {editingPeer.photo ? (
+                            /* eslint-disable-next-line @next/next/no-img-element */
+                            <img src={editingPeer.photo} alt="" className="w-3 h-3 rounded-full object-cover"/>
+                        ) : (
+                            <span className="w-3 h-3 rounded-full bg-white/30 flex items-center justify-center text-[7px] font-black">{editingPeer.name.charAt(0).toUpperCase()}</span>
+                        )}
+                        Editando
+                    </span>
+                )}
+            </label>
+            {edit ? (
+                <input
+                    type={type}
+                    value={val||''}
+                    onChange={customChange ? (e) => customChange(e.target.value) : (e) => set((p:any) => ({ ...p, [name]: e.target.value }))}
+                    onFocus={() => { if (workerId && name) setEditingField(workerId, name) }}
+                    onBlur={() => { if (workerId && name) setEditingField(null, null) }}
+                    className="w-full p-3 bg-slate-50 border rounded-xl text-sm focus:bg-white focus:ring-2 outline-none transition-all shadow-sm font-medium text-slate-700"
+                    style={editingPeer ? { borderColor: editingPeer.color, boxShadow: `0 0 0 2px ${editingPeer.color}25` } : undefined}
+                />
+            ) : (
+                <div className="font-medium text-slate-800 text-sm border-b border-slate-100 py-1.5 px-1 truncate min-h-[32px]">{val||<span className="text-slate-300 italic">Sin datos</span>}</div>
+            )}
+        </div>
+    )
+}
 function DocCard({label, url, onDelete, isEditing, onUpload}: any) { const fileRef = useRef<HTMLInputElement>(null); if(!url && !isEditing) return <div className="flex items-center gap-3 p-4 bg-slate-50 border border-slate-100 rounded-xl opacity-60"><div className="w-10 h-10 rounded-xl bg-slate-200 text-slate-400 flex items-center justify-center"><FileText size={18}/></div><span className="text-xs font-bold text-slate-400">Sin archivo</span></div>; return (<div className="relative group">{url ? (<a href={url} target="_blank" className="flex items-center gap-3 p-4 bg-white border border-slate-200 rounded-xl hover:border-blue-400 hover:shadow-md transition-all group cursor-pointer active:scale-95"><div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:bg-blue-600 group-hover:text-white transition-colors shadow-sm"><FileText size={20}/></div><span className="text-xs font-bold text-slate-700 truncate group-hover:text-blue-700 pr-6">{label}</span></a>) : (<div className="flex items-center gap-3 p-4 bg-slate-50 border border-slate-200 rounded-xl border-dashed"><span className="text-xs font-bold text-slate-400">{label} (Vacío)</span></div>)}<div className="absolute top-2 right-2 flex gap-1">{isEditing && (<><input type="file" ref={fileRef} className="hidden" onChange={(e) => e.target.files?.[0] && onUpload(e.target.files[0])} /><button onClick={(e) => { e.stopPropagation(); fileRef.current?.click() }} className="p-1.5 bg-white border border-blue-200 text-blue-600 rounded-lg shadow-sm hover:bg-blue-50 transition-all z-10" title="Subir/Cambiar Archivo"><UploadCloud size={14}/></button></>)}{onDelete && isEditing && url && (<button onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(); }} className="p-1.5 bg-white border border-red-100 text-red-500 rounded-lg shadow-sm hover:bg-red-50 transition-all z-10" title="Eliminar documento"><Trash2 size={14}/></button>)}</div></div>) }
 
 function DocumentCard({label, url, onDelete, isEditing, onUpload}: any) {

@@ -88,6 +88,14 @@ export default function AuthPage() {
 
       if (profile?.role === 'admin') router.push('/admin')
       else router.push('/dashboard')
+    } catch (err: any) {
+      const msg = err?.message || String(err || '')
+      const isNetwork = /failed to fetch|networkerror|network request failed|fetch failed/i.test(msg)
+      toast.error(isNetwork ? 'Sin conexión con el servidor' : 'Error al iniciar sesión', {
+        description: isNetwork
+          ? 'No se pudo contactar al servidor. Verifica tu conexión a internet o si el servicio de Supabase está activo.'
+          : msg || 'Inténtalo de nuevo en unos segundos.',
+      })
     } finally {
       setLoading(false)
     }

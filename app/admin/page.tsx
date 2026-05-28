@@ -13,6 +13,8 @@ import VidaLeyManager from '@/components/VidaLeyManager'
 import CesadosManager from '@/components/CesadosManager'
 import SctrManager from '@/components/SctrManager'
 import { buildBiometricUpdate, getSignatureUrl, normalizeBiometricFields } from '@/utils/biometric'
+import { extractDocDates } from '@/utils/docExpiry'
+import AdminCollaboration from '@/components/AdminCollaboration'
 
 // IMPORTS COMPONENTES
 import BiometricSignature from '@/components/ssoma/BiometricSignature'
@@ -228,6 +230,7 @@ export default function AdminPage() {
   
   const [isAdmin, setIsAdmin] = useState(false)
   const [userName, setUserName] = useState('')
+  const [userPhoto, setUserPhoto] = useState<string | null>(null)
   const [userEmail, setUserEmail] = useState('')
   const [userId, setUserId] = useState('')
   const [loading, setLoading] = useState(true)
@@ -357,10 +360,16 @@ export default function AdminPage() {
           setIsAdmin(true);
           const name = profile.nombres.split(' ')[0]
           setUserName(name)
-          
+
+          // La foto de perfil vive en `fichas` (no en `profiles`), así que la traemos aparte.
+          const { data: fichaSelf } = await supabase.from('fichas').select('foto_perfil_url').eq('user_id', user.id).maybeSingle()
+          const myPhoto = fichaSelf?.foto_perfil_url || null
+          setUserPhoto(myPhoto)
+
           // --- LOGICA DE PRESENCIA (BURBUJAS) ---
           const currentUserData = {
              name: name,
+             foto_perfil_url: myPhoto,
              online_at: new Date().toISOString(),
              color: '#' + Math.floor(Math.random()*16777215).toString(16)
           };
@@ -428,11 +437,19 @@ export default function AdminPage() {
       // 2. ADMINS
       const { data: admins } = await supabase.from('profiles').select('*').eq('role', 'admin')
 
+      // 2.b — Fotos de admins (viven en `fichas`)
+      if (admins && admins.length > 0) {
+          const ids = admins.map((a: any) => a.id)
+          const { data: fichasAdmins } = await supabase.from('fichas').select('user_id, foto_perfil_url').in('user_id', ids)
+          const photoMap = new Map((fichasAdmins || []).map((f: any) => [f.user_id, f.foto_perfil_url]))
+          admins.forEach((a: any) => { a.foto_perfil_url = photoMap.get(a.id) || null })
+      }
+
       // 3. OBRAS
       const { data: obras } = await supabase.from('obras').select('*').order('created_at', { ascending: false })
 
       if(errorWorkers) toast.error("Error al cargar datos")
-      
+
       if(workers) setWorkersData(workers.map(normalizeBiometricFields))
       if(admins) setAdminsData(admins)
       if(obras) setObrasList(obras)
@@ -492,6 +509,80 @@ export default function AdminPage() {
 
       return () => { supabase.removeChannel(channel) }
   }, [currentObra])
+
+  // --- ESCÁNER IA EN SEGUNDO PLANO ---------------------------------
+  // Al cargar el panel, recorremos a todos los trabajadores. Si tienen un
+  // documento subido (DNI/RETCC/Antecedentes/Examen Médico) pero todavía
+  // sin fecha de vencimiento detectada, la IA la lee SOLA, sin necesidad
+  // de abrir el drawer. Se procesa secuencialmente y la lista se actualiza
+  // vía realtime cuando guardamos el patch en `fichas`.
+  const iaProcessedRef = useRef<Set<string>>(new Set())
+  const iaProcessingRef = useRef(false)
+  useEffect(() => {
+      if (iaProcessingRef.current) return
+      if (workersData.length === 0) return
+
+      const lastDocUrl = (raw: any): string | null => {
+          if (!raw) return null
+          const v = String(raw).trim()
+          if (!v) return null
+          if (v.startsWith('[')) {
+              try { const arr = JSON.parse(v); return Array.isArray(arr) && arr.length ? arr[arr.length - 1] : null } catch { return v }
+          }
+          return v
+      }
+
+      type Pending = { worker: any; docType: 'dni' | 'retcc' | 'antecedentes' | 'examen_medico'; url: string }
+      const queue: Pending[] = []
+      for (const w of workersData) {
+          const checks: { docType: Pending['docType']; url: string | null; missing: boolean }[] = [
+              { docType: 'dni', url: lastDocUrl(w.url_dni_frontal), missing: !w.dni_fecha_vencimiento },
+              { docType: 'retcc', url: lastDocUrl(w.url_carnet), missing: !w.fecha_vencimiento_retcc },
+              { docType: 'antecedentes', url: lastDocUrl(w.url_antecedentes), missing: !w.antecedentes_fecha_vencimiento },
+              { docType: 'examen_medico', url: lastDocUrl(w.examen_medico_url), missing: !w.examen_medico_fecha_vencimiento },
+          ]
+          for (const c of checks) {
+              if (!c.url || !c.missing) continue
+              const key = `${w.id}:${c.docType}`
+              if (iaProcessedRef.current.has(key)) continue
+              queue.push({ worker: w, docType: c.docType, url: c.url })
+          }
+      }
+      if (queue.length === 0) return
+
+      iaProcessingRef.current = true
+      ;(async () => {
+          for (const it of queue) {
+              const key = `${it.worker.id}:${it.docType}`
+              iaProcessedRef.current.add(key)
+              try {
+                  const dates = await extractDocDates(it.url, it.docType)
+                  if (!dates) continue
+                  const patch: any = {}
+                  if (it.docType === 'dni') {
+                      if (dates.fecha_caducidad) patch.dni_fecha_vencimiento = dates.fecha_caducidad
+                  } else if (it.docType === 'retcc') {
+                      if (dates.fecha_caducidad) patch.fecha_vencimiento_retcc = dates.fecha_caducidad
+                      if (dates.fecha_inscripcion) patch.retcc_fecha_inscripcion = dates.fecha_inscripcion
+                  } else if (it.docType === 'antecedentes') {
+                      if (dates.fecha_caducidad) patch.antecedentes_fecha_vencimiento = dates.fecha_caducidad
+                      if (dates.fecha_emision) patch.antecedentes_fecha_emision = dates.fecha_emision
+                  } else if (it.docType === 'examen_medico') {
+                      if (dates.fecha_caducidad) patch.examen_medico_fecha_vencimiento = dates.fecha_caducidad
+                      if (dates.fecha_emision) patch.examen_medico_fecha_emision = dates.fecha_emision
+                  }
+                  if (Object.keys(patch).length > 0) {
+                      await supabase.from('fichas').update(patch).eq('id', it.worker.id)
+                      // Realtime UPDATE listener actualizará workersData automáticamente.
+                  }
+              } catch { /* ignora fallos individuales */ }
+              // Pequeña pausa para no saturar Gemini.
+              await new Promise(r => setTimeout(r, 400))
+          }
+          iaProcessingRef.current = false
+      })()
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workersData])
 
 
   // --- FILTRO, ORDENAMIENTO Y PAGINACIÓN ---
@@ -855,6 +946,7 @@ export default function AdminPage() {
   if (!isAdmin) return null
 
   return (
+    <AdminCollaboration currentUser={userId ? { id: userId, name: userName || 'Admin', photo: userPhoto } : null}>
     <div className="flex h-screen bg-[#F8FAFC] font-sans text-slate-900 overflow-hidden">
 
       {/* Filtro SVG chromakey — referenciado por todos los AdminGifIcon */}
@@ -1034,23 +1126,49 @@ export default function AdminPage() {
                     <span className="hidden md:inline tracking-wide">Centro Documental</span>
                 </button>
 
-                {/* ADMINS CONECTADOS */}
-                <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase mr-1 hidden md:inline">En línea:</span>
+                {/* INDICADOR DE PRESENCIA — píldora moderna con avatares apilados */}
+                <div className="flex items-center gap-2.5 pl-3 pr-3 py-1.5 rounded-full bg-white border border-slate-200 shadow-sm">
+                    <span className="relative flex items-center justify-center w-2.5 h-2.5 shrink-0">
+                        <motion.span
+                            aria-hidden
+                            className="absolute inline-flex h-full w-full rounded-full bg-emerald-400/60"
+                            animate={{ scale: [1, 2.2], opacity: [0.7, 0] }}
+                            transition={{ duration: 1.6, repeat: Infinity, ease: 'easeOut' }}
+                        />
+                        <span className="relative inline-flex w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />
+                    </span>
+                    <div className="hidden md:flex flex-col leading-tight">
+                        <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-slate-400">En línea</span>
+                        <span className="text-[11px] font-extrabold text-slate-700">{onlineUsers.length} admin{onlineUsers.length === 1 ? '' : 's'}</span>
+                    </div>
                     <div className="flex -space-x-2">
-                        {onlineUsers.map((user: any, i) => (
+                        {onlineUsers.slice(0, 4).map((user: any, i) => (
                             <div key={i} className="relative group cursor-help">
-                                <div 
-                                    className="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-white text-xs font-bold shadow-sm transition-transform hover:scale-110 hover:z-10"
-                                    style={{ backgroundColor: user.color || '#3b82f6' }}
-                                >
-                                    {user.name ? user.name.charAt(0) : '?'}
-                                </div>
+                                {user.foto_perfil_url ? (
+                                    /* eslint-disable-next-line @next/next/no-img-element */
+                                    <img
+                                        src={user.foto_perfil_url}
+                                        alt={user.name || 'Admin'}
+                                        className="w-8 h-8 rounded-full border-2 border-white object-cover shadow-sm transition-transform hover:scale-110 hover:z-10"
+                                    />
+                                ) : (
+                                    <div
+                                        className="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-white text-xs font-bold shadow-sm transition-transform hover:scale-110 hover:z-10"
+                                        style={{ backgroundColor: user.color || '#3b82f6' }}
+                                    >
+                                        {user.name ? user.name.charAt(0) : '?'}
+                                    </div>
+                                )}
                                 <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
                                     {user.name || 'Admin'}
                                 </div>
                             </div>
                         ))}
+                        {onlineUsers.length > 4 && (
+                            <div className="w-8 h-8 rounded-full border-2 border-white bg-slate-900 text-white text-[10px] font-bold flex items-center justify-center shadow-sm">
+                                +{onlineUsers.length - 4}
+                            </div>
+                        )}
                         {onlineUsers.length === 0 && (
                              <div className="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center bg-slate-200 text-slate-400 text-xs font-bold animate-pulse">
                                 ...
@@ -1066,9 +1184,22 @@ export default function AdminPage() {
                         <p className="text-sm font-bold text-slate-800 leading-tight">{userName}</p>
                         <p className="text-[10px] text-blue-600 font-bold uppercase">Administrador</p>
                       </div>
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-xl flex items-center justify-center font-bold text-lg shadow-lg shadow-blue-500/20">
-                        {userName.charAt(0)}
-                    </div>
+                    {userPhoto ? (
+                        <div className="relative">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                                src={userPhoto}
+                                alt={userName}
+                                className="w-10 h-10 rounded-xl object-cover ring-2 ring-white shadow-lg shadow-slate-900/15"
+                            />
+                            <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-white" />
+                        </div>
+                    ) : (
+                        <div className="relative w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-xl flex items-center justify-center font-bold text-lg shadow-lg shadow-blue-500/20">
+                            {userName.charAt(0)}
+                            <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-white" />
+                        </div>
+                    )}
                 </div>
             </div>
         </header>
@@ -1602,7 +1733,12 @@ export default function AdminPage() {
                          <div className="p-6 space-y-3 max-h-[60vh] overflow-y-auto">
                             {adminsData.map((admin) => (
                                 <div key={admin.id} className="flex items-center gap-4 p-3 bg-slate-50 rounded-xl border border-slate-100">
-                                    <div className="w-10 h-10 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center font-bold">{admin.nombres.charAt(0)}</div>
+                                    {admin.foto_perfil_url ? (
+                                        /* eslint-disable-next-line @next/next/no-img-element */
+                                        <img src={admin.foto_perfil_url} alt={admin.nombres} className="w-10 h-10 rounded-full object-cover ring-1 ring-slate-200"/>
+                                    ) : (
+                                        <div className="w-10 h-10 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center font-bold">{admin.nombres.charAt(0)}</div>
+                                    )}
                                     <div>
                                             <p className="font-bold text-slate-800 text-sm">{admin.nombres} {admin.apellido_paterno}</p>
                                             <p className="text-xs text-slate-500 font-mono">{admin.dni}</p>
@@ -1765,6 +1901,7 @@ export default function AdminPage() {
 
       </main>
     </div>
+    </AdminCollaboration>
   )
 }
 
