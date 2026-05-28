@@ -16,6 +16,7 @@
 import { createContext, useContext, useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import { motion, AnimatePresence } from 'framer-motion'
+import AdminGifIcon from '@/components/AdminGifIcon'
 
 export type CollabPeer = {
     userId: string
@@ -444,7 +445,7 @@ function AdminChatPanel() {
                                     onChange={e => setDraft(e.target.value)}
                                     onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); onSend() } }}
                                     placeholder="Escribe un mensaje…"
-                                    className="flex-1 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-sm focus:bg-white focus:border-slate-400 outline-none"
+                                    className="flex-1 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:border-slate-400 outline-none"
                                 />
                                 <button onClick={onSend} disabled={!draft.trim()} className="px-3 py-2 rounded-xl bg-slate-900 text-white text-sm font-bold disabled:opacity-40 transition-opacity">
                                     Enviar
@@ -455,20 +456,20 @@ function AdminChatPanel() {
                 </AnimatePresence>
                 <button
                     onClick={() => setOpen(v => !v)}
-                    className="relative w-14 h-14 rounded-full bg-slate-900 text-white shadow-xl shadow-slate-900/30 flex items-center justify-center border border-white/10 hover:scale-105 active:scale-95 transition-transform"
+                    className="relative w-14 h-14 rounded-full bg-slate-900 shadow-xl shadow-slate-900/30 flex items-center justify-center border border-white/10 hover:scale-105 active:scale-95 transition-transform"
                     title="Chat de admins"
                     aria-label="Abrir chat de admins"
                 >
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
-                    </svg>
+                    <span className="flex items-center justify-center w-10 h-10 rounded-full bg-white shadow-inner">
+                        <AdminGifIcon name="chat-de-admins.gif" size={30} variant="bare"/>
+                    </span>
                     {!open && unread > 0 && (
-                        <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 rounded-full bg-rose-500 text-white text-[10px] font-black flex items-center justify-center border-2 border-white animate-pulse">
+                        <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 rounded-full bg-rose-500 text-white text-[10px] font-black flex items-center justify-center border-2 border-white animate-pulse z-10">
                             {unread > 9 ? '9+' : unread}
                         </span>
                     )}
                     {!open && unread === 0 && (
-                        <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-white"/>
+                        <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-white z-10"/>
                     )}
                 </button>
             </div>
