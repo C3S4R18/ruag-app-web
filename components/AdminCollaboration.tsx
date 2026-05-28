@@ -156,11 +156,14 @@ export default function AdminCollaboration({
         sendNow()
     }, [sendNow])
 
-    const sendChat = useCallback((text: string) => {
+    const sendChat = useCallback(async (text: string) => {
         const t = text.trim()
-        if (!t || !channelRef.current || !currentUser) return
-        const msg: ChatMsg = {
-            id: `${currentUser.id}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        if (!t || !currentUser) return
+        // Optimistic UI: insertamos un mensaje temporal con id local; cuando
+        // realtime nos devuelva el INSERT con el id real, deduplicamos.
+        const tempId = `local-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+        const optimistic: ChatMsg = {
+            id: tempId,
             userId: currentUser.id,
             name: currentUser.name,
             color: myColor,
@@ -168,13 +171,38 @@ export default function AdminCollaboration({
             text: t,
             ts: Date.now(),
         }
-        setMessages(prev => [...prev, msg].slice(-80))
-        channelRef.current.send({
-            type: 'broadcast',
-            event: 'chat',
-            payload: msg,
-        })
-    }, [currentUser, myColor])
+        setMessages(prev => [...prev, optimistic].slice(-200))
+        const { data, error } = await supabase.from('admin_messages').insert({
+            user_id: currentUser.id,
+            name: currentUser.name,
+            photo_url: currentUser.photo,
+            color: myColor,
+            text: t,
+        }).select().single()
+        if (error) {
+            // Rollback del optimistic + aviso simple en consola.
+            setMessages(prev => prev.filter(m => m.id !== tempId))
+            console.warn('No se pudo guardar el mensaje admin:', error.message)
+            return
+        }
+        if (data) {
+            // Reemplazamos el optimistic por el guardado (id real).
+            setMessages(prev => {
+                const exists = prev.some(m => m.id === data.id)
+                const without = prev.filter(m => m.id !== tempId && m.id !== data.id)
+                const real: ChatMsg = {
+                    id: data.id,
+                    userId: data.user_id,
+                    name: data.name,
+                    color: data.color || colorForUser(data.user_id),
+                    photo: data.photo_url || null,
+                    text: data.text,
+                    ts: new Date(data.created_at).getTime(),
+                }
+                return exists ? prev.filter(m => m.id !== tempId) : [...without, real].slice(-200)
+            })
+        }
+    }, [currentUser, myColor, supabase])
 
     useEffect(() => {
         if (!currentUser) return
@@ -211,14 +239,37 @@ export default function AdminCollaboration({
             })
         })
 
-        channel.on('broadcast', { event: 'chat' }, ({ payload }: any) => {
-            if (!payload || !payload.id) return
-            if (payload.userId === currentUser.id) return
-            setMessages(prev => {
-                if (prev.some(m => m.id === payload.id)) return prev
-                return [...prev, payload as ChatMsg].slice(-80)
-            })
-        })
+        // Chat persistente: escuchamos INSERTs nuevos en admin_messages.
+        channel.on(
+            'postgres_changes',
+            { event: 'INSERT', schema: 'public', table: 'admin_messages' },
+            ({ new: row }: any) => {
+                if (!row?.id) return
+                setMessages(prev => {
+                    if (prev.some(m => m.id === row.id)) return prev
+                    const msg: ChatMsg = {
+                        id: row.id,
+                        userId: row.user_id,
+                        name: row.name,
+                        color: row.color || colorForUser(row.user_id),
+                        photo: row.photo_url || null,
+                        text: row.text,
+                        ts: new Date(row.created_at).getTime(),
+                    }
+                    return [...prev, msg].slice(-200)
+                })
+            },
+        )
+
+        // Eliminación opcional (si algún admin borra su propio mensaje).
+        channel.on(
+            'postgres_changes',
+            { event: 'DELETE', schema: 'public', table: 'admin_messages' },
+            ({ old: row }: any) => {
+                if (!row?.id) return
+                setMessages(prev => prev.filter(m => m.id !== row.id))
+            },
+        )
 
         channel.subscribe(status => {
             if (status === 'SUBSCRIBED') {
@@ -226,6 +277,36 @@ export default function AdminCollaboration({
                 sendNow()
             }
         })
+
+        // Cargar últimos 100 mensajes guardados al abrir el panel.
+        ;(async () => {
+            const { data, error } = await supabase
+                .from('admin_messages')
+                .select('*')
+                .order('created_at', { ascending: false })
+                .limit(100)
+            if (error) {
+                console.warn('No se pudo cargar el historial del chat admin:', error.message)
+                return
+            }
+            if (!data) return
+            const rows = [...data].reverse().map((row: any): ChatMsg => ({
+                id: row.id,
+                userId: row.user_id,
+                name: row.name,
+                color: row.color || colorForUser(row.user_id),
+                photo: row.photo_url || null,
+                text: row.text,
+                ts: new Date(row.created_at).getTime(),
+            }))
+            setMessages(prev => {
+                // Fusiona historial con mensajes ya recibidos, dedupea por id.
+                const map = new Map<string, ChatMsg>()
+                for (const m of rows) map.set(m.id, m)
+                for (const m of prev) if (!map.has(m.id)) map.set(m.id, m)
+                return Array.from(map.values()).sort((a, b) => a.ts - b.ts).slice(-200)
+            })
+        })()
 
         const onMove = (e: MouseEvent) => {
             mouseRef.current = { x: e.clientX, y: e.clientY, in: true }
