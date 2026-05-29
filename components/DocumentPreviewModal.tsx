@@ -43,8 +43,30 @@ export default function DocumentPreviewModal({
   onClose,
 }: DocumentPreviewModalProps) {
   const documents = useMemo(() => {
-    const source = urls?.length ? urls : url ? [url] : []
-    return source.filter(Boolean)
+    // Algunos campos en BD almacenan VARIAS páginas como un JSON serializado
+    // (p. ej. `["url1","url2"]`). Si el caller nos pasa el string crudo como
+    // `url`, lo parseamos aquí para que funcione bien la vista previa y el
+    // botón "Abrir aparte" (sin esto, se intentaría navegar a `["http...`).
+    const expand = (v: string): string[] => {
+      const trimmed = v.trim()
+      if (trimmed.startsWith('[')) {
+        try {
+          const arr = JSON.parse(trimmed)
+          if (Array.isArray(arr)) {
+            return arr
+              .map((x) => (typeof x === 'string' ? x.trim() : ''))
+              .filter(Boolean)
+          }
+        } catch { /* string normal con corchetes raros — caemos al return abajo */ }
+      }
+      return [trimmed]
+    }
+
+    const raw = urls?.length ? urls : url ? [url] : []
+    return raw
+      .filter((v): v is string => typeof v === 'string' && v.length > 0)
+      .flatMap(expand)
+      .filter(Boolean)
   }, [url, urls])
 
   const [activeIndex, setActiveIndex] = useState(0)
