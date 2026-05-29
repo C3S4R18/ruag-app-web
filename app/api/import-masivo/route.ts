@@ -13,59 +13,105 @@ const supabaseAdmin = createClient(
   }
 )
 
+// Pre-carga TODOS los usuarios de auth en un solo mapa email→id, así evitamos
+// la trampa "already registered" cuando hay imports parciales previos.
+async function buildAuthEmailMap(): Promise<Map<string, string>> {
+  const map = new Map<string, string>()
+  let page = 1
+  const perPage = 1000
+  // Pagina hasta agotar (Supabase admin.listUsers no soporta filter por email).
+  while (true) {
+    const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage })
+    if (error || !data?.users?.length) break
+    for (const u of data.users) {
+      if (u.email) map.set(u.email.toLowerCase(), u.id)
+    }
+    if (data.users.length < perPage) break
+    page += 1
+    if (page > 50) break // tope defensivo (50k usuarios)
+  }
+  return map
+}
+
 export async function POST(request: Request) {
   try {
     const { employees } = await request.json()
-    const results = { success: 0, errors: 0, updated: 0, details: [] as any[] }
+    const results = { success: 0, errors: 0, updated: 0, failures: [] as { dni: string; nombre: string; razon: string }[] }
+
+    // Pre-carga de usuarios auth — evita N llamadas y la trampa de duplicados.
+    const authMap = await buildAuthEmailMap()
 
     for (const emp of employees) {
-      const documentNumber = emp.dni.trim()
-      
-      // 1. CREDENCIALES DE ACCESO (LOGIN) - Lógica Original
-      // Esto es SOLO para que puedan entrar al sistema
-      const authEmail = `${documentNumber}@ruag.sistema` 
-      const password = documentNumber 
+      const documentNumber = String(emp.dni || '').trim()
+      const displayName = `${emp.apellido_paterno || ''} ${emp.apellido_materno || ''} ${emp.nombres || ''}`.trim() || documentNumber
 
-      // 2. CORREO DE CONTACTO (PARA LA FICHA DE DATOS)
-      // Usamos el correo real extraído del IDE. Si no hay, null.
-      const contactEmail = emp.correo_contacto && emp.correo_contacto.includes('@') 
-                           ? emp.correo_contacto 
-                           : null;
+      if (!documentNumber) {
+        results.errors++
+        results.failures.push({ dni: '?', nombre: displayName, razon: 'Sin DNI' })
+        continue
+      }
 
-      let userId = null;
-      let isExistingUser = false;
-      let currentRole = 'obrero'; 
+      const authEmail = `${documentNumber}@ruag.sistema`
+      const password = documentNumber
+      const contactEmail = emp.correo_contacto && emp.correo_contacto.includes('@')
+                           ? emp.correo_contacto
+                           : null
 
-      // --- BUSCAR SI YA EXISTE (EVITA DUPLICADOS) ---
-      const { data: existingProfile } = await supabaseAdmin
-        .from('profiles')
-        .select('id, role')
-        .eq('dni', documentNumber)
-        .single()
+      let userId: string | null = null
+      let isExistingUser = false
+      let currentRole = 'obrero'
 
-      if (existingProfile) {
-        // YA EXISTE: Usamos su ID y respetamos su rol
-        userId = existingProfile.id
-        isExistingUser = true;
-        if (existingProfile.role) currentRole = existingProfile.role;
+      // 1) ¿Ya existe el usuario en Auth? (lookup local, instantáneo)
+      const cachedAuthId = authMap.get(authEmail.toLowerCase())
+      if (cachedAuthId) {
+        userId = cachedAuthId
+        isExistingUser = true
       } else {
-        // NUEVO: Creamos el usuario en Auth (Supabase Auth)
-        const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-          email: authEmail, 
-          password: password,
-          email_confirm: true,
-          user_metadata: { full_name: emp.nombres }
-        })
+        // 2) También revisamos `profiles` por DNI (por si el usuario tiene
+        //    otro email distinto al sintético — registros previos manuales).
+        const { data: existingProfile } = await supabaseAdmin
+          .from('profiles')
+          .select('id, role')
+          .eq('dni', documentNumber)
+          .maybeSingle()
 
-        if (!authError && authData.user) {
-          userId = authData.user.id
-        } else if (authError?.message?.includes('already registered')) {
-           results.errors++
-           continue
+        if (existingProfile) {
+          userId = existingProfile.id
+          isExistingUser = true
+          if (existingProfile.role) currentRole = existingProfile.role
         } else {
-           results.errors++
-           continue
+          // 3) Nuevo: creamos el usuario en Auth.
+          const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+            email: authEmail,
+            password: password,
+            email_confirm: true,
+            user_metadata: { full_name: emp.nombres },
+          })
+          if (!authError && authData.user) {
+            userId = authData.user.id
+            authMap.set(authEmail.toLowerCase(), userId)
+          } else {
+            // No se pudo crear y tampoco existía localmente — registra y sigue.
+            results.errors++
+            results.failures.push({
+              dni: documentNumber,
+              nombre: displayName,
+              razon: authError?.message || 'No se pudo crear el usuario',
+            })
+            continue
+          }
         }
+      }
+
+      // Si llegamos aquí ya tenemos userId. Volvemos a leer el rol del profile
+      // (por si el usuario auth ya existía pero no había profile linkeado).
+      if (isExistingUser && currentRole === 'obrero') {
+        const { data: profById } = await supabaseAdmin
+          .from('profiles')
+          .select('role')
+          .eq('id', userId)
+          .maybeSingle()
+        if (profById?.role) currentRole = profById.role
       }
 
       // --- ACTUALIZAR PERFIL (Siempre se actualiza para asegurar datos frescos) ---
@@ -139,6 +185,11 @@ export async function POST(request: Request) {
         if (fichaError) {
             console.error("Error ficha:", fichaError)
             results.errors++
+            results.failures.push({
+                dni: documentNumber,
+                nombre: displayName,
+                razon: `Ficha: ${fichaError.message}`,
+            })
         } else {
             if (isExistingUser) results.updated++
             else results.success++

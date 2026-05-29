@@ -212,27 +212,29 @@ export default function MassImport({ onComplete }: { onComplete: () => void }) {
         let processed = 0
         let errors = 0
         let updated = 0
+        const allFailures: { dni: string; nombre: string; razon: string }[] = []
 
         for (let i = 0; i < total; i += BATCH_SIZE) {
             const batch = allEmployees.slice(i, i + BATCH_SIZE)
-            
+
             try {
                 const response = await fetch('/api/import-masivo', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ employees: batch })
                 })
-                
+
                 const result = await response.json()
                 if (!response.ok) throw new Error(result.error)
-                
+
                 errors += result.errors
                 processed += result.success
                 updated += (result.updated || 0)
-                
+                if (Array.isArray(result.failures)) allFailures.push(...result.failures)
+
                 const percent = Math.round(((i + batch.length) / total) * 100)
                 setProgress(percent)
-                
+
                 if (i % 50 === 0) addLog(`... Progreso: ${percent}%`)
 
             } catch (err: any) {
@@ -243,9 +245,13 @@ export default function MassImport({ onComplete }: { onComplete: () => void }) {
         }
 
         setProgress(100)
-        
+
         addLog(`✅ PROCESO FINALIZADO.`)
         addLog(`🆕 Nuevos: ${processed} | 🔄 Actualizados: ${updated} | ❌ Errores: ${errors}`)
+        if (allFailures.length > 0) {
+            addLog(`📋 Trabajadores con error (revísalos):`)
+            allFailures.forEach(f => addLog(`   • ${f.nombre} (DNI ${f.dni}) — ${f.razon}`))
+        }
         toast.success(`Carga completada con éxito.`)
         
         // NO HAY SONIDO AL FINAL (Como pediste)
