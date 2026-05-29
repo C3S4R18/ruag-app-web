@@ -14,7 +14,7 @@ import CesadosManager from '@/components/CesadosManager'
 import SctrManager from '@/components/SctrManager'
 import { buildBiometricUpdate, getSignatureUrl, normalizeBiometricFields } from '@/utils/biometric'
 import { extractDocDates } from '@/utils/docExpiry'
-import AdminCollaboration from '@/components/AdminCollaboration'
+import AdminCollaboration, { useCollabPeers } from '@/components/AdminCollaboration'
 
 // IMPORTS COMPONENTES
 import BiometricSignature from '@/components/ssoma/BiometricSignature'
@@ -1127,55 +1127,7 @@ export default function AdminPage() {
                 </button>
 
                 {/* INDICADOR DE PRESENCIA — píldora moderna con avatares apilados */}
-                <div className="flex items-center gap-2.5 pl-3 pr-3 py-1.5 rounded-full bg-white border border-slate-200 shadow-sm">
-                    <span className="relative flex items-center justify-center w-2.5 h-2.5 shrink-0">
-                        <motion.span
-                            aria-hidden
-                            className="absolute inline-flex h-full w-full rounded-full bg-emerald-400/60"
-                            animate={{ scale: [1, 2.2], opacity: [0.7, 0] }}
-                            transition={{ duration: 1.6, repeat: Infinity, ease: 'easeOut' }}
-                        />
-                        <span className="relative inline-flex w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />
-                    </span>
-                    <div className="hidden md:flex flex-col leading-tight">
-                        <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-slate-400">En línea</span>
-                        <span className="text-[11px] font-extrabold text-slate-700">{onlineUsers.length} admin{onlineUsers.length === 1 ? '' : 's'}</span>
-                    </div>
-                    <div className="flex -space-x-2">
-                        {onlineUsers.slice(0, 4).map((user: any, i) => (
-                            <div key={i} className="relative group cursor-help">
-                                {user.foto_perfil_url ? (
-                                    /* eslint-disable-next-line @next/next/no-img-element */
-                                    <img
-                                        src={user.foto_perfil_url}
-                                        alt={user.name || 'Admin'}
-                                        className="w-8 h-8 rounded-full border-2 border-white object-cover shadow-sm transition-transform hover:scale-110 hover:z-10"
-                                    />
-                                ) : (
-                                    <div
-                                        className="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-white text-xs font-bold shadow-sm transition-transform hover:scale-110 hover:z-10"
-                                        style={{ backgroundColor: user.color || '#3b82f6' }}
-                                    >
-                                        {user.name ? user.name.charAt(0) : '?'}
-                                    </div>
-                                )}
-                                <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
-                                    {user.name || 'Admin'}
-                                </div>
-                            </div>
-                        ))}
-                        {onlineUsers.length > 4 && (
-                            <div className="w-8 h-8 rounded-full border-2 border-white bg-slate-900 text-white text-[10px] font-bold flex items-center justify-center shadow-sm">
-                                +{onlineUsers.length - 4}
-                            </div>
-                        )}
-                        {onlineUsers.length === 0 && (
-                             <div className="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center bg-slate-200 text-slate-400 text-xs font-bold animate-pulse">
-                                ...
-                             </div>
-                        )}
-                    </div>
-                </div>
+                <AdminPresencePill myName={userName} myPhoto={userPhoto}/>
 
                 <div className="h-8 w-[1px] bg-slate-200 hidden sm:block"></div>
                 
@@ -3068,5 +3020,68 @@ function AdminRRHHDrawer({ worker, onClose, onUpdate }: any) {
                 )}
             </AnimatePresence>
         </motion.div>
+    )
+}
+
+/* ───────────────────────────────────────────────────────────────────────
+ *  Píldora "EN LÍNEA" — usa los peers de AdminCollaboration (mismo canal
+ *  que mueve los cursores), así siempre refleja el estado real sin perder
+ *  sync como el canal de presence antiguo.
+ * ─────────────────────────────────────────────────────────────────── */
+function AdminPresencePill({ myName, myPhoto }: { myName: string; myPhoto: string | null }) {
+    const peers = useCollabPeers()
+    const all = useMemo(() => (
+        [
+            { name: myName || 'Tú', photo: myPhoto, color: '#0f172a', mine: true as boolean },
+            ...peers.map(p => ({ name: p.name, photo: p.photo, color: p.color, mine: false })),
+        ]
+    ), [myName, myPhoto, peers])
+    const total = all.length
+
+    return (
+        <div className="flex items-center gap-2.5 pl-3 pr-3 py-1.5 rounded-full bg-white border border-slate-200 shadow-sm">
+            <span className="relative flex items-center justify-center w-2.5 h-2.5 shrink-0">
+                <motion.span
+                    aria-hidden
+                    className="absolute inline-flex h-full w-full rounded-full bg-emerald-400/60"
+                    animate={{ scale: [1, 2.2], opacity: [0.7, 0] }}
+                    transition={{ duration: 1.6, repeat: Infinity, ease: 'easeOut' }}
+                />
+                <span className="relative inline-flex w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />
+            </span>
+            <div className="hidden md:flex flex-col leading-tight">
+                <span className="text-[9px] font-bold uppercase tracking-[0.18em] text-slate-400">En línea</span>
+                <span className="text-[11px] font-extrabold text-slate-700">{total} admin{total === 1 ? '' : 's'}</span>
+            </div>
+            <div className="flex -space-x-2">
+                {all.slice(0, 4).map((u, i) => (
+                    <div key={i} className="relative group cursor-help">
+                        {u.photo ? (
+                            /* eslint-disable-next-line @next/next/no-img-element */
+                            <img
+                                src={u.photo}
+                                alt={u.name}
+                                className="w-8 h-8 rounded-full border-2 border-white object-cover shadow-sm transition-transform hover:scale-110 hover:z-10"
+                            />
+                        ) : (
+                            <div
+                                className="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-white text-xs font-bold shadow-sm transition-transform hover:scale-110 hover:z-10"
+                                style={{ backgroundColor: u.color }}
+                            >
+                                {u.name ? u.name.charAt(0).toUpperCase() : '?'}
+                            </div>
+                        )}
+                        <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50">
+                            {u.mine ? `${u.name} (tú)` : u.name}
+                        </div>
+                    </div>
+                ))}
+                {total > 4 && (
+                    <div className="w-8 h-8 rounded-full border-2 border-white bg-slate-900 text-white text-[10px] font-bold flex items-center justify-center shadow-sm">
+                        +{total - 4}
+                    </div>
+                )}
+            </div>
+        </div>
     )
 }
