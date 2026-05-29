@@ -470,11 +470,30 @@ export default function AdminPage() {
   useEffect(() => {
       fetchData()
 
-      // SUSCRIPCIÓN A CAMBIOS
+      // SUSCRIPCIÓN A CAMBIOS — INSERT/UPDATE/DELETE en fichas
       const channel = supabase.channel('admin-docs')
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'fichas' }, (payload: any) => {
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'fichas' }, (payload: any) => {
+            // DELETE: quitar de la lista
+            if (payload.eventType === 'DELETE') {
+                const oldId = payload.old?.id
+                if (!oldId) return
+                setWorkersData(prev => prev.filter(w => w.id !== oldId))
+                setWorkersInCurrentObra(prev => prev.filter(w => w.id !== oldId))
+                return
+            }
+
+            // INSERT o UPDATE: normalizar e insertar/actualizar
             const newRow = normalizeBiometricFields(payload.new)
-            setWorkersData(prev => prev.map(w => w.id === newRow.id ? newRow : w))
+
+            if (payload.eventType === 'INSERT') {
+                setWorkersData(prev => {
+                    if (prev.some(w => w.id === newRow.id)) return prev
+                    // Inserta al inicio (orden por updated_at desc en fetchData)
+                    return [newRow, ...prev]
+                })
+            } else {
+                setWorkersData(prev => prev.map(w => w.id === newRow.id ? newRow : w))
+            }
 
             // Drawers abiertos: sincronizar en vivo para que la descarga
             // del obrero aparezca como "Descargado · hh:mm" sin refrescar.
@@ -483,7 +502,7 @@ export default function AdminPage() {
             setSelectedWorkerUpload((prev: any) => (prev && prev.id === newRow.id ? { ...prev, ...newRow } : prev))
             setSelectedWorkerBiometria((prev: any) => (prev && prev.id === newRow.id ? { ...prev, ...newRow } : prev))
 
-            // Si la ficha actualizada pertenece a la obra actual
+            // Si pertenece a la obra actual abierta
             if (currentObra && newRow.nombre_obra === currentObra.nombre) {
                 setWorkersInCurrentObra(prev => {
                     const exists = prev.find(p => p.id === newRow.id)
