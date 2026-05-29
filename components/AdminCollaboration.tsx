@@ -413,18 +413,18 @@ export default function AdminCollaboration({
                             </svg>
                             {/* Etiqueta con el nombre */}
                             <div
-                                className="absolute left-4 top-4 inline-flex items-center gap-1.5 text-[10px] font-bold text-white pl-1 pr-2.5 py-0.5 rounded-full whitespace-nowrap shadow-md"
+                                className="absolute left-5 top-5 inline-flex items-center gap-2 text-[11px] font-bold leading-none text-white pl-1 pr-3 py-1 rounded-full whitespace-nowrap shadow-md"
                                 style={{ backgroundColor: p.color }}
                             >
                                 {p.photo ? (
                                     /* eslint-disable-next-line @next/next/no-img-element */
-                                    <img src={p.photo} alt="" className="w-4 h-4 rounded-full object-cover ring-1 ring-white/70"/>
+                                    <img src={p.photo} alt="" className="w-5 h-5 rounded-full object-cover ring-1 ring-white/70 shrink-0"/>
                                 ) : (
-                                    <span className="w-4 h-4 rounded-full bg-white/30 ring-1 ring-white/70 flex items-center justify-center text-[8px] font-black">
+                                    <span className="w-5 h-5 rounded-full bg-white/30 ring-1 ring-white/70 flex items-center justify-center text-[9px] font-black shrink-0">
                                         {p.name.charAt(0).toUpperCase()}
                                     </span>
                                 )}
-                                <span>{p.name}</span>
+                                <span className="pr-0.5">{p.name}</span>
                             </div>
                         </motion.div>
                     ))}

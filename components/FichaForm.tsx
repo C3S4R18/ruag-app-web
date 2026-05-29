@@ -17,6 +17,7 @@ import {
 import Link from 'next/link'
 import DocumentPreviewModal from './DocumentPreviewModal'
 import AnimatedIcon, { type AnimatedIconKey } from './AnimatedIcon'
+import ObraSelect from './ObraSelect'
 
 // --- ESTRUCTURA DE PASOS ---
 const STEPS: Array<{ id: number, title: string, icon: any, animatedIcon: AnimatedIconKey }> = [
@@ -937,7 +938,7 @@ export default function FichaForm() {
                     <SectionTitle title="Información Laboral" animatedIcon="laboral" />
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
                         <Input label="Cargo" name="cargo" val={formData.cargo} set={handleChange} required />
-                        <Input label="Obra / Proyecto" name="nombre_obra" val={formData.nombre_obra} set={handleChange} required />
+                        <ObraSelect value={formData.nombre_obra} onChange={(v) => setFormData((p:any) => ({ ...p, nombre_obra: v }))} required />
                         <Input label="Categoría" name="categoria" val={formData.categoria} set={handleChange} required />
                         <Input label="Fecha Ingreso" type="date" name="fecha_ingreso" val={formData.fecha_ingreso} set={handleChange} />
                     </div>

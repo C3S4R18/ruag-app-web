@@ -45,7 +45,7 @@ import {
   FileText, Search, Download, Trash2, Maximize2,
   CheckCircle, ShieldCheck, X, Save, 
   Loader2, Building2, Printer, 
-  ChevronLeft, ChevronRight, User, Wallet, HardHat, 
+  ChevronLeft, ChevronRight, ChevronDown, User, Wallet, HardHat,
   CheckSquare, Square, Unlock, Lock, FileBadge,
   PenTool, Fingerprint, Share2, MoreHorizontal, Edit3,
   FileCheck, MessageSquare, Filter, ScanFace, Briefcase, 
@@ -170,6 +170,12 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
   // FILTROS & UI
   const [searchTerm, setSearchTerm] = useState('')
   const [filterObra, setFilterObra] = useState('Todas')
+  const [obraFilterOpen, setObraFilterOpen] = useState(false)
+  const [obraConfirmDelete, setObraConfirmDelete] = useState<string | null>(null)
+  const [obrasSelected, setObrasSelected] = useState<Set<string>>(new Set())
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false)
+  const [bulkDeleting, setBulkDeleting] = useState(false)
+  const obraFilterRef = useRef<HTMLDivElement>(null)
   const [filterEstado, setFilterEstado] = useState('Todos')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
   const [currentPage, setCurrentPage] = useState(1)
@@ -975,6 +981,98 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
 
   useEffect(() => { setCurrentPage(1) }, [searchTerm, filterObra, filterEstado])
 
+  // Click-outside del dropdown de filtro de obras.
+  useEffect(() => {
+      if (!obraFilterOpen) return
+      const onMouseDown = (e: MouseEvent) => {
+          if (obraFilterRef.current && !obraFilterRef.current.contains(e.target as Node)) {
+              setObraFilterOpen(false)
+              setObraConfirmDelete(null)
+          }
+      }
+      document.addEventListener('mousedown', onMouseDown)
+      return () => document.removeEventListener('mousedown', onMouseDown)
+  }, [obraFilterOpen])
+
+  // Lista única de obras usadas actualmente en fichas (para el filtro).
+  const uniqueObrasEnFichas = useMemo(() => {
+      const set = new Set<string>()
+      for (const f of fichas) {
+          const v = (f.nombre_obra || '').trim()
+          if (v) set.add(v)
+      }
+      return Array.from(set).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }))
+  }, [fichas])
+
+  // Quita una obra de TODAS las fichas que la tengan (deja a esos
+  // trabajadores con nombre_obra = null) y limpia el filtro si era esa.
+  // Usa match por valor TRIM-eado para tolerar espacios invisibles en la BD.
+  const deleteObraFromFichas = async (obra: string) => {
+      const target = obra.trim()
+      // Recolecta TODAS las variantes raw en fichas cuyo trim() coincida
+      // (mismo case). Así pillamos también " vivanda" / "vivanda " / etc.
+      const rawValues = Array.from(new Set(
+          fichas
+              .map((f: any) => f.nombre_obra)
+              .filter((v: any): v is string => typeof v === 'string' && v.trim() === target)
+      ))
+      if (rawValues.length === 0) {
+          toast.message(`No hay fichas con "${obra}".`)
+          setObraConfirmDelete(null)
+          return
+      }
+      const { error, count } = await supabase
+          .from('fichas')
+          .update({ nombre_obra: null }, { count: 'exact' })
+          .in('nombre_obra', rawValues)
+      if (error) { toast.error('No se pudo eliminar: ' + error.message); return }
+      if (filterObra === obra) setFilterObra('Todas')
+      setObraConfirmDelete(null)
+      toast.success(`"${obra}" eliminada de ${count ?? rawValues.length} ficha(s).`)
+      if (onNotifyChange) onNotifyChange('eliminó la obra', obra)
+  }
+
+  // Borrado MASIVO: borra todas las obras seleccionadas de las fichas.
+  const bulkDeleteObras = async () => {
+      if (obrasSelected.size === 0) return
+      setBulkDeleting(true)
+      const targets = Array.from(obrasSelected)
+      // Junta todas las variantes RAW que coincidan con cualquier obra seleccionada (tras trim).
+      const targetSet = new Set(targets.map(o => o.trim()))
+      const rawValues = Array.from(new Set(
+          fichas
+              .map((f: any) => f.nombre_obra)
+              .filter((v: any): v is string => typeof v === 'string' && targetSet.has(v.trim()))
+      ))
+      if (rawValues.length === 0) {
+          toast.message('No hay fichas con esas obras.')
+          setObrasSelected(new Set())
+          setConfirmBulkDelete(false)
+          setBulkDeleting(false)
+          return
+      }
+      const { error, count } = await supabase
+          .from('fichas')
+          .update({ nombre_obra: null }, { count: 'exact' })
+          .in('nombre_obra', rawValues)
+      setBulkDeleting(false)
+      setConfirmBulkDelete(false)
+      if (error) { toast.error('No se pudo eliminar: ' + error.message); return }
+      if (targetSet.has(filterObra.trim())) setFilterObra('Todas')
+      const removed = targets.length
+      setObrasSelected(new Set())
+      toast.success(`${removed} obra(s) eliminada(s) de ${count ?? rawValues.length} ficha(s).`)
+      if (onNotifyChange) onNotifyChange('eliminó obras (masivo)', `${removed} obras`)
+  }
+
+  // Limpia selección y confirmaciones al cerrar el dropdown.
+  useEffect(() => {
+      if (!obraFilterOpen) {
+          setObraConfirmDelete(null)
+          setConfirmBulkDelete(false)
+      }
+  }, [obraFilterOpen])
+
   return (
     <div className="flex flex-col h-full w-full bg-white rounded-3xl border border-slate-200/60 shadow-xl shadow-slate-200/40 overflow-hidden relative font-sans">
       
@@ -1276,12 +1374,160 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                 </button>
 
                 <div className="flex items-center gap-2 bg-slate-50/50 p-1 rounded-xl border border-slate-200" id="tour-filters">
-                    <div className="relative">
-                        <Building2 size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
-                        <select className="pl-9 pr-8 py-2 bg-transparent text-sm font-semibold text-slate-600 outline-none cursor-pointer hover:text-slate-900 transition-colors appearance-none max-w-[200px] truncate" value={filterObra} onChange={(e) => setFilterObra(e.target.value)}>
-                            <option value="Todas">Todas las Obras</option>
-                            {Array.from(new Set(fichas.map(f => f.nombre_obra).filter(Boolean))).map((obra: any) => <option key={obra} value={obra}>{obra}</option>)}
-                        </select>
+                    <div className="relative" ref={obraFilterRef}>
+                        <button
+                            type="button"
+                            onClick={() => setObraFilterOpen(v => !v)}
+                            className="pl-9 pr-7 py-2 bg-transparent text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors text-left max-w-[220px] truncate flex items-center"
+                        >
+                            <Building2 size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
+                            <span className="truncate">{filterObra === 'Todas' ? 'Todas las Obras' : filterObra}</span>
+                            <ChevronDown size={14} className={`absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 transition-transform ${obraFilterOpen ? 'rotate-180' : ''}`}/>
+                        </button>
+                        {obraFilterOpen && (
+                            <div className="absolute top-full left-0 mt-2 w-[360px] max-w-[92vw] bg-white rounded-2xl shadow-2xl shadow-slate-900/20 border border-slate-200 overflow-hidden z-50">
+                                <div className="p-2 border-b border-slate-100 bg-slate-50/60 space-y-1">
+                                    <button
+                                        type="button"
+                                        onClick={() => { setFilterObra('Todas'); setObraFilterOpen(false); setObraConfirmDelete(null) }}
+                                        className={`w-full text-left px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-2 ${filterObra === 'Todas' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-700 hover:bg-slate-50'}`}
+                                    >
+                                        <Building2 size={14}/> Todas las Obras
+                                    </button>
+                                    {uniqueObrasEnFichas.length > 0 && (() => {
+                                        const allSelected = uniqueObrasEnFichas.length > 0 && uniqueObrasEnFichas.every(o => obrasSelected.has(o))
+                                        const someSelected = obrasSelected.size > 0
+                                        return (
+                                            <div className="flex items-center justify-between gap-2 px-2 py-1.5">
+                                                <label className="flex items-center gap-2 cursor-pointer text-[11px] font-bold text-slate-500 uppercase tracking-wide select-none">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={allSelected}
+                                                        ref={(el) => { if (el) el.indeterminate = !allSelected && someSelected }}
+                                                        onChange={() => {
+                                                            if (allSelected) setObrasSelected(new Set())
+                                                            else setObrasSelected(new Set(uniqueObrasEnFichas))
+                                                        }}
+                                                        className="w-3.5 h-3.5 rounded accent-rose-500"
+                                                    />
+                                                    {allSelected ? 'Quitar todas' : 'Seleccionar todas'}
+                                                </label>
+                                                {someSelected && (
+                                                    <span className="text-[10px] font-bold text-rose-600">{obrasSelected.size} seleccionada{obrasSelected.size === 1 ? '' : 's'}</span>
+                                                )}
+                                            </div>
+                                        )
+                                    })()}
+                                </div>
+                                <div className="overflow-y-auto max-h-[340px]">
+                                    {uniqueObrasEnFichas.length === 0 ? (
+                                        <div className="p-6 text-center text-slate-400 text-xs">
+                                            <p className="font-bold">Sin obras asignadas</p>
+                                            <p className="mt-1 text-slate-300">Las obras aparecen aquí cuando los obreros las asignan en su ficha.</p>
+                                        </div>
+                                    ) : uniqueObrasEnFichas.map(obra => {
+                                        const isActive = filterObra === obra
+                                        const isConfirming = obraConfirmDelete === obra
+                                        const isSelected = obrasSelected.has(obra)
+                                        return (
+                                            <div key={obra} className={`flex items-center gap-1.5 pl-2 pr-1.5 ${isSelected ? 'bg-rose-50/60' : isActive ? 'bg-emerald-50/60' : 'hover:bg-slate-50'} transition-colors`}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isSelected}
+                                                    onChange={() => {
+                                                        setObrasSelected(prev => {
+                                                            const next = new Set(prev)
+                                                            if (next.has(obra)) next.delete(obra); else next.add(obra)
+                                                            return next
+                                                        })
+                                                    }}
+                                                    className="w-3.5 h-3.5 rounded accent-rose-500 shrink-0"
+                                                    title="Seleccionar para eliminar en masa"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => { setFilterObra(obra); setObraFilterOpen(false); setObraConfirmDelete(null) }}
+                                                    className="flex-1 text-left px-1 py-2 text-sm text-slate-700 truncate"
+                                                    title={obra}
+                                                >
+                                                    {obra}
+                                                </button>
+                                                {isConfirming ? (
+                                                    <div className="flex items-center gap-1 shrink-0">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => deleteObraFromFichas(obra)}
+                                                            className="px-2 py-1 rounded-md bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-bold uppercase tracking-wide"
+                                                        >Sí</button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setObraConfirmDelete(null)}
+                                                            className="px-2 py-1 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-bold uppercase tracking-wide"
+                                                        >No</button>
+                                                    </div>
+                                                ) : (
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => { e.stopPropagation(); setObraConfirmDelete(obra) }}
+                                                        className="shrink-0 p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors"
+                                                        title="Eliminar solo esta obra"
+                                                    >
+                                                        <Trash2 size={13}/>
+                                                    </button>
+                                                )}
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                                {/* BARRA DE ACCIÓN MASIVA */}
+                                {obrasSelected.size > 0 && (
+                                    <div className="border-t border-rose-200 bg-rose-50/70 px-3 py-2.5 flex items-center justify-between gap-2">
+                                        {confirmBulkDelete ? (
+                                            <>
+                                                <span className="text-[11px] font-bold text-rose-700 leading-tight flex-1">
+                                                    ¿Eliminar {obrasSelected.size} obra(s) de todas las fichas?
+                                                </span>
+                                                <div className="flex gap-1.5 shrink-0">
+                                                    <button
+                                                        type="button"
+                                                        disabled={bulkDeleting}
+                                                        onClick={bulkDeleteObras}
+                                                        className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-bold uppercase tracking-wide disabled:opacity-60 flex items-center gap-1.5"
+                                                    >
+                                                        {bulkDeleting ? <Loader2 size={11} className="animate-spin"/> : null}
+                                                        Confirmar
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        disabled={bulkDeleting}
+                                                        onClick={() => setConfirmBulkDelete(false)}
+                                                        className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 text-[10px] font-bold uppercase tracking-wide hover:bg-slate-50"
+                                                    >Cancelar</button>
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setObrasSelected(new Set())}
+                                                    className="text-[11px] font-bold text-slate-500 hover:text-slate-700"
+                                                >Limpiar</button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setConfirmBulkDelete(true)}
+                                                    className="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[11px] font-bold uppercase tracking-wide flex items-center gap-1.5 shadow-sm"
+                                                >
+                                                    <Trash2 size={12}/> Eliminar {obrasSelected.size} seleccionada{obrasSelected.size === 1 ? '' : 's'}
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
+                                )}
+                                <div className="px-3 py-2 border-t border-slate-100 bg-slate-50/60 text-[10px] text-slate-400 leading-relaxed">
+                                    {uniqueObrasEnFichas.length} obras en uso. Marca las casillas para borrar en masa, o usa la papelera para borrar una sola.
+                                </div>
+                            </div>
+                        )}
                     </div>
                     <div className="w-[1px] h-5 bg-slate-200"></div>
                     <div className="relative flex items-center">
