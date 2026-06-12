@@ -1931,6 +1931,7 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
     const [saving, setSaving] = useState(false)
     const [loadingAction, setLoadingAction] = useState(false)
     const [photoZoomOpen, setPhotoZoomOpen] = useState(false)
+    const [signatureZoomOpen, setSignatureZoomOpen] = useState(false)
     const [analyzingIa, setAnalyzingIa] = useState(false)
     const [uploadingExamen, setUploadingExamen] = useState(false)
 
@@ -2414,11 +2415,28 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
                             </div>
                         </Section>
                         <Section title="Firma Registrada" icon={<AdminGifIcon folder="icons" name="firma.gif" size={20} variant="bare"/>}>
-                                <div className="border border-dashed border-slate-300 rounded-lg p-4 bg-slate-50 flex justify-center">
-                                    {getSignatureUrl(formData) ? (
-                                    <NormalizedSignatureImage src={getSignatureUrl(formData) || ''} alt="Firma" className="max-h-24 object-contain" />
-                                ) : <span className="text-slate-400 text-xs">Sin firma registrada</span>}
-                             </div>
+                            {getSignatureUrl(formData) ? (
+                                <button
+                                    type="button"
+                                    onClick={() => setSignatureZoomOpen(true)}
+                                    className="group relative w-full rounded-2xl border border-slate-200 bg-white p-5 flex items-center justify-center shadow-inner hover:shadow-md hover:border-emerald-300 transition-all cursor-zoom-in overflow-hidden"
+                                    title="Click para ampliar"
+                                >
+                                    <NormalizedSignatureImage
+                                        src={getSignatureUrl(formData) || ''}
+                                        alt="Firma"
+                                        className="w-full max-h-72 object-contain"
+                                    />
+                                    <span className="absolute top-2 right-2 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide bg-slate-900/70 text-white px-2 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <Maximize2 size={11}/> Ampliar
+                                    </span>
+                                </button>
+                            ) : (
+                                <div className="border border-dashed border-slate-300 rounded-2xl p-10 bg-slate-50 flex flex-col items-center justify-center gap-2 text-slate-400">
+                                    <PenTool size={28} className="text-slate-300"/>
+                                    <span className="text-xs font-bold">Sin firma registrada</span>
+                                </div>
+                            )}
                         </Section>
                     </div>
                 </div>
@@ -2447,6 +2465,45 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
                         dni={ficha.dni}
                         onClose={() => setPhotoZoomOpen(false)}
                     />
+                )}
+            </AnimatePresence>
+
+            {/* Modal zoom de la firma */}
+            <AnimatePresence>
+                {signatureZoomOpen && getSignatureUrl(formData) && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => setSignatureZoomOpen(false)}
+                        className="fixed inset-0 z-[120] bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-6"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.94, y: 12 }}
+                            animate={{ scale: 1, y: 0 }}
+                            exit={{ scale: 0.94, y: 12 }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="bg-white rounded-3xl shadow-2xl max-w-3xl w-full overflow-hidden"
+                        >
+                            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-4">
+                                <div className="flex items-center gap-3">
+                                    <span className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center"><PenTool size={18}/></span>
+                                    <div>
+                                        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Firma del trabajador</p>
+                                        <h3 className="text-base font-extrabold text-slate-900">{ficha.nombres} {ficha.apellido_paterno}</h3>
+                                    </div>
+                                </div>
+                                <button onClick={() => setSignatureZoomOpen(false)} className="p-2 rounded-full hover:bg-slate-100 text-slate-500"><X size={18}/></button>
+                            </div>
+                            <div className="p-8 bg-slate-50 flex items-center justify-center min-h-[400px]">
+                                <NormalizedSignatureImage
+                                    src={getSignatureUrl(formData) || ''}
+                                    alt="Firma ampliada"
+                                    className="max-w-full max-h-[60vh] object-contain"
+                                />
+                            </div>
+                        </motion.div>
+                    </motion.div>
                 )}
             </AnimatePresence>
         </motion.div>
