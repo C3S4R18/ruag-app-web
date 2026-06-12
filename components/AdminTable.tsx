@@ -2419,13 +2419,15 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
                                 <button
                                     type="button"
                                     onClick={() => setSignatureZoomOpen(true)}
-                                    className="group relative w-full rounded-2xl border border-slate-200 bg-white p-5 flex items-center justify-center shadow-inner hover:shadow-md hover:border-emerald-300 transition-all cursor-zoom-in overflow-hidden"
+                                    className="group relative w-full rounded-2xl border border-slate-200 bg-white p-5 min-h-[180px] flex items-center justify-center shadow-inner hover:shadow-md hover:border-emerald-300 transition-all cursor-zoom-in overflow-hidden"
                                     title="Click para ampliar"
+                                    style={{ imageRendering: 'auto' as any }}
                                 >
                                     <NormalizedSignatureImage
                                         src={getSignatureUrl(formData) || ''}
                                         alt="Firma"
-                                        className="w-full max-h-72 object-contain"
+                                        className="max-w-full max-h-64 object-contain"
+                                        style={{ imageRendering: 'auto' as any }}
                                     />
                                     <span className="absolute top-2 right-2 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide bg-slate-900/70 text-white px-2 py-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
                                         <Maximize2 size={11}/> Ampliar
@@ -2499,7 +2501,8 @@ function FichaDrawer({ ficha, onClose, onUpdate, onDelete, onDownload, downloadi
                                 <NormalizedSignatureImage
                                     src={getSignatureUrl(formData) || ''}
                                     alt="Firma ampliada"
-                                    className="max-w-full max-h-[60vh] object-contain"
+                                    className="w-full max-w-2xl max-h-[60vh] object-contain"
+                                    style={{ imageRendering: 'auto' as any }}
                                 />
                             </div>
                         </motion.div>

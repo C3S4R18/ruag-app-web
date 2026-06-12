@@ -8,10 +8,11 @@ type NormalizedSignatureImageProps = Omit<ImgHTMLAttributes<HTMLImageElement>, '
 }
 
 function isVisibleSignaturePixel(r: number, g: number, b: number, a: number) {
-  if (a < 18) return false
+  // Threshold bajo: pen strokes anti-aliased tienen alpha 4-255. 18 era muy duro.
+  if (a < 6) return false
 
   const brightness = (r + g + b) / 3
-  const isNearWhite = brightness > 246 && a > 220
+  const isNearWhite = brightness > 240 && a > 200
 
   return !isNearWhite
 }
@@ -85,6 +86,15 @@ export default function NormalizedSignatureImage({
         }
 
         if (right < left || bottom < top) {
+          setProcessedSrc(src)
+          return
+        }
+
+        // Si bbox colapsada (<20px), no recortes — algo salio mal con threshold.
+        // Renderiza original para no mostrar punto microscopico estirado.
+        const bboxW = right - left
+        const bboxH = bottom - top
+        if (bboxW < 20 || bboxH < 20) {
           setProcessedSrc(src)
           return
         }
