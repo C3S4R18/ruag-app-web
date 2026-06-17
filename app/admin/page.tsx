@@ -1010,7 +1010,7 @@ export default function AdminPage() {
             <div className="space-y-1">
                 <SidebarItem active={activeView === 'dashboard'} onClick={() => handleNavClick('dashboard')} icon={<AdminGifIcon name="dashboard-general.gif" size={30} variant="bare" />} label="Dashboard General" />
                 <div id="nav-staff">
-                    <SidebarItem active={activeView === 'staff'} onClick={() => handleNavClick('staff')} icon={<Briefcase size={22} className="text-violet-600" />} label="Staff" />
+                    <SidebarItem active={activeView === 'staff'} onClick={() => handleNavClick('staff')} icon={<AdminGifIcon name="staff.gif" size={30} variant="bare" />} label="Staff" />
                 </div>
             </div>
 
