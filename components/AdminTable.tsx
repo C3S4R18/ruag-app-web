@@ -69,8 +69,10 @@ interface FichaDrawerProps {
 
 interface AdminTableProps {
     onOpenChat?: (worker: any) => void;
-    refreshTrigger?: number; 
-    onNotifyChange?: (action: string, details: string) => void; 
+    refreshTrigger?: number;
+    onNotifyChange?: (action: string, details: string) => void;
+    /** Filtra la tabla por tipo de personal. 'obrero' (default Gestion General), 'staff' (página Staff). */
+    tipoFilter?: 'obrero' | 'staff';
 }
 
 // --- CONSTANTES DE DOCUMENTOS ---
@@ -136,7 +138,7 @@ const getCaptureBounds = (element: HTMLElement) => {
     }
 }
 
-export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyChange }: AdminTableProps) {
+export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyChange, tipoFilter = 'obrero' }: AdminTableProps) {
   const supabase = createClient()
   // Peers de colaboración en tiempo real (otros admins viendo el panel).
   const collabPeers = useCollabPeers()
@@ -791,6 +793,38 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
       });
   };
 
+  // Mueve los seleccionados entre Gestión General (obrero) y Staff.
+  const handleMoveTipo = async (destino: 'obrero' | 'staff') => {
+      if (selectedIds.length === 0) { toast.warning("Selecciona personal."); return; }
+      const esStaff = destino === 'staff'
+      setConfirmDialog({
+          isOpen: true,
+          title: esStaff ? 'Mover a Staff' : 'Mover a Gestión General',
+          message: `¿Mover ${selectedIds.length} persona(s) a ${esStaff ? 'Staff (oficina)' : 'Gestión General (obrero)'}?\n\n${esStaff ? 'Su ficha pasará a ser de tipo staff: documentos opcionales y sin Carnet RETCC.' : 'Su ficha volverá a tipo obrero: documentos obligatorios.'}`,
+          confirmText: esStaff ? 'Mover a Staff' : 'Mover a Obrero',
+          confirmColor: esStaff ? 'bg-violet-600 hover:bg-violet-700 text-white' : 'bg-slate-800 hover:bg-slate-900 text-white',
+          icon: <Users className={esStaff ? 'text-violet-500' : 'text-slate-500'} size={32}/>,
+          onConfirm: async () => {
+              setConfirmDialog(prev => ({ ...prev, isOpen: false }))
+              try {
+                  // user_ids de las fichas seleccionadas (para actualizar profiles también).
+                  const userIds = fichas.filter(f => selectedIds.includes(f.id)).map(f => f.user_id).filter(Boolean)
+                  const { error: e1 } = await supabase.from('fichas').update({ tipo_personal: destino }).in('id', selectedIds)
+                  if (e1) throw e1
+                  if (userIds.length) {
+                      const { error: e2 } = await supabase.from('profiles').update({ tipo_personal: destino }).in('id', userIds)
+                      if (e2) throw e2
+                  }
+                  toast.success(`${selectedIds.length} persona(s) movida(s) a ${esStaff ? 'Staff' : 'Gestión General'}.`)
+                  emitAdminAction('movió', `${selectedIds.length} a ${esStaff ? 'Staff' : 'Obrero'}`)
+                  // Quitar de la vista actual (cambian de tipo → ya no pertenecen aquí).
+                  setFichas(prev => prev.map(f => selectedIds.includes(f.id) ? { ...f, tipo_personal: destino } : f))
+                  setSelectedIds([])
+              } catch (error: any) { toast.error("Error: " + error.message) }
+          }
+      })
+  }
+
   const handleMoveToCesados = async () => {
       if (selectedIds.length === 0) { toast.warning("Selecciona trabajadores."); return; }
       setConfirmDialog({
@@ -958,7 +992,10 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
   const obrasUnicas = Array.from(new Set(fichas.map(f => f.nombre_obra).filter(Boolean)))
   const filteredAndSorted = fichas.filter(f => {
       const s = searchTerm.toLowerCase()
-      return (f.nombres?.toLowerCase().includes(s) || f.apellido_paterno?.toLowerCase().includes(s) || f.dni?.includes(s)) &&
+      // Separa por tipo de personal: Gestión General = obrero, página Staff = staff.
+      const tp = (f.tipo_personal || 'obrero')
+      return tp === tipoFilter &&
+             (f.nombres?.toLowerCase().includes(s) || f.apellido_paterno?.toLowerCase().includes(s) || f.dni?.includes(s)) &&
              (filterObra === 'Todas' || f.nombre_obra === filterObra) &&
              (filterEstado === 'Todos' || (filterEstado === 'Completado' ? f.estado === 'completado' : f.estado !== 'completado'))
   }).sort((a, b) => {
@@ -1555,6 +1592,16 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                             <button onClick={handleMoveToSctr} disabled={movingSctr} className="flex items-center gap-2 px-3 py-2 bg-amber-600 text-white rounded-lg font-bold text-xs hover:bg-amber-700 transition-colors" title="Mover a SCTR">
                                 {movingSctr ? <Loader2 className="animate-spin" size={14}/> : <ShieldCheck size={14}/>} <span className="hidden sm:inline">A SCTR</span>
                             </button>
+
+                            {tipoFilter === 'obrero' ? (
+                                <button onClick={() => handleMoveTipo('staff')} className="flex items-center gap-2 px-3 py-2 bg-violet-600 text-white rounded-lg font-bold text-xs hover:bg-violet-700 transition-colors" title="Mover a Staff (oficina)">
+                                    <Users size={14}/> <span className="hidden sm:inline">A STAFF</span>
+                                </button>
+                            ) : (
+                                <button onClick={() => handleMoveTipo('obrero')} className="flex items-center gap-2 px-3 py-2 bg-slate-700 text-white rounded-lg font-bold text-xs hover:bg-slate-800 transition-colors" title="Mover a Gestión General (obrero)">
+                                    <Users size={14}/> <span className="hidden sm:inline">A OBRERO</span>
+                                </button>
+                            )}
 
                             <button onClick={handleMoveToVidaLey} disabled={moving} className="flex items-center gap-2 px-3 py-2 bg-emerald-600 text-white rounded-lg font-bold text-xs hover:bg-emerald-700 transition-colors" title="Mover a Vida Ley">
                                 {moving ? <Loader2 className="animate-spin" size={14}/> : <ArrowRightCircle size={14}/>} <span className="hidden sm:inline">A VIDA LEY</span>

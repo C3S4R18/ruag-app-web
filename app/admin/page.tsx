@@ -236,7 +236,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true)
 
   // VISTAS (Se agregó 'upload_docs')
-  const [activeView, setActiveView] = useState<'dashboard' | 'biometria' | 'documentos' | 'upload_docs' | 'rrhh' | 'profile' | 'vida_ley' | 'sctr' | 'cesados'>('dashboard')
+  const [activeView, setActiveView] = useState<'dashboard' | 'staff' | 'biometria' | 'documentos' | 'upload_docs' | 'rrhh' | 'profile' | 'vida_ley' | 'sctr' | 'cesados'>('dashboard')
   
   const [isSidebarOpen, setSidebarOpen] = useState(true)
   const [isMobile, setIsMobile] = useState(false)
@@ -1007,8 +1007,11 @@ export default function AdminPage() {
         {/* --- SIDEBAR --- */}
         <nav className="flex-1 px-3 py-6 space-y-8 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-600">
             {/* Dashboard General */}
-            <div>
+            <div className="space-y-1">
                 <SidebarItem active={activeView === 'dashboard'} onClick={() => handleNavClick('dashboard')} icon={<AdminGifIcon name="dashboard-general.gif" size={30} variant="bare" />} label="Dashboard General" />
+                <div id="nav-staff">
+                    <SidebarItem active={activeView === 'staff'} onClick={() => handleNavClick('staff')} icon={<Briefcase size={22} className="text-violet-600" />} label="Staff" />
+                </div>
             </div>
 
             {/* GRUPO 1 */}
@@ -1110,6 +1113,7 @@ export default function AdminPage() {
                 <div id="tour-welcome" className="flex items-center gap-3">
                     <span className="hidden sm:inline-flex h-7 px-2.5 items-center rounded-full bg-slate-900 text-white text-[10px] font-bold tracking-[0.18em] uppercase">
                         {activeView === 'dashboard' && '01 · Inicio'}
+                        {activeView === 'staff' && '· Staff'}
                         {activeView === 'biometria' && '02 · Biometría'}
                         {activeView === 'documentos' && '03 · SSOMA'}
                         {activeView === 'upload_docs' && '04 · Subir'}
@@ -1122,6 +1126,7 @@ export default function AdminPage() {
                     <div>
                         <h2 className="text-[20px] font-black text-slate-900 tracking-tight leading-none">
                             {activeView === 'dashboard' && 'Resumen General'}
+                            {activeView === 'staff' && 'Personal de Oficina (Staff)'}
                             {activeView === 'biometria' && 'Control Biométrico'}
                             {activeView === 'documentos' && 'Gestión Documental SSOMA'}
                             {activeView === 'upload_docs' && 'Subir Documentos a Obrero'}
@@ -1352,10 +1357,39 @@ export default function AdminPage() {
                                 </h3>
                             </div>
                             
-                            <AdminTable 
-                                onOpenChat={(worker) => setChatWorker(worker)} 
+                            <AdminTable
+                                onOpenChat={(worker) => setChatWorker(worker)}
                                 refreshTrigger={refreshTrigger}
                                 onNotifyChange={broadcastChange}
+                                tipoFilter="obrero"
+                            />
+                        </div>
+                    </motion.div>
+                )}
+
+                {/* --- STAFF (PERSONAL DE OFICINA) --- */}
+                {activeView === 'staff' && (
+                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 pb-20 max-w-7xl mx-auto">
+                        <div className="bg-gradient-to-br from-violet-600 to-violet-800 text-white rounded-3xl p-6 shadow-lg shadow-violet-600/20 flex items-center gap-4">
+                            <div className="w-14 h-14 rounded-2xl bg-white/15 flex items-center justify-center border border-white/20">
+                                <Briefcase size={26}/>
+                            </div>
+                            <div>
+                                <h2 className="text-2xl font-black leading-tight">Staff · Personal de Oficina</h2>
+                                <p className="text-violet-200 text-sm mt-1">Fichas sin documentos obligatorios ni Carnet RETCC. Para mover personal aquí, selecciónalo en Dashboard General y pulsa "A Staff".</p>
+                            </div>
+                        </div>
+                        <div className="bg-white rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/40 overflow-hidden">
+                            <div className="p-6 border-b border-slate-100 flex items-center gap-3 bg-white/50">
+                                <h3 className="font-bold text-slate-800 text-lg flex items-center gap-3">
+                                    <Briefcase size={20} className="text-violet-500"/> Registro de Staff
+                                </h3>
+                            </div>
+                            <AdminTable
+                                onOpenChat={(worker) => setChatWorker(worker)}
+                                refreshTrigger={refreshTrigger}
+                                onNotifyChange={broadcastChange}
+                                tipoFilter="staff"
                             />
                         </div>
                     </motion.div>

@@ -58,6 +58,8 @@ export default function FichaForm() {
   const [isLoadingData, setIsLoadingData] = useState(true)
   const [hasStarted, setHasStarted] = useState(false)
   const [isCompleted, setIsCompleted] = useState(false)
+  const [tipoPersonal, setTipoPersonal] = useState<'obrero' | 'staff'>('obrero')
+  const isStaff = tipoPersonal === 'staff'
   const [sending, setSending] = useState(false)
   const [currentStep, setCurrentStep] = useState(1)
   const [user, setUser] = useState<any>(null)
@@ -116,6 +118,11 @@ export default function FichaForm() {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         setUser(user)
+        // Tipo de personal (obrero/staff) desde profiles — define si docs son obligatorios.
+        try {
+          const { data: prof } = await supabase.from('profiles').select('tipo_personal').eq('id', user.id).maybeSingle()
+          if (prof?.tipo_personal === 'staff') setTipoPersonal('staff')
+        } catch {}
         const { data: ficha } = await supabase.from('fichas').select('*').eq('user_id', user.id).maybeSingle()
         if (ficha) {
             let esposaObj = { paterno: '', materno: '', nombres: '', dni: '' }
@@ -339,13 +346,16 @@ export default function FichaForm() {
             toast.error("Los datos de contacto de emergencia son obligatorios.")
             return false
         }
-        const missing: string[] = []
-        if (!formData.doc_dni_trabajador) missing.push("DNI (Frontal y Reverso)")
-        if (!formData.doc_certiadulto) missing.push("Certiadulto (Antecedentes)")
-        if (!formData.doc_carnet_retcc) missing.push("Carnet RETCC")
-        if (missing.length) {
-            toast.error(`Falta subir: ${missing.join(", ")}.`)
-            return false
+        // Staff (oficina) no tiene documentos obligatorios.
+        if (!isStaff) {
+            const missing: string[] = []
+            if (!formData.doc_dni_trabajador) missing.push("DNI (Frontal y Reverso)")
+            if (!formData.doc_certiadulto) missing.push("Certiadulto (Antecedentes)")
+            if (!formData.doc_carnet_retcc) missing.push("Carnet RETCC")
+            if (missing.length) {
+                toast.error(`Falta subir: ${missing.join(", ")}.`)
+                return false
+            }
         }
     }
 
@@ -714,7 +724,7 @@ export default function FichaForm() {
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                                 <DocSlot label="DNI (Frontal y Reverso)" url={formData.doc_dni_trabajador} />
                                 <DocSlot label="Certiadulto (Antecedentes)" url={formData.doc_certiadulto} />
-                                <DocSlot label="Carnet RETCC" url={formData.doc_carnet_retcc} />
+                                {!isStaff && <DocSlot label="Carnet RETCC" url={formData.doc_carnet_retcc} />}
                                 <DocSlot label="Antecedentes Policiales" url={formData.doc_policiales} />
                                 <DocSlot label="Antecedentes Penales" url={formData.doc_penales} />
                             </div>
@@ -959,20 +969,32 @@ export default function FichaForm() {
                     </div>
 
                     <SectionTitle title="Documentos del Trabajador" animatedIcon="docs" />
-                    <div className="mb-6 bg-amber-50 p-4 rounded-xl border border-amber-200 flex items-start gap-3">
-                        <div className="shrink-0 w-8 h-8 bg-amber-200 text-amber-900 rounded-lg flex items-center justify-center font-extrabold">!</div>
-                        <div className="text-xs text-amber-900">
-                            <p className="font-bold mb-1">DNI (Frontal y Reverso), Certiadulto y Carnet RETCC son obligatorios.</p>
-                            <p className="text-amber-800">Sin ellos no podrás avanzar al siguiente paso. Puedes subir PDF o tomar foto.</p>
+                    {isStaff ? (
+                        <div className="mb-6 bg-sky-50 p-4 rounded-xl border border-sky-200 flex items-start gap-3">
+                            <div className="shrink-0 w-8 h-8 bg-sky-200 text-sky-900 rounded-lg flex items-center justify-center font-extrabold">i</div>
+                            <div className="text-xs text-sky-900">
+                                <p className="font-bold mb-1">Documentos opcionales.</p>
+                                <p className="text-sky-800">Como personal de oficina (staff) puedes subir los documentos que tengas, ninguno es obligatorio.</p>
+                            </div>
                         </div>
-                    </div>
+                    ) : (
+                        <div className="mb-6 bg-amber-50 p-4 rounded-xl border border-amber-200 flex items-start gap-3">
+                            <div className="shrink-0 w-8 h-8 bg-amber-200 text-amber-900 rounded-lg flex items-center justify-center font-extrabold">!</div>
+                            <div className="text-xs text-amber-900">
+                                <p className="font-bold mb-1">DNI (Frontal y Reverso), Certiadulto y Carnet RETCC son obligatorios.</p>
+                                <p className="text-amber-800">Sin ellos no podrás avanzar al siguiente paso. Puedes subir PDF o tomar foto.</p>
+                            </div>
+                        </div>
+                    )}
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                         <div className="md:col-span-2">
-                             <ImageUpload label="DNI (Frontal y Reverso)" bucket="documentos" required currentUrl={formData.doc_dni_trabajador} onUpload={(u:any)=>{ setFormData((prev: any) => ({...prev, doc_dni_trabajador:u})); if (u) analyzeDocWithAI('dni', u); else clearDocDates('dni') }} />
+                             <ImageUpload label="DNI (Frontal y Reverso)" bucket="documentos" required={!isStaff} currentUrl={formData.doc_dni_trabajador} onUpload={(u:any)=>{ setFormData((prev: any) => ({...prev, doc_dni_trabajador:u})); if (u) analyzeDocWithAI('dni', u); else clearDocDates('dni') }} />
                         </div>
-                        <ImageUpload label="Certiadulto (Antecedentes)" bucket="documentos" required currentUrl={formData.doc_certiadulto} onUpload={(u:any)=>{ setFormData((prev: any) => ({...prev, doc_certiadulto:u})); if (u) analyzeDocWithAI('antecedentes', u); else clearDocDates('antecedentes') }} />
+                        <ImageUpload label="Certiadulto (Antecedentes)" bucket="documentos" required={!isStaff} currentUrl={formData.doc_certiadulto} onUpload={(u:any)=>{ setFormData((prev: any) => ({...prev, doc_certiadulto:u})); if (u) analyzeDocWithAI('antecedentes', u); else clearDocDates('antecedentes') }} />
+                        {!isStaff && (
                         <ImageUpload label="Carnet RETCC" bucket="documentos" required currentUrl={formData.doc_carnet_retcc} onUpload={(u:any)=>{ setFormData((prev: any) => ({...prev, doc_carnet_retcc:u})); if (u) analyzeDocWithAI('retcc', u); else clearDocDates('retcc') }} />
+                        )}
                         <ImageUpload label="Ant. Policiales" bucket="documentos" currentUrl={formData.doc_policiales} onUpload={(u:any)=>setFormData((prev: any) => ({...prev, doc_policiales:u}))} />
                         <ImageUpload label="Ant. Penales" bucket="documentos" currentUrl={formData.doc_penales} onUpload={(u:any)=>setFormData((prev: any) => ({...prev, doc_penales:u}))} />
                     </div>
