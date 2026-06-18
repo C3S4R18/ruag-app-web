@@ -446,7 +446,9 @@ export default function FichaForm() {
         url_esposa_dni: formData.doc_esposa_dni, 
         url_hijos_nacimiento: formData.doc_hijos_nacimiento, url_hijos_dni: formData.doc_hijos_dni, url_constancia_estudios: formData.doc_hijos_estudios,
         
-        url_firma: currentSignature, firma_url: currentSignature, updated_at: new Date().toISOString(), 
+        url_firma: currentSignature, firma_url: currentSignature, updated_at: new Date().toISOString(),
+        // Registra la fecha de firma la primera vez que hay firma (no la pisa si ya existe).
+        ...(currentSignature && !formData.firma_fecha ? { firma_fecha: new Date().toISOString() } : {}),
         
         // Solo cambiamos el estado si explícitamente se marca como completa (al final) o si es la primera vez.
         // Si ya está completada, mantenemos 'completado'

@@ -1,14 +1,13 @@
 /* eslint-disable @next/next/no-img-element */
 import React, { forwardRef } from 'react'
 import NormalizedSignatureImage from './NormalizedSignatureImage'
-import { buildWorkerFullNameUpper, getPrintObra, toPrintUppercase } from './printText'
+import { buildWorkerFullNameUpper, getPrintObra, toPrintUppercase, getSignatureDate } from './printText'
 import { PrintableA4, DocHeader, FilledLine } from './printable/_primitives'
 
 export const ActaEntregaIpercPrintable = forwardRef(({ ficha }: { ficha: any }, ref: React.Ref<HTMLDivElement>) => {
   if (!ficha) return null
 
-  const today = new Date()
-  const fechaActual = `${today.getDate().toString().padStart(2, '0')}/${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`
+  const fechaActual = getSignatureDate(ficha)
 
   const nombres = buildWorkerFullNameUpper(ficha)
   const dni = ficha?.dni ?? ''

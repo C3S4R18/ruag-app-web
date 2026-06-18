@@ -1,16 +1,13 @@
 import React, { forwardRef } from 'react'
 import NormalizedSignatureImage from './NormalizedSignatureImage'
 import PrintableCheckbox from './PrintableCheckbox'
-import { buildWorkerLastNamesFirstUpper, toPrintUppercase } from './printText'
+import { buildWorkerLastNamesFirstUpper, toPrintUppercase, getSignatureDate } from './printText'
 
 export const RegistroCapacitacionPrintable = forwardRef<HTMLDivElement, { ficha: any }>(
   ({ ficha }, ref) => {
     if (!ficha) return null
 
-    const today = new Date()
-    const fechaActual = `${today.getDate().toString().padStart(2, '0')}/${(today.getMonth() + 1)
-      .toString()
-      .padStart(2, '0')}/${today.getFullYear()}`
+    const fechaActual = getSignatureDate(ficha)
     const docData = ficha.doc_states?.capacitacion?.data || {}
 
     const isChecked = (index: number) => {

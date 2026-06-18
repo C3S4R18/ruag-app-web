@@ -1,6 +1,6 @@
 import React, { forwardRef } from 'react'
 import NormalizedSignatureImage from './NormalizedSignatureImage'
-import { toPrintUppercase } from './printText'
+import { toPrintUppercase, getSignatureDate } from './printText'
 
 const check = (valorReal: string | null, valorEsperado: string) => {
     return valorReal?.toLowerCase() === valorEsperado.toLowerCase() ? 'X' : ''
@@ -119,7 +119,7 @@ export const FichaPrintable = forwardRef(({ ficha }: { ficha: any }, ref: React.
              <div style={{ display: 'flex', border: '1px solid #000' }}>
                 <div style={{ flex: 1, padding: '4px', borderRight: '1px solid #000' }}>
                     <span style={styles.label}>FECHA:</span> 
-                    <span style={styles.value}>{new Date().toLocaleDateString()}</span>
+                    <span style={styles.value}>{getSignatureDate(ficha)}</span>
                 </div>
                 <div style={{ flex: 1, padding: '4px' }}>
                     <span style={styles.label}>CÓDIGO:</span> 

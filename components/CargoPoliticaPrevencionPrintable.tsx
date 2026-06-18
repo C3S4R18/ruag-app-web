@@ -4,7 +4,9 @@ import NormalizedSignatureImage from './NormalizedSignatureImage'
 import { buildWorkerFullNameUpper, toPrintUppercase } from './printText'
 
 export const CargoPoliticaPrevencionPrintable = ({ ficha }: { ficha: any }) => {
-  const today = new Date()
+  const signRaw = ficha?.firma_fecha || ficha?.ssoma_updated_at || ficha?.updated_at
+  const signDate = signRaw ? new Date(signRaw) : new Date()
+  const today = isNaN(signDate.getTime()) ? new Date() : signDate
   const day = today.getDate()
   const month = today.toLocaleString('es-ES', { month: 'long' })
   const year = today.getFullYear()

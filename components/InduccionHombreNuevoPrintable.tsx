@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 import React, { forwardRef } from 'react'
 import NormalizedSignatureImage from './NormalizedSignatureImage'
-import { buildWorkerFullNameUpper, toPrintUppercase } from './printText'
+import { buildWorkerFullNameUpper, toPrintUppercase, getSignatureDate } from './printText'
 import { PrintableA4, DocHeader, FilledLine, CheckBox } from './printable/_primitives'
 
 /**
@@ -15,8 +15,7 @@ export const InduccionHombreNuevoPrintable = forwardRef(({ ficha }: { ficha: any
 
   const docData = ficha.doc_states?.induccion?.data || {}
 
-  const today = new Date()
-  const fechaActual = `${today.getDate().toString().padStart(2, '0')}/${(today.getMonth() + 1).toString().padStart(2, '0')}/${today.getFullYear()}`
+  const fechaActual = getSignatureDate(ficha)
 
   const nombres = buildWorkerFullNameUpper(ficha)
   const dni = ficha.dni ?? ''

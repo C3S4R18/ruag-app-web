@@ -1,7 +1,7 @@
 /* eslint-disable @next/next/no-img-element */
 import React from 'react'
 import NormalizedSignatureImage from './NormalizedSignatureImage'
-import { buildWorkerFullNameUpper } from './printText'
+import { buildWorkerFullNameUpper, getSignatureDate } from './printText'
 import { PrintableA4, DocHeader, FilledLine, FingerprintBox } from './printable/_primitives'
 
 /**
@@ -12,11 +12,7 @@ import { PrintableA4, DocHeader, FilledLine, FingerprintBox } from './printable/
  * Replica fiel del PDF oficial entregado por SSOMA.
  */
 export const CargoRitPrintable = ({ ficha }: { ficha: any }) => {
-  const today = new Date()
-  const dd = String(today.getDate()).padStart(2, '0')
-  const mm = String(today.getMonth() + 1).padStart(2, '0')
-  const yyyy = today.getFullYear()
-  const fechaActual = `${dd}/${mm}/${yyyy}`
+  const fechaActual = getSignatureDate(ficha)
 
   const nombres = buildWorkerFullNameUpper(ficha)
   const dni = ficha?.dni ?? ''
