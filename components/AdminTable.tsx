@@ -83,7 +83,7 @@ const SSOMA_DOCS = [
     { id: 'epp', label: 'Entrega de EPPs', desc: 'SG-FOR-08 Control de Equipos' },
     { id: 'acta_derecho', label: 'Acta Derecho a Saber', desc: 'SG-FOR-110' },
     { id: 'iperc', label: 'Entrega IPERC', desc: 'SG-FOR-112' },
-    { id: 'ficha_covid', label: 'Ficha SintomatolÃ³gica', desc: 'FOR-COVID-01' },
+    { id: 'ficha_covid', label: 'Ficha Sintomatológica', desc: 'FOR-COVID-01' },
     { id: 'acta_acatamiento', label: 'Acta de Acatamiento', desc: 'SG-FOR-111' },
     { id: 'acta_emo', label: 'Acta Entrega Resultados EMO', desc: 'SG-FOR-114' },
     { id: 'rec_sst', label: 'Cargo Recomendaciones SST', desc: 'SG-EST-24' },
