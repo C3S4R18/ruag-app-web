@@ -70,12 +70,13 @@ const styles: Record<string, React.CSSProperties> = {
   },
   cellLeft: {
     border: B,
-    padding: '3px 6px',
+    padding: '1px 6px',
     verticalAlign: 'middle',
     textAlign: 'left',
-    fontSize: '8.5px',
-    lineHeight: 1.15,
+    fontSize: '8.3px',
+    lineHeight: 1.1,
     textTransform: 'uppercase',
+    height: '5.4mm',
   },
   label: {
     border: B,
@@ -121,7 +122,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   dataCell: {
     border: B,
-    height: '7.2mm',
+    height: '5.4mm',
     padding: 0,
     verticalAlign: 'middle',
     textAlign: 'center',
@@ -129,7 +130,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   sigWrap: {
     width: '100%',
-    height: '7.2mm',
+    height: '5.4mm',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
