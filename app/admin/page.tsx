@@ -151,6 +151,19 @@ function renderSignedDocumentPreview(docId: string, ficha: any) {
   }
 }
 
+// Mapa docId (Registros de Firma) -> clave de plantilla PDF en /api/print-doc.
+// Estos docs se generan con pdf-lib sobre el PDF real (pixel-idéntico).
+const TEMPLATE_DOC_MAP: Record<string, string> = {
+  risst: 'risst',
+  iperc: 'iperc',
+  acta_derecho: 'derecho-saber',
+  acta_acatamiento: 'acatamiento',
+  acta_emo: 'emo',
+  rec_sst: 'recomendaciones',
+  epp: 'epp',
+  // induccion / capacitacion / ficha_covid: pendientes de calibrar
+}
+
 function AdminSignedPreviewModal({
   worker,
   docStates,
@@ -164,6 +177,34 @@ function AdminSignedPreviewModal({
   label: string
   onClose: () => void
 }) {
+  // Si el doc tiene plantilla PDF, mostramos el PDF generado por el endpoint.
+  const tplKey = TEMPLATE_DOC_MAP[docId]
+  if (tplKey) {
+    const url = `/api/print-doc?doc=${tplKey}&id=${worker.id}`
+    return (
+      <motion.div
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        className="fixed inset-0 z-[80] bg-slate-950/70 backdrop-blur-sm flex flex-col"
+        onClick={onClose}
+      >
+        <div className="flex items-center justify-between border-b border-white/10 bg-slate-950/90 px-6 py-4 text-white" onClick={(e) => e.stopPropagation()}>
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-sky-300">Vista previa firmada</p>
+            <h3 className="mt-1 text-lg font-bold">{label}</h3>
+          </div>
+          <div className="flex items-center gap-2">
+            <a href={url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold hover:bg-white/10">Abrir / Imprimir</a>
+            <a href={url} download={`${tplKey}_${worker.dni || worker.id}.pdf`} className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold hover:bg-emerald-700">Descargar</a>
+            <button onClick={onClose} className="rounded-full border border-white/15 bg-white/5 p-2 hover:bg-white/10" title="Cerrar"><X size={20} /></button>
+          </div>
+        </div>
+        <div className="flex-1 bg-slate-200" onClick={(e) => e.stopPropagation()}>
+          <iframe src={url} title={label} className="w-full h-full border-0" />
+        </div>
+      </motion.div>
+    )
+  }
+
   const previewFicha = {
     ...worker,
     doc_states: docStates || worker.doc_states || {},
