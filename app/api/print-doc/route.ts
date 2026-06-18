@@ -41,6 +41,70 @@ const DOCS: Record<string, DocDef> = {
       { key: 'huella',  x: 360, y: 100, type: 'fingerprint', maxW: 80, size: 88 },
     ],
   },
+  // ACTA ENTREGA IPERC — Letter 612x792
+  iperc: {
+    file: 'iperc.pdf', w: 612, h: 792,
+    fields: [
+      { key: 'nombre',  x: 115, y: 595, size: 10, bold: true },
+      { key: 'dni',     x: 340, y: 571, size: 10, bold: true },
+      { key: 'cargo',   x: 250, y: 546, size: 10, bold: true },
+      { key: 'empresa', x: 210, y: 521, size: 10, bold: true },
+      { key: 'proyecto',x: 100, y: 500, size: 10, bold: true },
+      { key: 'firma',   x: 200, y: 292, type: 'signature', maxW: 150, size: 28 },
+      { key: 'dni',     x: 215, y: 252, size: 11, bold: true },
+      { key: 'fecha',   x: 225, y: 202, size: 11, bold: true },
+    ],
+  },
+  // ACTA DE ACATAMIENTO — A4 595x842
+  acatamiento: {
+    file: 'acatamiento.pdf', w: 595, h: 842,
+    fields: [
+      { key: 'nombre', x: 170, y: 695, size: 10, bold: true },
+      { key: 'dni',    x: 265, y: 671, size: 10, bold: true },
+      { key: 'firma',  x: 140, y: 497, type: 'signature', maxW: 180, size: 30 },
+      { key: 'fecha',  x: 175, y: 421, size: 10, bold: true },
+      { key: 'huella', x: 290, y: 252, type: 'fingerprint', maxW: 110, size: 88 },
+    ],
+  },
+  // ACTA DERECHO A SABER — Letter 612x792
+  'derecho-saber': {
+    file: 'derecho-saber.pdf', w: 612, h: 792,
+    fields: [
+      { key: 'obra',         x: 250, y: 672, size: 9, bold: true },
+      { key: 'empresa',      x: 250, y: 647, size: 9, bold: true },
+      { key: 'nombre',       x: 250, y: 623, size: 9, bold: true },
+      { key: 'dni',          x: 250, y: 598, size: 9, bold: true },
+      { key: 'cargo',        x: 250, y: 573, size: 9, bold: true },
+      { key: 'categoria',    x: 250, y: 548, size: 9, bold: true },
+      { key: 'fecha',        x: 250, y: 524, size: 9, bold: true },
+      { key: 'firma',        x: 495, y: 528, type: 'signature', maxW: 90, size: 50 },
+    ],
+  },
+  // ACTA ENTREGA RESULTADOS EMO — Letter 612x792
+  emo: {
+    file: 'emo.pdf', w: 612, h: 792,
+    fields: [
+      { key: 'nombre', x: 115, y: 597, size: 10, bold: true },
+      { key: 'dni',    x: 340, y: 572, size: 9, bold: true },
+      { key: 'cargo',  x: 110, y: 547, size: 9, bold: true },
+      { key: 'obra',   x: 150, y: 524, size: 9, bold: true },
+      { key: 'fecha',  x: 100, y: 471, size: 9, bold: true },
+      { key: 'firma',  x: 400, y: 303, type: 'signature', maxW: 150, size: 28 },
+      { key: 'dni',    x: 460, y: 278, size: 10, bold: true },
+      { key: 'fecha',  x: 300, y: 208, size: 10, bold: true },
+    ],
+  },
+  // CARGO DE ENTREGA RECOMENDACIONES — A4 596x842
+  recomendaciones: {
+    file: 'recomendaciones.pdf', w: 596, h: 842,
+    fields: [
+      { key: 'nombre', x: 130, y: 521, size: 9.5, bold: true },
+      { key: 'dni',    x: 490, y: 497, size: 9, bold: true },
+      { key: 'fecha',  x: 135, y: 293, size: 9, bold: true },
+      { key: 'firma',  x: 140, y: 201, type: 'signature', maxW: 180, size: 28 },
+      { key: 'huella', x: 415, y: 150, type: 'fingerprint', maxW: 85, size: 95 },
+    ],
+  },
 }
 
 function dmy(raw?: string | null): string {
@@ -88,6 +152,9 @@ export async function GET(req: NextRequest) {
       fecha: dmy(ficha.firma_fecha || ficha.ssoma_updated_at || ficha.updated_at),
       cargo: (ficha.cargo || '').toUpperCase(),
       obra: (ficha.nombre_obra || '').toUpperCase(),
+      empresa: 'RUAG S.R.L.',
+      proyecto: (ficha.nombre_obra || '').toUpperCase(),
+      categoria: (ficha.categoria || '').toUpperCase(),
     }
     const firmaUrl = ficha.firma_url || ficha.url_firma
     const huellaUrl = ficha.huella_url || ficha.url_huella
