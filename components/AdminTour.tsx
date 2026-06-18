@@ -11,6 +11,7 @@ interface AdminTourProps {
   changeView: (view: 'dashboard' | 'biometria' | 'documentos' | 'rrhh' | 'vida_ley' | 'cesados' | 'profile') => void
   openFirstDrawer: () => void
   closeDrawer: () => void
+  setSidebar?: (open: boolean) => void
 }
 
 function getScrollableAncestors(element: HTMLElement) {
@@ -63,8 +64,9 @@ function scrollElementIntoView(element?: Element) {
   })
 }
 
-export default function AdminTour({ changeView, openFirstDrawer, closeDrawer }: AdminTourProps) {
+export default function AdminTour({ changeView, openFirstDrawer, closeDrawer, setSidebar }: AdminTourProps) {
   const driverObj = useRef<any>(null)
+  const isMobile = useRef(false)
 
   const launchConfetti = () => {
     const end = Date.now() + 1800
@@ -100,17 +102,28 @@ export default function AdminTour({ changeView, openFirstDrawer, closeDrawer }: 
     }
   })
 
-  const attachAutoScroll = (step: DriveStep): DriveStep => ({
-    ...step,
-    onHighlightStarted: (element, currentStep, opts) => {
-      step.onHighlightStarted?.(element, currentStep, opts)
-      scrollElementIntoView(element)
-    },
-    onHighlighted: (element, currentStep, opts) => {
-      step.onHighlighted?.(element, currentStep, opts)
-      scrollElementIntoView(element)
+  const attachAutoScroll = (step: DriveStep): DriveStep => {
+    // En móvil los items de navegación viven en el sidebar (drawer). Si el
+    // paso apunta a un #nav-* abrimos el sidebar; en pasos de contenido lo
+    // cerramos para que se vea el área principal. Tras la animación del
+    // drawer refrescamos para que el recuadro caiga sobre el elemento.
+    const targetsNav = typeof step.element === 'string' && step.element.startsWith('#nav-')
+    return {
+      ...step,
+      onHighlightStarted: (element, currentStep, opts) => {
+        step.onHighlightStarted?.(element, currentStep, opts)
+        if (isMobile.current && setSidebar) {
+          setSidebar(targetsNav)
+          setTimeout(() => { driverObj.current?.refresh(); scrollElementIntoView(element) }, 380)
+        }
+        scrollElementIntoView(element)
+      },
+      onHighlighted: (element, currentStep, opts) => {
+        step.onHighlighted?.(element, currentStep, opts)
+        scrollElementIntoView(element)
+      }
     }
-  })
+  }
 
   const baseTourSteps: DriveStep[] = [
     {
@@ -352,13 +365,16 @@ export default function AdminTour({ changeView, openFirstDrawer, closeDrawer }: 
           launchConfetti()
           changeView('dashboard')
         }
+        if (isMobile.current && setSidebar) setSidebar(false)
         driverObj.current?.destroy()
       }
     })
   }, [changeView, openFirstDrawer, closeDrawer])
 
   const startTour = () => {
+    isMobile.current = typeof window !== 'undefined' && window.innerWidth < 1024
     changeView('dashboard')
+    if (isMobile.current && setSidebar) setSidebar(false)
     setTimeout(() => {
       window.scrollTo({ top: 0, behavior: 'smooth' })
       driverObj.current?.drive()

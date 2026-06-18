@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import AnimatedIcon from '@/components/AnimatedIcon'
 import ProfilePhotoGate from '@/components/ProfilePhotoGate'
+import WorkerTour from '@/components/WorkerTour'
 import { getExpiryInfo } from '@/utils/docExpiry'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
@@ -629,12 +630,14 @@ export default function DashboardPage() {
                 <span className="flex-1 h-px bg-stone-200" />
             </div>
             <NavItem
+                id="wt-home"
                 active={activeTab === 'home'}
                 onClick={() => { setActiveTab('home'); if(!isDesktop) setIsSidebarOpen(false) }}
                 icon={<AnimatedIcon name="actualizarFicha" size={26} bounceOnMount={false}/>}
                 label="Inicio"
             />
             <NavItem
+                id="wt-documents"
                 active={activeTab === 'documents'}
                 onClick={() => { setActiveTab('documents'); if(!isDesktop) setIsSidebarOpen(false) }}
                 icon={<AnimatedIcon name="misRegistros" size={26} bounceOnMount={false}/>}
@@ -644,6 +647,7 @@ export default function DashboardPage() {
 
             {/* --- ARCHIVOS SSOMA (icono GIF, alineado con app móvil) --- */}
             <NavItem
+                id="wt-uploads"
                 active={activeTab === 'uploads'}
                 onClick={() => { setActiveTab('uploads'); if(!isDesktop) setIsSidebarOpen(false) }}
                 icon={<AnimatedIcon name="archivosSsoma" size={26} bounceOnMount={false}/>}
@@ -652,6 +656,7 @@ export default function DashboardPage() {
 
             {/* --- LECTURA OBLIGATORIA (PDFs siempre disponibles) --- */}
             <NavItem
+                id="wt-lectura"
                 active={activeTab === 'lectura'}
                 onClick={() => { setActiveTab('lectura'); if(!isDesktop) setIsSidebarOpen(false) }}
                 icon={<AnimatedIcon name="actualizarFicha" size={26} bounceOnMount={false}/>}
@@ -670,6 +675,13 @@ export default function DashboardPage() {
                 label="Mi Perfil"
             />
         </nav>
+
+        <div className="px-4 pt-3">
+            <WorkerTour
+                changeTab={(tab) => { setActiveTab(tab); if(!isDesktop) setIsSidebarOpen(false) }}
+                setSidebar={(open) => setIsSidebarOpen(open)}
+            />
+        </div>
 
         <div className="p-4 border-t border-stone-200/60">
             <motion.button
@@ -698,6 +710,7 @@ export default function DashboardPage() {
         <header className="h-16 bg-white/60 backdrop-blur-xl border-b border-white/60 px-4 md:px-8 flex items-center justify-between shrink-0 z-30 sticky top-0 shadow-sm shadow-slate-900/5">
             <div className="flex items-center gap-4">
                 <motion.button
+                    id="wt-menu"
                     onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                     whileTap={{ scale: 0.9 }}
                     className="lg:hidden p-2 rounded-xl bg-gradient-to-br from-slate-900 to-slate-800 text-white shadow-md shadow-slate-900/25 ring-1 ring-white/40"
@@ -891,7 +904,9 @@ export default function DashboardPage() {
                         </div>
 
                         {/* Ficha Form (Visualización) */}
-                        <FichaForm />
+                        <div id="wt-ficha">
+                            <FichaForm />
+                        </div>
                     </motion.div>
                 )}
 
@@ -1446,9 +1461,10 @@ function DocItem({ id, label, state, onClick, type, index }: any) {
     )
 }
 
-function NavItem({ active, onClick, icon, activeIcon, label, badge }: any) {
+function NavItem({ active, onClick, icon, activeIcon, label, badge, id }: any) {
     return (
         <motion.button
+            id={id}
             onClick={onClick}
             whileHover={{ x: active ? 0 : 3 }}
             whileTap={{ scale: 0.97 }}
@@ -1592,6 +1608,7 @@ function ProfilePhotoCard({ photoUrl, workerName, onEdit }: { photoUrl: string |
 
             <div className="px-6 pb-6">
                 <motion.button
+                    id="wt-photo-btn"
                     onClick={onEdit}
                     whileHover={{ y: -1 }}
                     whileTap={{ scale: 0.98 }}

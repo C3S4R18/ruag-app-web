@@ -1125,10 +1125,11 @@ export default function AdminPage() {
             </div>
         </nav>
 
-        <AdminTour 
-            changeView={(view) => setActiveView(view)} 
+        <AdminTour
+            changeView={(view) => setActiveView(view)}
             openFirstDrawer={openFirstWorkerDrawerForTour}
             closeDrawer={closeDrawersForTour}
+            setSidebar={(open) => setSidebarOpen(open)}
         />
 
         <div className="p-3 border-t border-slate-300">
