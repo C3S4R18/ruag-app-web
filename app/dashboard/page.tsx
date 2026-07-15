@@ -1634,20 +1634,52 @@ function ProfileSettingsCard({ userEmail, supabase }: any) {
         if (password && password.length < 6) { toast.error("La contraseña debe tener al menos 6 caracteres"); return }
 
         setLoading(true)
-        const updates: any = { email }
-        if (password) updates.password = password
 
-        const { error } = await supabase.auth.updateUser(updates)
+        const currentEmail = (userEmail || '').toLowerCase()
+        const cleanEmail = (email || '').trim().toLowerCase()
+        const emailChanged = cleanEmail !== currentEmail
+        // Correo del sistema (falso, generado por el importador T-REGISTRO):
+        // se cambia SIN verificación vía API admin.
+        const isSystemEmail = currentEmail.endsWith('@ruag.sistema')
 
-        if (error) {
-            toast.error("Error al actualizar: " + error.message)
-        } else {
-            toast.success("✅ Credenciales actualizadas correctamente.")
-            toast.info("Por favor, usa estos datos para tu próximo inicio de sesión.")
+        try {
+            if (emailChanged && isSystemEmail) {
+                const { data: sess } = await supabase.auth.getSession()
+                const token = sess?.session?.access_token
+                const res = await fetch('/api/change-email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                    body: JSON.stringify({ newEmail: cleanEmail, password: password || undefined }),
+                })
+                const json = await res.json()
+                if (!res.ok) throw new Error(json?.error || 'No se pudo actualizar el correo')
+                // Sincroniza la sesión local con el nuevo correo confirmado.
+                await supabase.auth.refreshSession()
+                toast.success("✅ Correo actualizado sin verificación.")
+                toast.info("Desde ahora inicia sesión con tu correo real.")
+            } else {
+                const updates: any = {}
+                if (emailChanged) updates.email = cleanEmail
+                if (password) updates.password = password
+                if (Object.keys(updates).length === 0) { toast.info("No hay cambios para guardar."); setLoading(false); return }
+                const { error } = await supabase.auth.updateUser(updates)
+                if (error) throw error
+                // Con "Confirmar correo" desactivado el cambio es inmediato:
+                // reflejamos el correo real en la ficha.
+                if (emailChanged) {
+                    const { data: u } = await supabase.auth.getUser()
+                    if (u?.user?.id) await supabase.from('fichas').update({ correo: cleanEmail }).eq('user_id', u.user.id)
+                }
+                toast.success("✅ Credenciales actualizadas correctamente.")
+                if (emailChanged) toast.info("Desde ahora inicia sesión con tu nuevo correo.")
+            }
             setPassword('')
             setConfirmPassword('')
+        } catch (err: any) {
+            toast.error("Error al actualizar: " + (err?.message || err))
+        } finally {
+            setLoading(false)
         }
-        setLoading(false)
     }
 
     return (
