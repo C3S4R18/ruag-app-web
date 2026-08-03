@@ -71,8 +71,23 @@ interface AdminTableProps {
     onOpenChat?: (worker: any) => void;
     refreshTrigger?: number;
     onNotifyChange?: (action: string, details: string) => void;
-    /** Filtra la tabla por tipo de personal. 'obrero' (default Gestion General), 'staff' (página Staff). */
-    tipoFilter?: 'obrero' | 'staff';
+    /** Filtra la tabla por tipo de personal. 'obrero' = Gestión General; el resto tiene su propia página. */
+    tipoFilter?: TipoPersonal;
+}
+
+/**
+ * Tipos de personal. 'obrero' exige documentos (DNI, Certiadulto, RETCC);
+ * los demás los tienen liberados — misma lógica en web y en la app Android.
+ */
+export type TipoPersonal = 'obrero' | 'staff' | 'arug' | 'cg'
+
+export const TIPOS_PERSONAL: TipoPersonal[] = ['obrero', 'staff', 'arug', 'cg']
+
+export const TIPO_PERSONAL_META: Record<TipoPersonal, { label: string; short: string; btn: string }> = {
+    obrero: { label: 'Gestión General (obrero)', short: 'OBRERO', btn: 'bg-slate-700 hover:bg-slate-800' },
+    staff:  { label: 'Staff (oficina)',          short: 'STAFF',  btn: 'bg-violet-600 hover:bg-violet-700' },
+    arug:   { label: 'ARUG',                     short: 'ARUG',   btn: 'bg-cyan-600 hover:bg-cyan-700' },
+    cg:     { label: 'CG',                       short: 'CG',     btn: 'bg-fuchsia-600 hover:bg-fuchsia-700' },
 }
 
 // --- CONSTANTES DE DOCUMENTOS ---
@@ -794,17 +809,18 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
       });
   };
 
-  // Mueve los seleccionados entre Gestión General (obrero) y Staff.
-  const handleMoveTipo = async (destino: 'obrero' | 'staff') => {
+  // Mueve los seleccionados entre Gestión General (obrero), Staff, ARUG y CG.
+  const handleMoveTipo = async (destino: TipoPersonal) => {
       if (selectedIds.length === 0) { toast.warning("Selecciona personal."); return; }
-      const esStaff = destino === 'staff'
+      const meta = TIPO_PERSONAL_META[destino]
+      const esObrero = destino === 'obrero'
       setConfirmDialog({
           isOpen: true,
-          title: esStaff ? 'Mover a Staff' : 'Mover a Gestión General',
-          message: `¿Mover ${selectedIds.length} persona(s) a ${esStaff ? 'Staff (oficina)' : 'Gestión General (obrero)'}?\n\n${esStaff ? 'Su ficha pasará a ser de tipo staff: documentos opcionales y sin Carnet RETCC.' : 'Su ficha volverá a tipo obrero: documentos obligatorios.'}`,
-          confirmText: esStaff ? 'Mover a Staff' : 'Mover a Obrero',
-          confirmColor: esStaff ? 'bg-violet-600 hover:bg-violet-700 text-white' : 'bg-slate-800 hover:bg-slate-900 text-white',
-          icon: <Users className={esStaff ? 'text-violet-500' : 'text-slate-500'} size={32}/>,
+          title: `Mover a ${meta.short}`,
+          message: `¿Mover ${selectedIds.length} persona(s) a ${meta.label}?\n\n${esObrero ? 'Su ficha volverá a tipo obrero: documentos obligatorios.' : `Su ficha pasará a tipo ${destino}: documentos opcionales y sin Carnet RETCC.`}`,
+          confirmText: `Mover a ${meta.short}`,
+          confirmColor: `${meta.btn} text-white`,
+          icon: <Users className={esObrero ? 'text-slate-500' : 'text-violet-500'} size={32}/>,
           onConfirm: async () => {
               setConfirmDialog(prev => ({ ...prev, isOpen: false }))
               try {
@@ -816,8 +832,8 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                       const { error: e2 } = await supabase.from('profiles').update({ tipo_personal: destino }).in('id', userIds)
                       if (e2) throw e2
                   }
-                  toast.success(`${selectedIds.length} persona(s) movida(s) a ${esStaff ? 'Staff' : 'Gestión General'}.`)
-                  emitAdminAction('movió', `${selectedIds.length} a ${esStaff ? 'Staff' : 'Obrero'}`)
+                  toast.success(`${selectedIds.length} persona(s) movida(s) a ${meta.short}.`)
+                  emitAdminAction('movió', `${selectedIds.length} a ${meta.short}`)
                   // Quitar de la vista actual (cambian de tipo → ya no pertenecen aquí).
                   setFichas(prev => prev.map(f => selectedIds.includes(f.id) ? { ...f, tipo_personal: destino } : f))
                   setSelectedIds([])
@@ -1594,15 +1610,16 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
                                 {movingSctr ? <Loader2 className="animate-spin" size={14}/> : <ShieldCheck size={14}/>} <span className="hidden sm:inline">A SCTR</span>
                             </button>
 
-                            {tipoFilter === 'obrero' ? (
-                                <button onClick={() => handleMoveTipo('staff')} className="flex items-center gap-2 px-3 py-2 bg-violet-600 text-white rounded-lg font-bold text-xs hover:bg-violet-700 transition-colors" title="Mover a Staff (oficina)">
-                                    <Users size={14}/> <span className="hidden sm:inline">A STAFF</span>
+                            {TIPOS_PERSONAL.filter(t => t !== tipoFilter).map(t => (
+                                <button
+                                    key={t}
+                                    onClick={() => handleMoveTipo(t)}
+                                    className={`flex items-center gap-2 px-3 py-2 ${TIPO_PERSONAL_META[t].btn} text-white rounded-lg font-bold text-xs transition-colors`}
+                                    title={`Mover a ${TIPO_PERSONAL_META[t].label}`}
+                                >
+                                    <Users size={14}/> <span className="hidden sm:inline">A {TIPO_PERSONAL_META[t].short}</span>
                                 </button>
-                            ) : (
-                                <button onClick={() => handleMoveTipo('obrero')} className="flex items-center gap-2 px-3 py-2 bg-slate-700 text-white rounded-lg font-bold text-xs hover:bg-slate-800 transition-colors" title="Mover a Gestión General (obrero)">
-                                    <Users size={14}/> <span className="hidden sm:inline">A OBRERO</span>
-                                </button>
-                            )}
+                            ))}
 
                             <button onClick={handleMoveToVidaLey} disabled={moving} className="flex items-center gap-2 px-3 py-2 bg-emerald-600 text-white rounded-lg font-bold text-xs hover:bg-emerald-700 transition-colors" title="Mover a Vida Ley">
                                 {moving ? <Loader2 className="animate-spin" size={14}/> : <ArrowRightCircle size={14}/>} <span className="hidden sm:inline">A VIDA LEY</span>

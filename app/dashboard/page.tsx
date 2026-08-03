@@ -4,7 +4,8 @@ import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import { useRouter } from 'next/navigation'
 import FichaForm from '@/components/FichaForm'
-import ChatSystem from '@/components/ChatSystem' 
+import ChatSystem from '@/components/ChatSystem'
+import SupportButton from '@/components/SupportButton'
 import {
   LogOut, Calendar, Bell, FileText, ChevronRight, Lock,
   CheckCircle, Save, X, Loader2, AlertCircle, Eye,
@@ -1270,6 +1271,9 @@ export default function DashboardPage() {
             />
         )}
       </AnimatePresence>
+
+      {/* --- SOPORTE (SupportDev PWA) --- */}
+      <SupportButton variant="worker" offsetBottom={104} />
 
     </div>
   )

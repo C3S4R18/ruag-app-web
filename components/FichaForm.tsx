@@ -58,8 +58,9 @@ export default function FichaForm() {
   const [isLoadingData, setIsLoadingData] = useState(true)
   const [hasStarted, setHasStarted] = useState(false)
   const [isCompleted, setIsCompleted] = useState(false)
-  const [tipoPersonal, setTipoPersonal] = useState<'obrero' | 'staff'>('obrero')
-  const isStaff = tipoPersonal === 'staff'
+  const [tipoPersonal, setTipoPersonal] = useState<string>('obrero')
+  // Todo lo que no sea obrero (staff, arug, cg) tiene los documentos liberados.
+  const isStaff = tipoPersonal !== 'obrero'
   const [sending, setSending] = useState(false)
   const [currentStep, setCurrentStep] = useState(1)
   const [user, setUser] = useState<any>(null)
@@ -118,10 +119,10 @@ export default function FichaForm() {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
         setUser(user)
-        // Tipo de personal (obrero/staff) desde profiles — define si docs son obligatorios.
+        // Tipo de personal (obrero/staff/arug/cg) desde profiles — define si docs son obligatorios.
         try {
           const { data: prof } = await supabase.from('profiles').select('tipo_personal').eq('id', user.id).maybeSingle()
-          if (prof?.tipo_personal === 'staff') setTipoPersonal('staff')
+          if (prof?.tipo_personal) setTipoPersonal(prof.tipo_personal)
         } catch {}
         const { data: ficha } = await supabase.from('fichas').select('*').eq('user_id', user.id).maybeSingle()
         if (ficha) {
@@ -976,7 +977,7 @@ export default function FichaForm() {
                             <div className="shrink-0 w-8 h-8 bg-sky-200 text-sky-900 rounded-lg flex items-center justify-center font-extrabold">i</div>
                             <div className="text-xs text-sky-900">
                                 <p className="font-bold mb-1">Documentos opcionales.</p>
-                                <p className="text-sky-800">Como personal de oficina (staff) puedes subir los documentos que tengas, ninguno es obligatorio.</p>
+                                <p className="text-sky-800">Por tu tipo de personal puedes subir los documentos que tengas, ninguno es obligatorio.</p>
                             </div>
                         </div>
                     ) : (

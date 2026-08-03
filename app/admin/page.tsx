@@ -15,6 +15,7 @@ import SctrManager from '@/components/SctrManager'
 import { buildBiometricUpdate, getSignatureUrl, normalizeBiometricFields } from '@/utils/biometric'
 import { extractDocDates } from '@/utils/docExpiry'
 import AdminCollaboration, { useCollabPeers } from '@/components/AdminCollaboration'
+import { SupportSidebarItem } from '@/components/SupportButton'
 
 // IMPORTS COMPONENTES
 import BiometricSignature from '@/components/ssoma/BiometricSignature'
@@ -47,6 +48,14 @@ import {
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
+
+// --- VISTAS POR TIPO DE PERSONAL (Staff / ARUG / CG) ---
+// Comparten pantalla y tabla: sólo cambia el filtro tipo_personal y el color.
+const TIPO_VIEWS = {
+    staff: { titulo: 'Staff · Personal de Oficina', boton: 'Staff', sigla: '',   hero: 'from-violet-600 to-violet-800 shadow-violet-600/20',   acento: 'text-violet-500' },
+    arug:  { titulo: 'ARUG · Personal',             boton: 'ARUG',  sigla: 'AR', hero: 'from-cyan-600 to-teal-700 shadow-cyan-600/20',        acento: 'text-cyan-500' },
+    cg:    { titulo: 'CG · Personal',               boton: 'CG',    sigla: 'CG', hero: 'from-fuchsia-600 to-purple-700 shadow-fuchsia-600/20', acento: 'text-fuchsia-500' },
+} as const
 
 // --- INTERFAZ PARA DOCUMENTOS ---
 interface DocDefinition {
@@ -277,7 +286,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true)
 
   // VISTAS (Se agregó 'upload_docs')
-  const [activeView, setActiveView] = useState<'dashboard' | 'staff' | 'biometria' | 'documentos' | 'upload_docs' | 'rrhh' | 'profile' | 'vida_ley' | 'sctr' | 'cesados'>('dashboard')
+  const [activeView, setActiveView] = useState<'dashboard' | 'staff' | 'arug' | 'cg' | 'biometria' | 'documentos' | 'upload_docs' | 'rrhh' | 'profile' | 'vida_ley' | 'sctr' | 'cesados'>('dashboard')
   
   const [isSidebarOpen, setSidebarOpen] = useState(true)
   const [isMobile, setIsMobile] = useState(false)
@@ -1049,9 +1058,16 @@ export default function AdminPage() {
         <nav className="flex-1 px-3 py-6 space-y-8 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-slate-600">
             {/* Dashboard General */}
             <div className="space-y-1">
+                <SupportSidebarItem />
                 <SidebarItem active={activeView === 'dashboard'} onClick={() => handleNavClick('dashboard')} icon={<AdminGifIcon name="dashboard-general.gif" size={30} variant="bare" />} label="Dashboard General" />
                 <div id="nav-staff">
                     <SidebarItem active={activeView === 'staff'} onClick={() => handleNavClick('staff')} icon={<AdminGifIcon name="staff.gif" size={30} variant="bare" />} label="Staff" />
+                </div>
+                <div id="nav-arug">
+                    <SidebarItem active={activeView === 'arug'} onClick={() => handleNavClick('arug')} icon={<TipoPersonalBadge tipo="arug" />} label="ARUG" />
+                </div>
+                <div id="nav-cg">
+                    <SidebarItem active={activeView === 'cg'} onClick={() => handleNavClick('cg')} icon={<TipoPersonalBadge tipo="cg" />} label="CG" />
                 </div>
             </div>
 
@@ -1156,6 +1172,8 @@ export default function AdminPage() {
                     <span className="hidden sm:inline-flex h-7 px-2.5 items-center rounded-full bg-slate-900 text-white text-[10px] font-bold tracking-[0.18em] uppercase">
                         {activeView === 'dashboard' && '01 · Inicio'}
                         {activeView === 'staff' && '· Staff'}
+                        {activeView === 'arug' && '· ARUG'}
+                        {activeView === 'cg' && '· CG'}
                         {activeView === 'biometria' && '02 · Biometría'}
                         {activeView === 'documentos' && '03 · SSOMA'}
                         {activeView === 'upload_docs' && '04 · Subir'}
@@ -1169,6 +1187,8 @@ export default function AdminPage() {
                         <h2 className="text-[20px] font-black text-slate-900 tracking-tight leading-none">
                             {activeView === 'dashboard' && 'Resumen General'}
                             {activeView === 'staff' && 'Personal de Oficina (Staff)'}
+                            {activeView === 'arug' && 'Personal ARUG'}
+                            {activeView === 'cg' && 'Personal CG'}
                             {activeView === 'biometria' && 'Control Biométrico'}
                             {activeView === 'documentos' && 'Gestión Documental SSOMA'}
                             {activeView === 'upload_docs' && 'Subir Documentos a Obrero'}
@@ -1410,32 +1430,40 @@ export default function AdminPage() {
                 )}
 
                 {/* --- STAFF (PERSONAL DE OFICINA) --- */}
-                {activeView === 'staff' && (
-                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 pb-20 max-w-7xl mx-auto">
-                        <div className="bg-gradient-to-br from-violet-600 to-violet-800 text-white rounded-3xl p-6 shadow-lg shadow-violet-600/20 flex items-center gap-4">
-                            <div className="w-14 h-14 rounded-2xl bg-white/15 flex items-center justify-center border border-white/20">
-                                <Briefcase size={26}/>
+                {(activeView === 'staff' || activeView === 'arug' || activeView === 'cg') && (() => {
+                    const vista = TIPO_VIEWS[activeView]
+                    return (
+                        <motion.div key={activeView} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 pb-20 max-w-7xl mx-auto">
+                            <div className={`bg-gradient-to-br ${vista.hero} text-white rounded-3xl p-6 shadow-lg flex items-center gap-4`}>
+                                <div className="w-14 h-14 rounded-2xl bg-white/15 flex items-center justify-center border border-white/20">
+                                    {vista.sigla
+                                        ? <span className="text-lg font-black tracking-tight">{vista.sigla}</span>
+                                        : <Briefcase size={26}/>}
+                                </div>
+                                <div>
+                                    <h2 className="text-2xl font-black leading-tight">{vista.titulo}</h2>
+                                    <p className="text-white/75 text-sm mt-1">
+                                        Fichas sin documentos obligatorios ni Carnet RETCC. Para mover personal aquí,
+                                        selecciónalo en Dashboard General y pulsa &quot;A {vista.boton}&quot;.
+                                    </p>
+                                </div>
                             </div>
-                            <div>
-                                <h2 className="text-2xl font-black leading-tight">Staff · Personal de Oficina</h2>
-                                <p className="text-violet-200 text-sm mt-1">Fichas sin documentos obligatorios ni Carnet RETCC. Para mover personal aquí, selecciónalo en Dashboard General y pulsa "A Staff".</p>
+                            <div className="bg-white rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/40 overflow-hidden">
+                                <div className="p-6 border-b border-slate-100 flex items-center gap-3 bg-white/50">
+                                    <h3 className="font-bold text-slate-800 text-lg flex items-center gap-3">
+                                        <Briefcase size={20} className={vista.acento}/> Registro de {vista.boton}
+                                    </h3>
+                                </div>
+                                <AdminTable
+                                    onOpenChat={(worker) => setChatWorker(worker)}
+                                    refreshTrigger={refreshTrigger}
+                                    onNotifyChange={broadcastChange}
+                                    tipoFilter={activeView}
+                                />
                             </div>
-                        </div>
-                        <div className="bg-white rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/40 overflow-hidden">
-                            <div className="p-6 border-b border-slate-100 flex items-center gap-3 bg-white/50">
-                                <h3 className="font-bold text-slate-800 text-lg flex items-center gap-3">
-                                    <Briefcase size={20} className="text-violet-500"/> Registro de Staff
-                                </h3>
-                            </div>
-                            <AdminTable
-                                onOpenChat={(worker) => setChatWorker(worker)}
-                                refreshTrigger={refreshTrigger}
-                                onNotifyChange={broadcastChange}
-                                tipoFilter="staff"
-                            />
-                        </div>
-                    </motion.div>
-                )}
+                        </motion.div>
+                    )
+                })()}
 
                 {/* --- VISTAS ESPECÍFICAS (VIDA LEY, SCTR, CESADOS, PROFILE) --- */}
                 {activeView === 'vida_ley' && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full pb-20"><VidaLeyManager /></motion.div>}
@@ -2178,6 +2206,23 @@ function DocumentCenterModal({ mode, workers, selectedWorker, selectedDocs, proc
                 </div>
             </motion.div>
         </motion.div>
+    )
+}
+
+/** Insignia de empresa para el sidebar — mismo tamaño que los AdminGifIcon (30px). */
+function TipoPersonalBadge({ tipo }: { tipo: 'arug' | 'cg' }) {
+    const theme = tipo === 'arug'
+        ? 'from-cyan-500 to-teal-600 shadow-cyan-600/30'
+        : 'from-fuchsia-500 to-purple-600 shadow-fuchsia-600/30'
+
+    return (
+        <motion.span
+            whileHover={{ rotate: -4 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 14 }}
+            className={`flex h-[30px] w-[30px] items-center justify-center rounded-xl bg-gradient-to-br ${theme} text-white text-[10px] font-black tracking-tight shadow-md`}
+        >
+            {tipo === 'arug' ? 'AR' : 'CG'}
+        </motion.span>
     )
 }
 
