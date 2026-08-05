@@ -12,6 +12,8 @@ import BiometricBatchUpload from '@/components/BiometricBatchUpload'
 import VidaLeyManager from '@/components/VidaLeyManager'
 import CesadosManager from '@/components/CesadosManager'
 import SctrManager from '@/components/SctrManager'
+import AccesosManager from '@/components/AccesosManager'
+import LottieJsonIcon from '@/components/LottieJsonIcon'
 import { buildBiometricUpdate, getSignatureUrl, normalizeBiometricFields } from '@/utils/biometric'
 import { extractDocDates } from '@/utils/docExpiry'
 import AdminCollaboration, { useCollabPeers } from '@/components/AdminCollaboration'
@@ -286,7 +288,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true)
 
   // VISTAS (Se agregó 'upload_docs')
-  const [activeView, setActiveView] = useState<'dashboard' | 'staff' | 'arug' | 'cg' | 'biometria' | 'documentos' | 'upload_docs' | 'rrhh' | 'profile' | 'vida_ley' | 'sctr' | 'cesados'>('dashboard')
+  const [activeView, setActiveView] = useState<'dashboard' | 'staff' | 'arug' | 'cg' | 'biometria' | 'documentos' | 'upload_docs' | 'rrhh' | 'profile' | 'vida_ley' | 'sctr' | 'cesados' | 'accesos'>('dashboard')
   
   const [isSidebarOpen, setSidebarOpen] = useState(true)
   const [isMobile, setIsMobile] = useState(false)
@@ -1086,6 +1088,15 @@ export default function AdminPage() {
                     <div id="nav-cesados">
                         <SidebarItem active={activeView === 'cesados'} onClick={() => handleNavClick('cesados')} icon={<AdminGifIcon name="historial-cesados.gif" size={30} variant="bare" />} label="Historial Cesados" />
                     </div>
+                    <div id="nav-accesos">
+                        <SidebarItem
+                            active={activeView === 'accesos'}
+                            onClick={() => handleNavClick('accesos')}
+                            icon={<LottieJsonIcon src="/admin/clave.json" size={30} loop title="Accesos y Recuperación" />}
+                            label="Accesos y Recuperación"
+                            tag="Nuevo"
+                        />
+                    </div>
                 </div>
             </div>
 
@@ -1181,6 +1192,7 @@ export default function AdminPage() {
                         {activeView === 'vida_ley' && '06 · Vida Ley'}
                         {activeView === 'sctr' && '07 · SCTR'}
                         {activeView === 'cesados' && '08 · Cesados'}
+                        {activeView === 'accesos' && '· Accesos'}
                         {activeView === 'profile' && '09 · Perfil'}
                     </span>
                     <div>
@@ -1196,6 +1208,7 @@ export default function AdminPage() {
                             {activeView === 'vida_ley' && 'Trama Vida Ley'}
                             {activeView === 'sctr' && 'Trama SCTR'}
                             {activeView === 'cesados' && 'Historial de Cesados'}
+                            {activeView === 'accesos' && 'Accesos y Recuperación'}
                             {activeView === 'profile' && 'Configuración de Cuenta'}
                         </h2>
                         <p className="text-[11px] text-slate-400 hidden sm:block mt-1 tracking-wide">Panel de administración centralizada</p>
@@ -1469,6 +1482,7 @@ export default function AdminPage() {
                 {activeView === 'vida_ley' && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full pb-20"><VidaLeyManager /></motion.div>}
                 {activeView === 'sctr' && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full pb-20"><SctrManager onBack={() => setActiveView('dashboard')} /></motion.div>}
                 {activeView === 'cesados' && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full pb-20"><CesadosManager onBack={() => setActiveView('dashboard')} /></motion.div>}
+                {activeView === 'accesos' && <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}><AccesosManager /></motion.div>}
                 {activeView === 'profile' && <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-lg mx-auto pb-20 mt-10"><AdminProfileSettings userEmail={userEmail} supabase={supabase} /></motion.div>}
 
                 {/* --- SECCIÓN GRID/LISTA COMPARTIDA (BIOMETRIA/DOCS/RRHH/UPLOAD) --- */}
@@ -2226,7 +2240,7 @@ function TipoPersonalBadge({ tipo }: { tipo: 'arug' | 'cg' }) {
     )
 }
 
-function SidebarItem({ active, onClick, icon, label }: any) {
+function SidebarItem({ active, onClick, icon, label, tag }: any) {
     return (
         <button
             onClick={onClick}
@@ -2256,7 +2270,26 @@ function SidebarItem({ active, onClick, icon, label }: any) {
                 {icon}
             </motion.span>
             <span className="relative z-10 tracking-wide truncate group-data-[collapsed=true]/aside:hidden">{label}</span>
-            {!active && (
+
+            {tag && (
+                <motion.span
+                    initial={{ scale: 0.6, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 18, delay: 0.3 }}
+                    className="relative z-10 ml-auto shrink-0 overflow-hidden rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 px-2 py-[3px] text-[9px] font-black uppercase tracking-[0.12em] text-white shadow-sm shadow-emerald-600/30 group-data-[collapsed=true]/aside:hidden"
+                >
+                    {/* Brillo que barre para llamar la atención sin parpadear */}
+                    <motion.span
+                        className="pointer-events-none absolute -inset-y-2 w-3 bg-white/45 blur-[2px]"
+                        style={{ rotate: 18 }}
+                        animate={{ x: ['-180%', '520%'] }}
+                        transition={{ duration: 1.8, repeat: Infinity, ease: 'linear', repeatDelay: 2.2 }}
+                    />
+                    <span className="relative">{tag}</span>
+                </motion.span>
+            )}
+
+            {!active && !tag && (
                 <ChevronRight
                     size={14}
                     className="relative z-10 ml-auto opacity-0 group-hover:opacity-60 transition-opacity -translate-x-2 group-hover:translate-x-0 group-data-[collapsed=true]/aside:hidden"

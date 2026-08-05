@@ -719,7 +719,7 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
       setConfirmDialog({
           isOpen: true,
           title: 'Eliminar Fichas',
-          message: `⚠️ ¿Estás seguro de eliminar ${selectedIds.length} fichas seleccionadas?\n\nEsta acción eliminará todos los datos y no se podrá deshacer.`,
+          message: `⚠️ ¿Eliminar ${selectedIds.length} fichas seleccionadas?\n\nSe guardará una copia en la Papelera (Accesos y Recuperación) por si fue un error.`,
           confirmText: 'Sí, Eliminar',
           confirmColor: 'bg-red-600 hover:bg-red-700 text-white',
           icon: <Trash2 className="text-red-500" size={32}/>,
@@ -727,9 +727,41 @@ export default function AdminTable({ onOpenChat, refreshTrigger = 0, onNotifyCha
               setConfirmDialog(prev => ({...prev, isOpen: false}));
               setDeleting(true)
               try {
+                  // 1. Copia de seguridad ANTES de borrar → papelera recuperable.
+                  const { data: aBorrar, error: readErr } = await supabase
+                      .from('fichas').select('*').in('id', selectedIds)
+                  if (readErr) throw readErr
+
+                  if (aBorrar?.length) {
+                      const { data: sesion } = await supabase.auth.getUser()
+                      const adminId = sesion?.user?.id || null
+                      let adminNombre = sesion?.user?.email || 'Admin'
+                      if (adminId) {
+                          const { data: perfil } = await supabase
+                              .from('profiles').select('nombres, apellido_paterno').eq('id', adminId).maybeSingle()
+                          const armado = [perfil?.nombres, perfil?.apellido_paterno].filter(Boolean).join(' ')
+                          if (armado) adminNombre = armado
+                      }
+
+                      const { error: papErr } = await supabase.from('fichas_papelera').insert(
+                          aBorrar.map((f: any) => ({
+                              ficha_id: f.id,
+                              user_id: f.user_id,
+                              dni: f.dni,
+                              nombre_completo: [f.nombres, f.apellido_paterno, f.apellido_materno].filter(Boolean).join(' '),
+                              snapshot: f,
+                              eliminado_por: adminId,
+                              eliminado_por_nombre: adminNombre,
+                          }))
+                      )
+                      // Si la papelera falla, no borramos: mejor no perder datos.
+                      if (papErr) throw new Error('No se pudo respaldar en la papelera: ' + papErr.message)
+                  }
+
+                  // 2. Ahora sí, el borrado.
                   const { error } = await supabase.from('fichas').delete().in('id', selectedIds)
                   if (error) throw error
-                  toast.success("Registros eliminados correctamente")
+                  toast.success("Fichas eliminadas — recuperables desde la Papelera")
                   emitAdminAction("eliminó", `${selectedIds.length} fichas de trabajadores`)
                   setSelectedIds([])
               } catch (error: any) { toast.error("Error: " + error.message) } finally { setDeleting(false) }
