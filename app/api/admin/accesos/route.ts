@@ -347,6 +347,57 @@ export async function POST(req: NextRequest) {
       })
     }
 
+    /**
+     * Edita el acceso: cambia el correo, la contraseña, o ambos.
+     * A diferencia de 'reset', aquí el admin decide el valor exacto.
+     */
+    if (action === 'update') {
+      const nuevoEmail = String(body?.email || '').trim().toLowerCase()
+      const nuevaPass = body?.password ? String(body.password) : ''
+
+      if (!nuevoEmail && !nuevaPass) {
+        return NextResponse.json({ error: 'No hay nada que cambiar' }, { status: 400 })
+      }
+      if (nuevoEmail && !isValidEmail(nuevoEmail)) {
+        return NextResponse.json({ error: 'El correo no tiene un formato válido' }, { status: 400 })
+      }
+      if (nuevaPass && nuevaPass.length < 6) {
+        return NextResponse.json({ error: 'La contraseña debe tener al menos 6 caracteres' }, { status: 400 })
+      }
+
+      const cambios: Record<string, any> = { email_confirm: true }
+      if (nuevoEmail) cambios.email = nuevoEmail
+      if (nuevaPass) cambios.password = nuevaPass
+
+      const { data, error } = await supabaseAdmin.auth.admin.updateUserById(userId, cambios)
+      if (error) {
+        const msg = String(error.message || '')
+        if (/already/i.test(msg)) {
+          return NextResponse.json({ error: 'Ese correo ya está en uso por otra cuenta' }, { status: 409 })
+        }
+        throw error
+      }
+
+      const emailFinal = data?.user?.email || nuevoEmail || null
+
+      // La ficha guarda su propia copia del correo: la mantenemos alineada.
+      if (nuevoEmail) {
+        await supabaseAdmin.from('fichas').update({ correo: nuevoEmail }).eq('user_id', userId)
+        await supabaseAdmin.from('credenciales_admin').update({ email: nuevoEmail }).eq('user_id', userId)
+      }
+
+      if (nuevaPass) {
+        await guardarCredencial(userId, nuevaPass, emailFinal, guard.user.id, guard.nombre)
+      }
+
+      return NextResponse.json({
+        ok: true,
+        email: emailFinal,
+        password: nuevaPass || null,
+        guardada: !!nuevaPass && credencialesDisponibles(),
+      })
+    }
+
     if (action === 'confirm') {
       const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, { email_confirm: true })
       if (error) throw error

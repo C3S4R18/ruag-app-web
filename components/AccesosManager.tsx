@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
     Search, Loader2, KeyRound, ShieldCheck, MailWarning, Copy, Check,
-    RotateCcw, Trash2, Users, Archive, AlertTriangle, X, Clock, CircleUser, UserPlus, Eye,
+    RotateCcw, Trash2, Users, Archive, AlertTriangle, X, Clock, CircleUser, UserPlus, Eye, Pencil,
 } from 'lucide-react'
 
 type Acceso = {
@@ -121,6 +121,7 @@ function DirectorioAccesos({ supabase }: { supabase: any }) {
     const [eliminando, setEliminando] = useState(false)
     const [creando, setCreando] = useState(false)
     const [revelando, setRevelando] = useState<string | null>(null)
+    const [editando, setEditando] = useState<Acceso | null>(null)
 
     const authHeader = async () => {
         const { data } = await supabase.auth.getSession()
@@ -423,6 +424,13 @@ function DirectorioAccesos({ supabase }: { supabase: any }) {
                                                     : <KeyRound size={13} />}
                                                 Nueva contraseña
                                             </button>
+                                            <button
+                                                onClick={() => setEditando(u)}
+                                                className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+                                                title="Editar correo o poner una contraseña elegida"
+                                            >
+                                                <Pencil size={15} />
+                                            </button>
                                             {u.role !== 'admin' && (
                                                 <button
                                                     onClick={() => setPorEliminar([u])}
@@ -453,6 +461,25 @@ function DirectorioAccesos({ supabase }: { supabase: any }) {
                             setCreando(false)
                             setCredencial(cred)
                             cargar()
+                        }}
+                    />
+                )}
+                {editando && (
+                    <EditarAccesoModal
+                        cuenta={editando}
+                        authHeader={authHeader}
+                        onClose={() => setEditando(null)}
+                        onGuardado={(cred, nuevoEmail) => {
+                            const id = editando.id
+                            setEditando(null)
+                            setUsuarios(prev => prev.map(u => u.id === id ? {
+                                ...u,
+                                email: nuevoEmail || u.email,
+                                correo_real: nuevoEmail ? !nuevoEmail.endsWith('@ruag.sistema') : u.correo_real,
+                                confirmado: true,
+                                tiene_credencial: cred?.guardada ? true : u.tiene_credencial,
+                            } : u))
+                            if (cred) setCredencial(cred)
                         }}
                     />
                 )}
@@ -735,6 +762,122 @@ function CrearCuentaModal({
                     >
                         {guardando ? <><Loader2 size={15} className="animate-spin" /> Creando...</> : <><UserPlus size={15} /> Crear cuenta</>}
                     </button>
+                </div>
+            </motion.div>
+        </motion.div>
+    )
+}
+
+/** Edición del acceso: correo nuevo y/o contraseña elegida por el admin. */
+function EditarAccesoModal({
+    cuenta, authHeader, onClose, onGuardado,
+}: {
+    cuenta: Acceso
+    authHeader: () => Promise<Record<string, string>>
+    onClose: () => void
+    onGuardado: (cred: CredencialVista | null, nuevoEmail: string | null) => void
+}) {
+    const [email, setEmail] = useState(cuenta.correo_real ? cuenta.email : '')
+    const [password, setPassword] = useState('')
+    const [guardando, setGuardando] = useState(false)
+
+    const emailCambia = email.trim().toLowerCase() !== cuenta.email.toLowerCase() && email.trim() !== ''
+    const hayCambios = emailCambia || password.length > 0
+
+    const guardar = async () => {
+        setGuardando(true)
+        try {
+            const res = await fetch('/api/admin/accesos', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', ...(await authHeader()) },
+                body: JSON.stringify({
+                    action: 'update',
+                    userId: cuenta.id,
+                    ...(emailCambia ? { email: email.trim().toLowerCase() } : {}),
+                    ...(password ? { password } : {}),
+                }),
+            })
+            const json = await res.json()
+            if (!res.ok) throw new Error(json?.error || 'No se pudo guardar')
+
+            toast.success('Acceso actualizado')
+            onGuardado(
+                json.password
+                    ? { nombre: cuenta.nombre, email: json.email, password: json.password, guardada: json.guardada }
+                    : null,
+                json.email || null,
+            )
+        } catch (e: any) {
+            toast.error(e.message)
+        } finally {
+            setGuardando(false)
+        }
+    }
+
+    return (
+        <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
+        >
+            <motion.div
+                initial={{ scale: 0.95, y: 16 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 16 }}
+                className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden"
+            >
+                <div className="p-6 bg-gradient-to-br from-slate-900 to-slate-700 text-white flex items-start justify-between">
+                    <div className="min-w-0">
+                        <p className="text-[10px] font-bold tracking-[0.18em] text-emerald-300 uppercase">Editar acceso</p>
+                        <h3 className="text-xl font-black mt-1 truncate">{cuenta.nombre}</h3>
+                        <p className="text-slate-300 text-[11px] mt-1 break-all">Actual: {cuenta.email}</p>
+                    </div>
+                    <button onClick={onClose} className="p-2 rounded-full hover:bg-white/10 transition-colors shrink-0"><X size={18} /></button>
+                </div>
+
+                <div className="p-6 space-y-4">
+                    <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Correo de acceso</label>
+                        <input
+                            value={email}
+                            type="email"
+                            onChange={e => setEmail(e.target.value)}
+                            placeholder={cuenta.correo_real ? '' : 'Ponle un correo real (opcional)'}
+                            className="mt-1 w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-slate-400 transition-colors"
+                        />
+                        {!cuenta.correo_real && (
+                            <p className="mt-1.5 text-[11px] text-amber-600 font-semibold">
+                                Hoy usa un correo del sistema. Si le pones uno real, con ese entrará.
+                            </p>
+                        )}
+                    </div>
+
+                    <div>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Contraseña nueva</label>
+                        <input
+                            value={password}
+                            onChange={e => setPassword(e.target.value)}
+                            placeholder="Déjalo vacío para no cambiarla"
+                            className="mt-1 w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono focus:outline-none focus:border-slate-400 transition-colors"
+                        />
+                        <p className="mt-1.5 text-[11px] text-slate-500">
+                            Aquí eliges tú la contraseña. Queda guardada y podrás verla con <b>Ver clave</b>.
+                        </p>
+                    </div>
+
+                    <div className="flex gap-3 pt-1">
+                        <button
+                            onClick={onClose}
+                            disabled={guardando}
+                            className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-sm transition-colors disabled:opacity-50"
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            onClick={guardar}
+                            disabled={!hayCambios || guardando}
+                            className="flex-1 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-sm transition-colors disabled:opacity-40 flex items-center justify-center gap-2"
+                        >
+                            {guardando ? <><Loader2 size={15} className="animate-spin" /> Guardando...</> : 'Guardar cambios'}
+                        </button>
+                    </div>
                 </div>
             </motion.div>
         </motion.div>
