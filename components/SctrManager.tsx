@@ -67,6 +67,13 @@ const ModernConfirmDialog = ({ isOpen, onClose, onConfirm, title, description }:
 };
 // -----------------------------------------------------
 
+/**
+ * Remuneración Mínima Vital usada como sueldo por defecto en la trama SCTR.
+ * Vigente desde el 01/10/2026 (antes: 1130.00).
+ * Al cambiar la RMV, actualizar sólo esta línea.
+ */
+const RMV_SUELDO_MINIMO = '1230.00'
+
 export default function SctrManager({ onBack }: { onBack?: () => void }) {
     const supabase = createClient()
     const [rows, setRows] = useState<any[]>([])
@@ -104,7 +111,7 @@ export default function SctrManager({ onBack }: { onBack?: () => void }) {
                 fec_nac: w.fecha_nacimiento ? w.fecha_nacimiento.split('-').reverse().join('/') : '',
                 nacionalidad: w.nacionalidad || 'PERUANA',
                 sexo: w.sexo || 'M',
-                sueldo: '1130.00',
+                sueldo: RMV_SUELDO_MINIMO,
                 nivel_riesgo: '04'
             }))
             setRows(formattedData)
