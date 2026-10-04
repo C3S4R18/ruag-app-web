@@ -1,6 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
+import { PumpkinIcon, useIsHalloween } from '@/components/Seasonal'
 import Image from 'next/image'
 import { useMemo, useState } from 'react'
 import { createClient } from '@/utils/supabase/client'
@@ -37,6 +38,7 @@ const initialRegisterState: RegisterState = {
 }
 
 export default function AuthPage() {
+  const halloween = useIsHalloween()
   const router = useRouter()
   const supabase = useMemo(() => createClient(), [])
 
@@ -211,12 +213,12 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="relative min-h-screen w-full overflow-x-hidden bg-[linear-gradient(180deg,#f8fbff_0%,#eef5ff_52%,#ffffff_100%)] lg:grid lg:h-screen lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:overflow-hidden">
+    <div className="ruag-login relative min-h-screen w-full overflow-x-hidden bg-[linear-gradient(180deg,#f8fbff_0%,#eef5ff_52%,#ffffff_100%)] lg:grid lg:h-screen lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:overflow-hidden">
 
       {/* ╔══════════════════════════════════════════════════════════╗
           ║  PANEL IZQUIERDO — sólo desktop. Full-bleed, editorial.   ║
           ╚══════════════════════════════════════════════════════════╝ */}
-      <aside className="relative hidden h-full overflow-hidden bg-[radial-gradient(circle_at_18%_12%,_rgba(56,114,255,0.55),_transparent_55%),radial-gradient(circle_at_85%_88%,_rgba(14,165,233,0.35),_transparent_50%),linear-gradient(160deg,#0b1430_0%,#101b38_45%,#0a1228_100%)] text-white lg:flex lg:flex-col lg:justify-between lg:p-12 xl:p-16">
+      <aside className="ruag-login-aside relative hidden h-full overflow-hidden bg-[radial-gradient(circle_at_18%_12%,_rgba(56,114,255,0.55),_transparent_55%),radial-gradient(circle_at_85%_88%,_rgba(14,165,233,0.35),_transparent_50%),linear-gradient(160deg,#0b1430_0%,#101b38_45%,#0a1228_100%)] text-white lg:flex lg:flex-col lg:justify-between lg:p-12 xl:p-16">
         {/* Pattern grid sutil */}
         <div
           aria-hidden
@@ -234,11 +236,13 @@ export default function AuthPage() {
         {/* TOP — brand */}
         <div className="relative z-10 flex items-center gap-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-white/15 bg-white/[0.06] backdrop-blur-sm">
-            <ShieldCheck className="text-blue-200" size={24} />
+            {halloween ? <PumpkinIcon size={34} /> : <ShieldCheck className="text-blue-200" size={24} />}
           </div>
           <div>
             <div className="text-[12px] font-bold uppercase tracking-[0.28em] text-blue-200">RUAG DIGITAL</div>
-            <div className="text-xs text-white/55">Portal del trabajador · Edición 2026</div>
+            <div className="text-xs text-white/55">
+              Portal del trabajador · {halloween ? 'Edición Halloween' : 'Edición 2026'}
+            </div>
           </div>
         </div>
 

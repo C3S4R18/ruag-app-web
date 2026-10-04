@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import FichaForm from '@/components/FichaForm'
 import ChatSystem from '@/components/ChatSystem'
 import SupportButton from '@/components/SupportButton'
+import { PumpkinIcon, useIsHalloween } from '@/components/Seasonal'
 import {
   LogOut, Calendar, Bell, FileText, ChevronRight, Lock,
   CheckCircle, Save, X, Loader2, AlertCircle, Eye,
@@ -334,6 +335,7 @@ interface NotificationItem {
 }
 
 export default function DashboardPage() {
+  const halloween = useIsHalloween()
   const supabase = createClient()
   const router = useRouter()
   
@@ -618,7 +620,7 @@ export default function DashboardPage() {
         <div className="h-20 flex items-center gap-3 px-6 border-b border-stone-200/60 relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 -z-10" />
             <div className="absolute -right-8 -top-6 w-28 h-28 bg-white/10 rounded-full blur-2xl pointer-events-none" />
-            <div className="w-9 h-9 bg-white/95 rounded-lg flex items-center justify-center text-emerald-700 font-black text-lg shadow-lg ring-1 ring-white/40">R</div>
+            <div className="w-9 h-9 bg-white/95 rounded-lg flex items-center justify-center text-emerald-700 font-black text-lg shadow-lg ring-1 ring-white/40">{halloween ? <PumpkinIcon size={30} /> : 'R'}</div>
             <div>
                 <h1 className="font-extrabold text-lg text-white leading-none tracking-tight">RUAG</h1>
                 <span className="text-[10px] font-bold text-emerald-200 uppercase tracking-[0.18em]">Portal Obrero</span>
