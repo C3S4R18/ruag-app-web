@@ -8,21 +8,20 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: Arial, Helvetica, sans-serif;
+  --font-sans: var(--font-geist), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "Courier New", Courier, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Siempre claro, como la app Android. Antes, un iPhone en modo oscuro
+   recibía fondo negro y texto claro sobre pantallas pensadas en claro. */
+:root {
+  color-scheme: light;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
   overflow-x: hidden;
 }
 
@@ -198,4 +197,61 @@ html.halloween .ruag-login-aside {
     radial-gradient(circle at 18% 12%, rgba(124, 58, 237, 0.45), transparent 55%),
     radial-gradient(circle at 85% 88%, rgba(255, 122, 26, 0.30), transparent 50%),
     linear-gradient(160deg, #0b0813 0%, #1a1028 45%, #0b0813 100%) !important;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+ *  IDENTIDAD RUAG (tinta + menta) — misma paleta que la app Android.
+ *  Tailwind v4 pinta con variables, así que redefinir la escala aquí cambia
+ *  toda la web sin tocar componentes. En octubre html.halloween (más
+ *  específico) sigue ganando sobre estas variables.
+ * ──────────────────────────────────────────────────────────────────────── */
+:root {
+  /* Esmeralda → menta de la app */
+  --color-emerald-50:  #ecfbf5;
+  --color-emerald-100: #daf4e9;
+  --color-emerald-200: #b2ebd6;
+  --color-emerald-300: #6fe3c0;
+  --color-emerald-400: #00e0a4;
+  --color-emerald-500: #00b884;
+  --color-emerald-600: #0a8c66;
+  --color-emerald-700: #0b7355;
+  --color-emerald-800: #0b5c45;
+  --color-emerald-900: #0a4a38;
+
+  /* Grises (stone y slate) → tinta neutra de la app */
+  --color-stone-50:  #f7f8f9;
+  --color-stone-100: #f2f3f5;
+  --color-stone-200: #e4e6ea;
+  --color-stone-300: #d8dbe0;
+  --color-stone-400: #9097a0;
+  --color-stone-500: #5b616b;
+  --color-stone-600: #4a5059;
+  --color-stone-700: #2a2e36;
+  --color-stone-800: #1c2026;
+  --color-stone-900: #111418;
+  --color-stone-950: #0b0d11;
+  --color-slate-50:  #f7f8f9;
+  --color-slate-100: #f2f3f5;
+  --color-slate-200: #e4e6ea;
+  --color-slate-300: #d8dbe0;
+  --color-slate-400: #9097a0;
+  --color-slate-500: #5b616b;
+  --color-slate-600: #4a5059;
+  --color-slate-700: #2a2e36;
+  --color-slate-800: #1c2026;
+  --color-slate-900: #111418;
+  --color-slate-950: #0b0d11;
+}
+
+/* ── Sensación de app nativa en el celular ── */
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+/* iOS hace zoom al enfocar campos con letra menor a 16px. */
+@media (max-width: 640px) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
 }

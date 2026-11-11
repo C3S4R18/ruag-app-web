@@ -2,6 +2,7 @@
 
 /* eslint-disable @next/next/no-img-element */
 
+import AppIcon from './AppIcon'
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import {
@@ -68,11 +69,10 @@ function formatDuration(ms?: number | null) {
 
 function ChatGifIcon({ src, alt, size = 'md' }: { src: string; alt: string; size?: 'sm' | 'md' | 'lg' }) {
     const boxSize = size === 'lg' ? 'h-12 w-12' : size === 'sm' ? 'h-9 w-9' : 'h-10 w-10'
-    const imageSize = size === 'lg' ? 'h-9 w-9' : size === 'sm' ? 'h-6 w-6' : 'h-7 w-7'
 
     return (
         <span className={`${boxSize} inline-flex shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white shadow-sm ring-1 ring-white/80`}>
-            <img src={src} alt={alt} className={`${imageSize} object-contain mix-blend-multiply`} draggable={false} />
+            <AppIcon name={src} size={size === 'lg' ? 24 : size === 'sm' ? 17 : 20} className="text-slate-700" />
         </span>
     )
 }
@@ -381,7 +381,7 @@ export default function ChatSystem({ workerId, workerName, currentUserId, isAdmi
                 whileHover={{ scale: 1.08, y: -2 }}
                 whileTap={{ scale: 0.94 }}
                 onClick={() => setIsMinimized(false)}
-                className="fixed bottom-6 right-6 w-16 h-16 bg-[#0B1220] rounded-full shadow-2xl shadow-slate-900/30 flex items-center justify-center z-50 border border-white/10"
+                className="fixed bottom-[calc(1.5rem+env(safe-area-inset-bottom))] right-6 w-16 h-16 bg-[#0B1220] rounded-full shadow-2xl shadow-slate-900/30 flex items-center justify-center z-50 border border-white/10"
             >
                 {/* Halo animado */}
                 <motion.span
@@ -428,7 +428,7 @@ export default function ChatSystem({ workerId, workerName, currentUserId, isAdmi
     // Estilos dinámicos según quién lo ve
     const containerStyle = isAdmin
         ? "fixed inset-y-0 right-0 w-full max-w-md bg-white shadow-[0_-12px_60px_rgba(15,23,42,0.18)] z-[70] border-l border-slate-200/80 flex flex-col"
-        : "fixed bottom-24 right-6 w-80 md:w-96 h-[520px] bg-white rounded-3xl shadow-2xl shadow-slate-900/15 z-50 border border-slate-200/70 flex flex-col overflow-hidden"
+        : "fixed bottom-[calc(6rem+env(safe-area-inset-bottom))] right-6 w-80 md:w-96 h-[520px] bg-white rounded-3xl shadow-2xl shadow-slate-900/15 z-50 border border-slate-200/70 flex flex-col overflow-hidden"
 
     return (
         <AnimatePresence>

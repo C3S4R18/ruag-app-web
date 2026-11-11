@@ -87,7 +87,7 @@ export default function SupportButton({ variant = 'admin', offsetBottom = 24 }: 
     return (
         <div
             className="fixed right-6 z-[60] print:hidden"
-            style={{ bottom: offsetBottom }}
+            style={{ bottom: `calc(${offsetBottom}px + env(safe-area-inset-bottom))` }}
         >
             {/* Etiqueta que se despliega al pasar el mouse */}
             <AnimatePresence>

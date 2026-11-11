@@ -51,6 +51,9 @@ function serializeDocumentUrls(urls: string[]) {
   return JSON.stringify(normalized)
 }
 
+// Video de inducción SSOMA: oculto por ahora. Cambiar a true para mostrarlo.
+const MOSTRAR_INDUCCION = false
+
 export default function FichaForm() {
   const supabase = createClient()
   const sigPad = useRef<any>(null)
@@ -599,7 +602,8 @@ export default function FichaForm() {
                     </div>
                 </div>
 
-                {/* --- NUEVO: MÓDULO DE INDUCCIÓN SSOMA --- */}
+                {/* --- MÓDULO DE INDUCCIÓN SSOMA (oculto hasta que se habilite) --- */}
+                {MOSTRAR_INDUCCION && (
                 <div className="p-8 border-b border-slate-100 bg-blue-50/50">
                     <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
                         <ShieldCheck className="text-blue-600"/> Inducción de Seguridad (Obligatorio)
@@ -646,6 +650,7 @@ export default function FichaForm() {
                         )}
                     </div>
                 </div>
+                )}
 
                 {/* RESUMEN DE DATOS */}
                 <div className="p-8 bg-slate-50/50">

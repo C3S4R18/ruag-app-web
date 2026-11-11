@@ -1,6 +1,6 @@
 'use client'
 
-import Image from 'next/image'
+import AppIcon from './AppIcon'
 import { motion } from 'framer-motion'
 import { CSSProperties } from 'react'
 
@@ -49,8 +49,8 @@ type AnimatedIconProps = {
 
 const SURFACES: Record<NonNullable<AnimatedIconProps['surface']>, string> = {
   none: '',
-  soft: 'bg-stone-50 ring-1 ring-stone-100',
-  gradient: 'bg-gradient-to-br from-red-50 via-white to-stone-100 ring-1 ring-red-100/70 shadow-sm',
+  soft: 'bg-emerald-50 ring-1 ring-emerald-100',
+  gradient: 'bg-gradient-to-br from-emerald-500 to-emerald-700 text-white shadow-sm shadow-emerald-700/30',
 }
 
 export default function AnimatedIcon({
@@ -62,11 +62,12 @@ export default function AnimatedIcon({
   glow = false,
   surface = 'none',
   bounceOnMount = true,
-  blend = true,
 }: AnimatedIconProps) {
-  const src = ANIMATED_ICONS[name]
   const padding = surface === 'none' ? 0 : Math.round(size * 0.18)
   const box = size + padding * 2
+  // Menta por defecto (funciona sobre blanco y sobre chips blancos en fondos
+  // oscuros); la superficie gradient lo pone en blanco. className lo puede cambiar.
+  const color = surface === 'gradient' ? '' : 'text-emerald-600'
 
   return (
     <motion.span
@@ -75,28 +76,20 @@ export default function AnimatedIcon({
       transition={{ type: 'spring', stiffness: 320, damping: 16 }}
       whileHover={{ scale: 1.08, rotate: 0 }}
       whileTap={{ scale: 0.92 }}
-      className={`relative inline-flex items-center justify-center rounded-xl ${SURFACES[surface]} ${className}`}
+      role="img"
+      aria-label={alt ?? name}
+      className={`relative inline-flex items-center justify-center rounded-xl ${color} ${SURFACES[surface]} ${className}`}
       style={{ width: box, height: box, ...style }}
     >
       {glow && (
         <motion.span
           aria-hidden
-          className="absolute inset-0 rounded-xl bg-red-400/30 blur-md"
+          className="absolute inset-0 rounded-xl bg-emerald-400/30 blur-md"
           animate={{ opacity: [0.35, 0.7, 0.35], scale: [0.9, 1.05, 0.9] }}
           transition={{ duration: 2.6, repeat: Infinity, ease: 'easeInOut' }}
         />
       )}
-      <Image
-        src={src}
-        alt={alt ?? name}
-        width={size}
-        height={size}
-        unoptimized
-        priority
-        className="relative z-[1] select-none pointer-events-none"
-        draggable={false}
-        style={blend ? { mixBlendMode: 'multiply' } : undefined}
-      />
+      <AppIcon name={name} size={Math.round(size * 0.72)} className="relative z-[1]" />
     </motion.span>
   )
 }

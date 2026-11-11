@@ -7,7 +7,7 @@ import FichaForm from '@/components/FichaForm'
 import ChatSystem from '@/components/ChatSystem'
 import SupportButton from '@/components/SupportButton'
 import { PumpkinIcon, useIsHalloween } from '@/components/Seasonal'
-import {
+import { ArrowLeft,
   LogOut, Calendar, Bell, FileText, ChevronRight, Lock,
   CheckCircle, Save, X, Loader2, AlertCircle, Eye,
   Menu, Home, Key, Mail, ShieldCheck, Download, FileCheck, Briefcase, FileBadge,
@@ -340,7 +340,7 @@ export default function DashboardPage() {
   const router = useRouter()
   
   // ESTADOS PRINCIPALES (Agregado 'uploads')
-  const [activeTab, setActiveTab] = useState<'home' | 'documents' | 'uploads' | 'lectura' | 'profile'>('home')
+  const [activeTab, setActiveTab] = useState<'home' | 'ficha' | 'documents' | 'uploads' | 'lectura' | 'profile'>('home')
   const [isSidebarOpen, setIsSidebarOpen] = useState(false) 
   const [isDesktop, setIsDesktop] = useState(true)
 
@@ -576,6 +576,13 @@ export default function DashboardPage() {
 
   const handleLogout = async () => { await supabase.auth.signOut(); router.push('/') }
   const today = new Date().toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'long' })
+  // "JUE · 05 NOV 2026", igual que la app.
+  const heroDate = (() => {
+    const d = new Date()
+    const dias = ['DOM', 'LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB']
+    const meses = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SET', 'OCT', 'NOV', 'DIC']
+    return `${dias[d.getDay()]} · ${String(d.getDate()).padStart(2, '0')} ${meses[d.getMonth()]} ${d.getFullYear()}`
+  })()
   const unreadCount = notifications.filter(n => !n.read).length
 
   // --- CÁLCULOS DEL DASHBOARD ---
@@ -590,12 +597,8 @@ export default function DashboardPage() {
   const progress = totalDocs > 0 ? Math.round((completedDocs / totalDocs) * 100) : 0
 
   return (
-    <div className="flex h-screen font-sans text-stone-900 overflow-hidden relative">
-      {/* Fondo cálido global con sutil noise/gradient */}
-      <div className="absolute inset-0 -z-10 bg-gradient-to-br from-stone-100 via-stone-50 to-emerald-50/30" />
-      <div className="absolute inset-0 -z-10 pointer-events-none" style={{
-          backgroundImage: 'radial-gradient(1200px 600px at 90% -10%, rgba(16,185,129,0.10), transparent 60%), radial-gradient(900px 500px at -10% 110%, rgba(120,113,108,0.10), transparent 60%)'
-      }} />
+    <div className="flex h-dvh font-sans text-stone-900 overflow-hidden relative">
+      <div className="absolute inset-0 -z-10 bg-white" />
 
       {/* --- SIDEBAR OVERLAY --- */}
       <AnimatePresence>
@@ -616,20 +619,28 @@ export default function DashboardPage() {
             width: (isDesktop || isSidebarOpen) ? 260 : 0
         }}
       >
-        {/* Brand block — bloque crimson como el hero del móvil */}
-        <div className="h-20 flex items-center gap-3 px-6 border-b border-stone-200/60 relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-900 to-slate-800 -z-10" />
-            <div className="absolute -right-8 -top-6 w-28 h-28 bg-white/10 rounded-full blur-2xl pointer-events-none" />
-            <div className="w-9 h-9 bg-white/95 rounded-lg flex items-center justify-center text-emerald-700 font-black text-lg shadow-lg ring-1 ring-white/40">{halloween ? <PumpkinIcon size={30} /> : 'R'}</div>
-            <div>
-                <h1 className="font-extrabold text-lg text-white leading-none tracking-tight">RUAG</h1>
-                <span className="text-[10px] font-bold text-emerald-200 uppercase tracking-[0.18em]">Portal Obrero</span>
+        {/* Cabecera del menú: igual que el drawer de la app Android */}
+        <div className="relative overflow-hidden px-6 pt-[calc(1.5rem+env(safe-area-inset-top))] pb-6 bg-gradient-to-br from-stone-900 via-stone-800 to-stone-900 text-white shrink-0">
+            <div aria-hidden className="absolute -right-16 -top-16 w-48 h-48 rounded-full bg-white/10 pointer-events-none" />
+            <div aria-hidden className="absolute -left-12 -bottom-16 w-40 h-40 rounded-full bg-emerald-500/25 pointer-events-none" />
+            <div className="relative inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-white/85">
+                <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                Portal · RUAG
             </div>
+            <div className="relative mt-4 w-16 h-16 rounded-lg overflow-hidden ring-2 ring-white/70 bg-white/10 flex items-center justify-center">
+                {profilePhotoUrl
+                    ? <img src={profilePhotoUrl} alt="" className="w-full h-full object-cover" />
+                    : (halloween ? <PumpkinIcon size={40} /> : <span className="text-2xl font-black">{(userName || 'R').charAt(0)}</span>)}
+            </div>
+            <p className="relative mt-4 text-[10px] font-bold uppercase tracking-[0.2em] text-white/55">00 — Usuario</p>
+            <h1 className="relative mt-1 text-2xl font-black tracking-tight leading-none truncate">{(userName || 'Compañero').toUpperCase()}</h1>
+            <div className="relative mt-3 w-8 h-0.5 bg-emerald-400" />
+            <p className="relative mt-3 text-[11px] text-white/70">Registros · Documentos · Mensajes</p>
         </div>
 
         <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto">
-            <div className="pt-1 pb-2 px-4 text-[10px] font-bold text-emerald-700 uppercase tracking-[0.2em] flex items-center gap-2">
-                <span>Navegación</span>
+            <div className="pt-1 pb-2 px-4 text-[10px] font-bold text-stone-900 uppercase tracking-[0.2em] flex items-center gap-2">
+                <span>01 — Navegación</span>
                 <span className="flex-1 h-px bg-stone-200" />
             </div>
             <NavItem
@@ -638,6 +649,7 @@ export default function DashboardPage() {
                 onClick={() => { setActiveTab('home'); if(!isDesktop) setIsSidebarOpen(false) }}
                 icon={<AnimatedIcon name="actualizarFicha" size={26} bounceOnMount={false}/>}
                 label="Inicio"
+                index="01"
             />
             <NavItem
                 id="wt-documents"
@@ -645,6 +657,7 @@ export default function DashboardPage() {
                 onClick={() => { setActiveTab('documents'); if(!isDesktop) setIsSidebarOpen(false) }}
                 icon={<AnimatedIcon name="misRegistros" size={26} bounceOnMount={false}/>}
                 label="Mis Registros"
+                index="02"
                 badge={totalPendingAction > 0 ? totalPendingAction : undefined}
             />
 
@@ -655,6 +668,7 @@ export default function DashboardPage() {
                 onClick={() => { setActiveTab('uploads'); if(!isDesktop) setIsSidebarOpen(false) }}
                 icon={<AnimatedIcon name="archivosSsoma" size={26} bounceOnMount={false}/>}
                 label="Archivos SSOMA"
+                index="03"
             />
 
             {/* --- LECTURA OBLIGATORIA (PDFs siempre disponibles) --- */}
@@ -664,20 +678,35 @@ export default function DashboardPage() {
                 onClick={() => { setActiveTab('lectura'); if(!isDesktop) setIsSidebarOpen(false) }}
                 icon={<AnimatedIcon name="actualizarFicha" size={26} bounceOnMount={false}/>}
                 label="Lectura Obligatoria"
+                index="04"
                 badge={pendingMandatoryDownloads > 0 ? pendingMandatoryDownloads : undefined}
             />
 
-            <div className="pt-5 pb-2 px-4 text-[10px] font-bold text-emerald-700 uppercase tracking-[0.2em] flex items-center gap-2">
-                <span>Mi Cuenta</span>
-                <span className="flex-1 h-px bg-stone-200" />
-            </div>
             <NavItem
                 active={activeTab === 'profile'}
                 onClick={() => { setActiveTab('profile'); if(!isDesktop) setIsSidebarOpen(false) }}
                 icon={<AnimatedIcon name="miPerfil" size={26} bounceOnMount={false}/>}
                 label="Mi Perfil"
+                index="05"
             />
         </nav>
+
+        <div className="px-4 pt-3">
+            <motion.button
+                onClick={() => { setIsChatOpen(true); if (!isDesktop) setIsSidebarOpen(false) }}
+                whileTap={{ scale: 0.98 }}
+                className="w-full flex items-center gap-3 rounded-2xl bg-gradient-to-br from-stone-900 to-stone-800 px-4 py-3.5 text-left text-white ring-1 ring-white/10 shadow-lg shadow-stone-900/20"
+            >
+                <span className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shrink-0">
+                    <AnimatedIcon name="chat" size={28} bounceOnMount={false}/>
+                </span>
+                <span className="flex-1 min-w-0">
+                    <span className="block text-[9px] font-bold uppercase tracking-[0.2em] text-white/65">Administrador</span>
+                    <span className="block text-[13px] font-extrabold">Hablar con administrador</span>
+                </span>
+                <ArrowUpRight size={16} className="shrink-0"/>
+            </motion.button>
+        </div>
 
         <div className="px-4 pt-3">
             <WorkerTour
@@ -686,12 +715,12 @@ export default function DashboardPage() {
             />
         </div>
 
-        <div className="p-4 border-t border-stone-200/60">
+        <div className="p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] border-t border-stone-200/60">
             <motion.button
                 onClick={handleLogout}
                 whileHover={{ x: 2 }}
                 whileTap={{ scale: 0.97 }}
-                className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-stone-600 hover:bg-emerald-50/80 hover:text-emerald-700 hover:ring-1 hover:ring-emerald-200 backdrop-blur transition-all font-bold text-sm group"
+                className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-red-500 hover:bg-red-50 hover:text-red-600 transition-all font-bold text-sm group"
             >
                 <motion.span
                     className="inline-flex"
@@ -710,13 +739,13 @@ export default function DashboardPage() {
       <main className="flex-1 flex flex-col h-full min-w-0 relative overflow-hidden">
 
         {/* Header Superior — glass cream */}
-        <header className="h-16 bg-white/60 backdrop-blur-xl border-b border-white/60 px-4 md:px-8 flex items-center justify-between shrink-0 z-30 sticky top-0 shadow-sm shadow-slate-900/5">
+        <header className="h-16 bg-white/90 backdrop-blur-xl border-b border-stone-200/70 px-4 md:px-8 flex items-center justify-between shrink-0 z-30 sticky top-0 relative">
             <div className="flex items-center gap-4">
                 <motion.button
                     id="wt-menu"
                     onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                     whileTap={{ scale: 0.9 }}
-                    className="lg:hidden p-2 rounded-xl bg-gradient-to-br from-slate-900 to-slate-800 text-white shadow-md shadow-slate-900/25 ring-1 ring-white/40"
+                    className="lg:hidden w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-600 to-stone-900 text-white flex items-center justify-center shadow-md shadow-stone-900/25 ring-1 ring-white/40"
                 >
                     <motion.span
                         className="inline-flex"
@@ -726,12 +755,13 @@ export default function DashboardPage() {
                         {isSidebarOpen ? <X size={20}/> : <Menu size={20}/>}
                     </motion.span>
                 </motion.button>
-                <div className="flex flex-col leading-tight">
-                    <span className="text-[9px] font-bold text-emerald-700 uppercase tracking-[0.2em]">
-                        0{Math.max(1, ['home','documents','uploads','profile'].indexOf(activeTab) + 1)} · RUAG
+                <div className="flex flex-col leading-tight max-lg:absolute max-lg:left-1/2 max-lg:-translate-x-1/2 max-lg:items-center">
+                    <span className="text-[9px] font-bold text-stone-500 uppercase tracking-[0.2em]">
+                        0{Math.max(1, ['home','documents','uploads','lectura','profile'].indexOf(activeTab) + 1)} · RUAG
                     </span>
                     <h2 className="text-base font-extrabold text-stone-900 tracking-tight">
                         {activeTab === 'home' && 'Bienvenido'}
+                        {activeTab === 'ficha' && 'Actualizar Ficha'}
                         {activeTab === 'documents' && 'Firmas Digitales'}
                         {activeTab === 'uploads' && 'Documentos SSOMA'}
                         {activeTab === 'lectura' && 'Lectura Obligatoria'}
@@ -792,7 +822,7 @@ export default function DashboardPage() {
                     animate={{ scale: 1, rotate: 0 }}
                     transition={{ type: 'spring', stiffness: 260, damping: 18, delay: 0.15 }}
                     whileHover={{ scale: 1.1, boxShadow: '0 0 0 4px rgba(16,185,129,0.18)' }}
-                    className="w-9 h-9 bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-xl flex items-center justify-center font-black border-2 border-white shadow-md ring-1 ring-emerald-200 cursor-pointer select-none"
+                    className="hidden lg:flex w-9 h-9 bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-xl items-center justify-center font-black border-2 border-white shadow-md ring-1 ring-emerald-200 cursor-pointer select-none"
                 >
                     {userName.charAt(0)}
                 </motion.div>
@@ -825,7 +855,7 @@ export default function DashboardPage() {
                                 transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut' }}
                                 className="absolute -bottom-24 -left-12 w-80 h-80 bg-emerald-500/30 rounded-full blur-3xl pointer-events-none"
                             />
-                            <div className="relative z-10 p-8 text-stone-50">
+                            <div className="relative z-10 p-6 sm:p-8 text-stone-50">
                                 {/* Top meta-row */}
                                 <div className="flex justify-between items-center mb-6">
                                     <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md border border-white/20 px-3 py-1.5 rounded-full">
@@ -835,81 +865,99 @@ export default function DashboardPage() {
                                         </span>
                                         <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/85">Online · RUAG/01</span>
                                     </div>
-                                    <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/65 hidden sm:inline">{today}</span>
+                                    <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/65">{heroDate}</span>
                                 </div>
 
-                                <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
-                                    <div className="flex-1">
-                                        <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/55">01 — BIENVENIDO</span>
-                                        <h1 className="text-4xl md:text-5xl font-black tracking-tight leading-[0.95] mt-2 mb-3">
-                                            {(userName || 'Compañero').toUpperCase()}
-                                        </h1>
-                                        <div className="w-12 h-0.5 bg-emerald-300 mb-3"/>
-                                        <p className="text-white/75 max-w-md text-sm leading-relaxed">
-                                            Portal RUAG. Gestiona tu ficha, firma documentos y mantén tu legajo al día — desde cualquier lugar.
-                                        </p>
-                                    </div>
+                                <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/55">01 — BIENVENIDO</span>
+                                <h1 className="text-5xl md:text-6xl font-black tracking-tight leading-[0.95] mt-3 mb-4 break-words">
+                                    {(userName || 'Compañero').toUpperCase()}
+                                </h1>
+                                <div className="w-12 h-0.5 bg-emerald-400 mb-4"/>
+                                <p className="text-white/80 max-w-md text-[15px] leading-relaxed">
+                                    Portal RUAG. Gestiona tu ficha, firma documentos y mantén tu legajo al día — desde cualquier lugar.
+                                </p>
 
-                                    {/* Métrica glass-dark */}
-                                    <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/20 flex items-center gap-4 min-w-[210px]">
-                                        <div className="relative w-14 h-14 flex items-center justify-center shrink-0">
-                                            <svg className="w-full h-full -rotate-90" viewBox="0 0 56 56">
-                                                <circle cx="28" cy="28" r="24" stroke="currentColor" strokeWidth="4" fill="transparent" className="text-white/15"/>
-                                                <circle cx="28" cy="28" r="24" stroke="currentColor" strokeWidth="4" fill="transparent"
-                                                    strokeDasharray={150.8}
-                                                    strokeDashoffset={150.8 - (150.8 * progress) / 100}
-                                                    strokeLinecap="round"
-                                                    className="text-emerald-300 transition-all duration-1000"/>
-                                            </svg>
-                                            <span className="absolute text-xs font-black">{progress}%</span>
-                                        </div>
-                                        <div>
-                                            <p className="text-[9px] text-white/55 font-bold uppercase tracking-[0.18em]">Documentación</p>
-                                            <p className="text-2xl font-black tracking-tight leading-none mt-1">{completedDocs.toString().padStart(2,'0')}<span className="text-white/40 text-base"> / {totalDocs}</span></p>
-                                            <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-200 mt-0.5">listos</p>
-                                        </div>
+                                {/* Métricas como en la app: firmados / pendientes */}
+                                <div className="mt-7 grid grid-cols-2 rounded-2xl border border-white/15 bg-white/[0.06] backdrop-blur-md">
+                                    <div className="p-4 sm:p-5">
+                                        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/55">Firmados</p>
+                                        <p className="mt-2 text-4xl sm:text-5xl font-black tracking-tight tabular-nums">{completedDocs.toString().padStart(2, '0')}</p>
                                     </div>
+                                    <div className="p-4 sm:p-5 border-l border-white/15">
+                                        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/55">Pendientes</p>
+                                        <p className="mt-2 text-4xl sm:text-5xl font-black tracking-tight tabular-nums text-emerald-400">{Math.max(0, totalDocs - completedDocs).toString().padStart(2, '0')}</p>
+                                    </div>
+                                </div>
+
+                                <div className="mt-6">
+                                    <div className="flex items-baseline justify-between">
+                                        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/55">Progreso</span>
+                                        <span className="text-lg font-black tabular-nums">{progress}%</span>
+                                    </div>
+                                    <div className="mt-2 h-1.5 rounded-full bg-white/10 overflow-hidden">
+                                        <motion.div
+                                            initial={{ width: 0 }}
+                                            animate={{ width: `${progress}%` }}
+                                            transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1] }}
+                                            className="h-full rounded-full bg-gradient-to-r from-emerald-500 via-emerald-300 to-white"
+                                        />
+                                    </div>
+                                    <p className="mt-2 text-[11px] text-white/55">{completedDocs} de {totalDocs} documentos cerrados</p>
                                 </div>
                             </div>
                         </div>
 
                         {/* Acciones rápidas */}
                         <div>
-                            <div className="flex items-center gap-3 mb-4">
-                                <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-[0.22em]">02 — Acciones</span>
+                            <div className="flex items-center gap-3 mb-5">
+                                <span className="rounded-full border border-stone-300 px-3.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-stone-900">02 — Acciones</span>
                                 <span className="flex-1 h-px bg-stone-200" />
                             </div>
-                            <h3 className="text-2xl md:text-3xl font-black text-stone-900 tracking-tight mb-1">
-                                Accesos <span className="italic text-emerald-700">rápidos</span>
+                            <h3 className="text-3xl md:text-4xl font-black uppercase tracking-tight text-stone-900 mb-2">
+                                Accesos <span className="italic">rápidos</span>
                             </h3>
-                            <p className="text-sm text-stone-500 mb-5">Las tres rutas que más usas. Diseñadas para tocar, no para pensar.</p>
-                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <p className="text-sm text-stone-500 mb-5">Las tres rutas que más usas. Diseñado para tocar, no para pensar.</p>
+                            <div className="grid grid-cols-1 gap-3">
+                                <div id="wt-ficha">
+                                    <QuickAction
+                                        index="01"
+                                        icon="actualizarFicha"
+                                        label="Actualizar Ficha"
+                                        meta="Datos personales · 5 pasos"
+                                        onClick={() => setActiveTab('ficha')}
+                                    />
+                                </div>
                                 <QuickAction
-                                    index="01"
+                                    index="02"
                                     icon="misRegistros"
                                     label="Mis Registros"
+                                    meta="Firmas, SSOMA & RRHH"
                                     badge={totalPendingAction > 0 ? totalPendingAction : undefined}
                                     onClick={() => setActiveTab('documents')}
                                 />
                                 <QuickAction
-                                    index="02"
-                                    icon="archivosSsoma"
-                                    label="Archivos SSOMA"
-                                    onClick={() => setActiveTab('uploads')}
-                                />
-                                <QuickAction
                                     index="03"
-                                    icon="miPerfil"
-                                    label="Mi Perfil"
-                                    onClick={() => setActiveTab('profile')}
+                                    icon="archivosSsoma"
+                                    label="Centro SSOMA"
+                                    meta="PDFs y anexos del legajo"
+                                    onClick={() => setActiveTab('uploads')}
                                 />
                             </div>
                         </div>
 
-                        {/* Ficha Form (Visualización) */}
-                        <div id="wt-ficha">
-                            <FichaForm />
-                        </div>
+                    </motion.div>
+                )}
+
+                {/* VISTA: FICHA — se abre desde "Actualizar Ficha", como en la app */}
+                {activeTab === 'ficha' && (
+                    <motion.div initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} className="pb-20">
+                        <button
+                            onClick={() => setActiveTab('home')}
+                            className="mb-4 inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white px-4 py-2 text-sm font-bold text-stone-700 hover:border-stone-300"
+                        >
+                            <ArrowLeft size={16}/> Inicio
+                        </button>
+                        <FichaForm />
                     </motion.div>
                 )}
 
@@ -1283,47 +1331,26 @@ export default function DashboardPage() {
 
 // --- COMPONENTES AUXILIARES ---
 
-function QuickAction({ icon, label, accent = 'blue', badge, onClick, index = '01' }: { icon: 'actualizarFicha' | 'misRegistros' | 'archivosSsoma' | 'miPerfil' | 'chat', label: string, accent?: 'blue' | 'indigo' | 'amber' | 'rose', badge?: number, onClick: () => void, index?: string }) {
+function QuickAction({ icon, label, meta, badge, onClick, index = '01' }: { icon: 'actualizarFicha' | 'misRegistros' | 'archivosSsoma' | 'miPerfil' | 'chat', label: string, meta: string, badge?: number, onClick: () => void, index?: string }) {
     return (
         <motion.button
             onClick={onClick}
-            whileHover={{ y: -3, scale: 1.01 }}
+            whileHover={{ y: -2 }}
             whileTap={{ scale: 0.98 }}
-            transition={{ type: 'spring', stiffness: 380, damping: 20 }}
-            className="group relative bg-white/70 backdrop-blur-xl ring-1 ring-white/60 border border-white/60 rounded-2xl p-5 text-left overflow-hidden shadow-md shadow-slate-900/5 hover:shadow-xl hover:shadow-slate-900/15 hover:ring-emerald-200 transition-all"
+            transition={{ type: 'spring', stiffness: 380, damping: 22 }}
+            className="group relative flex w-full items-center gap-4 rounded-2xl border border-stone-200 bg-white px-5 py-4 text-left shadow-sm shadow-stone-900/5 transition-colors hover:border-emerald-300"
         >
-            {/* Línea vertical de acento crimson a la izquierda */}
-            <div className="absolute left-0 top-5 bottom-5 w-[3px] bg-gradient-to-b from-emerald-400 to-emerald-600 rounded-r-full"/>
-            {/* Glow detrás del icono al hover */}
-            <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-emerald-300/30 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity"/>
-
-            <div className="relative pl-2 flex items-start justify-between mb-3">
-                {/* Index editorial */}
-                <span className="text-2xl font-black text-stone-300 tracking-tight leading-none">{index}</span>
-                <div className="flex items-center gap-2">
-                    {badge && badge > 0 && (
-                        <motion.span
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
-                            transition={{ type: 'spring', stiffness: 500, damping: 14 }}
-                            className="bg-gradient-to-br from-slate-900 to-slate-800 text-white text-[10px] font-extrabold min-w-[20px] h-5 px-1.5 flex items-center justify-center rounded-full shadow-md shadow-emerald-500/30 ring-1 ring-white/40"
-                        >
-                            {badge}
-                        </motion.span>
-                    )}
-                    {/* Icono GIF dentro de un chip glass */}
-                    <div className="w-11 h-11 rounded-xl bg-white/70 backdrop-blur ring-1 ring-white/70 border border-white/40 flex items-center justify-center shadow-sm">
-                        <AnimatedIcon name={icon} size={32} bounceOnMount={false}/>
-                    </div>
-                </div>
-            </div>
-            <div className="relative pl-2">
-                <p className="text-sm font-extrabold text-stone-900 leading-tight tracking-tight">{label}</p>
-                <div className="flex items-center gap-1 mt-1.5 text-[10px] font-bold text-emerald-700 uppercase tracking-[0.2em]">
-                    <span>Abrir</span>
-                    <ArrowUpRight size={12} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform"/>
-                </div>
-            </div>
+            <span className="text-3xl font-black tracking-tight text-stone-300 tabular-nums">{index}</span>
+            <span aria-hidden className="h-12 w-[3px] shrink-0 rounded-full bg-gradient-to-b from-emerald-400 to-emerald-600" />
+            <span className="min-w-0 flex-1">
+                <span className="block truncate text-[17px] font-extrabold tracking-tight text-stone-900">{label}</span>
+                <span className="mt-1 block truncate text-[10px] font-bold uppercase tracking-[0.18em] text-stone-500">{meta}</span>
+            </span>
+            {badge && badge > 0 ? (
+                <span className="bg-stone-900 text-white text-[10px] font-extrabold min-w-[20px] h-5 px-1.5 flex items-center justify-center rounded-full">{badge}</span>
+            ) : null}
+            <AnimatedIcon name={icon} size={30} bounceOnMount={false}/>
+            <ArrowUpRight size={18} className="shrink-0 text-stone-700 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5"/>
         </motion.button>
     )
 }
@@ -1467,7 +1494,7 @@ function DocItem({ id, label, state, onClick, type, index }: any) {
     )
 }
 
-function NavItem({ active, onClick, icon, activeIcon, label, badge, id }: any) {
+function NavItem({ active, onClick, icon, activeIcon, label, badge, id, index }: any) {
     return (
         <motion.button
             id={id}
@@ -1492,6 +1519,9 @@ function NavItem({ active, onClick, icon, activeIcon, label, badge, id }: any) {
                 />
             )}
             <span className={`relative flex items-center gap-3 z-10`}>
+                {index && (
+                    <span className={`w-5 text-base font-black tabular-nums ${active ? 'text-stone-900' : 'text-stone-300'}`}>{index}</span>
+                )}
                 <motion.span
                     key={active ? 'active' : 'idle'}
                     initial={{ scale: 0.7, rotate: active ? -12 : 0, opacity: 0.6 }}
@@ -1502,7 +1532,7 @@ function NavItem({ active, onClick, icon, activeIcon, label, badge, id }: any) {
                 >
                     {active && activeIcon ? activeIcon : icon}
                 </motion.span>
-                <span>{label}</span>
+                <span className="text-left leading-tight">{label}</span>
             </span>
             {badge && (
                 <motion.span

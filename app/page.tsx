@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react'
 import { PumpkinIcon, useIsHalloween } from '@/components/Seasonal'
-import Image from 'next/image'
+import AppIcon from '@/components/AppIcon'
 import { useMemo, useState } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -564,16 +564,14 @@ function mapRegisterError(message: string | null) {
 
 function GifBadge({ src, alt, size = 72 }: { src: string; alt: string; size?: number }) {
   return (
-    <div className="relative shrink-0" style={{ width: size, height: size }}>
-      <Image
-        src={src}
-        alt={alt}
-        fill
-        unoptimized
-        className="object-contain"
-        style={{ mixBlendMode: 'multiply', filter: 'contrast(1.02) saturate(1.03)' }}
-      />
-    </div>
+    <span
+      role="img"
+      aria-label={alt}
+      className="inline-flex shrink-0 items-center justify-center text-blue-600"
+      style={{ width: size, height: size }}
+    >
+      <AppIcon name={src} size={Math.round(size * 0.6)} strokeWidth={1.8} />
+    </span>
   )
 }
 

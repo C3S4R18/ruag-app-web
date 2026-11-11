@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useRef, useMemo } from 'react'
+import { useEffect, useState, useRef, useMemo, type ReactNode } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -1018,7 +1018,7 @@ export default function AdminPage() {
 
   return (
     <AdminCollaboration currentUser={userId ? { id: userId, name: userName || 'Admin', photo: userPhoto } : null}>
-    <div className="flex h-screen bg-[#F8FAFC] font-sans text-slate-900 overflow-hidden">
+    <div className="flex h-dvh bg-slate-50 font-sans text-slate-900 overflow-hidden">
 
       {/* Filtro SVG chromakey — referenciado por todos los AdminGifIcon */}
       <AdminGifFilters />
@@ -1043,7 +1043,7 @@ export default function AdminPage() {
         }}
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
         data-collapsed={!isSidebarOpen && !isMobile ? 'true' : 'false'}
-        className={`group/aside bg-white text-slate-700 flex flex-col h-full shrink-0 z-50 shadow-xl shadow-slate-200/40 border-r border-slate-200 ${isMobile ? 'fixed left-0 top-0 bottom-0' : 'relative'} overflow-hidden whitespace-nowrap`}
+        className={`group/aside bg-white text-slate-700 flex flex-col h-full shrink-0 z-50 border-r border-slate-200 ${isMobile ? 'fixed left-0 top-0 bottom-0' : 'relative'} overflow-hidden whitespace-nowrap`}
       >
         <div className="h-20 flex items-center gap-3 px-4 border-b border-slate-300 bg-white group-data-[collapsed=true]/aside:justify-center group-data-[collapsed=true]/aside:px-0">
             <div className="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-900 shrink-0">
@@ -1263,49 +1263,45 @@ export default function AdminPage() {
                 {activeView === 'dashboard' && (
                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-8 pb-20 max-w-7xl mx-auto">
                         
-                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                            <button
+                        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                            <AdminActionTile
+                                icon={<AdminGifIcon name="centro-documental.gif" size={36} variant="bare" />}
+                                title="Centro documental"
+                                desc="Firmas y envíos de documentos"
                                 onClick={() => openDocumentCenter()}
-                                className="group flex flex-col items-center justify-center gap-2 px-3 py-4 bg-white text-slate-800 border border-slate-300 rounded-2xl text-[11px] font-bold shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:-translate-y-px hover:border-slate-300 hover:shadow-md transition-all min-h-[96px]"
-                            >
-                                <AdminGifIcon name="centro-documental.gif" size={40} variant="bare" />
-                                <span className="tracking-wide text-center leading-tight">CENTRO DOCUMENTAL</span>
-                            </button>
-
-                            <Link href="/admin/ssoma/induccion" className="group flex flex-col items-center justify-center gap-2 px-3 py-4 bg-white text-slate-800 border border-slate-300 rounded-2xl text-[11px] font-bold shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:-translate-y-px hover:border-slate-300 hover:shadow-md transition-all cursor-pointer min-h-[96px]">
-                                <AdminGifIcon name="gestion-ssoma.gif" size={40} variant="bare" />
-                                <span className="tracking-wide text-center leading-tight">GESTIÓN SSOMA</span>
-                            </Link>
-
-                            <Link href="/admin/ssoma/reporte-estadistico" className="group flex flex-col items-center justify-center gap-2 px-3 py-4 bg-white text-slate-800 border border-slate-300 rounded-2xl text-[11px] font-bold shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:-translate-y-px hover:border-slate-300 hover:shadow-md transition-all cursor-pointer min-h-[96px]">
-                                <AdminGifIcon name="reporte-estadistico.gif" size={40} variant="bare" />
-                                <span className="tracking-wide text-center leading-tight">REPORTE ESTADÍSTICO</span>
-                            </Link>
-
-                            <button
+                            />
+                            <AdminActionTile
+                                icon={<AdminGifIcon name="gestion-ssoma.gif" size={36} variant="bare" />}
+                                title="Gestión SSOMA"
+                                desc="Inducciones y seguimiento"
+                                href="/admin/ssoma/induccion"
+                            />
+                            <AdminActionTile
+                                icon={<AdminGifIcon name="reporte-estadistico.gif" size={36} variant="bare" />}
+                                title="Reporte estadístico"
+                                desc="Indicadores mensuales SSOMA"
+                                href="/admin/ssoma/reporte-estadistico"
+                            />
+                            <AdminActionTile
+                                icon={<AdminGifIcon names={["firma.gif", "biometria.gif"]} intervalMs={2600} size={36} variant="bare" />}
+                                title="Firmas y huellas"
+                                desc="Importación biométrica"
                                 onClick={() => setShowBioImport(true)}
-                                className="group flex flex-col items-center justify-center gap-2 px-3 py-4 bg-white text-slate-800 border border-slate-300 rounded-2xl text-[11px] font-bold shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:-translate-y-px hover:border-slate-300 hover:shadow-md transition-all min-h-[96px]"
-                            >
-                                <AdminGifIcon names={["firma.gif", "biometria.gif"]} intervalMs={2600} size={40} variant="bare" />
-                                <span className="tracking-wide text-center leading-tight">IMPORTAR FIRMAS/HUELLAS</span>
-                            </button>
-
-                            <button
+                            />
+                            <AdminActionTile
                                 id="tour-import"
+                                icon={<AdminGifIcon name="carga-masiva-data.gif" size={36} variant="bare" />}
+                                title="Carga masiva"
+                                desc="Importar trabajadores desde Excel"
                                 onClick={() => setShowImport(true)}
-                                className="group flex flex-col items-center justify-center gap-2 px-3 py-4 bg-white text-slate-800 border border-slate-300 rounded-2xl text-[11px] font-bold shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:-translate-y-px hover:border-slate-300 hover:shadow-md transition-all min-h-[96px]"
-                            >
-                                <AdminGifIcon name="carga-masiva-data.gif" size={40} variant="bare" />
-                                <span className="tracking-wide text-center leading-tight">CARGA MASIVA DATA</span>
-                            </button>
-
-                            <button
+                            />
+                            <AdminActionTile
+                                icon={<AdminGifIcon name="centro-de-costo.gif" size={36} variant="bare" />}
+                                title="Centro de costo"
+                                desc="Obras y centros de costo"
+                                active={showCostCenter}
                                 onClick={() => setShowCostCenter(!showCostCenter)}
-                                className={`group flex flex-col items-center justify-center gap-2 px-3 py-4 border rounded-2xl text-[11px] font-bold shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:-translate-y-px hover:shadow-md transition-all min-h-[96px] ${showCostCenter ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-800 border-slate-300 hover:border-slate-300'}`}
-                            >
-                                <AdminGifIcon name="centro-de-costo.gif" size={40} variant="bare" />
-                                <span className="tracking-wide text-center leading-tight">CENTRO DE COSTO</span>
-                            </button>
+                            />
                         </div>
 
                         <div className="hidden">
@@ -1379,7 +1375,7 @@ export default function AdminPage() {
                         </div>
 
                         {/* ... Tarjetas de Estadísticas ... */}
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6" id="tour-stats">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4" id="tour-stats">
                             <StatCard
                                 title="Total Personal"
                                 value={(workersData.length + adminsData.length).toString()}
@@ -1398,10 +1394,10 @@ export default function AdminPage() {
                                     delay={0.2}
                                 />
                             </div>
-                            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-md transition-all">
+                            <div className="bg-white p-5 rounded-2xl border border-slate-200 relative overflow-hidden group hover:border-slate-300 hover:shadow-lg hover:shadow-slate-900/5 transition-all">
                                 <div className="flex justify-between items-start">
                                     <div>
-                                        <p className="text-slate-500 text-sm font-medium mb-1">Estado del Sistema</p>
+                                        <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 mb-2">Estado del sistema</p>
                                         {isSystemOnline ? (
                                             <h3 className="text-2xl font-bold text-emerald-600 flex items-center gap-2">
                                                 <span className="w-3 h-3 bg-emerald-500 rounded-full animate-ping"></span>
@@ -1424,10 +1420,10 @@ export default function AdminPage() {
                             </div>
                         </div>
 
-                        <div className="bg-white rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/40 overflow-hidden">
+                        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                             <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white/50">
                                 <h3 className="font-bold text-slate-800 text-lg flex items-center gap-3">
-                                    <LayoutGrid size={20} className="text-blue-500"/> 
+                                    <LayoutGrid size={20} className="text-emerald-600"/> 
                                     Registro de Trabajadores
                                 </h3>
                             </div>
@@ -1461,7 +1457,7 @@ export default function AdminPage() {
                                     </p>
                                 </div>
                             </div>
-                            <div className="bg-white rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/40 overflow-hidden">
+                            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                                 <div className="p-6 border-b border-slate-100 flex items-center gap-3 bg-white/50">
                                     <h3 className="font-bold text-slate-800 text-lg flex items-center gap-3">
                                         <Briefcase size={20} className={vista.acento}/> Registro de {vista.boton}
@@ -2225,15 +2221,11 @@ function DocumentCenterModal({ mode, workers, selectedWorker, selectedDocs, proc
 
 /** Insignia de empresa para el sidebar — mismo tamaño que los AdminGifIcon (30px). */
 function TipoPersonalBadge({ tipo }: { tipo: 'arug' | 'cg' }) {
-    const theme = tipo === 'arug'
-        ? 'from-cyan-500 to-teal-600 shadow-cyan-600/30'
-        : 'from-fuchsia-500 to-purple-600 shadow-fuchsia-600/30'
-
     return (
         <motion.span
             whileHover={{ rotate: -4 }}
             transition={{ type: 'spring', stiffness: 400, damping: 14 }}
-            className={`flex h-[30px] w-[30px] items-center justify-center rounded-xl bg-gradient-to-br ${theme} text-white text-[10px] font-black tracking-tight shadow-md`}
+            className="flex h-[30px] w-[30px] items-center justify-center rounded-lg border border-current text-[10px] font-black tracking-tight"
         >
             {tipo === 'arug' ? 'AR' : 'CG'}
         </motion.span>
@@ -2265,7 +2257,7 @@ function SidebarItem({ active, onClick, icon, label, tag }: any) {
             <motion.span
                 whileHover={{ y: -1 }}
                 whileTap={{ scale: 0.96 }}
-                className="relative z-10 flex items-center justify-center shrink-0"
+                className={`relative z-10 flex items-center justify-center shrink-0 transition-colors ${active ? 'text-emerald-600' : 'text-slate-400 group-hover:text-slate-700'}`}
             >
                 {icon}
             </motion.span>
@@ -2298,8 +2290,47 @@ function SidebarItem({ active, onClick, icon, label, tag }: any) {
         </button>
     )
 }
-function StatCard({title, value, desc, icon, bg, delay}: any) {
-    return <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay }} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-lg hover:border-slate-300 transition-all"><div className="flex justify-between items-start"><div><p className="text-slate-500 text-sm font-medium mb-1">{title}</p><h3 className="text-3xl font-bold text-slate-800 tracking-tight">{value}</h3></div><div className={`p-2 rounded-2xl ${bg ?? 'bg-slate-50 border border-slate-200'} flex items-center justify-center`}>{icon}</div></div><div className="mt-4 pt-4 border-t border-slate-100"><div className="text-xs font-bold text-slate-400 flex items-center gap-1.5"><TrendingUp size={14} className="text-emerald-500"/> <span className="text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">{desc}</span></div></div></motion.div>
+function StatCard({ title, value, desc, icon, delay }: any) {
+    return (
+        <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay }}
+            className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 transition-all hover:border-slate-300 hover:shadow-lg hover:shadow-slate-900/5"
+        >
+            <div className="flex items-start justify-between gap-4">
+                <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">{title}</p>
+                    <p className="mt-2 text-4xl font-bold tracking-tight text-slate-900 tabular-nums">{value}</p>
+                </div>
+                <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100">{icon}</div>
+            </div>
+            <div className="mt-4 flex items-center gap-1.5 border-t border-slate-100 pt-3 text-xs font-medium text-slate-500">
+                <TrendingUp size={14} className="text-emerald-600" /> {desc}
+            </div>
+        </motion.div>
+    )
+}
+
+function AdminActionTile({ icon, title, desc, onClick, href, active, id }: {
+    icon: ReactNode, title: string, desc: string, onClick?: () => void, href?: string, active?: boolean, id?: string
+}) {
+    const cls = `group flex w-full items-center gap-3.5 rounded-2xl border bg-white p-4 text-left transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-slate-900/5 ${
+        active ? 'border-emerald-500 ring-4 ring-emerald-500/10' : 'border-slate-200 hover:border-emerald-300'
+    }`
+    const inner = (
+        <>
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100 transition-colors group-hover:bg-emerald-100">{icon}</span>
+            <span className="min-w-0 flex-1">
+                <span className="block text-sm font-bold text-slate-900">{title}</span>
+                <span className="mt-0.5 block truncate text-xs text-slate-500">{desc}</span>
+            </span>
+            <ChevronRight size={16} className="shrink-0 text-slate-300 transition-transform group-hover:translate-x-0.5 group-hover:text-emerald-600" />
+        </>
+    )
+    return href
+        ? <Link id={id} href={href} className={cls}>{inner}</Link>
+        : <button id={id} type="button" onClick={onClick} className={cls}>{inner}</button>
 }
 
 // --- NUEVO COMPONENTE: MODAL DETALLE DE OBRA ---

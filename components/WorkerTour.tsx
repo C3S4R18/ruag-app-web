@@ -105,7 +105,7 @@ export default function WorkerTour({ changeTab, setSidebar }: WorkerTourProps) {
       element: '#wt-ficha',
       popover: {
         title: 'Aquí está tu Ficha',
-        description: 'Tu ficha personal está dentro del Inicio. Aquí ves y actualizas tus datos: nombre, DNI, obra y cargo. Mantenla siempre al día.',
+        description: 'Toca Actualizar Ficha para ver y actualizar tus datos: nombre, DNI, obra y cargo. Mantenla siempre al día.',
         side: 'top' as Side,
         align: 'center' as Alignment,
         ...(mobile ? actThenNext(() => setSidebar(true), 500) : {})
